@@ -21,7 +21,8 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 ```text
 artifacts-monorepo/
 ├── artifacts/              # Deployable applications
-│   └── api-server/         # Express API server
+│   ├── api-server/         # Express API server
+│   └── orblitz/            # Orblitz 3D browser game
 ├── lib/                    # Shared libraries
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
@@ -34,6 +35,41 @@ artifacts-monorepo/
 ├── tsconfig.json           # Root TS project references
 └── package.json            # Root package with hoisted devDeps
 ```
+
+## Orblitz Game (`artifacts/orblitz`)
+
+3D browser game built with React Three Fiber (R3F) v9, Three.js, Tailwind v4.
+
+### Key game files:
+- `src/App.tsx` — Main app, manages game phase state
+- `src/components/game/GameScene.tsx` — Three.js canvas/scene setup
+- `src/components/game/GameLogic.tsx` — Core game loop, spawning, collision
+- `src/components/game/PlayerOrb.tsx` — Player orb controls and physics
+- `src/components/game/Background.tsx` — 3D environment/backgrounds
+- `src/components/game/Boss.tsx` — Boss enemies
+- `src/components/game/DarkOrbs.tsx` — Enemy orbs
+- `src/components/game/Projectiles.tsx` — Projectile system
+- `src/components/game/PowerUps.tsx` — Power-up items
+- `src/components/game/SoundManager.tsx` — Audio management
+- `src/lib/stores/useMagicOrb.tsx` — Main game state store (Zustand)
+- `src/lib/stores/useShop.tsx` — Shop/currency state (Zustand)
+- `src/lib/stores/useAudio.tsx` — Audio state (Zustand)
+- `src/lib/audio/SynthSounds.ts` — Synthesized sound system
+
+### Dependencies:
+- `@react-three/fiber` v9 (React 19 compatible)
+- `@react-three/drei` v10 (Three.js helpers)
+- `@react-three/postprocessing` v3 (visual effects)
+- `three` v0.170 (WebGL renderer)
+- `zustand` v5 (state management)
+- `framer-motion` (UI animations)
+- `howler` (audio)
+- `gsap` (animations)
+
+### Public assets:
+- `public/textures/` — Game textures (asphalt, grass, sand, sky, wood)
+- `public/sounds/` — Audio files (background music, sound effects)
+- `public/geometries/` — 3D geometry files (heart.gltf)
 
 ## TypeScript & Composite Projects
 
