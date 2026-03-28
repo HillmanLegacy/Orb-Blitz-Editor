@@ -1,9 +1,10 @@
-import { useRef, useMemo, memo } from "react";
+import { useRef, useMemo, memo, Suspense } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop, OrbSkin, RingStyle } from "@/lib/stores/useShop";
 import { ToonOrbLayer, CelOutline, RayTracedGlow, AmbientOcclusionLayer, GlobalIlluminationBounce, ScreenSpaceReflection, CausticPattern } from "./ToonShaders";
+import { PlayerModel } from "./PlayerModel";
 
 const sharedCircleGeo = new THREE.CircleGeometry(1, 32);
 const sharedCircleGeoLow = new THREE.CircleGeometry(1, 16);
@@ -708,83 +709,30 @@ export function PlayerOrb() {
         </mesh>
       ))}
       
-      {/* CELL SHADING - Black cel outline */}
-      <CelOutline scale={scale} color="#000000" width={0.08} />
-      
-      {/* CELL SHADING - Secondary outline for depth */}
-      <CelOutline scale={scale * 0.98} color="#220033" width={0.04} />
-      
-      {/* Rim light effect - enhanced for cel look */}
-      <mesh scale={scale * 1.15}>
-        <ringGeometry args={[0.88, 1, 48]} />
-        <meshBasicMaterial color={emissiveColor} transparent opacity={0.7 * dimFactor * phaseOpacity} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} />
-      </mesh>
-      
-      {/* Middle glow layer - enhanced */}
+      {/* 3D Player Character Model - rotates on X and Y axes */}
+      <Suspense fallback={
+        <mesh scale={scale * 0.92}>
+          <circleGeometry args={[1, 48]} />
+          <meshBasicMaterial color={coreColor} transparent opacity={0.9 * phaseOpacity} />
+        </mesh>
+      }>
+        <PlayerModel scale={scale} rotationSpeedX={0.8} rotationSpeedY={1.2} />
+      </Suspense>
+
+      {/* Middle glow layer - kept for atmosphere */}
       <mesh ref={glowRef} scale={scale * 1.5}>
         <circleGeometry args={[1, 32]} />
-        <meshBasicMaterial color={glowColor} transparent opacity={0.5 * dimFactor * phaseOpacity} blending={THREE.AdditiveBlending} />
+        <meshBasicMaterial color={glowColor} transparent opacity={0.3 * dimFactor * phaseOpacity} blending={THREE.AdditiveBlending} />
       </mesh>
-      
-      {/* Subsurface scattering simulation */}
-      <mesh scale={scale * 1.1} position={[0, 0, 0.01]}>
-        <circleGeometry args={[1, 32]} />
-        <meshBasicMaterial color={emissiveColor} transparent opacity={0.25 * dimFactor * phaseOpacity} blending={THREE.AdditiveBlending} />
+
+      {/* Hidden refs for compatibility (unused but kept to avoid null errors in useFrame) */}
+      <mesh ref={coreRef} visible={false}>
+        <circleGeometry args={[1, 4]} />
+        <meshBasicMaterial />
       </mesh>
-      
-      {/* CELL SHADING - Main toon-shaded core */}
-      <ToonOrbLayer 
-        scale={scale * 0.95} 
-        color={coreColor} 
-        steps={5} 
-        rimColor={glowColor} 
-        rimPower={2.0} 
-      />
-      
-      {/* Main core base - for fallback/blending */}
-      <mesh ref={coreRef} scale={scale * 0.92} position={[0, 0, 0.02]}>
-        <circleGeometry args={[1, 48]} />
-        <meshBasicMaterial
-          color={coreColor}
-          transparent={(skinColors as any).transparent || magiOrb2Active}
-          opacity={((skinColors as any).transparent ? 0.85 : 0.9) * phaseOpacity}
-        />
-      </mesh>
-      
-      {/* Inner glow gradient layer */}
-      <mesh scale={scale * 0.7} position={[0, 0, 0.025]}>
-        <circleGeometry args={[1, 24]} />
-        <meshBasicMaterial color={accentColor} transparent opacity={0.35 * dimFactor} blending={THREE.AdditiveBlending} />
-      </mesh>
-      
-      {/* Inner bright core - enhanced */}
-      <mesh ref={innerCoreRef} scale={scale * 0.48} position={[0, 0, 0.03]}>
-        <circleGeometry args={[1, 24]} />
-        <meshBasicMaterial color={accentColor} transparent opacity={0.85 * dimFactor} />
-      </mesh>
-      
-      {/* Hot core center */}
-      <mesh scale={scale * 0.25} position={[0, 0, 0.035]}>
-        <circleGeometry args={[1, 16]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.7 * dimFactor} blending={THREE.AdditiveBlending} />
-      </mesh>
-      
-      {/* Specular highlight - main (larger, softer) */}
-      <mesh scale={scale * 0.38} position={[-scale * 0.2, scale * 0.2, 0.04]}>
-        <circleGeometry args={[1, 16]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.8 * dimFactor} />
-      </mesh>
-      
-      {/* Specular highlight - secondary */}
-      <mesh scale={scale * 0.18} position={[-scale * 0.32, scale * 0.08, 0.04]}>
-        <circleGeometry args={[1, 12]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.65 * dimFactor} />
-      </mesh>
-      
-      {/* Specular highlight - bottom accent */}
-      <mesh scale={scale * 0.14} position={[scale * 0.12, -scale * 0.25, 0.04]}>
-        <circleGeometry args={[1, 10]} />
-        <meshBasicMaterial color={accentColor} transparent opacity={0.55 * dimFactor} blending={THREE.AdditiveBlending} />
+      <mesh ref={innerCoreRef} visible={false}>
+        <circleGeometry args={[1, 4]} />
+        <meshBasicMaterial />
       </mesh>
       
       {/* Chromatic aberration effect - subtle color fringing */}

@@ -33,5 +33,5 @@ export default defineConfig({
     port: parseInt(process.env.PORT || "3000"),
     allowedHosts: true,
   },
-  assetsInclude: ["**/*.gltf", "**/*.glb", "**/*.mp3", "**/*.ogg", "**/*.wav"],
+  assetsInclude: ["**/*.gltf", "**/*.glb", "**/*.fbx", "**/*.mp3", "**/*.ogg", "**/*.wav"],
 });
