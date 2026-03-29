@@ -134,8 +134,7 @@ export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, se
 
   // ── Geometries & materials ────────────────────────────────────────────────
 
-  // Very low-poly sphere for each speck — 3-sided, 2 stacks (8 faces)
-  const speckGeo  = useMemo(() => new THREE.TetrahedronGeometry(1, 0), []);
+  const speckGeo  = useMemo(() => new THREE.SphereGeometry(1, 5, 4), []);
   const streamGeo = useMemo(() => new THREE.CylinderGeometry(0.04, 0.005, 1, 3, 1), []);
 
   const speckMat  = useMemo(() => new THREE.MeshBasicMaterial({ color,     transparent: true, depthWrite: false }), [color]);
