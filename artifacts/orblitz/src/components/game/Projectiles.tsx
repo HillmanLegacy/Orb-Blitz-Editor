@@ -639,8 +639,6 @@ export function Projectiles() {
             maxTimer: 0.3,
             seed: Math.random(),
           });
-          addParticles(createExplosionParticles([px, py, pz], [skinColors.projectile, skinColors.glow, "#ffffff"]));
-          
           if (proj.volleyId) {
             const remaining = (volleyRemainingCounts.current.get(proj.volleyId) || 1) - 1;
             volleyRemainingCounts.current.set(proj.volleyId, remaining);
@@ -719,8 +717,7 @@ export function Projectiles() {
             seed: Math.random(),
           });
           
-          const bossExplosionColors = [skinColors.projectile, skinColors.glow, skinColors.emissive, "#ffffff", "#ffccff"];
-          addParticles(createExplosionParticles([bx, by, bz || 0], bossExplosionColors));
+          
         }
       } else if (boss && boss.shieldActive) {
         const [bx, by, bz] = boss.position;
@@ -773,9 +770,6 @@ export function Projectiles() {
             maxTimer: 0.4,
             seed: Math.random(),
           });
-          
-          const explosionColors = [skinColors.projectile, skinColors.glow, skinColors.emissive, "#ffffff", skinColors.projectile];
-          addParticles(createExplosionParticles([ox, oy, oz], explosionColors));
           
           if (proj.volleyId) {
             volleyHits.current.add(proj.volleyId);
