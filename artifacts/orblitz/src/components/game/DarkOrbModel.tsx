@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useMemo } from "react";
 import { useFrame, useLoader } from "@react-three/fiber";
 import * as THREE from "three";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
@@ -8,31 +8,74 @@ interface DarkOrbModelProps {
   opacity?: number;
 }
 
-const _shadowDummy = new THREE.Object3D();
+const TENDRIL_COUNT    = 8;
+const TENDRIL_SEGMENTS = 7;
+const TOTAL_TENDRIL    = TENDRIL_COUNT * TENDRIL_SEGMENTS;
+
+interface TendrilData {
+  dir:    THREE.Vector3; // outward direction
+  perp1:  THREE.Vector3; // primary wave axis
+  perp2:  THREE.Vector3; // secondary wave axis
+  speed:  number;        // wave frequency
+  phase:  number;        // phase offset
+  length: number;        // reach
+  waveAmp: number;       // lateral deflection amplitude
+}
+
+const _dummy = new THREE.Object3D();
 
 export function DarkOrbModel({ frozen = false, opacity = 1 }: DarkOrbModelProps) {
-  const bodyRef    = useRef<THREE.Group>(null);
-  const innerRef   = useRef<THREE.Mesh>(null);
-  const midRef     = useRef<THREE.Mesh>(null);
-  const outerRef   = useRef<THREE.Mesh>(null);
-  const ring1Ref   = useRef<THREE.Mesh>(null);
-  const ring2Ref   = useRef<THREE.Mesh>(null);
-  const ring3Ref   = useRef<THREE.Mesh>(null);
+  const bodyRef      = useRef<THREE.Group>(null);
+  const innerRef     = useRef<THREE.Mesh>(null);
+  const midRef       = useRef<THREE.Mesh>(null);
+  const outerRef     = useRef<THREE.Mesh>(null);
+  const tendrilRef   = useRef<THREE.InstancedMesh>(null);
   const shadowPartRef = useRef<THREE.InstancedMesh>(null);
   const materialsRef = useRef<THREE.MeshBasicMaterial[]>([]);
 
   const fbx = useLoader(FBXLoader, "/models/player.fbx");
 
-  const bodyColor  = frozen ? "#0a1a2a" : "#080010";
-  const glowInner  = frozen ? "#224466" : "#3a0050";
-  const glowMid    = frozen ? "#1a3355" : "#280038";
-  const glowOuter  = frozen ? "#112244" : "#180025";
-  const ringColor  = frozen ? "#3a6688" : "#660077";
+  const bodyColor = frozen ? "#0a1a2a" : "#080010";
+  const glowInner = frozen ? "#224466" : "#3a0050";
+  const glowMid   = frozen ? "#1a3355" : "#280038";
+  const glowOuter = frozen ? "#112244" : "#180025";
+  const tendrilColor = frozen ? "#4488aa" : "#770088";
 
-  // Mount / update the cloned FBX body
+  // Pre-compute tendril geometry (directions, wave axes, params)
+  const tendrils = useMemo<TendrilData[]>(() => {
+    const list: TendrilData[] = [];
+    for (let i = 0; i < TENDRIL_COUNT; i++) {
+      // Distribute outward directions roughly evenly across the sphere
+      const phi   = Math.acos(1 - 2 * (i + 0.5) / TENDRIL_COUNT);
+      const theta = Math.PI * (1 + Math.sqrt(5)) * i; // golden angle
+      const dir = new THREE.Vector3(
+        Math.sin(phi) * Math.cos(theta),
+        Math.cos(phi),
+        Math.sin(phi) * Math.sin(theta),
+      ).normalize();
+
+      // Two vectors perpendicular to dir — for 2D waving
+      let ref = new THREE.Vector3(0, 1, 0);
+      if (Math.abs(dir.dot(ref)) > 0.9) ref.set(1, 0, 0);
+      const perp1 = new THREE.Vector3().crossVectors(dir, ref).normalize();
+      const perp2 = new THREE.Vector3().crossVectors(dir, perp1).normalize();
+
+      list.push({
+        dir,
+        perp1,
+        perp2,
+        speed:   0.9 + (i % 3) * 0.4,
+        phase:   (i / TENDRIL_COUNT) * Math.PI * 2,
+        length:  1.1 + (i % 4) * 0.15,
+        waveAmp: 0.18 + (i % 5) * 0.04,
+      });
+    }
+    return list;
+  }, []);
+
+  // Clone + apply dark material to the FBX body
   useEffect(() => {
     if (!bodyRef.current) return;
-
     const cloned = fbx.clone(true);
     materialsRef.current = [];
 
@@ -40,7 +83,6 @@ export function DarkOrbModel({ frozen = false, opacity = 1 }: DarkOrbModelProps)
     const sizeVec = new THREE.Vector3();
     box.getSize(sizeVec);
     const maxDim = Math.max(sizeVec.x, sizeVec.y, sizeVec.z);
-    // Fit model to radius=1 in group-local space (parent group handles orb.size scaling)
     const normScale = maxDim > 0 ? 2 / maxDim : 1;
     cloned.scale.setScalar(normScale);
 
@@ -51,9 +93,7 @@ export function DarkOrbModel({ frozen = false, opacity = 1 }: DarkOrbModelProps)
     cloned.traverse((child: THREE.Object3D) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
-        const mat = new THREE.MeshBasicMaterial({
-          color: new THREE.Color(bodyColor),
-        });
+        const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(bodyColor) });
         mesh.material = mat;
         materialsRef.current.push(mat);
       }
@@ -63,56 +103,51 @@ export function DarkOrbModel({ frozen = false, opacity = 1 }: DarkOrbModelProps)
       bodyRef.current.remove(bodyRef.current.children[0]);
     }
     bodyRef.current.add(cloned);
-
-    return () => {
-      materialsRef.current.forEach((m) => m.dispose());
-    };
+    return () => { materialsRef.current.forEach((m) => m.dispose()); };
   }, [fbx, bodyColor]);
 
-  // Initialize shadow particle positions (24 particles in 3D orbits)
-  useEffect(() => {
-    if (!shadowPartRef.current) return;
-    const mesh = shadowPartRef.current;
-    const color = new THREE.Color(ringColor);
-    for (let i = 0; i < 24; i++) {
-      mesh.setColorAt(i, color);
-    }
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }, [ringColor]);
-
   useFrame((state, delta) => {
-    const t = state.clock.getElapsedTime();
+    const t     = state.clock.getElapsedTime();
     const pulse = (Math.sin(t * 2.6) + 1) * 0.5;
 
-    // Rotate model — slightly slower than player for menacing feel
+    // Rotate model
     if (bodyRef.current) {
       bodyRef.current.rotation.x += delta * 0.55;
       bodyRef.current.rotation.y += delta * 0.85;
     }
 
-    // Pulsate glow spheres
-    if (innerRef.current) {
+    // Pulse glow spheres
+    if (innerRef.current)
       (innerRef.current.material as THREE.MeshBasicMaterial).opacity = (0.28 + pulse * 0.20) * opacity;
-    }
-    if (midRef.current) {
+    if (midRef.current)
       (midRef.current.material as THREE.MeshBasicMaterial).opacity = (0.14 + pulse * 0.10) * opacity;
-    }
-    if (outerRef.current) {
+    if (outerRef.current)
       (outerRef.current.material as THREE.MeshBasicMaterial).opacity = (0.06 + pulse * 0.05) * opacity;
-    }
 
-    // Rotate shadow rings independently
-    if (ring1Ref.current) {
-      ring1Ref.current.rotation.z += delta * 1.8;
-      ring1Ref.current.rotation.x += delta * 0.4;
-    }
-    if (ring2Ref.current) {
-      ring2Ref.current.rotation.z -= delta * 1.3;
-      ring2Ref.current.rotation.y += delta * 0.6;
-    }
-    if (ring3Ref.current) {
-      ring3Ref.current.rotation.x -= delta * 0.9;
-      ring3Ref.current.rotation.z += delta * 0.7;
+    // Animate tendrils — waving in 3D space
+    if (tendrilRef.current) {
+      for (let ti = 0; ti < TENDRIL_COUNT; ti++) {
+        const td = tendrils[ti];
+        for (let si = 0; si < TENDRIL_SEGMENTS; si++) {
+          const param = (si + 1) / TENDRIL_SEGMENTS;           // 0..1 along tendril
+          const wavePhase = t * td.speed + td.phase + si * 0.5;
+          const w1 = Math.sin(wavePhase)              * td.waveAmp * param;
+          const w2 = Math.cos(wavePhase * 0.65 + 1.2) * td.waveAmp * param * 0.55;
+
+          // 3D position: outward + 2D lateral waving in orbital plane
+          _dummy.position
+            .copy(td.dir).multiplyScalar(param * td.length)
+            .addScaledVector(td.perp1, w1)
+            .addScaledVector(td.perp2, w2);
+
+          // Taper: thick at base (~0.065), thin at tip (~0.012)
+          const segSize = 0.065 * (1 - param * 0.82);
+          _dummy.scale.setScalar(segSize);
+          _dummy.updateMatrix();
+          tendrilRef.current.setMatrixAt(ti * TENDRIL_SEGMENTS + si, _dummy.matrix);
+        }
+      }
+      tendrilRef.current.instanceMatrix.needsUpdate = true;
     }
 
     // Animate 3D shadow particles
@@ -126,63 +161,51 @@ export function DarkOrbModel({ frozen = false, opacity = 1 }: DarkOrbModelProps)
         const y = r * Math.sin(angle);
         const z = r * Math.cos(angle) * Math.sin(tiltX) + Math.sin(tiltZ) * 0.3;
         const size = 0.03 + Math.sin(t * 3 + i) * 0.015;
-        _shadowDummy.position.set(x, y, z);
-        _shadowDummy.scale.setScalar(size);
-        _shadowDummy.updateMatrix();
-        shadowPartRef.current.setMatrixAt(i, _shadowDummy.matrix);
+        _dummy.position.set(x, y, z);
+        _dummy.scale.setScalar(size);
+        _dummy.updateMatrix();
+        shadowPartRef.current.setMatrixAt(i, _dummy.matrix);
       }
       shadowPartRef.current.instanceMatrix.needsUpdate = true;
     }
   });
 
+  const tendrilGeo = useMemo(() => new THREE.SphereGeometry(1, 5, 4), []);
+  const tendrilMat = useMemo(
+    () => new THREE.MeshBasicMaterial({ color: tendrilColor, transparent: true, opacity: 0.88, depthWrite: false }),
+    [tendrilColor],
+  );
+
+  const partGeo = useMemo(() => new THREE.SphereGeometry(1, 4, 3), []);
+  const partMat = useMemo(
+    () => new THREE.MeshBasicMaterial({ color: tendrilColor }),
+    [tendrilColor],
+  );
+
   return (
     <>
-      {/* FBX dark orb body — rotates independently */}
+      {/* FBX dark orb body */}
       <group ref={bodyRef} />
 
-      {/* 3D shadow glow — inner tight halo */}
+      {/* Volumetric shadow glow — 3 concentric spheres */}
       <mesh ref={innerRef} scale={1.15}>
         <sphereGeometry args={[1, 16, 12]} />
         <meshBasicMaterial color={glowInner} transparent opacity={0.35} depthWrite={false} />
       </mesh>
-
-      {/* 3D shadow glow — mid corona */}
       <mesh ref={midRef} scale={1.5}>
         <sphereGeometry args={[1, 14, 10]} />
         <meshBasicMaterial color={glowMid} transparent opacity={0.18} depthWrite={false} />
       </mesh>
-
-      {/* 3D shadow glow — far bloom */}
       <mesh ref={outerRef} scale={2.0}>
         <sphereGeometry args={[1, 10, 8]} />
         <meshBasicMaterial color={glowOuter} transparent opacity={0.08} depthWrite={false} />
       </mesh>
 
-      {/* Rotating 3D shadow rings */}
-      <mesh ref={ring1Ref} rotation={[Math.PI / 4, 0, 0]}>
-        <torusGeometry args={[1.25, 0.045, 8, 40]} />
-        <meshBasicMaterial color={ringColor} transparent opacity={0.45} depthWrite={false} />
-      </mesh>
-
-      <mesh ref={ring2Ref} rotation={[Math.PI / 3, Math.PI / 5, 0]}>
-        <torusGeometry args={[1.45, 0.03, 6, 32]} />
-        <meshBasicMaterial color={ringColor} transparent opacity={0.30} depthWrite={false} />
-      </mesh>
-
-      <mesh ref={ring3Ref} rotation={[Math.PI / 6, -Math.PI / 4, Math.PI / 3]}>
-        <torusGeometry args={[1.6, 0.022, 6, 28]} />
-        <meshBasicMaterial color={glowInner} transparent opacity={0.20} depthWrite={false} />
-      </mesh>
+      {/* 3D animated shadow tendrils (8 × 7 segments, one draw call) */}
+      <instancedMesh ref={tendrilRef} args={[tendrilGeo, tendrilMat, TOTAL_TENDRIL]} />
 
       {/* 3D swirling shadow particles */}
-      <instancedMesh
-        ref={shadowPartRef}
-        args={[
-          new THREE.SphereGeometry(1, 4, 3),
-          new THREE.MeshBasicMaterial({ color: ringColor }),
-          24,
-        ]}
-      />
+      <instancedMesh ref={shadowPartRef} args={[partGeo, partMat, 24]} />
     </>
   );
 }
