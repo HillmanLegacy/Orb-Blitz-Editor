@@ -47,7 +47,7 @@ export function PlayerParticles({
       const perp2 = new THREE.Vector3().crossVectors(axis, perp1).normalize();
 
       list.push({
-        radius:     scale * (0.75 + Math.random() * 0.65),
+        radius:     scale * (1.5 + Math.random() * 2.0),
         speed:      (0.55 + Math.random() * 1.35) * (Math.random() < 0.5 ? 1 : -1),
         phase:      Math.random() * Math.PI * 2,
         perp1,
