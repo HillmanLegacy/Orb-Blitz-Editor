@@ -334,6 +334,63 @@ function EnergyWaves({ scale, glowColor, dimFactor }: { scale: number; glowColor
   );
 }
 
+function PlayerGlow({
+  scale,
+  coreColor,
+  glowColor,
+  isRainbow = false,
+}: {
+  scale: number;
+  coreColor: string;
+  glowColor: string;
+  isRainbow?: boolean;
+}) {
+  const innerRef = useRef<THREE.Mesh>(null);
+  const midRef   = useRef<THREE.Mesh>(null);
+  const outerRef = useRef<THREE.Mesh>(null);
+
+  useFrame((state) => {
+    const t = state.clock.getElapsedTime();
+    const pulse = (Math.sin(t * 2.4) + 1) * 0.5; // 0..1
+
+    if (innerRef.current) {
+      const mat = innerRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = 0.16 + pulse * 0.14;
+      if (isRainbow) mat.color.setHSL(t * 0.15 % 1, 1, 0.6);
+    }
+    if (midRef.current) {
+      const mat = midRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = 0.08 + pulse * 0.07;
+      if (isRainbow) mat.color.setHSL((t * 0.15 + 0.33) % 1, 1, 0.6);
+    }
+    if (outerRef.current) {
+      const mat = outerRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = 0.04 + pulse * 0.03;
+      if (isRainbow) mat.color.setHSL((t * 0.15 + 0.66) % 1, 1, 0.6);
+    }
+  });
+
+  return (
+    <>
+      {/* Inner glow — tight halo, core colour */}
+      <mesh ref={innerRef} scale={scale * 1.15}>
+        <sphereGeometry args={[1, 16, 12]} />
+        <meshBasicMaterial color={coreColor} transparent opacity={0.22} depthWrite={false} />
+      </mesh>
+      {/* Mid glow — wider, glow colour */}
+      <mesh ref={midRef} scale={scale * 1.45}>
+        <sphereGeometry args={[1, 14, 10]} />
+        <meshBasicMaterial color={glowColor} transparent opacity={0.11} depthWrite={false} />
+      </mesh>
+      {/* Outer glow — soft far corona */}
+      <mesh ref={outerRef} scale={scale * 1.85}>
+        <sphereGeometry args={[1, 10, 8]} />
+        <meshBasicMaterial color={glowColor} transparent opacity={0.05} depthWrite={false} />
+      </mesh>
+    </>
+  );
+}
+
 export function PlayerOrb() {
   const coreRef = useRef<THREE.Mesh>(null);
   const innerCoreRef = useRef<THREE.Mesh>(null);
@@ -656,10 +713,18 @@ export function PlayerOrb() {
         />
       </Suspense>
 
-      {/* Swirling 3-D particles — colour-matched to the equipped skin */}
+      {/* 3-D glow — layered transparent spheres, skin colour */}
+      <PlayerGlow
+        scale={scale}
+        coreColor={coreColor}
+        glowColor={glowColor}
+        isRainbow={(skinColors as any).isRainbow === true}
+      />
+
+      {/* Swirling 3-D particles — always match the orb core colour */}
       <PlayerParticles
         scale={scale}
-        particleColors={skinColors.particles}
+        particleColors={[coreColor]}
         isRainbow={(skinColors as any).isRainbow === true}
       />
 
