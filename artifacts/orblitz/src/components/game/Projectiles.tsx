@@ -6,6 +6,7 @@ import { useAudio } from "@/lib/stores/useAudio";
 import { useShop, TrailEffect } from "@/lib/stores/useShop";
 import { getSkinColors } from "./PlayerOrb";
 import { CelOutline, RayTracedGlow } from "./ToonShaders";
+import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 
 const sharedCircleGeo = new THREE.CircleGeometry(1, 32);
 const sharedPlaneGeo = new THREE.PlaneGeometry(1, 1);
@@ -447,160 +448,21 @@ function ProjectileMesh({ projectile, time, trailType, skinColor }: { projectile
   );
 }
 
-function ImpactEffectMesh({ effect, time, skinColors }: { 
-  effect: ImpactEffect; 
-  time: number; 
-  skinColors: { particles: string[]; glow: string; core: string; emissive: string } 
+function ImpactEffectMesh({ effect, skinColors }: {
+  effect: ImpactEffect;
+  time: number;
+  skinColors: { particles: string[]; glow: string; core: string; emissive: string };
 }) {
   const progress = 1 - effect.timer / effect.maxTimer;
-  const easeProgress = 1 - Math.pow(1 - progress, 2.5);
-  const impactColors = skinColors.particles;
-  const ringColor1 = skinColors.glow;
-  const ringColor2 = skinColors.emissive;
-  const seed = effect.seed;
-  
-  const variation = useMemo(() => {
-    const mainParticleCount = 10 + Math.floor(seed * 5);
-    const sparkCount = 6 + Math.floor(seed * 5);
-    const innerCount = 4 + Math.floor(seed * 4);
-    const rotationOffset = seed * Math.PI * 2;
-    const ringSpeedMult = 0.85 + seed * 0.3;
-    const flashScale = 0.9 + seed * 0.2;
-    
-    return {
-      mainParticleCount,
-      sparkCount,
-      innerCount,
-      rotationOffset,
-      ringSpeedMult,
-      flashScale,
-      mainParticles: Array.from({ length: mainParticleCount }, (_, i) => ({
-        angleOffset: (((seed * 100 + i * 37) % 1) - 0.5) * 0.35,
-        distMult: 0.8 + ((seed * 200 + i * 53) % 1) * 0.4,
-        sizeMult: 0.7 + ((seed * 300 + i * 71) % 1) * 0.6,
-        delay: ((seed * 400 + i * 91) % 1) * 0.1,
-      })),
-      sparks: Array.from({ length: sparkCount }, (_, i) => ({
-        angleOffset: (((seed * 500 + i * 113) % 1) - 0.5) * 0.5,
-        distMult: 0.7 + ((seed * 600 + i * 131) % 1) * 0.6,
-        sizeMult: 0.6 + ((seed * 700 + i * 149) % 1) * 0.8,
-      })),
-      innerFlash: Array.from({ length: innerCount }, (_, i) => ({
-        angleOffset: ((seed * 800 + i * 167) % 1) * Math.PI * 2,
-        distMult: 0.8 + ((seed * 900 + i * 181) % 1) * 0.4,
-      })),
-    };
-  }, [seed]);
-  
   return (
-    <group position={effect.position} rotation={[0, 0, variation.rotationOffset]}>
-      {/* HDR Bloom layer - ultra-wide soft glow */}
-      <mesh scale={(1.2 + easeProgress * 4) * variation.flashScale}>
-        <circleGeometry args={[1, 24]} />
-        <meshBasicMaterial color={ringColor1} transparent opacity={0.1 * (1 - progress)} blending={THREE.AdditiveBlending} />
-      </mesh>
-      
-      {/* Core flash - intense white center */}
-      <mesh scale={(0.5 + easeProgress * 2) * variation.flashScale}>
-        <circleGeometry args={[1, 24]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={(0.95) * (1 - progress * 0.8)} blending={THREE.AdditiveBlending} />
-      </mesh>
-      
-      {/* Primary shockwave ring - enhanced */}
-      <mesh scale={(0.6 + easeProgress * 3) * variation.ringSpeedMult}>
-        <ringGeometry args={[0.65, 1, 32]} />
-        <meshBasicMaterial color={ringColor1} transparent opacity={(0.9) * (1 - progress)} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} />
-      </mesh>
-      
-      {/* Secondary shockwave - color accent */}
-      <mesh scale={(0.4 + easeProgress * 3.5) * variation.ringSpeedMult}>
-        <ringGeometry args={[0.75, 0.9, 32]} />
-        <meshBasicMaterial color={ringColor2} transparent opacity={(0.6) * (1 - progress)} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} />
-      </mesh>
-      
-      {/* Tertiary shockwave - thin white edge */}
-      <mesh scale={(0.7 + easeProgress * 4) * variation.ringSpeedMult}>
-        <ringGeometry args={[0.9, 0.95, 32]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.5 * (1 - progress)} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} />
-      </mesh>
-      
-      {/* Inner glow pulse */}
-      <mesh scale={(0.3 + easeProgress * 1.5) * variation.flashScale}>
-        <circleGeometry args={[1, 20]} />
-        <meshBasicMaterial color={ringColor2} transparent opacity={0.7 * (1 - progress * 1.2)} blending={THREE.AdditiveBlending} />
-      </mesh>
-      
-      {variation.mainParticles.map((p, i) => {
-        const baseAngle = (i / variation.mainParticleCount) * Math.PI * 2 + p.angleOffset;
-        const adjustedProgress = Math.max(0, Math.min(1, (easeProgress - p.delay) / (1 - p.delay)));
-        const dist = adjustedProgress * 3 * p.distMult;
-        const color = impactColors[i % impactColors.length];
-        const particleScale = 0.2 * p.sizeMult * (1 - progress * 0.5);
-        const wobble = Math.sin(time * 20 + i + seed * 10) * 0.1;
-        const particleOpacity = Math.max(0, 1 - (progress - p.delay) * 1.05);
-        return (
-          <group key={i} position={[Math.cos(baseAngle) * (dist + wobble), Math.sin(baseAngle) * (dist + wobble), 0]}>
-            {/* Particle glow halo */}
-            <mesh scale={particleScale * 2} rotation={[0, 0, baseAngle + time * 5]}>
-              <circleGeometry args={[1, 8]} />
-              <meshBasicMaterial color={color} transparent opacity={particleOpacity * 0.3} blending={THREE.AdditiveBlending} />
-            </mesh>
-            {/* Particle outline */}
-            <mesh scale={particleScale * 1.35} rotation={[0, 0, baseAngle + time * 5]}>
-              <circleGeometry args={[1, 8]} />
-              <meshBasicMaterial color="#000000" transparent opacity={0.5 * particleOpacity} />
-            </mesh>
-            {/* Particle core */}
-            <mesh scale={particleScale} rotation={[0, 0, baseAngle + time * 5]}>
-              <circleGeometry args={[1, 8]} />
-              <meshBasicMaterial color={color} transparent opacity={particleOpacity} />
-            </mesh>
-            {/* Particle shimmer */}
-            <mesh scale={particleScale * 0.5} rotation={[0, 0, baseAngle + time * 8]} position={[0, 0, 0.01]}>
-              <circleGeometry args={[1, 6]} />
-              <meshBasicMaterial color="#ffffff" transparent opacity={particleOpacity * 0.6} blending={THREE.AdditiveBlending} />
-            </mesh>
-          </group>
-        );
-      })}
-      
-      {variation.sparks.map((p, i) => {
-        const angle = (i / variation.sparkCount) * Math.PI * 2 + Math.PI / 8 + p.angleOffset;
-        const dist = easeProgress * 2.2 * p.distMult;
-        const sparkColor = impactColors[i % impactColors.length];
-        const twinkle = Math.sin(time * 15 + i * 2) * 0.3 + 0.7;
-        return (
-          <group key={`spark-${i}`} position={[Math.cos(angle) * dist, Math.sin(angle) * dist, 0]}>
-            {/* Spark glow */}
-            <mesh scale={0.18 * p.sizeMult * (1 - progress)}>
-              <circleGeometry args={[1, 8]} />
-              <meshBasicMaterial color={sparkColor} transparent opacity={(1 - progress) * 0.4} blending={THREE.AdditiveBlending} />
-            </mesh>
-            {/* Spark core */}
-            <mesh scale={0.1 * p.sizeMult * (1 - progress) * twinkle}>
-              <circleGeometry args={[1, 8]} />
-              <meshBasicMaterial color="#ffffff" transparent opacity={1 - progress} blending={THREE.AdditiveBlending} />
-            </mesh>
-          </group>
-        );
-      })}
-      
-      {variation.innerFlash.map((p, i) => {
-        const angle = (i / variation.innerCount) * Math.PI * 2 + p.angleOffset + time * 4;
-        const dist = easeProgress * 1.5 * p.distMult;
-        return (
-          <group key={`inner-${i}`} position={[Math.cos(angle) * dist, Math.sin(angle) * dist, 0.01]}>
-            <mesh scale={0.16 * (1 - progress * 0.6)}>
-              <circleGeometry args={[1, 8]} />
-              <meshBasicMaterial color="#ffffff" transparent opacity={0.95 * (1 - progress)} blending={THREE.AdditiveBlending} />
-            </mesh>
-            <mesh scale={0.1 * (1 - progress * 0.5)}>
-              <circleGeometry args={[1, 6]} />
-              <meshBasicMaterial color={ringColor1} transparent opacity={0.8 * (1 - progress)} />
-            </mesh>
-          </group>
-        );
-      })}
+    <group position={effect.position}>
+      <EnergyDissipationVFX
+        progress={progress}
+        color={skinColors.core}
+        glowColor={skinColors.glow}
+        scale={0.38}
+        seed={Math.round(effect.seed * 9999)}
+      />
     </group>
   );
 }
