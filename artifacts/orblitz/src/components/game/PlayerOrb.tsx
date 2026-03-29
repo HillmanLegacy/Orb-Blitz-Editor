@@ -6,6 +6,7 @@ import { useShop, OrbSkin, RingStyle } from "@/lib/stores/useShop";
 import { ToonOrbLayer, CelOutline, RayTracedGlow, AmbientOcclusionLayer, GlobalIlluminationBounce, ScreenSpaceReflection, CausticPattern } from "./ToonShaders";
 import { PlayerModel } from "./PlayerModel";
 import { PlayerParticles } from "./PlayerParticles";
+import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 
 const sharedCircleGeo = new THREE.CircleGeometry(1, 32);
 const sharedCircleGeoLow = new THREE.CircleGeometry(1, 16);
@@ -450,26 +451,6 @@ export function PlayerOrb() {
     return rays;
   }, []);
   
-  const deathParticles = useMemo(() => {
-    const particles = [];
-    for (let i = 0; i < 50; i++) {
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.random() * Math.PI;
-      particles.push({
-        direction: [
-          Math.sin(phi) * Math.cos(theta),
-          Math.sin(phi) * Math.sin(theta),
-          Math.cos(phi),
-        ] as [number, number, number],
-        speed: 3 + Math.random() * 5,
-        rotSpeed: (Math.random() - 0.5) * 12,
-        size: 0.06 + Math.random() * 0.14,
-        color: skinColors.particles[Math.floor(Math.random() * skinColors.particles.length)],
-        shape: Math.floor(Math.random() * 4),
-      });
-    }
-    return particles;
-  }, [skinColors.particles]);
   
   useFrame((state) => {
     const time = state.clock.getElapsedTime();
@@ -634,62 +615,15 @@ export function PlayerOrb() {
   
   if (isDying) {
     const progress = 1 - (deathTimer / 1.5);
-    const easeProgress = 1 - Math.pow(1 - progress, 3);
-    
     return (
       <group position={playerPosition}>
-        {deathParticles.map((p, i) => {
-          const dist = p.speed * easeProgress * 2.5;
-          const shapes = ["circle", "square", "triangle", "star"];
-          const shapeType = shapes[p.shape];
-          const particleScale = p.size * (1 - progress * 0.6);
-          return (
-            <group key={i}>
-              <mesh
-                position={[
-                  p.direction[0] * dist,
-                  p.direction[1] * dist,
-                  0,
-                ]}
-                rotation={[0, 0, easeProgress * p.rotSpeed * 6]}
-                scale={particleScale * 1.3}
-              >
-                {shapeType === "circle" && <circleGeometry args={[1, 10]} />}
-                {shapeType === "square" && <planeGeometry args={[1.4, 1.4]} />}
-                {shapeType === "triangle" && <circleGeometry args={[1, 3]} />}
-                {shapeType === "star" && <circleGeometry args={[1, 5]} />}
-                <meshBasicMaterial color="#000000" transparent opacity={(1 - progress) * 0.6} />
-              </mesh>
-              <mesh
-                position={[
-                  p.direction[0] * dist,
-                  p.direction[1] * dist,
-                  0.01,
-                ]}
-                rotation={[0, 0, easeProgress * p.rotSpeed * 6]}
-                scale={particleScale}
-              >
-                {shapeType === "circle" && <circleGeometry args={[1, 10]} />}
-                {shapeType === "square" && <planeGeometry args={[1.2, 1.2]} />}
-                {shapeType === "triangle" && <circleGeometry args={[0.9, 3]} />}
-                {shapeType === "star" && <circleGeometry args={[0.9, 5]} />}
-                <meshBasicMaterial
-                  color={p.color}
-                  transparent
-                  opacity={1 - progress}
-                />
-              </mesh>
-            </group>
-          );
-        })}
-        <mesh scale={scale * 1.8 * (1 - easeProgress)}>
-          <circleGeometry args={[1, 16]} />
-          <meshBasicMaterial color={glowColor} transparent opacity={(1 - progress) * 0.5} />
-        </mesh>
-        <mesh scale={scale * (1 - easeProgress)}>
-          <circleGeometry args={[1, 16]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={(1 - progress) * 0.95} />
-        </mesh>
+        <EnergyDissipationVFX
+          progress={progress}
+          color={coreColor}
+          glowColor={glowColor}
+          scale={scale}
+          seed={7}
+        />
       </group>
     );
   }

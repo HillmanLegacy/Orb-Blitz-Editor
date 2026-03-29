@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { useMagicOrb, DarkOrb, Particle, BossType } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
 import { DarkOrbModel } from "./DarkOrbModel";
+import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 
 const DISTORT_FIELD_RADIUS = 5;
 
@@ -37,24 +38,17 @@ function BossOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
   if (orb.destroying) {
     return (
       <group position={orb.position}>
-        <mesh scale={orb.size * (1 + destroyProgress * 0.8)}>
-          <circleGeometry args={[1, 16]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={(1 - destroyProgress) * 0.8} />
-        </mesh>
-        {[0, 1, 2, 3, 4, 5].map((i) => {
-          const angle = (i / 6) * Math.PI * 2;
-          const dist = destroyProgress * 1.5;
-          return (
-            <mesh key={i} position={[Math.cos(angle) * dist, Math.sin(angle) * dist, 0]} scale={0.15 * (1 - destroyProgress)}>
-              <circleGeometry args={[1, 8]} />
-              <meshBasicMaterial color={colors.secondary} transparent opacity={(1 - destroyProgress) * 0.9} />
-            </mesh>
-          );
-        })}
+        <EnergyDissipationVFX
+          progress={destroyProgress}
+          color={colors.primary}
+          glowColor={colors.glow}
+          scale={orb.size}
+          seed={Math.round(orb.seed * 1000)}
+        />
       </group>
     );
   }
-  
+
   const renderShape = () => {
     switch (bossType) {
       case "star":
@@ -429,83 +423,21 @@ function UnifiedDarkOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
   }, [orb.seed, orb.bossDefeatColor]);
 
   if (orb.destroying) {
-    const { particleCount, rotationOffset, speedVariation, sizeVariation, particles, colors, sparkles, explosionStyle, shimmerColors } = deathVariation;
-    const ringColor = orb.bossDefeatColor ? colors[0] : "#ff66aa";
-    const coreColor = orb.bossDefeatColor ? colors[1] : "#ffccee";
+    const deathColor = orb.bossDefeatColor
+      ? deathVariation.colors[0]
+      : "#8800cc";
+    const deathGlow = orb.bossDefeatColor
+      ? deathVariation.colors[1]
+      : "#440066";
     return (
-      <group position={orb.position} rotation={[0, 0, rotationOffset]}>
-        <mesh scale={orb.size * (1 + destroyProgress * (0.6 + explosionStyle * 0.2))}>
-          <circleGeometry args={[1, 16]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={(0.9) * (1 - destroyProgress * 0.8)} blending={THREE.AdditiveBlending} />
-        </mesh>
-        <mesh scale={orb.size * 0.6 * (1 + destroyProgress * 1.2)}>
-          <circleGeometry args={[1, 12]} />
-          <meshBasicMaterial color={coreColor} transparent opacity={0.6 * (1 - destroyProgress)} blending={THREE.AdditiveBlending} />
-        </mesh>
-        {particles.map((p, i) => {
-          const baseAngle = (i / particleCount) * Math.PI * 2 + p.angleOffset;
-          const adjustedProgress = Math.max(0, Math.min(1, (destroyProgress - p.delay) / (1 - p.delay)));
-          const spiralAngle = baseAngle + adjustedProgress * p.spiralAmount * p.spinDirection * Math.PI;
-          const wobble = Math.sin(adjustedProgress * p.wobbleFreq * Math.PI) * p.wobbleAmp;
-          const dist = adjustedProgress * 2.5 * p.distVariation * speedVariation + wobble;
-          const particleOpacity = Math.max(0, 1 - adjustedProgress * 1.05);
-          const shimmerPulse = p.isShimmer ? 0.5 + Math.sin(adjustedProgress * p.spinSpeed * 3) * 0.5 : 0;
-          const rotation = adjustedProgress * p.spinSpeed * p.spinDirection;
-          return (
-            <group key={i}>
-              <mesh 
-                position={[Math.cos(spiralAngle) * dist, Math.sin(spiralAngle) * dist, 0.01]} 
-                scale={0.14 * orb.size * p.sizeScale * sizeVariation * (1 - adjustedProgress * 0.6)}
-                rotation={[0, 0, rotation]}
-              >
-                <circleGeometry args={[1, 6]} />
-                <meshBasicMaterial color={p.color} transparent opacity={particleOpacity} />
-              </mesh>
-              {p.isShimmer && (
-                <mesh 
-                  position={[Math.cos(spiralAngle) * dist, Math.sin(spiralAngle) * dist, 0.02]} 
-                  scale={0.08 * orb.size * p.sizeScale * (1 - adjustedProgress * 0.4) * (0.5 + shimmerPulse)}
-                >
-                  <circleGeometry args={[1, 8]} />
-                  <meshBasicMaterial color={p.shimmerColor} transparent opacity={particleOpacity * shimmerPulse} blending={THREE.AdditiveBlending} />
-                </mesh>
-              )}
-              {adjustedProgress > 0.05 && adjustedProgress < 0.7 && (
-                <mesh 
-                  position={[Math.cos(spiralAngle) * dist * (1 - p.trailLength), Math.sin(spiralAngle) * dist * (1 - p.trailLength), -0.01]} 
-                  scale={0.05 * orb.size * p.sizeScale * (1 - adjustedProgress * 1.2)}
-                >
-                  <circleGeometry args={[1, 4]} />
-                  <meshBasicMaterial color={ringColor} transparent opacity={particleOpacity * 0.4} blending={THREE.AdditiveBlending} />
-                </mesh>
-              )}
-            </group>
-          );
-        })}
-        {sparkles.map((s, i) => {
-          const adjustedProgress = Math.max(0, Math.min(1, (destroyProgress - s.delay) / (1 - s.delay)));
-          const dist = adjustedProgress * 3 * s.speed;
-          const twinkle = Math.sin(adjustedProgress * s.twinkleSpeed * Math.PI) * 0.5 + 0.5;
-          const sparkleOpacity = Math.max(0, 1 - adjustedProgress) * twinkle;
-          return (
-            <mesh 
-              key={`sparkle-${i}`}
-              position={[Math.cos(s.angle) * dist, Math.sin(s.angle) * dist, 0.03]} 
-              scale={s.size * orb.size * (1 + twinkle * 0.5)}
-            >
-              <circleGeometry args={[1, 4]} />
-              <meshBasicMaterial color={shimmerColors[i % shimmerColors.length]} transparent opacity={sparkleOpacity} blending={THREE.AdditiveBlending} />
-            </mesh>
-          );
-        })}
-        <mesh scale={orb.size * 1.5 * (1 - destroyProgress * 0.3)} position={[0, 0, -0.02]}>
-          <ringGeometry args={[0.7 + destroyProgress * 0.5, 0.85 + destroyProgress * 0.6, 24]} />
-          <meshBasicMaterial color={ringColor} transparent opacity={0.5 * (1 - destroyProgress * 0.9)} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} />
-        </mesh>
-        <mesh scale={orb.size * 2 * destroyProgress} position={[0, 0, -0.03]}>
-          <ringGeometry args={[0.9, 1.0, 32]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.3 * (1 - destroyProgress)} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} />
-        </mesh>
+      <group position={orb.position}>
+        <EnergyDissipationVFX
+          progress={destroyProgress}
+          color={deathColor}
+          glowColor={deathGlow}
+          scale={orb.size}
+          seed={Math.round(orb.seed * 999)}
+        />
       </group>
     );
   }
