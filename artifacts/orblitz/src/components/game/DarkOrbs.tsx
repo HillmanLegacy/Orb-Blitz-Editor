@@ -1,9 +1,10 @@
-import { useRef, useMemo, memo } from "react";
+import { useRef, useMemo, memo, Suspense } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb, DarkOrb, Particle, BossType } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
 import { CelOutline, ToonOrbLayer, RayTracedGlow, AmbientOcclusionLayer } from "./ToonShaders";
+import { DarkOrbModel } from "./DarkOrbModel";
 
 const DISTORT_FIELD_RADIUS = 5;
 
@@ -649,73 +650,15 @@ function UnifiedDarkOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
         />
       </mesh>
       
-      <mesh scale={1.18} position={[0, 0, -0.03]}>
-        <circleGeometry args={[1, 32]} />
-        <meshBasicMaterial 
-          color={frozenTint ? "#335577" : "#1a001a"} 
-          transparent 
-          opacity={opacity * 0.75} 
-        />
-      </mesh>
-      
-      {/* Rim lighting effect */}
-      <mesh scale={1.12} position={[0, 0, -0.025]}>
-        <ringGeometry args={[0.9, 1, 48]} />
-        <meshBasicMaterial 
-          color={frozenTint ? "#5599bb" : "#440044"} 
-          transparent 
-          opacity={opacity * 0.35}
-          side={THREE.DoubleSide}
-        />
-      </mesh>
-      
-      <mesh scale={1.08} position={[0, 0, -0.02]}>
-        <circleGeometry args={[1, 32]} />
-        <meshBasicMaterial 
-          color={frozenTint ? "#446688" : "#0a0a0a"} 
-          transparent 
-          opacity={opacity * 0.95}
-        />
-      </mesh>
-      
-      <mesh scale={1} position={[0, 0, -0.01]}>
-        <circleGeometry args={[1, 32]} />
-        <meshBasicMaterial 
-          color={frozenTint ? "#556699" : "#050505"} 
-          transparent 
-          opacity={opacity}
-        />
-      </mesh>
-      
-      {/* Inner dark gradient */}
-      <mesh scale={0.75} position={[0, 0, 0]}>
-        <circleGeometry args={[1, 24]} />
-        <meshBasicMaterial 
-          color={frozenTint ? "#4477aa" : "#1a0a1a"} 
-          transparent 
-          opacity={opacity * 0.65}
-        />
-      </mesh>
-      
-      {/* Dark core center */}
-      <mesh scale={0.4} position={[0, 0, 0.01]}>
-        <circleGeometry args={[1, 16]} />
-        <meshBasicMaterial 
-          color={frozenTint ? "#5588bb" : "#2a1a2a"} 
-          transparent 
-          opacity={opacity * 0.45}
-        />
-      </mesh>
-      
-      {/* Void center - darkest point */}
-      <mesh scale={0.15} position={[0, 0, 0.015]}>
-        <circleGeometry args={[1, 12]} />
-        <meshBasicMaterial 
-          color={frozenTint ? "#6699cc" : "#000000"} 
-          transparent 
-          opacity={opacity * 0.9}
-        />
-      </mesh>
+      {/* 3D FBX model body with volumetric shadow glow + rotating rings */}
+      <Suspense fallback={
+        <mesh scale={1}>
+          <circleGeometry args={[1, 32]} />
+          <meshBasicMaterial color={frozenTint ? "#224466" : "#0a0011"} transparent opacity={opacity} />
+        </mesh>
+      }>
+        <DarkOrbModel frozen={!!frozenTint} opacity={opacity} />
+      </Suspense>
       
       {renderMonsterShape()}
       
