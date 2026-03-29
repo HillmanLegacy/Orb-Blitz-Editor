@@ -716,13 +716,20 @@ export function PlayerOrb() {
           <meshBasicMaterial color={coreColor} transparent opacity={0.9 * phaseOpacity} />
         </mesh>
       }>
-        <PlayerModel scale={scale} rotationSpeedX={0.8} rotationSpeedY={1.2} />
+        <PlayerModel
+          scale={scale}
+          coreColor={coreColor}
+          glowColor={glowColor}
+          isRainbow={(skinColors as any).isRainbow === true}
+          rotationSpeedX={0.8}
+          rotationSpeedY={1.2}
+        />
       </Suspense>
 
-      {/* Middle glow layer - kept for atmosphere */}
-      <mesh ref={glowRef} scale={scale * 1.5}>
+      {/* Outer atmosphere glow — dim wide halo around the model */}
+      <mesh ref={glowRef} scale={scale * 1.8}>
         <circleGeometry args={[1, 32]} />
-        <meshBasicMaterial color={glowColor} transparent opacity={0.3 * dimFactor * phaseOpacity} blending={THREE.AdditiveBlending} />
+        <meshBasicMaterial color={glowColor} transparent opacity={0.12 * dimFactor * phaseOpacity} blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
 
       {/* Hidden refs for compatibility (unused but kept to avoid null errors in useFrame) */}
