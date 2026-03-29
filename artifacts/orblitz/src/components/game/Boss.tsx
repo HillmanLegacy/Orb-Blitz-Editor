@@ -1,7 +1,8 @@
-import { useRef, useMemo } from "react";
+import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb, MovementPattern } from "@/lib/stores/useMagicOrb";
+import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 
 const MIN_PLAYER_DISTANCE = 7;
 const HARD_COLLISION_RADIUS = 4;
@@ -47,34 +48,6 @@ export function Boss() {
   const phaseTimerRef = useRef(0);
   const attackBurstRef = useRef(0);
   
-  const deathParticles = useMemo(() => {
-    const particles = [];
-    const confettiColors = [
-      "#ff3366", "#ffcc00", "#00ffcc", "#ff66ff", "#66ff66", "#6699ff",
-      "#ff9933", "#cc66ff", "#33ff99", "#ff6699", "#99ff33", "#3399ff",
-      "#ffff00", "#ff00ff", "#00ffff", "#ff0066", "#66ffcc", "#cc99ff"
-    ];
-    const shapes = ["circle", "square", "triangle", "star"] as const;
-    for (let i = 0; i < 400; i++) {
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.random() * Math.PI;
-      const layer = Math.floor(i / 100);
-      particles.push({
-        direction: [
-          Math.sin(phi) * Math.cos(theta),
-          Math.sin(phi) * Math.sin(theta),
-          Math.cos(phi),
-        ] as [number, number, number],
-        speed: 5 + Math.random() * 10 + layer * 3,
-        rotSpeed: (Math.random() - 0.5) * 25,
-        size: 0.4 + Math.random() * 0.6,
-        color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
-        delay: layer * 0.08,
-        shape: shapes[Math.floor(Math.random() * shapes.length)],
-      });
-    }
-    return particles;
-  }, []);
   
   const keepDistanceFromPlayer = (
     currentPos: [number, number, number],
@@ -446,77 +419,25 @@ export function Boss() {
   if (boss.destroying) {
     const totalTime = 3.5;
     const progress = 1 - ((boss.destroyTimer || 0) / totalTime);
-    const time = Date.now() * 0.001;
-    
+    const bossTypeColors: Record<string, { color: string; glow: string }> = {
+      circle:  { color: "#ff3366", glow: "#ff99bb" },
+      star:    { color: "#ffcc00", glow: "#fff066" },
+      triangle:{ color: "#00ffcc", glow: "#aaffee" },
+      square:  { color: "#6699ff", glow: "#bbccff" },
+      octagon: { color: "#ff66ff", glow: "#ffbbff" },
+      cross:   { color: "#ff9933", glow: "#ffcc88" },
+    };
+    const bossType = boss.bossType || "circle";
+    const deathPalette = bossTypeColors[bossType] ?? bossTypeColors.circle;
     return (
       <group position={[boss.position[0], boss.position[1], boss.position[2]]}>
-        {deathParticles.map((p, i) => {
-          const particleProgress = Math.max(0, (progress - p.delay) / (1 - p.delay));
-          if (particleProgress <= 0) return null;
-          
-          const dist = p.speed * particleProgress * 6;
-          const fadeStart = 0.5;
-          const opacity = particleProgress > fadeStart ? 1 - (particleProgress - fadeStart) / (1 - fadeStart) : 1;
-          const scale = p.size * (1 + particleProgress * 2) * (1 - particleProgress * 0.5);
-          const wobble = Math.sin(time * 10 + i) * 0.2 * particleProgress;
-          
-          const renderShape = () => {
-            switch (p.shape) {
-              case "circle":
-                return <circleGeometry args={[1, 16]} />;
-              case "square":
-                return <planeGeometry args={[1.5, 1.5]} />;
-              case "triangle":
-                return <circleGeometry args={[1, 3]} />;
-              case "star":
-                return <ringGeometry args={[0.3, 1, 5]} />;
-              default:
-                return <circleGeometry args={[1, 16]} />;
-            }
-          };
-          
-          return (
-            <group key={i}>
-              <mesh
-                position={[
-                  p.direction[0] * dist + wobble,
-                  p.direction[1] * dist + wobble,
-                  p.direction[2] * dist - 0.01,
-                ]}
-                rotation={[0, 0, particleProgress * p.rotSpeed * 5]}
-                scale={Math.max(0.08, scale) * 1.15}
-              >
-                {renderShape()}
-                <meshBasicMaterial color="#000000" transparent opacity={Math.max(0, opacity * 0.9)} side={THREE.DoubleSide} />
-              </mesh>
-              <mesh
-                position={[
-                  p.direction[0] * dist + wobble,
-                  p.direction[1] * dist + wobble,
-                  p.direction[2] * dist,
-                ]}
-                rotation={[0, 0, particleProgress * p.rotSpeed * 5]}
-                scale={Math.max(0.08, scale)}
-              >
-                {renderShape()}
-                <meshBasicMaterial color={p.color} transparent opacity={Math.max(0, opacity * 0.9)} side={THREE.DoubleSide} />
-              </mesh>
-            </group>
-          );
-        })}
-        
-        {[0, 1, 2].map((ring) => {
-          const ringProgress = Math.max(0, progress - ring * 0.15);
-          const ringScale = 2 + ringProgress * 12;
-          const ringOpacity = Math.max(0, (1 - ringProgress * 1.5) * 0.6);
-          const hue = (time * 0.5 + ring * 0.3) % 1;
-          return (
-            <mesh key={ring} scale={ringScale} rotation={[0, 0, time * (1 + ring * 0.5)]}>
-              <ringGeometry args={[0.8, 1, 32]} />
-              <meshBasicMaterial color={`hsl(${hue * 360}, 100%, 60%)`} transparent opacity={ringOpacity} side={THREE.DoubleSide} />
-            </mesh>
-          );
-        })}
+        <EnergyDissipationVFX
+          progress={progress}
+          color={deathPalette.color}
+          glowColor={deathPalette.glow}
+          scale={3.2}
+          seed={13}
+        />
       </group>
     );
   }
