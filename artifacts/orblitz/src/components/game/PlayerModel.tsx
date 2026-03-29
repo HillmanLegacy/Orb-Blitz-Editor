@@ -51,8 +51,6 @@ function createOrbPattern(): THREE.DataTexture {
 
 export function PlayerModel({
   scale,
-  coreColor = "#ffffff",
-  isRainbow = false,
   rotationSpeedX = 0.8,
   rotationSpeedY = 1.2,
 }: PlayerModelProps) {
@@ -61,7 +59,6 @@ export function PlayerModel({
 
   const fbx        = useLoader(FBXLoader, "/models/player.fbx");
   const orbPattern = useMemo(() => createOrbPattern(), []);
-  const coreColorObj = useMemo(() => new THREE.Color(coreColor), [coreColor]);
 
   useEffect(() => {
     if (!modelGroupRef.current) return;
@@ -86,7 +83,7 @@ export function PlayerModel({
         const mesh = child as THREE.Mesh;
         const mat = new THREE.MeshBasicMaterial({
           map: orbPattern,
-          color: coreColorObj.clone(),
+          color: new THREE.Color("#ffffff"),
         });
         mesh.material = mat;
         materialsRef.current.push(mat);
@@ -102,28 +99,13 @@ export function PlayerModel({
       orbPattern.dispose();
       materialsRef.current.forEach((m) => m.dispose());
     };
-  }, [fbx, orbPattern, scale, coreColorObj]);
+  }, [fbx, orbPattern, scale]);
 
-  useFrame((state, delta) => {
-    const time = state.clock.getElapsedTime();
-
-    // Rotate the model on both axes simultaneously
+  useFrame((_state, delta) => {
     if (modelGroupRef.current) {
       modelGroupRef.current.rotation.x += delta * rotationSpeedX;
       modelGroupRef.current.rotation.y += delta * rotationSpeedY;
     }
-
-    // Pulse brightness on the skin colour (or cycle hue for rainbow)
-    const pulseLight = 0.45 + Math.sin(time * 3.0) * 0.18;
-    materialsRef.current.forEach((mat) => {
-      if (isRainbow) {
-        mat.color.setHSL((time * 0.18) % 1, 1.0, pulseLight);
-      } else {
-        const hsl = { h: 0, s: 0, l: 0 };
-        coreColorObj.getHSL(hsl);
-        mat.color.setHSL(hsl.h, Math.max(hsl.s, 0.4), pulseLight);
-      }
-    });
   });
 
   return <group ref={modelGroupRef} />;
