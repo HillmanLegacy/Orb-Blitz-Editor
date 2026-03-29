@@ -3,7 +3,6 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb, DarkOrb, Particle, BossType } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
-import { CelOutline, ToonOrbLayer, RayTracedGlow, AmbientOcclusionLayer } from "./ToonShaders";
 import { DarkOrbModel } from "./DarkOrbModel";
 
 const DISTORT_FIELD_RADIUS = 5;
@@ -26,58 +25,6 @@ const BOSS_ORB_COLORS: Record<BossType, { primary: string; secondary: string; gl
   bird: { primary: "#4a6a2a", secondary: "#88cc44", glow: "#aaff44" },
 };
 
-function MenacingAura({ time, seed, frozen, opacity, intensity }: { 
-  time: number; 
-  seed: number; 
-  frozen: boolean; 
-  opacity: number;
-  intensity: number;
-}) {
-  const wave1Scale = 1.4 + ((time * 0.6 + seed) % 1.5) * 0.4;
-  const wave2Scale = 1.5 + ((time * 0.5 + seed + 0.5) % 1.5) * 0.35;
-  const wave3Scale = 1.6 + ((time * 0.4 + seed + 1) % 1.5) * 0.3;
-  
-  const wave1Opacity = 0.08 * (1 - ((time * 0.6 + seed) % 1.5) / 1.5) * opacity;
-  const wave2Opacity = 0.06 * (1 - ((time * 0.5 + seed + 0.5) % 1.5) / 1.5) * opacity;
-  const wave3Opacity = 0.05 * (1 - ((time * 0.4 + seed + 1) % 1.5) / 1.5) * opacity;
-  
-  const auraColor = frozen ? "#334466" : "#330022";
-  const intensityBoost = 1 + intensity * 0.5;
-  
-  return (
-    <group position={[0, 0, -0.08]}>
-      <mesh scale={wave1Scale * intensityBoost}>
-        <ringGeometry args={[0.9, 1, 20]} />
-        <meshBasicMaterial color={auraColor} transparent opacity={wave1Opacity} side={THREE.DoubleSide} />
-      </mesh>
-      <mesh scale={wave2Scale * intensityBoost}>
-        <ringGeometry args={[0.85, 0.95, 18]} />
-        <meshBasicMaterial color={auraColor} transparent opacity={wave2Opacity} side={THREE.DoubleSide} />
-      </mesh>
-      <mesh scale={wave3Scale * intensityBoost}>
-        <ringGeometry args={[0.8, 0.9, 16]} />
-        <meshBasicMaterial color={auraColor} transparent opacity={wave3Opacity} side={THREE.DoubleSide} />
-      </mesh>
-      {/* Wispy tendrils */}
-      {[0, 1, 2, 3].map((i) => {
-        const angle = (i / 4) * Math.PI * 2 + time * 0.5 + seed * 3;
-        const tendrilLength = 0.3 + Math.sin(time * 2 + i + seed * 5) * 0.15;
-        const tendrilOpacity = 0.12 * opacity * (0.5 + Math.sin(time * 3 + i) * 0.5);
-        return (
-          <mesh 
-            key={i} 
-            position={[Math.cos(angle) * 1.1, Math.sin(angle) * 1.1, 0]}
-            rotation={[0, 0, angle + Math.PI / 2]}
-            scale={[0.08, tendrilLength, 1]}
-          >
-            <planeGeometry args={[1, 1]} />
-            <meshBasicMaterial color={frozen ? "#445566" : "#440033"} transparent opacity={tendrilOpacity} />
-          </mesh>
-        );
-      })}
-    </group>
-  );
-}
 
 function BossOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
   const bossType = orb.bossType || "circle";
@@ -274,7 +221,6 @@ function UnifiedDarkOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
   const breathe = 1 + Math.sin(time * 2 + orb.seed * 10) * 0.04;
   const wobble = Math.sin(time * 1.5 + orb.seed * 5) * 0.05;
   
-  const eerieGlowIntensity = 0.3 + approachIntensity * 0.4 + Math.sin(time * 4) * 0.1;
   
   const opacity = orb.destroying ? 1 - destroyProgress : 1;
   
@@ -564,93 +510,9 @@ function UnifiedDarkOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
     );
   }
   
-  const menacingPulse = Math.sin(time * 5 + orb.seed * 10) * 0.5 + 0.5;
-  const shadowFlicker = 1 + Math.sin(time * 8 + orb.seed * 7) * 0.1;
-  
   return (
     <group ref={groupRef} position={orb.position} scale={orb.size * pulseScale * breathe} rotation={[0, 0, wobble]}>
-      {/* Menacing dark aura waves */}
-      <MenacingAura 
-        time={time} 
-        seed={orb.seed} 
-        frozen={!!frozenTint} 
-        opacity={opacity} 
-        intensity={approachIntensity}
-      />
-      
-      {/* CELL SHADING - Dark cel outline */}
-      <CelOutline scale={1.0} color="#000000" width={0.1} />
-      
-      {/* CELL SHADING - Secondary dark outline for depth */}
-      <CelOutline scale={0.98} color={frozenTint ? "#112244" : "#110011"} width={0.05} />
-      
-      {/* RAY TRACING - Dark volumetric glow */}
-      <RayTracedGlow 
-        scale={2.0} 
-        color={frozenTint ? "#224466" : "#330022"} 
-        intensity={0.2 * opacity} 
-        falloff={3.0} 
-      />
-      
-      {/* RAY TRACING - Ambient occlusion for dark orbs */}
-      <AmbientOcclusionLayer 
-        scale={1.3} 
-        color="#000000"
-        intensity={0.35 * opacity} 
-      />
-      
-      {/* Shadow flicker layer */}
-      {/* HDR Dark aura - outermost menacing glow */}
-      <mesh scale={2.2 * shadowFlicker} position={[0, 0, -0.09]}>
-        <circleGeometry args={[1, 32]} />
-        <meshBasicMaterial 
-          color={frozenTint ? "#1a3344" : "#220011"} 
-          transparent 
-          opacity={0.06 * menacingPulse * opacity} 
-        />
-      </mesh>
-      
-      {/* HDR Dark aura layer 2 */}
-      <mesh scale={1.8 * shadowFlicker} position={[0, 0, -0.08]}>
-        <circleGeometry args={[1, 32]} />
-        <meshBasicMaterial 
-          color={frozenTint ? "#112233" : "#1a0011"} 
-          transparent 
-          opacity={0.1 * menacingPulse * opacity} 
-        />
-      </mesh>
-      
-      {/* Shadow flicker layer - enhanced */}
-      <mesh scale={1.5 * shadowFlicker} position={[0, 0, -0.06]}>
-        <circleGeometry args={[1, 32]} />
-        <meshBasicMaterial 
-          color={frozenTint ? "#112233" : "#110011"} 
-          transparent 
-          opacity={0.18 * menacingPulse * opacity} 
-        />
-      </mesh>
-      
-      {/* Dark energy ring */}
-      <mesh scale={1.4} position={[0, 0, -0.055]}>
-        <ringGeometry args={[0.85, 1, 32]} />
-        <meshBasicMaterial 
-          color={frozenTint ? "#335577" : "#330022"} 
-          transparent 
-          opacity={0.25 * eerieGlowIntensity * opacity} 
-          side={THREE.DoubleSide}
-        />
-      </mesh>
-      
-      <mesh scale={1.3} position={[0, 0, -0.04]}>
-        <circleGeometry args={[1, 32]} />
-        <meshBasicMaterial 
-          color={frozenTint ? "#224466" : "#220022"} 
-          transparent 
-          opacity={eerieGlowIntensity * opacity * 0.45} 
-        />
-      </mesh>
-      
-      {/* 3D FBX model body with volumetric shadow glow + rotating rings */}
+      {/* 3D FBX model body with volumetric shadow glow + animated tendrils */}
       <Suspense fallback={
         <mesh scale={1}>
           <circleGeometry args={[1, 32]} />
@@ -659,70 +521,10 @@ function UnifiedDarkOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
       }>
         <DarkOrbModel frozen={!!frozenTint} opacity={opacity} />
       </Suspense>
-      
+
       {renderMonsterShape()}
-      
+
       {renderEyes()}
-      
-      {/* Orbiting dark particles - enhanced */}
-      {Array.from({ length: 12 }).map((_, i) => {
-        const angle = (i / 12) * Math.PI * 2 + time * 0.4;
-        const particleDist = 0.9 + Math.sin(time * 2.5 + i * 0.6) * 0.18;
-        const particleSize = 0.035 + Math.sin(time * 5 + i) * 0.012;
-        const twinkle = Math.sin(time * 4 + i * 1.2) * 0.3 + 0.7;
-        return (
-          <group key={`particle-${i}`}>
-            {/* Particle glow */}
-            <mesh position={[Math.cos(angle) * particleDist, Math.sin(angle) * particleDist, 0.02]} scale={particleSize * 2}>
-              <circleGeometry args={[1, 6]} />
-              <meshBasicMaterial 
-                color={frozenTint ? "#88aacc" : "#660066"} 
-                transparent 
-                opacity={opacity * 0.15 * twinkle}
-              />
-            </mesh>
-            {/* Particle core */}
-            <mesh position={[Math.cos(angle) * particleDist, Math.sin(angle) * particleDist, 0.025]} scale={particleSize}>
-              <circleGeometry args={[1, 6]} />
-              <meshBasicMaterial 
-                color={frozenTint ? "#aaccee" : "#880088"} 
-                transparent 
-                opacity={opacity * (0.4 + Math.sin(time * 3.5 + i) * 0.25) * twinkle}
-              />
-            </mesh>
-          </group>
-        );
-      })}
-      
-      {/* Dark energy wisps */}
-      {Array.from({ length: 4 }).map((_, i) => {
-        const angle = (i / 4) * Math.PI * 2 + time * 0.2;
-        const dist = 1.1 + Math.sin(time * 1.5 + i * 1.5) * 0.2;
-        const size = 0.08 + Math.sin(time * 3 + i * 0.8) * 0.03;
-        return (
-          <mesh key={`wisp-${i}`} position={[Math.cos(angle) * dist, Math.sin(angle) * dist, -0.01]} scale={[size, size * 2, 1]} rotation={[0, 0, angle + Math.PI / 2]}>
-            <circleGeometry args={[1, 8]} />
-            <meshBasicMaterial 
-              color={frozenTint ? "#5599bb" : "#330033"} 
-              transparent 
-              opacity={opacity * 0.2}
-            />
-          </mesh>
-        );
-      })}
-      
-      {frozenTint && (
-        <>
-          <mesh scale={1.5} position={[0, 0, 0.03]}>
-            <circleGeometry args={[1, 24]} />
-            <meshBasicMaterial color="#88ccff" transparent opacity={0.2} blending={THREE.AdditiveBlending} />
-          </mesh>
-          <mesh scale={1.3} position={[0, 0, 0.035]}>
-            <ringGeometry args={[0.7, 1, 32]} />
-            <meshBasicMaterial color="#aaddff" transparent opacity={0.15} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} />
-          </mesh>
-        </>
-      )}
     </group>
   );
 }
