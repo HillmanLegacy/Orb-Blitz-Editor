@@ -1,13 +1,14 @@
 /**
- * ToonImplosionVFX — dust/speck edition
+ * ToonImplosionVFX — fully 3D edition
  *
  * Phases (progress 0→1):
- *  0.00 – 0.80  120 tiny dust specks spiral inward (ease-in³, slight swirl)
- *  0.00 – 0.75   60 secondary micro-dust particles also rush inward
- *  0.00 – 0.65  Suction streams sweep inward (thin, hair-like)
- *  0.50 – 0.75  Crush flash at center
- *  0.62 – 1.00  Void remnant shrinks away
- *  0.58 – 1.00  Three fat shockwave tori expand outward
+ *  0.00 – 0.80  120 dust specks spiral inward  (SphereGeometry, ease-in³)
+ *  0.00 – 0.75   60 secondary micro-dust       (same, slightly smaller)
+ *  0.00 – 0.65  12 suction streams             (CylinderGeometry, 6-sided)
+ *  0.50 – 0.80  Crush flash                    (IcosahedronGeometry, toon outlined)
+ *  0.55 – 0.95  16 3D debris shards            (IcosahedronGeometry, fly outward + spin)
+ *  0.62 – 1.00  Void remnant                   (IcosahedronGeometry, shrinks)
+ *  0.58 – 1.00  Three fat shockwave tori       (spinning while expanding)
  */
 
 import { useRef, useMemo } from "react";
@@ -17,6 +18,7 @@ import * as THREE from "three";
 const SPECK_COUNT  = 120;
 const DUST_COUNT   =  60;
 const STREAM_COUNT =  12;
+const DEBRIS_COUNT =  16;
 
 const _dummy = new THREE.Object3D();
 const _q1    = new THREE.Quaternion();
@@ -29,12 +31,20 @@ function sr(seed: number, i: number) {
 
 interface SpeckDatum {
   dir:      THREE.Vector3;
-  cross:    THREE.Vector3;   // perpendicular for swirl
+  cross:    THREE.Vector3;
   speed:    number;
   delay:    number;
   size:     number;
-  swirlDir: number;          // +1 or -1
+  swirlDir: number;
   phase:    number;
+}
+
+interface DebrisDatum {
+  dir:      THREE.Vector3;
+  spinAxis: THREE.Vector3;
+  speed:    number;
+  size:     number;
+  delay:    number;
 }
 
 interface Props {
@@ -49,10 +59,12 @@ export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, se
   const progressRef = useRef(progress);
   progressRef.current = progress;
 
-  const speckFillRef  = useRef<THREE.InstancedMesh>(null);
-  const dustFillRef   = useRef<THREE.InstancedMesh>(null);
-  const streamFillRef = useRef<THREE.InstancedMesh>(null);
-  const streamOutRef  = useRef<THREE.InstancedMesh>(null);
+  const speckFillRef   = useRef<THREE.InstancedMesh>(null);
+  const dustFillRef    = useRef<THREE.InstancedMesh>(null);
+  const streamFillRef  = useRef<THREE.InstancedMesh>(null);
+  const streamOutRef   = useRef<THREE.InstancedMesh>(null);
+  const debrisFillRef  = useRef<THREE.InstancedMesh>(null);
+  const debrisOutRef   = useRef<THREE.InstancedMesh>(null);
 
   const crushRef    = useRef<THREE.Mesh>(null);
   const crushOutRef = useRef<THREE.Mesh>(null);
@@ -62,7 +74,7 @@ export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, se
 
   const gColor = glowColor ?? color;
 
-  // ── Particle data ─────────────────────────────────────────────────────────
+  // ── Particle data ──────────────────────────────────────────────────────
 
   const specks = useMemo<SpeckDatum[]>(() => {
     const list: SpeckDatum[] = [];
@@ -74,7 +86,6 @@ export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, se
         Math.cos(phi),
         Math.sin(phi) * Math.sin(theta),
       ).normalize();
-      // perpendicular vector for swirl
       const up    = Math.abs(dir.y) < 0.9 ? _yUp : new THREE.Vector3(1, 0, 0);
       const cross = new THREE.Vector3().crossVectors(dir, up).normalize();
       list.push({
@@ -126,47 +137,72 @@ export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, se
     [seed],
   );
 
+  const debris = useMemo<DebrisDatum[]>(() => {
+    const list: DebrisDatum[] = [];
+    for (let i = 0; i < DEBRIS_COUNT; i++) {
+      const phi   = Math.acos(1 - 2 * (i + 0.5) / DEBRIS_COUNT);
+      const theta = Math.PI * (1 + Math.sqrt(5)) * i + sr(seed + 99, i) * 1.8;
+      const dir   = new THREE.Vector3(
+        Math.sin(phi) * Math.cos(theta),
+        Math.cos(phi),
+        Math.sin(phi) * Math.sin(theta),
+      ).normalize();
+      const spinAxis = new THREE.Vector3(
+        sr(seed + 99, i * 4 + 1) * 2 - 1,
+        sr(seed + 99, i * 4 + 2) * 2 - 1,
+        sr(seed + 99, i * 4 + 3) * 2 - 1,
+      ).normalize();
+      list.push({
+        dir, spinAxis,
+        speed: 0.6 + sr(seed + 99, i * 5 + 4) * 0.8,
+        size:  0.09 + sr(seed + 99, i * 5)     * 0.11,
+        delay: sr(seed + 99, i * 5 + 1)        * 0.08,
+      });
+    }
+    return list;
+  }, [seed]);
+
   const ringDefs = useMemo(() => [
-    { rotX: Math.PI / 2, rotZ: 0,           rate: 4.0, delay: 0.58, tubeR: 0.11 },
-    { rotX: Math.PI / 4, rotZ: Math.PI / 5, rate: 2.8, delay: 0.63, tubeR: 0.08 },
-    { rotX: 0.9,         rotZ: Math.PI / 3, rate: 3.3, delay: 0.68, tubeR: 0.09 },
+    { rotX: Math.PI / 2, rotZ: 0,           spinX:  1.8, spinZ:  0.9, rate: 4.0, delay: 0.58, tubeR: 0.18 },
+    { rotX: Math.PI / 4, rotZ: Math.PI / 5, spinX: -1.2, spinZ:  1.5, rate: 2.8, delay: 0.63, tubeR: 0.14 },
+    { rotX: 0.9,         rotZ: Math.PI / 3, spinX:  0.7, spinZ: -2.0, rate: 3.3, delay: 0.68, tubeR: 0.16 },
   ], []);
 
-  // ── Geometries & materials ────────────────────────────────────────────────
+  // ── Geometries & materials ─────────────────────────────────────────────
 
   const speckGeo  = useMemo(() => new THREE.SphereGeometry(1, 5, 4), []);
-  const streamGeo = useMemo(() => new THREE.CylinderGeometry(0.04, 0.005, 1, 3, 1), []);
+  // 6-sided cylinder so streams look like round rods, not flat triangles
+  const streamGeo = useMemo(() => new THREE.CylinderGeometry(0.04, 0.006, 1, 6, 1), []);
+  // Faceted icosahedron for debris shards — clearly 3D at any angle
+  const debrisGeo = useMemo(() => new THREE.IcosahedronGeometry(1, 0), []);
 
-  const speckMat  = useMemo(() => new THREE.MeshBasicMaterial({ color,     transparent: true, depthWrite: false }), [color]);
-  const dustMat   = useMemo(() => new THREE.MeshBasicMaterial({ color: gColor, transparent: true, depthWrite: false }), [gColor]);
+  const speckMat      = useMemo(() => new THREE.MeshBasicMaterial({ color,     transparent: true, depthWrite: false }), [color]);
+  const dustMat       = useMemo(() => new THREE.MeshBasicMaterial({ color: gColor, transparent: true, depthWrite: false }), [gColor]);
   const streamFillMat = useMemo(() => new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, depthWrite: false }), []);
-  const streamOutMat  = useMemo(() => new THREE.MeshBasicMaterial({ color: "#111111", transparent: true, depthWrite: false, side: THREE.BackSide }), []);
+  const streamOutMat  = useMemo(() => new THREE.MeshBasicMaterial({ color: "#0d0d0d", transparent: true, depthWrite: false, side: THREE.BackSide }), []);
+  const debrisFillMat = useMemo(() => new THREE.MeshBasicMaterial({ color: gColor, transparent: true, depthWrite: false }), [gColor]);
+  const debrisOutMat  = useMemo(() => new THREE.MeshBasicMaterial({ color: "#0d0d0d", transparent: true, depthWrite: false, side: THREE.BackSide }), []);
 
-  // ── Frame update ──────────────────────────────────────────────────────────
+  // ── Frame update ───────────────────────────────────────────────────────
 
   useFrame((state) => {
     const p    = progressRef.current;
     const t    = state.clock.getElapsedTime();
     const maxR = 2.6 * scale;
 
-    const easeIn = (lp: number) => Math.pow(Math.min(lp, 1), 3.0);
+    const easeIn  = (lp: number) => Math.pow(Math.min(lp, 1), 3.0);
+    const easeOut = (lp: number) => 1 - Math.pow(1 - Math.min(lp, 1), 2.5);
 
-    // ── Primary specks ────────────────────────────────────────────────────
+    // ── Primary specks ──────────────────────────────────────────────────
     const speckOp = Math.max(0, 1 - Math.max(0, p - 0.60) / 0.22);
     if (speckFillRef.current) {
       for (let i = 0; i < SPECK_COUNT; i++) {
         const s  = specks[i];
         const lp = Math.max(0, (p - s.delay) / (0.82 - s.delay));
         const ei = easeIn(lp);
-        const dist = (1 - ei) * maxR * s.speed;
-
-        // Slight spiral as they rush in
+        const dist  = (1 - ei) * maxR * s.speed;
         const swirl = s.swirlDir * (1 - ei) * 0.55 * Math.sin(t * 4 + s.phase);
-
-        _dummy.position
-          .copy(s.dir).multiplyScalar(Math.max(0, dist))
-          .addScaledVector(s.cross, swirl * scale);
-
+        _dummy.position.copy(s.dir).multiplyScalar(Math.max(0, dist)).addScaledVector(s.cross, swirl * scale);
         _q1.setFromAxisAngle(s.dir, t * 6 + i);
         _dummy.quaternion.copy(_q1);
         _dummy.scale.setScalar(Math.max(0.0001, scale * s.size * (0.6 + 0.4 * (1 - ei))));
@@ -178,7 +214,7 @@ export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, se
       (speckFillRef.current.material as THREE.MeshBasicMaterial).opacity = speckOp;
     }
 
-    // ── Secondary micro-dust ──────────────────────────────────────────────
+    // ── Secondary micro-dust ────────────────────────────────────────────
     const dustOp = Math.max(0, 1 - Math.max(0, p - 0.52) / 0.25);
     if (dustFillRef.current) {
       for (let i = 0; i < DUST_COUNT; i++) {
@@ -187,11 +223,7 @@ export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, se
         const ei = easeIn(lp);
         const dist  = (1 - ei) * maxR * s.speed * 0.80;
         const swirl = s.swirlDir * (1 - ei) * 0.4 * Math.cos(t * 5 + s.phase);
-
-        _dummy.position
-          .copy(s.dir).multiplyScalar(Math.max(0, dist))
-          .addScaledVector(s.cross, swirl * scale);
-
+        _dummy.position.copy(s.dir).multiplyScalar(Math.max(0, dist)).addScaledVector(s.cross, swirl * scale);
         _q1.setFromAxisAngle(s.dir, t * 8 + i * 1.3);
         _dummy.quaternion.copy(_q1);
         _dummy.scale.setScalar(Math.max(0.0001, scale * s.size * (0.5 + 0.5 * (1 - ei))));
@@ -203,23 +235,23 @@ export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, se
       (dustFillRef.current.material as THREE.MeshBasicMaterial).opacity = dustOp;
     }
 
-    // ── Suction streams ───────────────────────────────────────────────────
+    // ── Suction streams (6-sided cylinders) ─────────────────────────────
     const streamProgress = Math.min(1, p / 0.65);
     const streamOp = Math.max(0, 1 - Math.max(0, p - 0.42) / 0.28);
     if (streamFillRef.current || streamOutRef.current) {
       for (let i = 0; i < STREAM_COUNT; i++) {
-        const dir    = streamDirs[i];
-        const spd    = 0.5 + sr(seed + 7, i * 3) * 0.5;
-        const lp     = easeIn(streamProgress * spd);
+        const dir     = streamDirs[i];
+        const spd     = 0.5 + sr(seed + 7, i * 3) * 0.5;
+        const lp      = easeIn(streamProgress * spd);
         const tipDist = (1 - lp) * maxR * 0.9;
-        const len    = Math.max(0.0001, (1 - Math.pow(streamProgress * spd, 0.3)) * scale * 1.4);
+        const len     = Math.max(0.0001, (1 - Math.pow(streamProgress * spd, 0.3)) * scale * 1.4);
         _dummy.position.copy(dir).multiplyScalar(tipDist + len * 0.5);
         _dummy.quaternion.setFromUnitVectors(_yUp, dir.clone().negate());
-        _dummy.scale.set(scale * 0.06, len, scale * 0.06);
+        _dummy.scale.set(scale * 0.07, len, scale * 0.07);
         _dummy.updateMatrix();
         streamFillRef.current?.setMatrixAt(i, _dummy.matrix);
         if (streamOutRef.current) {
-          _dummy.scale.set(scale * 0.09, len, scale * 0.09);
+          _dummy.scale.set(scale * 0.10, len, scale * 0.10);
           _dummy.updateMatrix();
           streamOutRef.current.setMatrixAt(i, _dummy.matrix);
         }
@@ -234,48 +266,94 @@ export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, se
       }
     }
 
-    // ── Crush flash ───────────────────────────────────────────────────────
+    // ── 3D debris shards (fly outward from crush point) ─────────────────
+    // appear at p=0.55, fly outward, spin hard, fade by p=0.95
+    const debrisOp = p < 0.55 ? 0 : Math.max(0, 1 - Math.max(0, p - 0.65) / 0.32);
+    if (debrisFillRef.current || debrisOutRef.current) {
+      for (let i = 0; i < DEBRIS_COUNT; i++) {
+        const d  = debris[i];
+        const lp = Math.max(0, (p - 0.55 - d.delay) / (0.40 - d.delay));
+        const dist = easeOut(lp) * scale * 2.0 * d.speed;
+        const sz   = scale * d.size * (1.0 - lp * 0.5);
+        _dummy.position.copy(d.dir).multiplyScalar(dist);
+        // Hard spin on own axis
+        _q1.setFromAxisAngle(d.spinAxis, t * 14 + i * 2.1);
+        _dummy.quaternion.copy(_q1);
+        _dummy.scale.setScalar(Math.max(0.0001, sz));
+        _dummy.updateMatrix();
+        debrisFillRef.current?.setMatrixAt(i, _dummy.matrix);
+        if (debrisOutRef.current) {
+          _dummy.scale.setScalar(Math.max(0.0001, sz * 1.28));
+          _dummy.updateMatrix();
+          debrisOutRef.current.setMatrixAt(i, _dummy.matrix);
+        }
+      }
+      if (debrisFillRef.current) {
+        debrisFillRef.current.instanceMatrix.needsUpdate = true;
+        (debrisFillRef.current.material as THREE.MeshBasicMaterial).color.set(gColor);
+        (debrisFillRef.current.material as THREE.MeshBasicMaterial).opacity = debrisOp * 0.95;
+      }
+      if (debrisOutRef.current) {
+        debrisOutRef.current.instanceMatrix.needsUpdate = true;
+        (debrisOutRef.current.material as THREE.MeshBasicMaterial).opacity = debrisOp * 0.85;
+      }
+    }
+
+    // ── Crush flash (IcosahedronGeometry, no lighting needed) ───────────
     if (crushRef.current) {
-      const cp   = Math.max(0, (p - 0.50) / 0.25);
-      const grow = cp < 0.4 ? (cp / 0.4) * 1.7 : Math.max(0, 1.7 - ((cp - 0.4) / 0.6) * 1.7);
-      const op   = cp < 0.4 ? cp / 0.4 : Math.max(0, 1 - (cp - 0.4) / 0.6);
-      crushRef.current.scale.setScalar(scale * Math.max(0.001, grow));
+      const cp   = Math.max(0, (p - 0.50) / 0.30);
+      const grow = cp < 0.35 ? (cp / 0.35) * 2.0 : Math.max(0, 2.0 - ((cp - 0.35) / 0.65) * 2.0);
+      const op   = cp < 0.35 ? cp / 0.35 : Math.max(0, 1 - (cp - 0.35) / 0.65);
+      const sz   = scale * Math.max(0.001, grow);
+      crushRef.current.scale.setScalar(sz);
+      // spin the faceted crush so it reads as 3D
+      crushRef.current.rotation.x = t * 3.5;
+      crushRef.current.rotation.y = t * 2.2;
       (crushRef.current.material as THREE.MeshBasicMaterial).opacity = op;
       if (crushOutRef.current) {
-        crushOutRef.current.scale.setScalar(scale * Math.max(0.001, grow) * 1.22);
-        (crushOutRef.current.material as THREE.MeshBasicMaterial).opacity = op * 0.75;
+        crushOutRef.current.scale.setScalar(sz * 1.24);
+        crushOutRef.current.rotation.x = t * 3.5;
+        crushOutRef.current.rotation.y = t * 2.2;
+        (crushOutRef.current.material as THREE.MeshBasicMaterial).opacity = op * 0.80;
       }
     }
 
-    // ── Void remnant ──────────────────────────────────────────────────────
+    // ── Void remnant (IcosahedronGeometry, spins while shrinking) ───────
     if (voidRef.current) {
       const vp  = Math.max(0, (p - 0.62) / 0.38);
-      const sz  = scale * Math.max(0.001, 0.65 * (1 - vp));
+      const sz  = scale * Math.max(0.001, 0.70 * (1 - vp));
       const op  = Math.max(0, 1 - vp * 1.1);
       voidRef.current.scale.setScalar(sz);
-      (voidRef.current.material as THREE.MeshBasicMaterial).opacity = op * 0.80;
+      voidRef.current.rotation.x = t * 1.8;
+      voidRef.current.rotation.z = t * 2.4;
+      (voidRef.current.material as THREE.MeshBasicMaterial).opacity = op * 0.82;
       if (voidOutRef.current) {
-        voidOutRef.current.scale.setScalar(sz * 1.2);
-        (voidOutRef.current.material as THREE.MeshBasicMaterial).opacity = op * 0.65;
+        voidOutRef.current.scale.setScalar(sz * 1.22);
+        voidOutRef.current.rotation.x = t * 1.8;
+        voidOutRef.current.rotation.z = t * 2.4;
+        (voidOutRef.current.material as THREE.MeshBasicMaterial).opacity = op * 0.68;
       }
     }
 
-    // ── Shockwave rings ───────────────────────────────────────────────────
+    // ── Shockwave tori — spinning while expanding ────────────────────────
     for (let ri = 0; ri < ringDefs.length; ri++) {
       const mesh = ringRefs.current[ri];
       if (!mesh) continue;
       const r  = ringDefs[ri];
       const lp = Math.max(0, (p - r.delay) / (1 - r.delay));
       mesh.scale.setScalar(Math.max(0.001, scale * (0.18 + lp * r.rate)));
+      // Spin continuously so the 3D torus tube is clearly visible
+      mesh.rotation.x = r.rotX + t * r.spinX;
+      mesh.rotation.z = r.rotZ + t * r.spinZ;
       (mesh.material as THREE.MeshBasicMaterial).opacity = Math.max(0, (1 - lp * 1.6) * 0.95);
     }
   });
 
-  // ── JSX ──────────────────────────────────────────────────────────────────
+  // ── JSX ────────────────────────────────────────────────────────────────
 
   return (
     <>
-      {/* Suction streams */}
+      {/* Suction streams — 6-sided cylinders with outline */}
       <instancedMesh ref={streamOutRef}   args={[streamGeo, streamOutMat,  STREAM_COUNT]} frustumCulled={false} />
       <instancedMesh ref={streamFillRef}  args={[streamGeo, streamFillMat, STREAM_COUNT]} frustumCulled={false} />
 
@@ -285,30 +363,34 @@ export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, se
       {/* Secondary micro-dust */}
       <instancedMesh ref={dustFillRef}   args={[speckGeo, dustMat,  DUST_COUNT]}  frustumCulled={false} />
 
-      {/* Crush flash */}
+      {/* 3D debris shards — IcosahedronGeometry with outline */}
+      <instancedMesh ref={debrisOutRef}  args={[debrisGeo, debrisOutMat, DEBRIS_COUNT]} frustumCulled={false} />
+      <instancedMesh ref={debrisFillRef} args={[debrisGeo, debrisFillMat, DEBRIS_COUNT]} frustumCulled={false} />
+
+      {/* Crush flash — IcosahedronGeometry, spinning */}
       <mesh ref={crushOutRef}>
-        <sphereGeometry args={[1, 8, 6]} />
-        <meshBasicMaterial color="#111111" transparent opacity={0} depthWrite={false} side={THREE.BackSide} />
+        <icosahedronGeometry args={[1, 1]} />
+        <meshBasicMaterial color="#0d0d0d" transparent opacity={0} depthWrite={false} side={THREE.BackSide} />
       </mesh>
       <mesh ref={crushRef}>
-        <sphereGeometry args={[1, 8, 6]} />
+        <icosahedronGeometry args={[1, 1]} />
         <meshBasicMaterial color="#ffffff" transparent opacity={0} depthWrite={false} />
       </mesh>
 
-      {/* Void remnant */}
+      {/* Void remnant — IcosahedronGeometry, spinning while shrinking */}
       <mesh ref={voidOutRef}>
-        <sphereGeometry args={[1, 8, 6]} />
-        <meshBasicMaterial color="#111111" transparent opacity={0} depthWrite={false} side={THREE.BackSide} />
+        <icosahedronGeometry args={[1, 1]} />
+        <meshBasicMaterial color="#0d0d0d" transparent opacity={0} depthWrite={false} side={THREE.BackSide} />
       </mesh>
       <mesh ref={voidRef}>
         <icosahedronGeometry args={[1, 1]} />
         <meshBasicMaterial color={color} transparent opacity={0} depthWrite={false} />
       </mesh>
 
-      {/* Post-implosion shockwave rings */}
+      {/* Shockwave tori — fat tube, spinning so 3D nature is obvious */}
       {ringDefs.map((r, i) => (
-        <mesh key={i} ref={(el) => { ringRefs.current[i] = el; }} rotation={[r.rotX, 0, r.rotZ]}>
-          <torusGeometry args={[1, r.tubeR, 8, 44]} />
+        <mesh key={i} ref={(el) => { ringRefs.current[i] = el; }}>
+          <torusGeometry args={[1, r.tubeR, 12, 48]} />
           <meshBasicMaterial
             color={i === 1 ? gColor : color}
             transparent opacity={0}
