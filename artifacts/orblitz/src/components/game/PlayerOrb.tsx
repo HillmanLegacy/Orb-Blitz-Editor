@@ -261,6 +261,7 @@ const getRingConfig = (style: RingStyle): RingConfig => {
         glowIntensity: 1.1
       };
     case "none":
+    case "default":
       return { count: 0, colors: [], segments: 0 };
     default:
       return { 
