@@ -5,6 +5,7 @@ import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop, OrbSkin, RingStyle } from "@/lib/stores/useShop";
 import { ToonOrbLayer, CelOutline, RayTracedGlow, AmbientOcclusionLayer, GlobalIlluminationBounce, ScreenSpaceReflection, CausticPattern } from "./ToonShaders";
 import { PlayerModel } from "./PlayerModel";
+import { PlayerParticles } from "./PlayerParticles";
 
 const sharedCircleGeo = new THREE.CircleGeometry(1, 32);
 const sharedCircleGeoLow = new THREE.CircleGeometry(1, 16);
@@ -654,6 +655,13 @@ export function PlayerOrb() {
           rotationSpeedY={1.2}
         />
       </Suspense>
+
+      {/* Swirling 3-D particles — colour-matched to the equipped skin */}
+      <PlayerParticles
+        scale={scale}
+        particleColors={skinColors.particles}
+        isRainbow={(skinColors as any).isRainbow === true}
+      />
 
       {/* Hidden refs kept so useFrame doesn't throw on null checks */}
       <mesh ref={coreRef} visible={false}>
