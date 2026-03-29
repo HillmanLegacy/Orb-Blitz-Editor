@@ -52,24 +52,16 @@ function createOrbPattern(): THREE.DataTexture {
 export function PlayerModel({
   scale,
   coreColor = "#ffffff",
-  glowColor = "#ffffff",
   isRainbow = false,
   rotationSpeedX = 0.8,
   rotationSpeedY = 1.2,
 }: PlayerModelProps) {
-  const modelGroupRef  = useRef<THREE.Group>(null);
-  const outerGlow1Ref  = useRef<THREE.Mesh>(null);
-  const outerGlow2Ref  = useRef<THREE.Mesh>(null);
-  const innerGlowRef   = useRef<THREE.Mesh>(null);
-  const pulseRingRef   = useRef<THREE.Mesh>(null);
-  const materialsRef   = useRef<THREE.MeshBasicMaterial[]>([]);
+  const modelGroupRef = useRef<THREE.Group>(null);
+  const materialsRef  = useRef<THREE.MeshBasicMaterial[]>([]);
 
   const fbx        = useLoader(FBXLoader, "/models/player.fbx");
   const orbPattern = useMemo(() => createOrbPattern(), []);
-
-  // Parse skin colors once so useFrame isn't doing string→Color every frame
   const coreColorObj = useMemo(() => new THREE.Color(coreColor), [coreColor]);
-  const glowColorObj = useMemo(() => new THREE.Color(glowColor), [glowColor]);
 
   useEffect(() => {
     if (!modelGroupRef.current) return;
@@ -78,9 +70,9 @@ export function PlayerModel({
 
     // Normalise size: fit model inside radius = scale
     const box = new THREE.Box3().setFromObject(cloned);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-    const maxDim = Math.max(size.x, size.y, size.z);
+    const sizeVec = new THREE.Vector3();
+    box.getSize(sizeVec);
+    const maxDim = Math.max(sizeVec.x, sizeVec.y, sizeVec.z);
     const normScale = maxDim > 0 ? (scale * 2) / maxDim : 1;
     cloned.scale.setScalar(normScale);
 
@@ -115,121 +107,24 @@ export function PlayerModel({
   useFrame((state, delta) => {
     const time = state.clock.getElapsedTime();
 
-    // Rotate the model on both axes
+    // Rotate the model on both axes simultaneously
     if (modelGroupRef.current) {
       modelGroupRef.current.rotation.x += delta * rotationSpeedX;
       modelGroupRef.current.rotation.y += delta * rotationSpeedY;
     }
 
-    // Skin colour tint (rainbow cycles hue, others stay on skin hue)
-    const pulseLight = 0.5 + Math.sin(time * 3.0) * 0.18;
+    // Pulse brightness on the skin colour (or cycle hue for rainbow)
+    const pulseLight = 0.45 + Math.sin(time * 3.0) * 0.18;
     materialsRef.current.forEach((mat) => {
       if (isRainbow) {
         mat.color.setHSL((time * 0.18) % 1, 1.0, pulseLight);
       } else {
         const hsl = { h: 0, s: 0, l: 0 };
         coreColorObj.getHSL(hsl);
-        mat.color.setHSL(hsl.h, Math.max(hsl.s, 0.5), pulseLight);
+        mat.color.setHSL(hsl.h, Math.max(hsl.s, 0.4), pulseLight);
       }
     });
-
-    const glowHSL = { h: 0, s: 0, l: 0 };
-    glowColorObj.getHSL(glowHSL);
-    const activeGlowColor = isRainbow
-      ? new THREE.Color().setHSL((time * 0.18 + 0.2) % 1, 1.0, 0.6)
-      : glowColorObj;
-
-    // Outer soft glow — slow breathe
-    if (outerGlow1Ref.current) {
-      const s = scale * (2.6 + Math.sin(time * 1.4) * 0.15);
-      outerGlow1Ref.current.scale.setScalar(s);
-      const mat = outerGlow1Ref.current.material as THREE.MeshBasicMaterial;
-      mat.color.copy(activeGlowColor);
-      mat.opacity = 0.10 + Math.sin(time * 1.4) * 0.03;
-    }
-
-    // Second glow layer — slightly faster
-    if (outerGlow2Ref.current) {
-      const s = scale * (2.0 + Math.sin(time * 2.2 + 1.0) * 0.12);
-      outerGlow2Ref.current.scale.setScalar(s);
-      const mat = outerGlow2Ref.current.material as THREE.MeshBasicMaterial;
-      mat.color.copy(activeGlowColor);
-      mat.opacity = 0.18 + Math.sin(time * 2.2 + 1.0) * 0.06;
-    }
-
-    // Inner bright halo
-    if (innerGlowRef.current) {
-      const s = scale * (1.3 + Math.sin(time * 4.0 + 0.5) * 0.08);
-      innerGlowRef.current.scale.setScalar(s);
-      const mat = innerGlowRef.current.material as THREE.MeshBasicMaterial;
-      mat.color.copy(activeGlowColor);
-      mat.opacity = 0.30 + Math.sin(time * 4.0 + 0.5) * 0.12;
-    }
-
-    // Pulsing ring — expands outward and fades
-    if (pulseRingRef.current) {
-      const cycle = ((time * 0.9) % 1);
-      const ringScale = scale * (1.1 + cycle * 1.8);
-      pulseRingRef.current.scale.setScalar(ringScale);
-      const mat = pulseRingRef.current.material as THREE.MeshBasicMaterial;
-      mat.color.copy(activeGlowColor);
-      mat.opacity = (1 - cycle) * 0.22;
-    }
   });
 
-  return (
-    <group>
-      {/* Outermost soft glow blob */}
-      <mesh ref={outerGlow1Ref}>
-        <circleGeometry args={[1, 32]} />
-        <meshBasicMaterial
-          color={glowColor}
-          transparent
-          opacity={0.10}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
-      </mesh>
-
-      {/* Second glow layer */}
-      <mesh ref={outerGlow2Ref}>
-        <circleGeometry args={[1, 32]} />
-        <meshBasicMaterial
-          color={glowColor}
-          transparent
-          opacity={0.18}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
-      </mesh>
-
-      {/* Inner bright halo — tight around model */}
-      <mesh ref={innerGlowRef}>
-        <circleGeometry args={[1, 32]} />
-        <meshBasicMaterial
-          color={glowColor}
-          transparent
-          opacity={0.30}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
-      </mesh>
-
-      {/* Expanding pulse ring */}
-      <mesh ref={pulseRingRef}>
-        <ringGeometry args={[0.88, 1, 48]} />
-        <meshBasicMaterial
-          color={glowColor}
-          transparent
-          opacity={0.22}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-          side={THREE.DoubleSide}
-        />
-      </mesh>
-
-      {/* 3-D model — rotates independently */}
-      <group ref={modelGroupRef} />
-    </group>
-  );
+  return <group ref={modelGroupRef} />;
 }

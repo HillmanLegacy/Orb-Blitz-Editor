@@ -637,79 +637,7 @@ export function PlayerOrb() {
   
   return (
     <group ref={groupRef} position={playerPosition}>
-      {/* RAY TRACING EFFECTS - Global Illumination Bounce */}
-      <GlobalIlluminationBounce 
-        scale={scale * 2.0} 
-        primaryColor={glowColor} 
-        bounceColor={emissiveColor} 
-        intensity={0.25 * dimFactor} 
-      />
-      
-      {/* RAY TRACING EFFECTS - Volumetric Glow with noise */}
-      <RayTracedGlow 
-        scale={scale * 3.0} 
-        color={glowColor} 
-        intensity={0.35 * dimFactor * phaseOpacity} 
-        falloff={2.5} 
-      />
-      
-      {/* RAY TRACING EFFECTS - Ambient Occlusion */}
-      <AmbientOcclusionLayer 
-        scale={scale * 1.4} 
-        intensity={0.25 * dimFactor} 
-      />
-      
-      {/* RAY TRACING EFFECTS - Screen Space Reflection */}
-      <ScreenSpaceReflection 
-        scale={scale * 1.1} 
-        color={accentColor} 
-        reflectivity={0.3 * dimFactor * phaseOpacity} 
-      />
-      
-      {/* RAY TRACING EFFECTS - Caustic Pattern */}
-      <CausticPattern 
-        scale={scale * 1.0} 
-        color={emissiveColor} 
-        intensity={0.15 * dimFactor * phaseOpacity} 
-      />
-      
-      {/* HDR Bloom layer - outermost ultra-soft glow */}
-      <mesh scale={scale * 3.5}>
-        <circleGeometry args={[1, 32]} />
-        <meshBasicMaterial color={glowColor} transparent opacity={0.04 * dimFactor * phaseOpacity} blending={THREE.AdditiveBlending} />
-      </mesh>
-      
-      {/* HDR Bloom layer 2 */}
-      <mesh scale={scale * 2.8}>
-        <circleGeometry args={[1, 32]} />
-        <meshBasicMaterial color={glowColor} transparent opacity={0.08 * dimFactor * phaseOpacity} blending={THREE.AdditiveBlending} />
-      </mesh>
-      
-      {/* Outermost soft glow - enhanced */}
-      <mesh ref={outerGlowRef} scale={scale * 2.2}>
-        <circleGeometry args={[1, 32]} />
-        <meshBasicMaterial color={glowColor} transparent opacity={0.15 * dimFactor * phaseOpacity} blending={THREE.AdditiveBlending} />
-      </mesh>
-      
-      {/* Atmospheric haze ring */}
-      <mesh scale={scale * 1.9}>
-        <ringGeometry args={[0.7, 1, 48]} />
-        <meshBasicMaterial color={emissiveColor} transparent opacity={0.12 * dimFactor * phaseOpacity} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} />
-      </mesh>
-      
-      {/* Energy rays emanating from core - enhanced */}
-      {energyRays.map((ray, i) => (
-        <mesh 
-          key={`ray-${i}`} 
-          ref={el => { if (el) rayRefs.current[i] = el; }}
-          position={[0, 0, 0.01]}
-        >
-          <planeGeometry args={[1, 1]} />
-          <meshBasicMaterial color={accentColor} transparent opacity={0.45 * dimFactor} blending={THREE.AdditiveBlending} />
-        </mesh>
-      ))}
-      
-      {/* 3D Player Character Model - rotates on X and Y axes */}
+      {/* 3D Player Character Model */}
       <Suspense fallback={
         <mesh scale={scale * 0.92}>
           <circleGeometry args={[1, 48]} />
@@ -726,13 +654,7 @@ export function PlayerOrb() {
         />
       </Suspense>
 
-      {/* Outer atmosphere glow — dim wide halo around the model */}
-      <mesh ref={glowRef} scale={scale * 1.8}>
-        <circleGeometry args={[1, 32]} />
-        <meshBasicMaterial color={glowColor} transparent opacity={0.12 * dimFactor * phaseOpacity} blending={THREE.AdditiveBlending} depthWrite={false} />
-      </mesh>
-
-      {/* Hidden refs for compatibility (unused but kept to avoid null errors in useFrame) */}
+      {/* Hidden refs kept so useFrame doesn't throw on null checks */}
       <mesh ref={coreRef} visible={false}>
         <circleGeometry args={[1, 4]} />
         <meshBasicMaterial />
@@ -741,37 +663,16 @@ export function PlayerOrb() {
         <circleGeometry args={[1, 4]} />
         <meshBasicMaterial />
       </mesh>
-      
-      {/* Chromatic aberration effect - subtle color fringing */}
-      <mesh scale={scale * 1.02} position={[0.01, 0, 0.015]}>
-        <ringGeometry args={[0.85, 1, 48]} />
-        <meshBasicMaterial color="#ff0066" transparent opacity={0.08 * dimFactor * phaseOpacity} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} />
+      <mesh ref={glowRef} visible={false}>
+        <circleGeometry args={[1, 4]} />
+        <meshBasicMaterial />
       </mesh>
-      <mesh scale={scale * 1.02} position={[-0.01, 0, 0.015]}>
-        <ringGeometry args={[0.85, 1, 48]} />
-        <meshBasicMaterial color="#0066ff" transparent opacity={0.08 * dimFactor * phaseOpacity} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} />
+      <mesh ref={outerGlowRef} visible={false}>
+        <circleGeometry args={[1, 4]} />
+        <meshBasicMaterial />
       </mesh>
-      
-      {/* Orbiting fine particles */}
-      {orbParticles.map((p, i) => (
-        <mesh
-          key={`particle-${i}`}
-          ref={el => { if (el) particleRefs.current[i] = el; }}
-          position={[0, 0, 0.02]}
-        >
-          <circleGeometry args={[1, 6]} />
-          <meshBasicMaterial 
-            color={skinColors.particles[p.colorIndex]} 
-            transparent 
-            opacity={0.7 * dimFactor} 
-          />
-        </mesh>
-      ))}
-      
-      {/* Energy wave pulses - subtle expanding rings */}
-      <EnergyWaves scale={scale} glowColor={glowColor} dimFactor={dimFactor} />
-      
-      {/* Decorative rings - HD animated */}
+
+      {/* Equipped ring decorations */}
       {ringConfig.count > 0 && (
         <group scale={scale * 1.35}>
           {ringConfig.colors.slice(0, ringConfig.count).map((color, i) => {
@@ -779,38 +680,15 @@ export function PlayerOrb() {
             const thickness = ringConfig.thickness || 0.08;
             const innerRadius = 0.88 + i * 0.12;
             const outerRadius = innerRadius + thickness + (ringConfig.halo ? 0.06 : 0);
-            
             return (
               <group key={i}>
-                <mesh 
-                  ref={(el) => { if (el) ringRefs.current[i] = el; }}
-                >
+                <mesh ref={(el) => { if (el) ringRefs.current[i] = el; }}>
                   <ringGeometry args={[innerRadius, outerRadius, segments]} />
-                  <meshBasicMaterial 
+                  <meshBasicMaterial
                     color={color}
-                    side={THREE.DoubleSide} 
-                    transparent 
+                    side={THREE.DoubleSide}
+                    transparent
                     opacity={(0.85 - i * 0.08) * dimFactor * (ringConfig.glowIntensity || 0.8)}
-                  />
-                </mesh>
-                {/* Inner glow layer for HD effect */}
-                <mesh rotation={[0, 0, i * 0.2]}>
-                  <ringGeometry args={[innerRadius - 0.03, innerRadius, segments]} />
-                  <meshBasicMaterial 
-                    color={color}
-                    side={THREE.DoubleSide} 
-                    transparent 
-                    opacity={(0.35 - i * 0.05) * dimFactor}
-                  />
-                </mesh>
-                {/* Outer glow layer for HD effect */}
-                <mesh rotation={[0, 0, -i * 0.15]}>
-                  <ringGeometry args={[outerRadius, outerRadius + 0.04, segments]} />
-                  <meshBasicMaterial 
-                    color={color}
-                    side={THREE.DoubleSide} 
-                    transparent 
-                    opacity={(0.25 - i * 0.04) * dimFactor}
                   />
                 </mesh>
               </group>
@@ -818,8 +696,8 @@ export function PlayerOrb() {
           })}
         </group>
       )}
-      
-      {/* Shield effect */}
+
+      {/* Shield power-up */}
       {hasShield && (
         <>
           <mesh scale={scale * 2.5}>
@@ -828,49 +706,16 @@ export function PlayerOrb() {
           </mesh>
           <mesh ref={shieldRef} scale={scale * 2.3}>
             <ringGeometry args={[0.82, 0.94, 20]} />
-            <meshBasicMaterial 
-              color="#00ffff"
-              transparent
-              opacity={0.65}
-              side={THREE.DoubleSide}
-            />
+            <meshBasicMaterial color="#00ffff" transparent opacity={0.65} side={THREE.DoubleSide} />
           </mesh>
-          {/* Shield inner glow */}
           <mesh scale={scale * 2.1}>
             <ringGeometry args={[0.75, 0.85, 20]} />
-            <meshBasicMaterial 
-              color="#88ffff"
-              transparent
-              opacity={0.3}
-              side={THREE.DoubleSide}
-            />
+            <meshBasicMaterial color="#88ffff" transparent opacity={0.3} side={THREE.DoubleSide} />
           </mesh>
         </>
       )}
-      
-      {/* Luminous skin extra glow layers */}
-      {isLuminous && (
-        <>
-          <mesh scale={scale * 1.7} position={[0, 0, 0.015]}>
-            <circleGeometry args={[1, 20]} />
-            <meshBasicMaterial color="#ffffff" transparent opacity={0.22 * dimFactor} />
-          </mesh>
-          <mesh scale={scale * 2.0} position={[0, 0, 0.012]}>
-            <circleGeometry args={[1, 20]} />
-            <meshBasicMaterial color="#ddddff" transparent opacity={0.14 * dimFactor} />
-          </mesh>
-          <mesh scale={scale * 2.4} position={[0, 0, 0.01]}>
-            <circleGeometry args={[1, 20]} />
-            <meshBasicMaterial color="#bbbbff" transparent opacity={0.08 * dimFactor} />
-          </mesh>
-          <mesh scale={scale * 2.9} position={[0, 0, 0.008]}>
-            <circleGeometry args={[1, 20]} />
-            <meshBasicMaterial color="#aaaaff" transparent opacity={0.04 * dimFactor} />
-          </mesh>
-        </>
-      )}
-      
-      {/* Charge beam indicator */}
+
+      {/* Charge beam power-up indicator */}
       {hasChargeBeam && (
         <>
           <mesh scale={scale * 1.9}>
