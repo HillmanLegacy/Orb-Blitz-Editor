@@ -1,0 +1,23 @@
+Create a performant, arcade-style 3D scene using Three.js suitable for running in a browser-based environment like Replit. The scene needs to implement dynamic, high-quality lighting effects and depth, focusing on post-processing and volumetric atmosphere rather than real-time shadows, as there will be no Directional Light source.
+
+### Scene Setup & Background
+1.  **Environment:** The setting must be dark (near-black) and atmospheric.
+2.  **Fog:** Implement *volumetric-style fog* (`THREE.FogExp2`). This must be thick and dark (e.g., deep charcoal or navy) to create a clear sense of depth and atmospheric perspective, allowing objects to fade naturally into the background.
+
+### Dynamic Lighting & Materials
+3.  **Dynamic Point Light:** Implement a high-intensity Point Light that is tethered to the player object's position. This light should have a calibrated decay value so it illuminates nearby objects without requiring global directional lighting.
+4.  **Material Emissivity:** Ensure the scene objects support `emissive` properties. Any object intended to glow should use an `emissive` color and `emissiveIntensity` to drive the bloom pass.
+
+### High-Quality Post-Processing Stack (Performance Optimized)
+5.  **EffectComposer:** Implement a post-processing pipeline using `THREE.EffectComposer`.
+6.  **Bloom Pass:** Add `THREE.UnrealBloomPass`. Configure the *strength*, *radius*, and *threshold* so that objects with high emissive values bleed light into the dark background, creating a high-contrast "arcade" aesthetic.
+7.  **Tone Mapping:** Set the renderer's `toneMapping` to `THREE.ReinhardToneMapping` to handle the high luminosity of the bloom effectively.
+8.  **Anti-aliasing:** Include an `SMAAPass` at the end of the composer stack to ensure smooth edges without relying on standard renderer-level antialiasing.
+
+### Technical Requirements
+9.  **Modular Structure:** Provide the code in a way that allows me to easily swap the player's 3D mesh and material properties. 
+10. **Renderer Settings:** Use `THREE.WebGLRenderer` with `outputColorSpace = THREE.SRGBColorSpace`. 
+11. **Performance:** Ensure the scene is optimized for browser execution by keeping the draw call overhead minimal.
+
+### Output Expectations
+The result must be a modular Three.js JavaScript file demonstrating a render loop where a central, moving object acts as the light source, casting a dynamic, blooming glow onto surrounding darker objects within the thick, atmospheric fog. The visual style should be high-contrast, moody, and clearly "arcade-game" ready.

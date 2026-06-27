@@ -1,8 +1,7 @@
-import { useRef, useMemo, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
-import { useLoader } from "@react-three/fiber";
+import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
-import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 
 interface PlayerModelProps {
   scale: number;
@@ -13,59 +12,39 @@ interface PlayerModelProps {
   rotationSpeedY?: number;
 }
 
-/** Grayscale swirl/ring pattern — tinted at render time by material.color */
-function createOrbPattern(): THREE.DataTexture {
-  const size = 512;
-  const data = new Uint8Array(4 * size * size);
-
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const i = (y * size + x) * 4;
-      const nx = (x / size) * 2 - 1;
-      const ny = (y / size) * 2 - 1;
-      const dist = Math.sqrt(nx * nx + ny * ny);
-      const angle = Math.atan2(ny, nx);
-
-      const swirl1 = Math.sin(angle * 5 + dist * 14) * 0.5 + 0.5;
-      const swirl2 = Math.sin(angle * 3 - dist * 9 + 1.8) * 0.5 + 0.5;
-      const ring1  = Math.pow(Math.sin(dist * 16) * 0.5 + 0.5, 2);
-      const ring2  = Math.pow(Math.cos(dist * 10 + 1.2) * 0.5 + 0.5, 1.5);
-      const core   = Math.pow(Math.max(0, 1 - dist * 1.05), 1.2);
-
-      const lum = Math.min(1, swirl1 * 0.25 + swirl2 * 0.2 + ring1 * 0.2 + ring2 * 0.15 + core * 0.85);
-      const v   = Math.round(lum * 255);
-
-      data[i + 0] = v;
-      data[i + 1] = v;
-      data[i + 2] = v;
-      data[i + 3] = 255;
-    }
-  }
-
-  const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.needsUpdate = true;
-  return tex;
-}
-
 export function PlayerModel({
   scale,
+  isRainbow = false,
   rotationSpeedX = 0.8,
   rotationSpeedY = 1.2,
 }: PlayerModelProps) {
   const modelGroupRef = useRef<THREE.Group>(null);
   const materialsRef  = useRef<THREE.MeshBasicMaterial[]>([]);
 
-  const fbx        = useLoader(FBXLoader, "/models/player.fbx");
-  const orbPattern = useMemo(() => createOrbPattern(), []);
+  const { scene: modelScene } = useGLTF("/models/player_orb.glb");
+  const { scene: texScene }   = useGLTF("/models/player_orb_texture.glb");
 
   useEffect(() => {
     if (!modelGroupRef.current) return;
-    const cloned = fbx.clone(true);
+
+    // Extract the first texture found in the texture GLB
+    let orbTexture: THREE.Texture | null = null;
+    texScene.traverse((child) => {
+      if (orbTexture) return;
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const m of mats) {
+          const tex = (m as any).map ?? (m as any).emissiveMap ?? (m as any).baseColorTexture;
+          if (tex) { orbTexture = tex; break; }
+        }
+      }
+    });
+
+    const cloned = modelScene.clone(true);
     materialsRef.current = [];
 
-    // Normalise size: fit model inside radius = scale
+    // Normalize size: fit model inside radius = scale
     const box = new THREE.Box3().setFromObject(cloned);
     const sizeVec = new THREE.Vector3();
     box.getSize(sizeVec);
@@ -82,7 +61,7 @@ export function PlayerModel({
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         const mat = new THREE.MeshBasicMaterial({
-          map: orbPattern,
+          map: orbTexture ?? undefined,
           color: new THREE.Color("#ffffff"),
         });
         mesh.material = mat;
@@ -96,17 +75,23 @@ export function PlayerModel({
     modelGroupRef.current.add(cloned);
 
     return () => {
-      orbPattern.dispose();
       materialsRef.current.forEach((m) => m.dispose());
     };
-  }, [fbx, orbPattern, scale]);
+  }, [modelScene, texScene, scale]);
 
-  useFrame((_state, delta) => {
+  useFrame((state, delta) => {
     if (modelGroupRef.current) {
       modelGroupRef.current.rotation.x += delta * rotationSpeedX;
       modelGroupRef.current.rotation.y += delta * rotationSpeedY;
+    }
+    if (isRainbow) {
+      const hue = (state.clock.getElapsedTime() * 0.18) % 1;
+      materialsRef.current.forEach((m) => m.color.setHSL(hue, 1, 0.6));
     }
   });
 
   return <group ref={modelGroupRef} />;
 }
+
+useGLTF.preload("/models/player_orb.glb");
+useGLTF.preload("/models/player_orb_texture.glb");
