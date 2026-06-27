@@ -19,6 +19,10 @@ export default defineConfig({
       "@": path.resolve(__dirname, "src"),
       "@shared": path.resolve(__dirname, "shared"),
     },
+    dedupe: ["react", "react-dom", "@react-three/fiber", "three"],
+  },
+  optimizeDeps: {
+    include: ["@react-three/postprocessing", "postprocessing"],
   },
   root: path.resolve(__dirname),
   build: {

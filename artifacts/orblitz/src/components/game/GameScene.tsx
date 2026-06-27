@@ -1,5 +1,7 @@
-import { Suspense } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Suspense, useEffect, useRef } from "react";
+import { Canvas, useThree, useFrame } from "@react-three/fiber";
+import { EffectComposer, Bloom, SMAA } from "@react-three/postprocessing";
+import * as THREE from "three";
 import { PlayerOrb } from "./PlayerOrb";
 import { DarkOrbs } from "./DarkOrbs";
 import { Projectiles } from "./Projectiles";
@@ -14,8 +16,40 @@ import { DefenseOrbs } from "./DefenseOrbs";
 import { MagiOrbEffects } from "./MagiOrbEffects";
 import { ScreenEffects } from "./ScreenEffects";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
-import { useEffect, useRef } from "react";
 
+// ── Renderer configuration ────────────────────────────────────────────────────
+function RendererSetup() {
+  const { gl } = useThree();
+  useEffect(() => {
+    gl.toneMapping         = THREE.ReinhardToneMapping;
+    gl.toneMappingExposure = 1.2;
+    gl.outputColorSpace    = THREE.SRGBColorSpace;
+  }, [gl]);
+  return null;
+}
+
+// ── Dynamic point light tethered to player position ───────────────────────────
+function PlayerLight() {
+  const lightRef = useRef<THREE.PointLight>(null);
+
+  useFrame(() => {
+    if (!lightRef.current) return;
+    const pos = useMagicOrb.getState().playerPosition;
+    lightRef.current.position.set(pos[0], pos[1], 1.5);
+  });
+
+  return (
+    <pointLight
+      ref={lightRef}
+      intensity={4.5}
+      distance={14}
+      decay={2}
+      color="#ffffff"
+    />
+  );
+}
+
+// ── Camera smooth-follow ──────────────────────────────────────────────────────
 function CameraController() {
   const { camera } = useThree();
   const { boss, arcadeLevel, gameMode, playerPosition } = useMagicOrb();
@@ -23,16 +57,16 @@ function CameraController() {
   const targetZRef = useRef(10);
   const targetXRef = useRef(0);
   const targetYRef = useRef(0);
-  
+
   useEffect(() => {
     targetZRef.current = (boss !== null || isBossLevel) ? 16 : 10;
   }, [boss, isBossLevel]);
-  
+
   useEffect(() => {
     targetXRef.current = playerPosition[0];
     targetYRef.current = playerPosition[1];
   }, [playerPosition]);
-  
+
   useEffect(() => {
     let animating = true;
     const animate = () => {
@@ -40,42 +74,41 @@ function CameraController() {
       const diffZ = targetZRef.current - camera.position.z;
       const diffX = targetXRef.current - camera.position.x;
       const diffY = targetYRef.current - camera.position.y;
-      
+
       if (Math.abs(diffZ) > 0.05) {
         camera.position.z += diffZ * 0.05;
       } else {
         camera.position.z = targetZRef.current;
       }
-      
       if (Math.abs(diffX) > 0.01) {
         camera.position.x += diffX * 0.08;
       } else {
         camera.position.x = targetXRef.current;
       }
-      
       if (Math.abs(diffY) > 0.01) {
         camera.position.y += diffY * 0.08;
       } else {
         camera.position.y = targetYRef.current;
       }
-      
+
       requestAnimationFrame(animate);
     };
     animate();
     return () => { animating = false; };
   }, [camera]);
-  
+
   return null;
 }
 
+// ── Scene ─────────────────────────────────────────────────────────────────────
 export function GameScene() {
   return (
     <Canvas
-      camera={{
-        position: [0, 0, 10],
-        fov: 60,
-        near: 0.1,
-        far: 100,
+      camera={{ position: [0, 0, 10], fov: 60, near: 0.1, far: 100 }}
+      gl={{
+        powerPreference: "high-performance",
+        antialias: false,
+        stencil: false,
       }}
       style={{
         position: "fixed",
@@ -86,8 +119,17 @@ export function GameScene() {
         touchAction: "none",
       }}
     >
+      {/* Volumetric-style atmospheric fog */}
+      <fogExp2 attach="fog" args={["#06060e", 0.018]} />
+
       <Suspense fallback={null}>
+        <RendererSetup />
         <CameraController />
+
+        {/* Dynamic light tethered to the player */}
+        <PlayerLight />
+
+        {/* Game scene objects */}
         <Background />
         <PlayerOrb />
         <DarkOrbs />
@@ -101,6 +143,18 @@ export function GameScene() {
         <MagiOrbEffects />
         <ScreenEffects />
         <GameLogic />
+
+        {/* Post-processing stack */}
+        <EffectComposer multisampling={0}>
+          <Bloom
+            intensity={1.4}
+            luminanceThreshold={0.15}
+            luminanceSmoothing={0.85}
+            mipmapBlur
+            radius={0.75}
+          />
+          <SMAA />
+        </EffectComposer>
       </Suspense>
     </Canvas>
   );
