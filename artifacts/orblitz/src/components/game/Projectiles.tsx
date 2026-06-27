@@ -287,7 +287,7 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors, eq
 
   const style = ORB_STYLES[equippedSkin] ?? ORB_STYLES.default;
   const isCharged = projectile.isCharged;
-  const baseScale = (isCharged ? 0.42 : 0.27) * (0.2 + spawnProgress * 0.8);
+  const baseScale = (isCharged ? 0.26 : 0.16) * (0.2 + spawnProgress * 0.8);
 
   useFrame(() => {
     const t = time;
@@ -415,12 +415,30 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors, eq
 
         {/* Inner emissive glow (void/shadow gets dark inner) */}
         <mesh>
-          <sphereGeometry args={[baseScale * 0.6, 6, 5]} />
+          <sphereGeometry args={[baseScale * 0.58, 6, 5]} />
           <meshBasicMaterial
             color={style.mode === "void" ? "#000000" : "#ffffff"}
-            transparent opacity={style.mode === "void" ? 0.5 : 0.35}
+            transparent opacity={style.mode === "void" ? 0.5 : 0.30}
             depthWrite={false}
           />
+        </mesh>
+
+        {/* Equatorial band 1 — spins independently on Y */}
+        <mesh rotation={[0, time * 4.5, Math.PI * 0.15]}>
+          <torusGeometry args={[baseScale * 0.88, baseScale * 0.045, 5, 24]} />
+          <meshBasicMaterial color={skinColors.accent} transparent opacity={0.65} depthWrite={false} />
+        </mesh>
+
+        {/* Equatorial band 2 — counter-rotation, different tilt */}
+        <mesh rotation={[Math.PI * 0.55, -time * 3.2, 0]}>
+          <torusGeometry args={[baseScale * 0.80, baseScale * 0.030, 5, 20]} />
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.40} depthWrite={false} />
+        </mesh>
+
+        {/* Hot core — tiny bright sphere at the very center */}
+        <mesh>
+          <sphereGeometry args={[baseScale * 0.28, 5, 4]} />
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.92} depthWrite={false} />
         </mesh>
       </group>
 
