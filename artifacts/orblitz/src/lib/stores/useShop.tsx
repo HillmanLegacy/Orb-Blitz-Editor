@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 
 export type OrbSkin = "default" | "golden" | "neon" | "rainbow" | "crystal" | "void" | "plasma" | "galaxy" | "phoenix" | "shadow" | "aurora" | "diamond" | "inferno" | "frost" | "toxic" | "electric";
-export type TrailEffect = "none" | "sparkle" | "fire" | "ice" | "cosmic" | "lightning" | "rainbow" | "plasma" | "shadow" | "stardust" | "meteor" | "spirit" | "neon" | "sakura" | "galaxy";
+export type TrailEffect = "none" | "sparkle" | "fire" | "ice" | "cosmic" | "lightning" | "rainbow" | "plasma" | "shadow" | "stardust" | "meteor" | "spirit" | "neon" | "sakura" | "galaxy" | "particle_swarm";
 export type RingStyle = "default" | "double" | "triple" | "spiral" | "none" | "pulse" | "orbit" | "halo" | "shield" | "hex" | "prism";
 export type WeaponType = "none" | "orbital_rapid_blaster" | "orbital_scattershot" | "spiral_shooter" | "overcharged_blaster" | "homing_launcher" | "sub_blaster";
 export type DefenseType = "none" | "orbital_teletransfer" | "distort_field" | "pulse_shield" | "defense_system" | "spatial_relocation" | "restoration" | "armor";
@@ -48,6 +48,7 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: "trail_neon", name: "Neon Trail", description: "Bright neon streaks with glow", price: 300, category: "trail", value: "neon" },
   { id: "trail_sakura", name: "Sakura Trail", description: "Cherry blossom petals floating", price: 300, category: "trail", value: "sakura" },
   { id: "trail_galaxy", name: "Galaxy Trail", description: "Miniature cosmos in your wake", price: 300, category: "trail", value: "galaxy" },
+  { id: "trail_particle_swarm", name: "Particle Swarm", description: "A living swarm of energy particles orbits your projectile", price: 600, category: "trail", value: "particle_swarm" },
   
   { id: "ring_double", name: "Double Rings", description: "Two glowing orbital rings", price: 300, category: "ring", value: "double" },
   { id: "ring_triple", name: "Triple Rings", description: "Three intersecting rings", price: 300, category: "ring", value: "triple" },

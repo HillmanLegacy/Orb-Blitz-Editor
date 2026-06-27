@@ -392,6 +392,54 @@ export function PlayerGlow({
   );
 }
 
+function ShieldEffect({ scale }: { scale: number }) {
+  const groupRef = useRef<THREE.Group>(null);
+  useFrame((state) => {
+    if (!groupRef.current) return;
+    const t = state.clock.getElapsedTime();
+    groupRef.current.rotation.y = t * 0.9;
+    groupRef.current.rotation.x = t * 0.55;
+  });
+  return (
+    <group ref={groupRef}>
+      <mesh>
+        <icosahedronGeometry args={[scale * 2.5, 1]} />
+        <meshBasicMaterial color="#001a1a" side={THREE.BackSide} transparent opacity={0.4} depthWrite={false} />
+      </mesh>
+      <mesh>
+        <icosahedronGeometry args={[scale * 2.5, 1]} />
+        <meshBasicMaterial color="#00ffff" wireframe transparent opacity={0.25} depthWrite={false} />
+      </mesh>
+      <mesh>
+        <sphereGeometry args={[scale * 2.5, 12, 10]} />
+        <meshBasicMaterial color="#00aaff" transparent opacity={0.05} depthWrite={false} />
+      </mesh>
+    </group>
+  );
+}
+
+function ChargeBeamEffect({ scale }: { scale: number }) {
+  const r1 = useRef<THREE.Mesh>(null);
+  const r2 = useRef<THREE.Mesh>(null);
+  useFrame((state) => {
+    const t = state.clock.getElapsedTime();
+    if (r1.current) r1.current.rotation.z = t * 3.0;
+    if (r2.current) r2.current.rotation.z = -t * 2.2;
+  });
+  return (
+    <>
+      <mesh ref={r1}>
+        <torusGeometry args={[scale * 1.9, scale * 0.04, 8, 32]} />
+        <meshBasicMaterial color="#ffff00" transparent opacity={0.7} depthWrite={false} />
+      </mesh>
+      <mesh ref={r2} rotation={[Math.PI * 0.35, 0, 0]}>
+        <torusGeometry args={[scale * 2.1, scale * 0.03, 8, 28]} />
+        <meshBasicMaterial color="#ffcc00" transparent opacity={0.45} depthWrite={false} />
+      </mesh>
+    </>
+  );
+}
+
 export function PlayerOrb() {
   const coreRef = useRef<THREE.Mesh>(null);
   const innerCoreRef = useRef<THREE.Mesh>(null);
@@ -691,10 +739,9 @@ export function PlayerOrb() {
             return (
               <group key={i}>
                 <mesh ref={(el) => { if (el) ringRefs.current[i] = el; }}>
-                  <ringGeometry args={[innerRadius, outerRadius, segments]} />
+                  <torusGeometry args={[(innerRadius + outerRadius) / 2, Math.max(0.02, (outerRadius - innerRadius) / 2), 6, segments]} />
                   <meshBasicMaterial
                     color={color}
-                    side={THREE.DoubleSide}
                     transparent
                     opacity={(0.85 - i * 0.08) * dimFactor * (ringConfig.glowIntensity || 0.8)}
                   />
@@ -705,37 +752,11 @@ export function PlayerOrb() {
         </group>
       )}
 
-      {/* Shield power-up */}
-      {hasShield && (
-        <>
-          <mesh scale={scale * 2.5}>
-            <ringGeometry args={[0.88, 1, 20]} />
-            <meshBasicMaterial color="#000000" side={THREE.DoubleSide} transparent opacity={0.55} />
-          </mesh>
-          <mesh ref={shieldRef} scale={scale * 2.3}>
-            <ringGeometry args={[0.82, 0.94, 20]} />
-            <meshBasicMaterial color="#00ffff" transparent opacity={0.65} side={THREE.DoubleSide} />
-          </mesh>
-          <mesh scale={scale * 2.1}>
-            <ringGeometry args={[0.75, 0.85, 20]} />
-            <meshBasicMaterial color="#88ffff" transparent opacity={0.3} side={THREE.DoubleSide} />
-          </mesh>
-        </>
-      )}
+      {/* Shield power-up — rotating 3D wireframe icosahedron */}
+      {hasShield && <ShieldEffect scale={scale} />}
 
-      {/* Charge beam power-up indicator */}
-      {hasChargeBeam && (
-        <>
-          <mesh scale={scale * 1.9}>
-            <ringGeometry args={[0.95, 1.05, 20]} />
-            <meshBasicMaterial color="#ffff00" transparent opacity={0.6} side={THREE.DoubleSide} />
-          </mesh>
-          <mesh scale={scale * 2.2}>
-            <ringGeometry args={[0.9, 0.95, 20]} />
-            <meshBasicMaterial color="#ffcc00" transparent opacity={0.35} side={THREE.DoubleSide} />
-          </mesh>
-        </>
-      )}
+      {/* Charge beam power-up indicator — spinning 3D torus rings */}
+      {hasChargeBeam && <ChargeBeamEffect scale={scale} />}
     </group>
   );
 }

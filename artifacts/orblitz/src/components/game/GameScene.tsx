@@ -119,9 +119,6 @@ export function GameScene() {
         touchAction: "none",
       }}
     >
-      {/* Volumetric-style atmospheric fog */}
-      <fogExp2 attach="fog" args={["#06060e", 0.018]} />
-
       <Suspense fallback={null}>
         <RendererSetup />
         <CameraController />
@@ -147,11 +144,11 @@ export function GameScene() {
         {/* Post-processing stack */}
         <EffectComposer multisampling={0}>
           <Bloom
-            intensity={1.4}
-            luminanceThreshold={0.15}
-            luminanceSmoothing={0.85}
+            intensity={0.55}
+            luminanceThreshold={0.35}
+            luminanceSmoothing={0.75}
             mipmapBlur
-            radius={0.75}
+            radius={0.6}
           />
           <SMAA />
         </EffectComposer>

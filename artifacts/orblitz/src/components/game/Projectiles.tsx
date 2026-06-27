@@ -9,26 +9,23 @@ import { PlayerModel } from "./PlayerModel";
 import { PlayerParticles } from "./PlayerParticles";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 
-const sharedCircleGeo = new THREE.CircleGeometry(1, 32);
-const sharedPlaneGeo = new THREE.PlaneGeometry(1, 1);
-const sharedRingGeo = new THREE.RingGeometry(0.85, 1, 32);
-
-const TRAIL_CONFIGS: Record<TrailEffect, { colors: string[]; shape: string; particleCount: number; spread: number; glow: boolean }> = {
-  none: { colors: [], shape: "circle", particleCount: 0, spread: 0, glow: false },
-  sparkle: { colors: ["#ffffff", "#ffff88", "#ffffcc", "#88ffff"], shape: "star", particleCount: 8, spread: 0.15, glow: true },
-  fire: { colors: ["#ff4400", "#ff6600", "#ff8800", "#ffcc00", "#ffff00"], shape: "triangle", particleCount: 10, spread: 0.2, glow: true },
-  ice: { colors: ["#88ddff", "#aaeeff", "#ccffff", "#ffffff", "#66ccff"], shape: "diamond", particleCount: 8, spread: 0.12, glow: true },
-  cosmic: { colors: ["#ff00ff", "#8800ff", "#4400ff", "#0088ff", "#00ffff"], shape: "circle", particleCount: 12, spread: 0.18, glow: true },
-  lightning: { colors: ["#ffff00", "#ffffff", "#88ffff", "#ffffaa"], shape: "bolt", particleCount: 10, spread: 0.25, glow: true },
-  rainbow: { colors: ["#ff0000", "#ff8800", "#ffff00", "#00ff00", "#00ffff", "#0088ff", "#ff00ff"], shape: "circle", particleCount: 14, spread: 0.2, glow: true },
-  plasma: { colors: ["#ff00ff", "#ff44ff", "#ff88ff", "#ffffff", "#88ffff"], shape: "plasma", particleCount: 10, spread: 0.22, glow: true },
-  shadow: { colors: ["#330033", "#440044", "#550055", "#220022", "#110011"], shape: "smoke", particleCount: 8, spread: 0.18, glow: false },
-  stardust: { colors: ["#ffffff", "#ffccff", "#ccffff", "#ffffcc", "#ffddee"], shape: "star", particleCount: 16, spread: 0.2, glow: true },
-  meteor: { colors: ["#ff4400", "#ff2200", "#ff6600", "#ff0000", "#ffaa00"], shape: "triangle", particleCount: 12, spread: 0.25, glow: true },
-  spirit: { colors: ["#88ffff", "#aaddff", "#ccffff", "#ffffff", "#66ddff"], shape: "wisp", particleCount: 10, spread: 0.15, glow: true },
-  neon: { colors: ["#00ff88", "#ff00ff", "#00ffff", "#ffff00", "#88ff00"], shape: "square", particleCount: 10, spread: 0.18, glow: true },
-  sakura: { colors: ["#ffaacc", "#ff88aa", "#ffccdd", "#ffffff", "#ffbbdd"], shape: "petal", particleCount: 12, spread: 0.22, glow: true },
-  galaxy: { colors: ["#0000ff", "#4400ff", "#8800ff", "#ff00ff", "#00ffff", "#ffffff"], shape: "star", particleCount: 14, spread: 0.2, glow: true },
+const TRAIL_CONFIGS: Record<TrailEffect, { colors: string[]; particleCount: number; spread: number; glow: boolean }> = {
+  none:           { colors: [],                                                                             particleCount: 0,  spread: 0.00, glow: false },
+  sparkle:        { colors: ["#ffffff", "#ffff88", "#ffffcc", "#88ffff"],                                  particleCount: 8,  spread: 0.15, glow: true  },
+  fire:           { colors: ["#ff4400", "#ff6600", "#ff8800", "#ffcc00", "#ffff00"],                       particleCount: 10, spread: 0.20, glow: true  },
+  ice:            { colors: ["#88ddff", "#aaeeff", "#ccffff", "#ffffff", "#66ccff"],                       particleCount: 8,  spread: 0.12, glow: true  },
+  cosmic:         { colors: ["#ff00ff", "#8800ff", "#4400ff", "#0088ff", "#00ffff"],                       particleCount: 12, spread: 0.18, glow: true  },
+  lightning:      { colors: ["#ffff00", "#ffffff", "#88ffff", "#ffffaa"],                                  particleCount: 10, spread: 0.25, glow: true  },
+  rainbow:        { colors: ["#ff0000", "#ff8800", "#ffff00", "#00ff00", "#00ffff", "#0088ff", "#ff00ff"], particleCount: 14, spread: 0.20, glow: true  },
+  plasma:         { colors: ["#ff00ff", "#ff44ff", "#ff88ff", "#ffffff", "#88ffff"],                       particleCount: 10, spread: 0.22, glow: true  },
+  shadow:         { colors: ["#330033", "#440044", "#550055", "#220022", "#110011"],                       particleCount: 8,  spread: 0.18, glow: false },
+  stardust:       { colors: ["#ffffff", "#ffccff", "#ccffff", "#ffffcc", "#ffddee"],                       particleCount: 16, spread: 0.20, glow: true  },
+  meteor:         { colors: ["#ff4400", "#ff2200", "#ff6600", "#ff0000", "#ffaa00"],                       particleCount: 12, spread: 0.25, glow: true  },
+  spirit:         { colors: ["#88ffff", "#aaddff", "#ccffff", "#ffffff", "#66ddff"],                       particleCount: 10, spread: 0.15, glow: true  },
+  neon:           { colors: ["#00ff88", "#ff00ff", "#00ffff", "#ffff00", "#88ff00"],                       particleCount: 10, spread: 0.18, glow: true  },
+  sakura:         { colors: ["#ffaacc", "#ff88aa", "#ffccdd", "#ffffff", "#ffbbdd"],                       particleCount: 12, spread: 0.22, glow: true  },
+  galaxy:         { colors: ["#0000ff", "#4400ff", "#8800ff", "#ff00ff", "#00ffff", "#ffffff"],            particleCount: 14, spread: 0.20, glow: true  },
+  particle_swarm: { colors: [],                                                                             particleCount: 0,  spread: 0.00, glow: false },
 };
 
 interface TrailParticleData {
@@ -53,186 +50,47 @@ function HDTrailEffect({
   projectileColor: string;
 }) {
   const config = TRAIL_CONFIGS[trailType];
-  if (config.particleCount === 0) return null;
-  
+  if (!config || config.particleCount === 0) return null;
+
   const particles = useMemo<TrailParticleData[]>(() => {
     const result: TrailParticleData[] = [];
     for (let i = 0; i < config.particleCount; i++) {
       result.push({
-        offset: i * 0.18,
+        offset: i * 0.15,
         angle: (Math.random() - 0.5) * config.spread * 2,
-        size: 0.6 + Math.random() * 0.5,
+        size: 0.5 + Math.random() * 0.65,
         colorIndex: i % config.colors.length,
         wobble: Math.random() * Math.PI * 2,
       });
     }
     return result;
   }, [config.particleCount, config.colors.length, config.spread]);
-  
-  const renderShape = (shape: string, scale: number, color: string, opacity: number, rotation: number) => {
-    switch (shape) {
-      case "star":
-        return (
-          <group>
-            <mesh scale={scale * 1.3} rotation={[0, 0, rotation]}>
-              <circleGeometry args={[1, 5]} />
-              <meshBasicMaterial color="#000000" transparent opacity={opacity * 0.5} />
-            </mesh>
-            <mesh scale={scale} rotation={[0, 0, rotation]}>
-              <circleGeometry args={[1, 5]} />
-              <meshBasicMaterial color={color} transparent opacity={opacity} />
-            </mesh>
-          </group>
-        );
-      case "diamond":
-        return (
-          <group>
-            <mesh scale={scale * 1.3} rotation={[0, 0, rotation + Math.PI / 4]}>
-              <planeGeometry args={[1.2, 1.2]} />
-              <meshBasicMaterial color="#000000" transparent opacity={opacity * 0.5} />
-            </mesh>
-            <mesh scale={scale} rotation={[0, 0, rotation + Math.PI / 4]}>
-              <planeGeometry args={[1, 1]} />
-              <meshBasicMaterial color={color} transparent opacity={opacity} />
-            </mesh>
-          </group>
-        );
-      case "triangle":
-        return (
-          <group>
-            <mesh scale={scale * 1.3} rotation={[0, 0, rotation]}>
-              <circleGeometry args={[1, 3]} />
-              <meshBasicMaterial color="#000000" transparent opacity={opacity * 0.5} />
-            </mesh>
-            <mesh scale={scale} rotation={[0, 0, rotation]}>
-              <circleGeometry args={[1, 3]} />
-              <meshBasicMaterial color={color} transparent opacity={opacity} />
-            </mesh>
-          </group>
-        );
-      case "bolt":
-        return (
-          <group>
-            <mesh scale={[scale * 0.3, scale * 1.5, 1]} rotation={[0, 0, rotation]}>
-              <planeGeometry args={[1, 1]} />
-              <meshBasicMaterial color={color} transparent opacity={opacity} />
-            </mesh>
-          </group>
-        );
-      case "plasma":
-        return (
-          <group>
-            <mesh scale={scale * 1.4}>
-              <circleGeometry args={[1, 8]} />
-              <meshBasicMaterial color="#000000" transparent opacity={opacity * 0.4} />
-            </mesh>
-            <mesh scale={scale * 1.1}>
-              <circleGeometry args={[1, 8]} />
-              <meshBasicMaterial color={color} transparent opacity={opacity * 0.7} />
-            </mesh>
-            <mesh scale={scale * 0.7}>
-              <circleGeometry args={[1, 8]} />
-              <meshBasicMaterial color="#ffffff" transparent opacity={opacity * 0.9} />
-            </mesh>
-          </group>
-        );
-      case "smoke":
-        return (
-          <group>
-            <mesh scale={scale * 1.6}>
-              <circleGeometry args={[1, 10]} />
-              <meshBasicMaterial color={color} transparent opacity={opacity * 0.5} />
-            </mesh>
-            <mesh scale={scale}>
-              <circleGeometry args={[1, 10]} />
-              <meshBasicMaterial color={color} transparent opacity={opacity * 0.7} />
-            </mesh>
-          </group>
-        );
-      case "wisp":
-        return (
-          <group>
-            <mesh scale={[scale * 0.6, scale * 1.4, 1]} rotation={[0, 0, rotation]}>
-              <circleGeometry args={[1, 8]} />
-              <meshBasicMaterial color={color} transparent opacity={opacity * 0.8} />
-            </mesh>
-            <mesh scale={scale * 0.5}>
-              <circleGeometry args={[1, 8]} />
-              <meshBasicMaterial color="#ffffff" transparent opacity={opacity} />
-            </mesh>
-          </group>
-        );
-      case "petal":
-        return (
-          <group>
-            <mesh scale={[scale * 0.5, scale, 1]} rotation={[0, 0, rotation]}>
-              <circleGeometry args={[1, 8]} />
-              <meshBasicMaterial color={color} transparent opacity={opacity} />
-            </mesh>
-          </group>
-        );
-      case "square":
-        return (
-          <group>
-            <mesh scale={scale * 1.2} rotation={[0, 0, rotation]}>
-              <planeGeometry args={[1.2, 1.2]} />
-              <meshBasicMaterial color="#000000" transparent opacity={opacity * 0.5} />
-            </mesh>
-            <mesh scale={scale} rotation={[0, 0, rotation]}>
-              <planeGeometry args={[1, 1]} />
-              <meshBasicMaterial color={color} transparent opacity={opacity} />
-            </mesh>
-          </group>
-        );
-      default:
-        return (
-          <group>
-            <mesh scale={scale * 1.25}>
-              <circleGeometry args={[1, 10]} />
-              <meshBasicMaterial color="#000000" transparent opacity={opacity * 0.5} />
-            </mesh>
-            <mesh scale={scale}>
-              <circleGeometry args={[1, 10]} />
-              <meshBasicMaterial color={color} transparent opacity={opacity} />
-            </mesh>
-          </group>
-        );
-    }
-  };
-  
+
   return (
     <group>
-      {config.glow && (
-        <mesh 
-          position={[-direction[0] * 0.3, -direction[1] * 0.3, -0.01]}
-          scale={baseScale * 2.5}
-        >
-          <circleGeometry args={[1, 12]} />
-          <meshBasicMaterial color={projectileColor} transparent opacity={0.15} />
-        </mesh>
-      )}
-      
       {particles.map((p, i) => {
-        const trailDist = (p.offset + 0.1) * 1.8;
-        const wobbleX = Math.sin(time * 8 + p.wobble) * p.angle * 0.5;
-        const wobbleY = Math.cos(time * 6 + p.wobble) * p.angle * 0.5;
-        const fadeOut = Math.max(0.1, 1 - (i / config.particleCount) * 0.8);
-        const sizeMultiplier = 1 - (i / config.particleCount) * 0.6;
-        const color = config.colors[p.colorIndex];
-        const particleScale = baseScale * 0.5 * p.size * sizeMultiplier;
-        const rotation = time * 4 + p.wobble;
-        
+        const trailDist = p.offset * 1.6;
+        const wobbleX   = Math.sin(time * 3.2 + p.wobble) * config.spread * baseScale;
+        const wobbleY   = Math.cos(time * 2.7 + p.wobble) * config.spread * baseScale;
+        const wobbleZ   = Math.sin(time * 4.1 + p.wobble * 1.7) * config.spread * baseScale * 0.6;
+        const sizeM     = Math.max(0.05, 1 - i / config.particleCount);
+        const scale     = baseScale * 0.44 * p.size * sizeM;
+        const color     = config.colors[p.colorIndex] ?? projectileColor;
+        const fadeOut   = Math.max(0, 1 - trailDist * 1.8);
+
         return (
-          <group
+          <mesh
             key={i}
             position={[
               -direction[0] * trailDist + wobbleX,
               -direction[1] * trailDist + wobbleY,
-              0,
+              wobbleZ,
             ]}
+            scale={scale}
           >
-            {renderShape(config.shape, particleScale, color, fadeOut * 0.85, rotation)}
-          </group>
+            <sphereGeometry args={[1, 5, 4]} />
+            <meshBasicMaterial color={color} transparent opacity={fadeOut * 0.88} depthWrite={false} />
+          </mesh>
         );
       })}
     </group>
@@ -261,7 +119,7 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: 
   return (
     <group position={projectile.position}>
       {/* Trail */}
-      {trailType !== "none" && spawnProgress >= 0.4 && (
+      {trailType !== "none" && trailType !== "particle_swarm" && spawnProgress >= 0.4 && (
         <MemoizedHDTrailEffect
           trailType={trailType}
           time={time}
@@ -286,11 +144,14 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: 
           glowColor={skinColors.glow}
           isRainbow={isRainbow}
         />
-        <PlayerParticles
-          scale={projScale}
-          particleColors={[skinColors.core]}
-          isRainbow={isRainbow}
-        />
+        {/* Particle Swarm — unlockable trail cosmetic: orbiting 3D particles */}
+        {trailType === "particle_swarm" && (
+          <PlayerParticles
+            scale={projScale}
+            particleColors={[skinColors.core]}
+            isRainbow={isRainbow}
+          />
+        )}
 
         {/* Charged: extra rings around the mini orb */}
         {isCharged && (
