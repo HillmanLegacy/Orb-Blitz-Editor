@@ -335,7 +335,7 @@ function EnergyWaves({ scale, glowColor, dimFactor }: { scale: number; glowColor
   );
 }
 
-function PlayerGlow({
+export function PlayerGlow({
   scale,
   coreColor,
   glowColor,

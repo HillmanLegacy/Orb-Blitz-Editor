@@ -1,10 +1,12 @@
-import { useRef, useMemo, memo } from "react";
+import { useRef, useMemo, memo, Suspense } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb, Projectile, Particle, ImpactEffect } from "@/lib/stores/useMagicOrb";
 import { useAudio } from "@/lib/stores/useAudio";
 import { useShop, TrailEffect } from "@/lib/stores/useShop";
-import { getSkinColors } from "./PlayerOrb";
+import { getSkinColors, PlayerGlow } from "./PlayerOrb";
+import { PlayerModel } from "./PlayerModel";
+import { PlayerParticles } from "./PlayerParticles";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 
 const sharedCircleGeo = new THREE.CircleGeometry(1, 32);
@@ -239,37 +241,7 @@ function HDTrailEffect({
 
 const MemoizedHDTrailEffect = memo(HDTrailEffect);
 
-// ── Per-skin orb style config ──────────────────────────────────────────────
-interface OrbStyle {
-  spinX: number; spinY: number; spinZ: number;
-  pulseFreq: number; pulseAmp: number;
-  shellOpacity: number;
-  glowScale: number; glowOpacity: number;
-  rings: { tiltX: number; tiltZ: number; speed: number; radius: number; tube: number; color: string }[];
-  satellites: { count: number; dist: number; speed: number; color: string }[];
-  mode: "normal" | "rainbow" | "aurora" | "void" | "electric" | "flame" | "crystal";
-}
-
-const ORB_STYLES: Record<string, OrbStyle> = {
-  default:  { spinX:1.2, spinY:1.8, spinZ:0.4, pulseFreq:7,  pulseAmp:0.08, shellOpacity:0.35, glowScale:3.8, glowOpacity:0.09, rings:[], satellites:[], mode:"normal" },
-  golden:   { spinX:0.6, spinY:1.0, spinZ:0.3, pulseFreq:4,  pulseAmp:0.10, shellOpacity:0.45, glowScale:4.2, glowOpacity:0.14, rings:[{tiltX:1.1,tiltZ:0.3,speed:2.5,radius:1.7,tube:0.055,color:"#ffdd88"}], satellites:[{count:3,dist:2.2,speed:4,color:"#ffe066"}], mode:"normal" },
-  neon:     { spinX:2.5, spinY:1.5, spinZ:1.0, pulseFreq:14, pulseAmp:0.14, shellOpacity:0.50, glowScale:4.5, glowOpacity:0.16, rings:[{tiltX:0.4,tiltZ:1.2,speed:6,radius:1.6,tube:0.04,color:"#00ffff"},{tiltX:1.5,tiltZ:0.3,speed:-4,radius:1.9,tube:0.03,color:"#ff00ff"}], satellites:[], mode:"electric" },
-  rainbow:  { spinX:1.0, spinY:2.0, spinZ:0.5, pulseFreq:10, pulseAmp:0.12, shellOpacity:0.40, glowScale:4.0, glowOpacity:0.12, rings:[], satellites:[{count:4,dist:2.0,speed:8,color:"#ffffff"}], mode:"rainbow" },
-  crystal:  { spinX:0.8, spinY:1.4, spinZ:0.6, pulseFreq:5,  pulseAmp:0.07, shellOpacity:0.25, glowScale:3.5, glowOpacity:0.11, rings:[{tiltX:0.8,tiltZ:0.5,speed:1.5,radius:1.8,tube:0.04,color:"#eeffff"}], satellites:[], mode:"crystal" },
-  void:     { spinX:0.5, spinY:0.8, spinZ:1.2, pulseFreq:3,  pulseAmp:0.12, shellOpacity:0.55, glowScale:3.2, glowOpacity:0.08, rings:[{tiltX:0.6,tiltZ:1.0,speed:-2,radius:1.6,tube:0.06,color:"#aa44ff"}], satellites:[{count:3,dist:1.8,speed:-3,color:"#660088"}], mode:"void" },
-  plasma:   { spinX:3.0, spinY:1.0, spinZ:2.0, pulseFreq:16, pulseAmp:0.16, shellOpacity:0.50, glowScale:4.5, glowOpacity:0.18, rings:[{tiltX:1.0,tiltZ:0.4,speed:7,radius:1.5,tube:0.05,color:"#ff88ff"},{tiltX:0.3,tiltZ:1.3,speed:-5,radius:1.8,tube:0.035,color:"#ffffff"}], satellites:[], mode:"electric" },
-  galaxy:   { spinX:1.5, spinY:2.5, spinZ:0.3, pulseFreq:6,  pulseAmp:0.09, shellOpacity:0.40, glowScale:4.0, glowOpacity:0.13, rings:[{tiltX:0.5,tiltZ:0.2,speed:3,radius:2.0,tube:0.05,color:"#8888ff"},{tiltX:1.2,tiltZ:0.8,speed:-2,radius:1.6,tube:0.035,color:"#aaddff"}], satellites:[{count:5,dist:2.3,speed:5,color:"#ffffff"}], mode:"normal" },
-  phoenix:  { spinX:2.0, spinY:1.2, spinZ:0.8, pulseFreq:12, pulseAmp:0.13, shellOpacity:0.45, glowScale:4.5, glowOpacity:0.18, rings:[], satellites:[{count:4,dist:1.9,speed:6,color:"#ffcc44"}], mode:"flame" },
-  shadow:   { spinX:0.4, spinY:0.7, spinZ:0.5, pulseFreq:3,  pulseAmp:0.06, shellOpacity:0.60, glowScale:2.8, glowOpacity:0.05, rings:[{tiltX:0.9,tiltZ:0.6,speed:-1.5,radius:1.7,tube:0.05,color:"#333355"}], satellites:[], mode:"void" },
-  aurora:   { spinX:1.0, spinY:1.6, spinZ:0.4, pulseFreq:5,  pulseAmp:0.10, shellOpacity:0.38, glowScale:4.2, glowOpacity:0.14, rings:[{tiltX:0.7,tiltZ:0.3,speed:2,radius:1.8,tube:0.045,color:"#00ffcc"}], satellites:[{count:3,dist:2.1,speed:3,color:"#ff88cc"}], mode:"aurora" },
-  diamond:  { spinX:1.2, spinY:2.0, spinZ:0.8, pulseFreq:8,  pulseAmp:0.09, shellOpacity:0.30, glowScale:4.0, glowOpacity:0.12, rings:[{tiltX:0.5,tiltZ:1.0,speed:3,radius:1.7,tube:0.04,color:"#ccffff"},{tiltX:1.3,tiltZ:0.2,speed:-2,radius:1.5,tube:0.03,color:"#ffffff"}], satellites:[], mode:"crystal" },
-  inferno:  { spinX:2.5, spinY:1.0, spinZ:1.5, pulseFreq:14, pulseAmp:0.15, shellOpacity:0.45, glowScale:4.8, glowOpacity:0.20, rings:[], satellites:[{count:5,dist:2.0,speed:8,color:"#ff6600"}], mode:"flame" },
-  frost:    { spinX:0.7, spinY:1.3, spinZ:0.5, pulseFreq:5,  pulseAmp:0.07, shellOpacity:0.30, glowScale:3.8, glowOpacity:0.11, rings:[{tiltX:1.0,tiltZ:0.5,speed:1.8,radius:1.9,tube:0.045,color:"#aaeeff"}], satellites:[{count:4,dist:2.2,speed:-2.5,color:"#ffffff"}], mode:"crystal" },
-  toxic:    { spinX:1.8, spinY:1.0, spinZ:1.2, pulseFreq:11, pulseAmp:0.13, shellOpacity:0.45, glowScale:4.2, glowOpacity:0.15, rings:[{tiltX:0.6,tiltZ:0.8,speed:4,radius:1.6,tube:0.05,color:"#aaff44"}], satellites:[], mode:"electric" },
-  electric: { spinX:4.0, spinY:2.0, spinZ:3.0, pulseFreq:18, pulseAmp:0.18, shellOpacity:0.50, glowScale:5.0, glowOpacity:0.22, rings:[{tiltX:0.3,tiltZ:1.5,speed:9,radius:1.5,tube:0.04,color:"#ffffff"},{tiltX:1.4,tiltZ:0.2,speed:-7,radius:1.8,tube:0.03,color:"#88ffff"}], satellites:[], mode:"electric" },
-};
-
-function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors, equippedSkin }: {
+function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: {
   projectile: Projectile;
   time: number;
   trailType: TrailEffect;
@@ -277,50 +249,14 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors, eq
   skinColors: { core: string; glow: string; emissive: string; accent: string; particles: string[] };
   equippedSkin: string;
 }) {
-  const dirAngle     = Math.atan2(projectile.direction[1], projectile.direction[0]);
-  const orbGroupRef  = useRef<THREE.Group>(null);
-  const coreMatRef   = useRef<THREE.MeshBasicMaterial>(null);
-  const shellMatRef  = useRef<THREE.MeshBasicMaterial>(null);
-  const outerMatRef  = useRef<THREE.MeshBasicMaterial>(null);
-  const spawnTime    = useRef(time);
+  const spawnTime     = useRef(time);
   const spawnProgress = Math.min(1, (time - spawnTime.current) * 6);
+  const isCharged     = projectile.isCharged;
+  const isRainbow     = (skinColors as any).isRainbow === true;
 
-  const style = ORB_STYLES[equippedSkin] ?? ORB_STYLES.default;
-  const isCharged = projectile.isCharged;
-  const baseScale = (isCharged ? 0.26 : 0.16) * (0.2 + spawnProgress * 0.8);
-
-  useFrame(() => {
-    const t = time;
-    if (orbGroupRef.current) {
-      orbGroupRef.current.rotation.x = t * style.spinX;
-      orbGroupRef.current.rotation.y = t * style.spinY;
-      orbGroupRef.current.rotation.z = t * style.spinZ;
-    }
-
-    const pulse = 1 + Math.sin(t * style.pulseFreq) * style.pulseAmp;
-
-    // Color-cycling modes
-    if (style.mode === "rainbow" && coreMatRef.current && shellMatRef.current) {
-      const h = (t * 55) % 360;
-      const c = new THREE.Color().setHSL(h / 360, 1.0, 0.6);
-      coreMatRef.current.color.copy(c);
-      shellMatRef.current.color.copy(c);
-      if (outerMatRef.current) outerMatRef.current.color.copy(c);
-    }
-    if (style.mode === "aurora" && coreMatRef.current) {
-      const h = 140 + Math.sin(t * 0.7) * 70;
-      coreMatRef.current.color.setHSL(h / 360, 1.0, 0.55);
-    }
-    if (style.mode === "electric" && orbGroupRef.current) {
-      const jitter = Math.sin(t * 40) * 0.03;
-      orbGroupRef.current.scale.setScalar(baseScale * pulse * (1 + jitter));
-    } else if (orbGroupRef.current) {
-      orbGroupRef.current.scale.setScalar(baseScale * pulse);
-    }
-    if (style.mode === "flame" && outerMatRef.current) {
-      outerMatRef.current.opacity = 0.12 + Math.abs(Math.sin(t * 8)) * 0.14;
-    }
-  });
+  // 1/5th of the player orb base scale (0.6)
+  const projScale  = isCharged ? 0.18 : 0.12;
+  const groupScale = 0.2 + spawnProgress * 0.8;
 
   return (
     <group position={projectile.position}>
@@ -330,131 +266,46 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors, eq
           trailType={trailType}
           time={time}
           direction={projectile.direction}
-          baseScale={baseScale}
+          baseScale={projScale * groupScale}
           projectileColor={skinColor}
         />
       )}
 
-      {/* Wide outer soft glow */}
-      <mesh scale={baseScale * style.glowScale}>
-        <sphereGeometry args={[1, 8, 6]} />
-        <meshBasicMaterial ref={outerMatRef} color={skinColor} transparent opacity={style.glowOpacity} depthWrite={false} />
-      </mesh>
-
-      {/* Motion smear in travel direction */}
-      <mesh
-        position={[-projectile.direction[0] * baseScale * 0.9, -projectile.direction[1] * baseScale * 0.9, 0]}
-        rotation={[0, 0, dirAngle]}
-        scale={[baseScale * 2.2, baseScale * 0.7, baseScale * 0.7]}
-      >
-        <sphereGeometry args={[1, 6, 4]} />
-        <meshBasicMaterial color={skinColor} transparent opacity={0.22} depthWrite={false} />
-      </mesh>
-
-      {/* Orbital rings */}
-      {style.rings.map((r, ri) => (
-        <group key={ri} rotation={[r.tiltX, 0, r.tiltZ + time * r.speed]}>
-          <mesh>
-            <torusGeometry args={[r.radius * baseScale, r.tube * baseScale, 6, 32]} />
-            <meshBasicMaterial color={r.color} transparent opacity={0.7} depthWrite={false} />
-          </mesh>
-        </group>
-      ))}
-
-      {/* Orbiting satellite dots */}
-      {style.satellites.flatMap((sat, gi) =>
-        Array.from({ length: sat.count }, (_, si) => {
-          const ang = (si / sat.count) * Math.PI * 2 + time * sat.speed;
-          const d   = sat.dist * baseScale;
-          return (
-            <mesh key={`${gi}-${si}`} position={[Math.cos(ang) * d, Math.sin(ang) * d, Math.sin(ang * 0.7) * d * 0.4]}>
-              <sphereGeometry args={[baseScale * 0.18, 4, 3]} />
-              <meshBasicMaterial color={sat.color} transparent opacity={0.9} depthWrite={false} />
-            </mesh>
-          );
-        })
-      )}
-
-      {/* 3D Orb body — rotates to show depth */}
-      <group ref={orbGroupRef}>
-        {/* Cel outline (back-face scale-up) */}
-        <mesh scale={1.22}>
-          <icosahedronGeometry args={[baseScale, 1]} />
-          <meshBasicMaterial color="#0a0a0a" side={THREE.BackSide} depthWrite={false} />
-        </mesh>
-
-        {/* Semi-transparent shell for translucent depth */}
-        <mesh>
-          <sphereGeometry args={[baseScale * 1.12, 10, 8]} />
-          <meshBasicMaterial ref={shellMatRef} color={skinColors.glow} transparent opacity={style.shellOpacity} depthWrite={false} />
-        </mesh>
-
-        {/* Core faceted body */}
-        <mesh>
-          <icosahedronGeometry args={[baseScale, 1]} />
-          <meshBasicMaterial ref={coreMatRef} color={skinColor} />
-        </mesh>
-
-        {/* Dark shadow hemisphere — faked ambient occlusion */}
-        <mesh position={[0, -baseScale * 0.25, -baseScale * 0.15]} scale={[1, 0.6, 0.7]}>
-          <sphereGeometry args={[baseScale * 0.95, 8, 6]} />
-          <meshBasicMaterial color="#000000" transparent opacity={0.35} depthWrite={false} />
-        </mesh>
-
-        {/* Specular highlight — upper-left bright dot */}
-        <mesh position={[-baseScale * 0.28, baseScale * 0.28, baseScale * 0.6]}>
-          <sphereGeometry args={[baseScale * 0.22, 5, 4]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.95} depthWrite={false} />
-        </mesh>
-
-        {/* Secondary specular */}
-        <mesh position={[-baseScale * 0.48, baseScale * 0.12, baseScale * 0.52]}>
-          <sphereGeometry args={[baseScale * 0.10, 4, 3]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.65} depthWrite={false} />
-        </mesh>
-
-        {/* Inner emissive glow (void/shadow gets dark inner) */}
-        <mesh>
-          <sphereGeometry args={[baseScale * 0.58, 6, 5]} />
-          <meshBasicMaterial
-            color={style.mode === "void" ? "#000000" : "#ffffff"}
-            transparent opacity={style.mode === "void" ? 0.5 : 0.30}
-            depthWrite={false}
+      {/* Mini player orb at 1/5th scale — FBX model + glow + particles, all skin-matched */}
+      <group scale={groupScale}>
+        <Suspense fallback={null}>
+          <PlayerModel
+            scale={projScale}
+            rotationSpeedX={1.6}
+            rotationSpeedY={2.4}
           />
-        </mesh>
+        </Suspense>
+        <PlayerGlow
+          scale={projScale}
+          coreColor={skinColors.core}
+          glowColor={skinColors.glow}
+          isRainbow={isRainbow}
+        />
+        <PlayerParticles
+          scale={projScale}
+          particleColors={[skinColors.core]}
+          isRainbow={isRainbow}
+        />
 
-        {/* Equatorial band 1 — spins independently on Y */}
-        <mesh rotation={[0, time * 4.5, Math.PI * 0.15]}>
-          <torusGeometry args={[baseScale * 0.88, baseScale * 0.045, 5, 24]} />
-          <meshBasicMaterial color={skinColors.accent} transparent opacity={0.65} depthWrite={false} />
-        </mesh>
-
-        {/* Equatorial band 2 — counter-rotation, different tilt */}
-        <mesh rotation={[Math.PI * 0.55, -time * 3.2, 0]}>
-          <torusGeometry args={[baseScale * 0.80, baseScale * 0.030, 5, 20]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.40} depthWrite={false} />
-        </mesh>
-
-        {/* Hot core — tiny bright sphere at the very center */}
-        <mesh>
-          <sphereGeometry args={[baseScale * 0.28, 5, 4]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.92} depthWrite={false} />
-        </mesh>
+        {/* Charged: extra rings around the mini orb */}
+        {isCharged && (
+          <>
+            <mesh rotation={[Math.PI / 2, 0, time * 4]}>
+              <torusGeometry args={[projScale * 2.4, projScale * 0.08, 6, 28]} />
+              <meshBasicMaterial color={skinColors.emissive} transparent opacity={0.65} depthWrite={false} />
+            </mesh>
+            <mesh rotation={[0.8, 0, -time * 3]}>
+              <torusGeometry args={[projScale * 2.9, projScale * 0.05, 6, 28]} />
+              <meshBasicMaterial color="#ffffff" transparent opacity={0.35} depthWrite={false} />
+            </mesh>
+          </>
+        )}
       </group>
-
-      {/* Charged shot: extra energy rings */}
-      {isCharged && (
-        <>
-          <mesh scale={baseScale * 2.6} rotation={[Math.PI / 2, 0, time * 4]}>
-            <torusGeometry args={[1, 0.08, 6, 28]} />
-            <meshBasicMaterial color={skinColors.emissive} transparent opacity={0.6} depthWrite={false} />
-          </mesh>
-          <mesh scale={baseScale * 3.1} rotation={[0.8, 0, -time * 3]}>
-            <torusGeometry args={[1, 0.05, 6, 28]} />
-            <meshBasicMaterial color="#ffffff" transparent opacity={0.35} depthWrite={false} />
-          </mesh>
-        </>
-      )}
     </group>
   );
 }
