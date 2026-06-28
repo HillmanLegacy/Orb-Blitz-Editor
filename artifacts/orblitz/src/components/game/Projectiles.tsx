@@ -26,6 +26,7 @@ const TRAIL_CONFIGS: Record<TrailEffect, { colors: string[]; particleCount: numb
   sakura:         { colors: ["#ffaacc", "#ff88aa", "#ffccdd", "#ffffff", "#ffbbdd"],                       particleCount: 12, spread: 0.22, glow: true  },
   galaxy:         { colors: ["#0000ff", "#4400ff", "#8800ff", "#ff00ff", "#00ffff", "#ffffff"],            particleCount: 14, spread: 0.20, glow: true  },
   particle_swarm: { colors: [],                                                                             particleCount: 0,  spread: 0.00, glow: false },
+  flame_aura:     { colors: ["#cc1100", "#ff3300", "#ff6600", "#ff9900", "#ffcc00"],                        particleCount: 10, spread: 0.20, glow: true  },
 };
 
 interface TrailParticleData {
