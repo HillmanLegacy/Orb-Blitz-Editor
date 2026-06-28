@@ -99,8 +99,10 @@ interface ShopState {
   shopOpen: boolean;
   inventoryOpen: boolean;
   
+  devMode: boolean;
   addCoins: (amount: number) => void;
   purchaseItem: (itemId: string) => boolean;
+  activateDevMode: () => void;
   equipSkin: (skin: OrbSkin) => void;
   equipTrail: (trail: TrailEffect) => void;
   equipRing: (ring: RingStyle) => void;
@@ -124,6 +126,7 @@ interface StoredShopData {
   equippedWeapon: WeaponType;
   equippedDefenses: [DefenseType, DefenseType];
   equippedMagiOrb: MagiOrbType;
+  devMode?: boolean;
 }
 
 const saveShopData = (data: StoredShopData) => {
@@ -137,6 +140,7 @@ const getStoredShopData = (): StoredShopData => {
     const stored = localStorage.getItem("orblitz_shop");
     if (stored) {
       const data = JSON.parse(stored);
+      // devMode field handled at end
       let ownedItems = data.ownedItems ?? [];
       let needsSave = false;
       if (ownedItems.includes("weapon_orbital_laser") && !ownedItems.includes("weapon_orbital_rapid_blaster")) {
@@ -160,7 +164,7 @@ const getStoredShopData = (): StoredShopData => {
         needsSave = true;
       }
       
-      const result = {
+      const result: StoredShopData = {
         coins: data.coins ?? 0,
         ownedItems,
         equippedSkin: data.equippedSkin ?? "default",
@@ -169,6 +173,7 @@ const getStoredShopData = (): StoredShopData => {
         equippedWeapon: equippedWeapon === "orbital_teletransfer" ? "none" as WeaponType : equippedWeapon,
         equippedDefenses: equippedDefenses as [DefenseType, DefenseType],
         equippedMagiOrb: data.equippedMagiOrb ?? "none",
+        devMode: data.devMode ?? false,
       };
       if (needsSave) saveShopData(result);
       return result;
@@ -183,6 +188,7 @@ const getStoredShopData = (): StoredShopData => {
     equippedWeapon: "none",
     equippedDefenses: ["none", "none"],
     equippedMagiOrb: "none",
+    devMode: false,
   };
 };
 
@@ -197,10 +203,12 @@ const createSaveData = (state: ShopState): StoredShopData => ({
   equippedWeapon: state.equippedWeapon,
   equippedDefenses: state.equippedDefenses,
   equippedMagiOrb: state.equippedMagiOrb,
+  devMode: state.devMode,
 });
 
 export const useShop = create<ShopState>()(
   subscribeWithSelector((set, get) => ({
+    devMode: storedData.devMode ?? false,
     coins: storedData.coins,
     ownedItems: storedData.ownedItems,
     equippedSkin: storedData.equippedSkin,
@@ -211,6 +219,17 @@ export const useShop = create<ShopState>()(
     equippedMagiOrb: storedData.equippedMagiOrb as MagiOrbType,
     shopOpen: false,
     inventoryOpen: false,
+
+    activateDevMode: () => {
+      const allItemIds = SHOP_ITEMS.map(i => i.id);
+      // Unlock all arcade levels
+      try {
+        localStorage.setItem("orblitz_arcade_progress", JSON.stringify({ highestLevel: 9.9 }));
+      } catch {}
+      const newState = { devMode: true, ownedItems: allItemIds };
+      set(newState);
+      saveShopData(createSaveData({ ...get(), ...newState }));
+    },
     
     addCoins: (amount) => {
       const newCoins = get().coins + amount;

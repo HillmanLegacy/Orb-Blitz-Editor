@@ -1,8 +1,10 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
 import { useAudio } from "@/lib/stores/useAudio";
+
+const DEV_SEQUENCE = ["O", "R", "B", "L", "I", "T", "Z"] as const;
 
 interface MainMenuProps {
   onShowHowToPlay: () => void;
@@ -55,7 +57,7 @@ interface DecorativeRing {
 
 export function MainMenu({ onShowHowToPlay, onShowModeSelect, onShowSettings }: MainMenuProps) {
   const { highScore } = useMagicOrb();
-  const { coins: stars, openShop, openInventory } = useShop();
+  const { coins: stars, openShop, openInventory, activateDevMode, devMode } = useShop();
   const { 
     playMenuSelect, 
     playOrbWhoosh, 
@@ -66,6 +68,26 @@ export function MainMenu({ onShowHowToPlay, onShowModeSelect, onShowSettings }: 
   } = useAudio();
   const [showContent, setShowContent] = useState(false);
   const [entranceComplete, setEntranceComplete] = useState(false);
+  const [devProgress, setDevProgress] = useState(0);
+  const [devActivatedFlash, setDevActivatedFlash] = useState(false);
+
+  const handleLetterClick = useCallback((letter: string, idx: number) => {
+    const expected = DEV_SEQUENCE[devProgress];
+    if (letter === expected && idx === devProgress) {
+      const next = devProgress + 1;
+      if (next === DEV_SEQUENCE.length) {
+        // Full sequence complete!
+        activateDevMode();
+        setDevProgress(0);
+        setDevActivatedFlash(true);
+        setTimeout(() => setDevActivatedFlash(false), 2000);
+      } else {
+        setDevProgress(next);
+      }
+    } else {
+      setDevProgress(0);
+    }
+  }, [devProgress, activateDevMode]);
 
   useEffect(() => {
     // Initial whoosh as orbs start flying in
@@ -472,20 +494,63 @@ export function MainMenu({ onShowHowToPlay, onShowModeSelect, onShowSettings }: 
           >
             <div className="flex-shrink-0">
               <motion.div
-                className="mb-4 md:mb-0"
+                className="mb-4 md:mb-0 relative"
                 animate={{
-                  filter: ["drop-shadow(0 0 20px #00ffff)", "drop-shadow(0 0 40px #ff00ff)", "drop-shadow(0 0 20px #00ffff)"],
+                  filter: devActivatedFlash
+                    ? ["drop-shadow(0 0 60px #ffff00)", "drop-shadow(0 0 100px #ffffff)", "drop-shadow(0 0 60px #ffff00)"]
+                    : ["drop-shadow(0 0 20px #00ffff)", "drop-shadow(0 0 40px #ff00ff)", "drop-shadow(0 0 20px #00ffff)"],
                 }}
-                transition={{ duration: 2, repeat: Infinity }}
+                transition={{ duration: devActivatedFlash ? 0.3 : 2, repeat: devActivatedFlash ? 3 : Infinity }}
               >
-                <motion.h1 
-                  className="text-4xl md:text-6xl lg:text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400"
+                <motion.h1
+                  className="text-4xl md:text-6xl lg:text-7xl font-bold flex items-center"
                   initial={{ letterSpacing: '0.5em', opacity: 0 }}
                   animate={{ letterSpacing: '0.05em', opacity: 1 }}
                   transition={{ delay: 0.2, duration: 0.8 }}
                 >
-                  ORBLITZ
+                  {DEV_SEQUENCE.map((letter, idx) => (
+                    <motion.span
+                      key={idx}
+                      onClick={() => handleLetterClick(letter, idx)}
+                      className="cursor-pointer select-none"
+                      style={{
+                        background: idx < devProgress
+                          ? "linear-gradient(to right, #ffff00, #ffaa00)"
+                          : "linear-gradient(to right, #22d3ee, #a78bfa, #f472b6)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        backgroundClip: "text",
+                        textShadow: idx < devProgress ? "0 0 20px #ffff0088" : undefined,
+                      }}
+                      whileHover={{ scale: 1.15 }}
+                      whileTap={{ scale: 0.9 }}
+                      animate={idx < devProgress ? { y: [0, -4, 0] } : {}}
+                      transition={{ duration: 0.3 }}
+                    >
+                      {letter}
+                    </motion.span>
+                  ))}
                 </motion.h1>
+                {devMode && (
+                  <motion.div
+                    className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs font-bold tracking-widest text-yellow-400 whitespace-nowrap"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: [0.6, 1, 0.6] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  >
+                    ★ DEV MODE ★
+                  </motion.div>
+                )}
+                {devActivatedFlash && (
+                  <motion.div
+                    className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs font-bold tracking-widest text-yellow-300 whitespace-nowrap"
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    🔓 DEV MODE UNLOCKED!
+                  </motion.div>
+                )}
               </motion.div>
               
               {highScore > 0 && (

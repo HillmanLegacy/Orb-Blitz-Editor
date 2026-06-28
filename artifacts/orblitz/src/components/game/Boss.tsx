@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb, MovementPattern } from "@/lib/stores/useMagicOrb";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
+import { BossOrbModel } from "./BossOrbModel";
 
 const MIN_PLAYER_DISTANCE = 7;
 const HARD_COLLISION_RADIUS = 4;
@@ -806,11 +807,7 @@ export function Boss() {
     return (
       <group ref={meshRef} position={boss.position}>
         {renderShield()}
-
-        {renderBaseSphere(1, "#3a1a4a", "#6a2a8a", "#8844aa")}
-        {renderDecoration("orbiting", 1, "#aa44cc")}
-        {renderEyes(1, 1, "#ffffff", "#220044")}
-        {renderMouth(1, 1, "#110022")}
+        <BossOrbModel scale={2.5} healthPercent={healthPercent} />
       </group>
     );
   }

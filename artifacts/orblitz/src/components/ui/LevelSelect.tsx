@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
+import { useShop } from "@/lib/stores/useShop";
 import { useState, useEffect } from "react";
 
 interface LevelProgress {
@@ -39,6 +40,7 @@ interface LevelSelectProps {
 
 export function LevelSelect({ onBack }: LevelSelectProps) {
   const { startLoading, setGameMode } = useMagicOrb();
+  const { devMode } = useShop();
   const [progress, setProgress] = useState<LevelProgress>({ highestLevel: 1.1 });
 
   useEffect(() => {
@@ -59,6 +61,7 @@ export function LevelSelect({ onBack }: LevelSelectProps) {
   }
 
   const isLevelUnlocked = (level: number) => {
+    if (devMode) return true;
     return level <= progress.highestLevel + 0.01;
   };
 
