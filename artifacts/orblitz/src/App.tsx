@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { AnimatePresence } from "framer-motion";
 import "@fontsource/inter";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
@@ -81,7 +82,9 @@ function App() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
-      {showStartup && <StartupAnimation onComplete={handleStartupComplete} />}
+      <AnimatePresence>
+        {showStartup && <StartupAnimation key="startup-anim" onComplete={handleStartupComplete} />}
+      </AnimatePresence>
       {showStartupLoading && <StartupLoading onComplete={handleStartupLoadingComplete} />}
       <GameScene />
       

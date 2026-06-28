@@ -94,18 +94,17 @@ export function StartupAnimation({ onComplete }: StartupAnimationProps) {
   const handleTap = useCallback(() => {
     if (phase === "waiting") {
       setPhase("done");
-      setTimeout(onComplete, 600);
+      onComplete();
     }
   }, [phase, onComplete]);
 
   return (
-    <AnimatePresence>
-      {phase !== "done" && (
+    <>
         <motion.div
           className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-black cursor-pointer select-none"
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.6, ease: "easeInOut" }}
+          transition={{ duration: 0.45, ease: "easeOut" }}
           onClick={handleTap}
           onTouchStart={handleTap}
         >
@@ -245,7 +244,6 @@ export function StartupAnimation({ onComplete }: StartupAnimationProps) {
             )}
           </AnimatePresence>
         </motion.div>
-      )}
-    </AnimatePresence>
+    </>
   );
 }
