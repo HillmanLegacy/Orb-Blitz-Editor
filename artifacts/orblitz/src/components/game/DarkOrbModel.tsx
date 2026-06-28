@@ -35,11 +35,11 @@ export function DarkOrbModel({ frozen = false, opacity = 1 }: DarkOrbModelProps)
 
   const fbx = useLoader(FBXLoader, "/models/player.fbx");
 
-  const bodyColor = frozen ? "#0a1a2a" : "#080010";
-  const glowInner = frozen ? "#224466" : "#3a0050";
-  const glowMid   = frozen ? "#1a3355" : "#280038";
-  const glowOuter = frozen ? "#112244" : "#180025";
-  const tendrilColor = frozen ? "#4488aa" : "#770088";
+  const bodyColor = frozen ? "#0a1a2a" : "#0d0022";
+  const glowInner = frozen ? "#224466" : "#8800cc";
+  const glowMid   = frozen ? "#1a3355" : "#5500aa";
+  const glowOuter = frozen ? "#112244" : "#330077";
+  const tendrilColor = frozen ? "#4488aa" : "#dd00ff";
 
   // Pre-compute tendril geometry (directions, wave axes, params)
   const tendrils = useMemo<TendrilData[]>(() => {
@@ -118,11 +118,11 @@ export function DarkOrbModel({ frozen = false, opacity = 1 }: DarkOrbModelProps)
 
     // Pulse glow spheres
     if (innerRef.current)
-      (innerRef.current.material as THREE.MeshBasicMaterial).opacity = (0.28 + pulse * 0.20) * opacity;
+      (innerRef.current.material as THREE.MeshBasicMaterial).opacity = (0.42 + pulse * 0.28) * opacity;
     if (midRef.current)
-      (midRef.current.material as THREE.MeshBasicMaterial).opacity = (0.14 + pulse * 0.10) * opacity;
+      (midRef.current.material as THREE.MeshBasicMaterial).opacity = (0.22 + pulse * 0.16) * opacity;
     if (outerRef.current)
-      (outerRef.current.material as THREE.MeshBasicMaterial).opacity = (0.06 + pulse * 0.05) * opacity;
+      (outerRef.current.material as THREE.MeshBasicMaterial).opacity = (0.10 + pulse * 0.08) * opacity;
 
     // Animate tendrils — waving in 3D space
     if (tendrilRef.current) {

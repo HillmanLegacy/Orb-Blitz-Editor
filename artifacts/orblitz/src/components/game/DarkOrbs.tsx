@@ -232,11 +232,11 @@ function UnifiedDarkOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
                 <group key={`horn-${i}`} position={[Math.cos(angle) * 0.35, Math.sin(angle) * 0.35 + 0.2, 0.01]} rotation={[0, 0, angle + Math.PI / 2 + hornWave]}>
                   <mesh scale={[0.06, 0.25, 1]}>
                     <circleGeometry args={[1, 3]} />
-                    <meshBasicMaterial color="#1a0a1a" transparent opacity={opacity * 0.95} />
+                    <meshBasicMaterial color="#660055" transparent opacity={opacity * 0.95} />
                   </mesh>
                   <mesh scale={[0.04, 0.22, 1]} position={[0, 0, 0.01]}>
                     <circleGeometry args={[1, 3]} />
-                    <meshBasicMaterial color={frozenTint ? "#3366aa" : "#2a1a2a"} transparent opacity={opacity * 0.9} />
+                    <meshBasicMaterial color={frozenTint ? "#3366aa" : "#aa00aa"} transparent opacity={opacity * 0.9} />
                   </mesh>
                 </group>
               );
@@ -271,11 +271,11 @@ function UnifiedDarkOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
                 <group key={`tent-${i}`}>
                   <mesh position={[Math.cos(angle) * dist, Math.sin(angle) * dist, -0.01]} rotation={[0, 0, angle]} scale={[0.08, 0.35 + wave * 0.1, 1]}>
                     <circleGeometry args={[1, 4]} />
-                    <meshBasicMaterial color="#0a0a0a" transparent opacity={opacity * 0.85} />
+                    <meshBasicMaterial color="#330044" transparent opacity={opacity * 0.85} />
                   </mesh>
                   <mesh position={[Math.cos(angle) * dist, Math.sin(angle) * dist, 0]} rotation={[0, 0, angle]} scale={[0.05, 0.3 + wave * 0.08, 1]}>
                     <circleGeometry args={[1, 4]} />
-                    <meshBasicMaterial color={frozenTint ? "#446688" : "#1a0a1a"} transparent opacity={opacity * 0.9} />
+                    <meshBasicMaterial color={frozenTint ? "#446688" : "#7700aa"} transparent opacity={opacity * 0.9} />
                   </mesh>
                 </group>
               );
@@ -292,7 +292,7 @@ function UnifiedDarkOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
               return (
                 <mesh key={`spine-${i}`} position={[Math.cos(angle) * (0.5 + spineWave), Math.sin(angle) * (0.5 + spineWave), 0.01]} rotation={[0, 0, angle]} scale={[0.03, 0.15, 1]}>
                   <circleGeometry args={[1, 3]} />
-                  <meshBasicMaterial color="#2a1a2a" transparent opacity={opacity * 0.9} />
+                  <meshBasicMaterial color="#8800bb" transparent opacity={opacity * 0.9} />
                 </mesh>
               );
             })}
@@ -324,7 +324,7 @@ function UnifiedDarkOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
               return (
                 <mesh key={`flame-${i}`} position={[Math.cos(angle) * flameWave, Math.sin(angle) * flameWave, -0.02]} scale={0.08 + Math.sin(time * 6 + i) * 0.02}>
                   <circleGeometry args={[1, 5]} />
-                  <meshBasicMaterial color={frozenTint ? "#6688aa" : "#330033"} transparent opacity={opacity * (0.4 + Math.sin(time * 5 + i) * 0.2)} />
+                  <meshBasicMaterial color={frozenTint ? "#6688aa" : "#bb00cc"} transparent opacity={opacity * (0.55 + Math.sin(time * 5 + i) * 0.25)} />
                 </mesh>
               );
             })}

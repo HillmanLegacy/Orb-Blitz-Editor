@@ -112,12 +112,19 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: 
   const isCharged     = projectile.isCharged;
   const isRainbow     = (skinColors as any).isRainbow === true;
 
-  // 1/5th of the player orb base scale (0.6)
-  const projScale  = isCharged ? 0.18 : 0.12;
+  // 1/5th of the player orb base scale (now 0.72)
+  const projScale  = isCharged ? 0.216 : 0.144;
   const groupScale = 0.2 + spawnProgress * 0.8;
 
   return (
     <group position={projectile.position}>
+      {/* Point light matching player skin colour */}
+      <pointLight
+        color={skinColors.glow}
+        intensity={isCharged ? 4 : 2.5}
+        distance={isCharged ? 6 : 4}
+        decay={2}
+      />
       {/* Trail */}
       {trailType !== "none" && trailType !== "particle_swarm" && spawnProgress >= 0.4 && (
         <MemoizedHDTrailEffect

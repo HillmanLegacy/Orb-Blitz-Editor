@@ -457,8 +457,8 @@ export function PlayerOrb() {
   const healthRatio = health / maxHealth;
   
   const scale = useMemo(() => {
-    const baseScale = 0.6;
-    const minScale = 0.36;
+    const baseScale = 0.72;
+    const minScale = 0.432;
     return minScale + (baseScale - minScale) * healthRatio;
   }, [healthRatio]);
   
