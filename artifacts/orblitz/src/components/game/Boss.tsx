@@ -5,6 +5,7 @@ import { useMagicOrb, MovementPattern } from "@/lib/stores/useMagicOrb";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 import { FireBoss } from "./FireBoss";
 import { FireExplosionVFX } from "./FireExplosionVFX";
+import { BossShield } from "./BossShield";
 
 const MIN_PLAYER_DISTANCE = 7;
 const HARD_COLLISION_RADIUS = 4;
@@ -482,36 +483,7 @@ export function Boss() {
   const pulse = 1 + Math.sin(time) * 0.06;
   const angryPulse = healthPercent < 0.3 ? 1 + Math.sin(time * 8) * 0.1 : 1;
   
-  const renderShield = () => {
-    if (!boss.shieldActive) return null;
-    const shieldPulse = 1 + Math.sin(time * 4) * 0.1;
-    const shieldOpacity = 0.5 + Math.sin(time * 3) * 0.2;
-    return (
-      <group>
-        <mesh scale={4 * shieldPulse} position={[0, 0, 0.15]}>
-          <ringGeometry args={[0.85, 1, 6]} />
-          <meshBasicMaterial color="#00ffff" transparent opacity={shieldOpacity * 0.7} side={THREE.DoubleSide} />
-        </mesh>
-        <mesh scale={3.6 * shieldPulse} position={[0, 0, 0.14]}>
-          <ringGeometry args={[0.7, 0.85, 6]} />
-          <meshBasicMaterial color="#88ffff" transparent opacity={shieldOpacity * 0.5} side={THREE.DoubleSide} />
-        </mesh>
-        <mesh scale={4.2} position={[0, 0, 0.12]}>
-          <circleGeometry args={[1, 6]} />
-          <meshBasicMaterial color="#00ffff" transparent opacity={0.1} />
-        </mesh>
-        {[0, 1, 2, 3, 4, 5].map((i) => {
-          const angle = (i / 6) * Math.PI * 2 + time * 2;
-          return (
-            <mesh key={i} position={[Math.cos(angle) * 3.2, Math.sin(angle) * 3.2, 0.16]} scale={0.3}>
-              <circleGeometry args={[1, 6]} />
-              <meshBasicMaterial color="#ffffff" transparent opacity={0.6} />
-            </mesh>
-          );
-        })}
-      </group>
-    );
-  };
+  // Shield is now rendered as <BossShield bossType={bossType} /> at each call-site
   
   
   const renderBaseSphere = (scale: number, primaryColor: string, secondaryColor: string, glowColor: string) => {
@@ -840,7 +812,7 @@ export function Boss() {
   if (bossType === "circle") {
     return (
       <group ref={meshRef} position={boss.position}>
-        {renderShield()}
+        {boss.shieldActive && <BossShield bossType={bossType} />}
         <FireBoss
           radius={2.2}
           healthPercent={healthPercent}
@@ -854,7 +826,7 @@ export function Boss() {
   if (bossType === "star") {
     return (
       <group ref={meshRef} position={boss.position}>
-        {renderShield()}
+        {boss.shieldActive && <BossShield bossType={bossType} />}
 
         {renderBaseSphere(1.05, "#1a2a4a", "#2a4a8a", "#4488ff")}
         {renderDecoration("rings", 1.05, "#6699ff")}
@@ -876,7 +848,7 @@ export function Boss() {
   if (bossType === "arrow") {
     return (
       <group ref={meshRef} position={boss.position}>
-        {renderShield()}
+        {boss.shieldActive && <BossShield bossType={bossType} />}
 
         {renderBaseSphere(0.95, "#4a2a1a", "#8a5a2a", "#ff8844")}
         {renderDecoration("spikes", 0.95, "#ff6622")}
@@ -896,7 +868,7 @@ export function Boss() {
   if (bossType === "triangle") {
     return (
       <group ref={meshRef} position={boss.position}>
-        {renderShield()}
+        {boss.shieldActive && <BossShield bossType={bossType} />}
 
         {renderBaseSphere(1, "#1a3a2a", "#2a6a4a", "#44ff88")}
         {renderDecoration("crown", 1, "#22aa44")}
@@ -919,7 +891,7 @@ export function Boss() {
   if (bossType === "trapezoid") {
     return (
       <group ref={meshRef} position={boss.position}>
-        {renderShield()}
+        {boss.shieldActive && <BossShield bossType={bossType} />}
 
         {renderBaseSphere(1.05, "#4a1a2a", "#8a2a4a", "#ff4488")}
         {renderEyes(1, 1.05, "#ffffff", "#440022")}
@@ -936,7 +908,7 @@ export function Boss() {
   if (bossType === "cube") {
     return (
       <group ref={meshRef} position={boss.position}>
-        {renderShield()}
+        {boss.shieldActive && <BossShield bossType={bossType} />}
 
         {renderBaseSphere(1.1, "#2a2a4a", "#4a4a8a", "#8888ff")}
         {renderEyes(2, 1.1, "#aaaaff")}
@@ -961,7 +933,7 @@ export function Boss() {
   if (bossType === "cloud") {
     return (
       <group ref={meshRef} position={boss.position}>
-        {renderShield()}
+        {boss.shieldActive && <BossShield bossType={bossType} />}
 
         {renderBaseSphere(1.15, "#3a3a4a", "#5a5a6a", "#aaaacc")}
         {renderEyes(4, 1.15, "#ccccff")}
@@ -988,7 +960,7 @@ export function Boss() {
   if (bossType === "tentacle") {
     return (
       <group ref={meshRef} position={boss.position}>
-        {renderShield()}
+        {boss.shieldActive && <BossShield bossType={bossType} />}
 
         {renderBaseSphere(1.1, "#1a3a3a", "#2a6a6a", "#44ffcc")}
         {renderDecoration("tentacles", 1.1, "#228888")}
@@ -1011,7 +983,7 @@ export function Boss() {
   if (bossType === "monster") {
     return (
       <group ref={meshRef} position={boss.position}>
-        {renderShield()}
+        {boss.shieldActive && <BossShield bossType={bossType} />}
 
         {renderBaseSphere(1.2, "#3a1a1a", "#6a2a2a", "#ff4444")}
         {renderDecoration("horns", 1.2, "#882222")}
@@ -1037,7 +1009,7 @@ export function Boss() {
   
   return (
     <group ref={meshRef} position={boss.position}>
-      {renderShield()}
+      {boss.shieldActive && <BossShield bossType={bossType} />}
       {renderBaseSphere(1, "#3a1a4a", "#6a2a8a", "#8844aa")}
       {renderEyes(1, 1, "#ffffff", "#220044")}
     </group>
