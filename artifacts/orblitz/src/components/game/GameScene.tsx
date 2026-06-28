@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef, Component, ReactNode } from "react";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { IS_MOBILE } from "@/lib/isMobile";
 import { EffectComposer, Bloom, SMAA, ChromaticAberration, Vignette } from "@react-three/postprocessing";
@@ -19,6 +19,39 @@ import { ScreenEffects } from "./ScreenEffects";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { SubBlasterOrb } from "./SubBlasterOrb";
 import { useShop } from "@/lib/stores/useShop";
+
+// ── WebGL Error Boundary ──────────────────────────────────────────────────────
+class WebGLErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { failed: false };
+  }
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    if (this.state.failed) {
+      return (
+        <div style={{
+          position: "fixed", inset: 0, background: "#0a0a1a",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexDirection: "column", color: "#fff", fontFamily: "sans-serif", gap: 16
+        }}>
+          <div style={{ fontSize: 48 }}>🎮</div>
+          <div style={{ fontSize: 24, fontWeight: "bold" }}>Orblitz</div>
+          <div style={{ color: "#aaa", textAlign: "center", maxWidth: 400 }}>
+            WebGL is required to run this game. Please enable hardware acceleration in your browser settings and reload.
+          </div>
+          <button onClick={() => window.location.reload()} style={{
+            marginTop: 8, padding: "10px 24px", background: "#6366f1",
+            color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 16
+          }}>Reload</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // ── Renderer configuration ────────────────────────────────────────────────────
 function RendererSetup() {
@@ -166,13 +199,15 @@ function PostProcessing() {
 // ── Scene ─────────────────────────────────────────────────────────────────────
 export function GameScene() {
   return (
+    <WebGLErrorBoundary>
     <Canvas
       camera={{ position: [0, 0, 10], fov: 60, near: 0.1, far: 100 }}
       dpr={IS_MOBILE ? [1, 1.5] : [1, 2]}
       gl={{
-        powerPreference: "high-performance",
+        powerPreference: "default",
         antialias: false,
         stencil: false,
+        failIfMajorPerformanceCaveat: false,
       }}
       style={{
         position: "fixed",
@@ -210,5 +245,6 @@ export function GameScene() {
         <PostProcessing />
       </Suspense>
     </Canvas>
+    </WebGLErrorBoundary>
   );
 }
