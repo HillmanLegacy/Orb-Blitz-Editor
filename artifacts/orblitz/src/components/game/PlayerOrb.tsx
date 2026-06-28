@@ -6,6 +6,7 @@ import { useShop, OrbSkin, RingStyle } from "@/lib/stores/useShop";
 import { ToonOrbLayer, CelOutline, RayTracedGlow, AmbientOcclusionLayer, GlobalIlluminationBounce, ScreenSpaceReflection, CausticPattern } from "./ToonShaders";
 import { PlayerModel } from "./PlayerModel";
 import { PlayerParticles } from "./PlayerParticles";
+import { FlameAura } from "./FlameAura";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 
 const sharedCircleGeo = new THREE.CircleGeometry(1, 32);
@@ -452,7 +453,7 @@ export function PlayerOrb() {
   const rayRefs = useRef<THREE.Mesh[]>([]);
   
   const { health, maxHealth, hasShield, hasChargeBeam, isDamaged, isDying, deathTimer, playerPosition, magiOrb2Active } = useMagicOrb();
-  const { equippedSkin, equippedRing } = useShop();
+  const { equippedSkin, equippedRing, equippedTrail } = useShop();
   
   const healthRatio = health / maxHealth;
   
@@ -709,6 +710,9 @@ export function PlayerOrb() {
         particleColors={[coreColor]}
         isRainbow={(skinColors as any).isRainbow === true}
       />
+
+      {/* Flame Aura cosmetic trail */}
+      {equippedTrail === "flame_aura" && <FlameAura scale={scale} />}
 
       {/* Hidden refs kept so useFrame doesn't throw on null checks */}
       <mesh ref={coreRef} visible={false}>

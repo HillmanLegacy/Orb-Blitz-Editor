@@ -49,6 +49,65 @@ function BossOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
     );
   }
 
+  // ── Circle boss type: render as mini fireball ─────────────────────────────
+  if (bossType === "circle") {
+    return (
+      <group position={orb.position} scale={orb.size * pulse}>
+        {/* Outer glow */}
+        <mesh>
+          <sphereGeometry args={[1.4, 10, 8]} />
+          <meshBasicMaterial
+            color="#ff2200"
+            transparent
+            opacity={0.18}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+          />
+        </mesh>
+        {/* Core fireball */}
+        <mesh>
+          <sphereGeometry args={[1, 14, 12]} />
+          <meshBasicMaterial
+            color={(() => {
+              const t = (Math.sin(time * 8 + orb.seed * 10) * 0.5 + 0.5);
+              const r = Math.floor(255);
+              const g = Math.floor(t * 140);
+              return `rgb(${r},${g},0)`;
+            })()}
+          />
+        </mesh>
+        {/* Inner bright core */}
+        <mesh>
+          <sphereGeometry args={[0.55, 10, 8]} />
+          <meshBasicMaterial
+            color="#ffee44"
+            transparent
+            opacity={0.9}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+          />
+        </mesh>
+        {/* Flame wisps */}
+        {[0, 1, 2, 3].map((i) => {
+          const wAngle = (i / 4) * Math.PI * 2 + time * 3 + orb.seed;
+          const wr = 0.6 + Math.sin(time * 5 + i) * 0.15;
+          return (
+            <mesh key={i} position={[Math.cos(wAngle) * wr, Math.sin(wAngle) * wr, 0]}>
+              <sphereGeometry args={[0.22, 6, 5]} />
+              <meshBasicMaterial
+                color="#ff6600"
+                transparent
+                opacity={0.75}
+                blending={THREE.AdditiveBlending}
+                depthWrite={false}
+              />
+            </mesh>
+          );
+        })}
+      </group>
+    );
+  }
+
   const renderShape = () => {
     switch (bossType) {
       case "star":

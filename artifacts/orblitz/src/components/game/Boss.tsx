@@ -3,7 +3,8 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb, MovementPattern } from "@/lib/stores/useMagicOrb";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
-import { BossOrbModel } from "./BossOrbModel";
+import { FireBoss } from "./FireBoss";
+import { FireExplosionVFX } from "./FireExplosionVFX";
 
 const MIN_PLAYER_DISTANCE = 7;
 const HARD_COLLISION_RADIUS = 4;
@@ -12,11 +13,11 @@ const DODGE_SPEED = 8;
 
 interface BossConfig {
   projectileCount: number;
-  movementStyle: "drift" | "teleport" | "dash" | "perimeter" | "figure8" | "bounce" | "spiral" | "wave" | "chaos";
+  movementStyle: "drift" | "teleport" | "dash" | "perimeter" | "figure8" | "bounce" | "spiral" | "wave" | "chaos" | "orbit_player";
 }
 
 const BOSS_CONFIGS: Record<string, BossConfig> = {
-  circle: { projectileCount: 1, movementStyle: "drift" },
+  circle: { projectileCount: 3, movementStyle: "orbit_player" },
   star: { projectileCount: 2, movementStyle: "teleport" },
   triangle: { projectileCount: 3, movementStyle: "dash" },
   trapezoid: { projectileCount: 4, movementStyle: "perimeter" },
@@ -48,6 +49,7 @@ export function Boss() {
   const dodgeDirRef = useRef<[number, number]>([0, 0]);
   const phaseTimerRef = useRef(0);
   const attackBurstRef = useRef(0);
+  const fireOrbitAngleRef = useRef(0);
   
   
   const keepDistanceFromPlayer = (
@@ -385,6 +387,28 @@ export function Boss() {
         }
         break;
       }
+      case "orbit_player": {
+        // Fast fluid orbit — gets faster as health drops
+        const healthFrac = boss.maxHealth > 0 ? boss.health / boss.maxHealth : 1;
+        const orbitSpeed = 1.25 + (1 - healthFrac) * 0.75;
+        fireOrbitAngleRef.current += delta * orbitSpeed;
+
+        // Dodge: burst orbit angle sideways the SAME frame a threat is first detected.
+        // dodgeTimerRef is set to 0.3 above only when timer was already <= 0, so
+        // we use a window just above the fresh set value to catch the burst frame.
+        if (threatened && dodgeTimerRef.current >= 0.28) {
+          fireOrbitAngleRef.current += Math.PI * 0.38 * (dodgeDirRef.current[0] >= 0 ? 1 : -1);
+        }
+
+        const orbitRadius = 6.8 + Math.sin(time * 0.4) * 1.2;
+        targetX = playerX + Math.cos(fireOrbitAngleRef.current) * orbitRadius;
+        targetY = playerY + Math.sin(fireOrbitAngleRef.current) * orbitRadius;
+        // Clamp to play area
+        targetX = Math.max(-playAreaWidth, Math.min(playAreaWidth, targetX));
+        targetY = Math.max(-playAreaHeight + 2, Math.min(playAreaHeight, targetY));
+        lerpSpeed = threatened ? 14 : 7;
+        break;
+      }
     }
     
     let finalX = boss.position[0] + (targetX - boss.position[0]) * delta * lerpSpeed;
@@ -420,6 +444,16 @@ export function Boss() {
   if (boss.destroying) {
     const totalTime = 3.5;
     const progress = 1 - ((boss.destroyTimer || 0) / totalTime);
+
+    // Fire Boss gets its own massive fire explosion
+    if (bossType === "circle") {
+      return (
+        <group position={[boss.position[0], boss.position[1], boss.position[2]]}>
+          <FireExplosionVFX progress={progress} scale={3.5} />
+        </group>
+      );
+    }
+
     const bossTypeColors: Record<string, { color: string; glow: string }> = {
       circle:  { color: "#ff3366", glow: "#ff99bb" },
       star:    { color: "#ffcc00", glow: "#fff066" },
@@ -428,8 +462,8 @@ export function Boss() {
       octagon: { color: "#ff66ff", glow: "#ffbbff" },
       cross:   { color: "#ff9933", glow: "#ffcc88" },
     };
-    const bossType = boss.bossType || "circle";
-    const deathPalette = bossTypeColors[bossType] ?? bossTypeColors.circle;
+    const deathBossType = boss.bossType || "circle";
+    const deathPalette = bossTypeColors[deathBossType] ?? bossTypeColors.circle;
     return (
       <group position={[boss.position[0], boss.position[1], boss.position[2]]}>
         <EnergyDissipationVFX
@@ -807,7 +841,12 @@ export function Boss() {
     return (
       <group ref={meshRef} position={boss.position}>
         {renderShield()}
-        <BossOrbModel scale={2.5} healthPercent={healthPercent} />
+        <FireBoss
+          radius={2.2}
+          healthPercent={healthPercent}
+          playerPosition={playerPosition}
+          bossPosition={boss.position}
+        />
       </group>
     );
   }
