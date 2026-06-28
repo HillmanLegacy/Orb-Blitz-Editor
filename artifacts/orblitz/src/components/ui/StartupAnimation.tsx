@@ -1,204 +1,249 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAudio } from "@/lib/stores/useAudio";
+
+type Phase = "idle" | "flying" | "converge" | "flash" | "title" | "waiting" | "done";
 
 interface StartupAnimationProps {
   onComplete: () => void;
 }
 
-export function StartupAnimation({ onComplete }: StartupAnimationProps) {
-  const [phase, setPhase] = useState<"intro" | "orbs" | "title" | "waiting" | "transitioning" | "done">("intro");
-  const { playIntro } = useAudio();
+const ORB_COLORS = ["#00ffff", "#ff00ff", "#ffff00", "#aa00ff", "#00ff88", "#ff8800", "#ffffff", "#00aaff"];
 
-  const handleTapToStart = useCallback(() => {
-    if (phase === "waiting") {
-      playIntro();
-      setPhase("done");
-      onComplete();
-    }
-  }, [phase, onComplete, playIntro]);
+interface OrbDef {
+  startX: number; startY: number;
+  convX: number;  convY: number;
+  orbitX: number; orbitY: number;
+  size: number;   blur: number;
+  color: string;  delay: number;
+}
+
+const ORB_COUNT = 30;
+
+const orbDefs: OrbDef[] = Array.from({ length: ORB_COUNT }, (_, i) => {
+  const startAngle = (i / ORB_COUNT) * Math.PI * 2 + (i % 3) * 0.25;
+  const startDist  = 380 + (i % 5) * 55;
+  const orbitAngle = (i / ORB_COUNT) * Math.PI * 2;
+  return {
+    startX:  Math.cos(startAngle) * startDist,
+    startY:  Math.sin(startAngle) * startDist * 0.6,
+    convX:   Math.cos(startAngle * 1.8) * 18,
+    convY:   Math.sin(startAngle * 1.8) * 14,
+    orbitX:  Math.cos(orbitAngle) * (255 + (i % 4) * 18),
+    orbitY:  Math.sin(orbitAngle) * (90  + (i % 3) * 12),
+    size:    9 + (i % 5) * 5,
+    blur:    3 + (i % 4) * 2,
+    color:   ORB_COLORS[i % ORB_COLORS.length],
+    delay:   i * 0.05,
+  };
+});
+
+function getOrbTarget(orb: OrbDef, phase: Phase) {
+  switch (phase) {
+    case "idle":
+      return { x: orb.startX, y: orb.startY, scale: 0,   opacity: 0    };
+    case "flying":
+      return { x: orb.startX * 0.08, y: orb.startY * 0.08, scale: 1,   opacity: 0.9  };
+    case "converge":
+      return { x: orb.convX,  y: orb.convY,  scale: 1.2,  opacity: 1.0  };
+    case "flash":
+      return { x: orb.convX * 1.6, y: orb.convY * 1.6, scale: 1.6, opacity: 1.0 };
+    case "title":
+    case "waiting":
+      return { x: orb.orbitX, y: orb.orbitY, scale: 0.8,  opacity: 0.6  };
+    case "done":
+      return { x: orb.orbitX * 1.4, y: orb.orbitY * 1.4, scale: 0, opacity: 0 };
+  }
+}
+
+type BezierTuple = [number, number, number, number];
+
+function getOrbTransition(phase: Phase, delay: number) {
+  switch (phase) {
+    case "flying":
+      return { duration: 2.4, delay, ease: [0.16, 1, 0.3, 1] as BezierTuple };
+    case "converge":
+      return { duration: 0.65, ease: "easeOut" as const };
+    case "flash":
+      return { duration: 0.28, ease: "easeOut" as const };
+    case "title":
+      return { duration: 1.4, ease: [0.34, 1.26, 0.64, 1] as BezierTuple };
+    case "done":
+      return { duration: 0.6, ease: "easeIn" as const };
+    default:
+      return { duration: 0.3 };
+  }
+}
+
+export function StartupAnimation({ onComplete }: StartupAnimationProps) {
+  const [phase, setPhase] = useState<Phase>("idle");
+  const { playOrbWhoosh, playOrbConverge, playTitleReveal, startMenuMusic } = useAudio();
 
   useEffect(() => {
-    const timer1 = setTimeout(() => setPhase("orbs"), 800);
-    const timer2 = setTimeout(() => setPhase("title"), 2000);
-    const timer3 = setTimeout(() => setPhase("waiting"), 3500);
+    try { startMenuMusic(); } catch {}
 
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-    };
+    const t0 = setTimeout(() => { setPhase("flying");   try { playOrbWhoosh();   } catch {} }, 150);
+    const t1 = setTimeout(() => { setPhase("converge"); try { playOrbConverge(); } catch {} }, 2700);
+    const t2 = setTimeout(() => { setPhase("flash"); },                                        3250);
+    const t3 = setTimeout(() => { setPhase("title");    try { playTitleReveal(); } catch {} }, 3600);
+    const t4 = setTimeout(() => { setPhase("waiting"); },                                      5100);
+
+    return () => [t0, t1, t2, t3, t4].forEach(clearTimeout);
   }, []);
+
+  const handleTap = useCallback(() => {
+    if (phase === "waiting") {
+      setPhase("done");
+      setTimeout(onComplete, 600);
+    }
+  }, [phase, onComplete]);
 
   return (
     <AnimatePresence>
       {phase !== "done" && (
         <motion.div
-          className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden cursor-pointer"
+          className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-black cursor-pointer select-none"
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0 }}
-          onClick={handleTapToStart}
-          onTouchStart={handleTapToStart}
+          transition={{ duration: 0.6, ease: "easeInOut" }}
+          onClick={handleTap}
+          onTouchStart={handleTap}
         >
-          <motion.div
-            className="absolute inset-0"
-            initial={{ background: "linear-gradient(135deg, #000000 0%, #1a0033 50%, #000000 100%)" }}
-            animate={{
-              background: phase === "title" || phase === "waiting" || phase === "transitioning"
-                ? "linear-gradient(135deg, #1a0044 0%, #330066 50%, #1a0044 100%)"
-                : "linear-gradient(135deg, #000000 0%, #1a0033 50%, #000000 100%)",
-            }}
-            transition={{ duration: 1 }}
-          />
-
-          {(phase === "orbs" || phase === "title") && (
-            <>
-              {[...Array(12)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  className="absolute rounded-full"
-                  style={{
-                    width: 20 + Math.random() * 40,
-                    height: 20 + Math.random() * 40,
-                    background: `radial-gradient(circle, ${
-                      i % 3 === 0 ? "#00ffff" : i % 3 === 1 ? "#ff00ff" : "#ffff00"
-                    }, transparent)`,
-                  }}
-                  initial={{
-                    x: (Math.random() - 0.5) * window.innerWidth * 2,
-                    y: (Math.random() - 0.5) * window.innerHeight * 2,
-                    opacity: 0,
-                    scale: 0,
-                  }}
-                  animate={{
-                    x: 0,
-                    y: 0,
-                    opacity: [0, 0.8, 0],
-                    scale: [0, 1.5, 0],
-                  }}
-                  transition={{
-                    duration: 1.5,
-                    delay: i * 0.08,
-                    ease: "easeOut",
-                  }}
-                />
-              ))}
-            </>
-          )}
-
-          <motion.div
-            className="absolute w-40 h-40 rounded-full"
-            style={{
-              background: "radial-gradient(circle, rgba(255,255,255,0.9) 0%, rgba(0,255,255,0.6) 30%, rgba(255,0,255,0.3) 60%, transparent 80%)",
-              filter: "blur(2px)",
-            }}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={
-              phase === "intro"
-                ? { scale: 0, opacity: 0 }
-                : phase === "orbs"
-                ? { scale: [0, 1.5, 1], opacity: [0, 1, 1] }
-                : { scale: [1, 1.2, 0], opacity: [1, 1, 0] }
-            }
-            transition={{ duration: phase === "orbs" ? 1 : 0.8, ease: "easeOut" }}
-          />
-
-          {(phase === "orbs" || phase === "title") && (
+          {/* Orbs */}
+          {orbDefs.map((orb, i) => (
             <motion.div
-              className="absolute w-60 h-60 rounded-full"
+              key={i}
+              className="absolute rounded-full pointer-events-none"
               style={{
-                background: "radial-gradient(circle, transparent 30%, rgba(0,255,255,0.2) 50%, transparent 70%)",
+                width:       orb.size,
+                height:      orb.size,
+                left:        "50%",
+                top:         "50%",
+                marginLeft:  -orb.size / 2,
+                marginTop:   -orb.size / 2,
+                background:  `radial-gradient(circle at 38% 32%, ${orb.color}ff, ${orb.color}88 45%, transparent 75%)`,
+                filter:      `blur(${orb.blur}px)`,
+                boxShadow:   `0 0 ${orb.size * 1.2}px ${orb.color}66`,
               }}
-              initial={{ scale: 0, opacity: 0, rotate: 0 }}
-              animate={{
-                scale: phase === "orbs" ? [0, 2, 2.5] : [2.5, 3, 0],
-                opacity: phase === "orbs" ? [0, 0.6, 0.4] : [0.4, 0.2, 0],
-                rotate: 180,
-              }}
-              transition={{ duration: 1.2, ease: "easeOut" }}
+              animate={getOrbTarget(orb, phase)}
+              transition={getOrbTransition(phase, orb.delay)}
             />
-          )}
+          ))}
 
-          {(phase === "title" || phase === "waiting" || phase === "transitioning") && (
-            <motion.div
-              className="relative z-10 text-center"
-              initial={{ opacity: 0, scale: 0.5, y: 50 }}
-              animate={{ 
-                opacity: phase === "transitioning" ? 1 : 1, 
-                scale: phase === "transitioning" ? 0.7 : 1, 
-                y: phase === "transitioning" ? -180 : 0 
-              }}
-              transition={{ duration: phase === "transitioning" ? 0.6 : 0.8, ease: "easeOut" }}
-            >
-              <motion.h1
-                className="text-6xl md:text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400"
-                animate={{
-                  textShadow: [
-                    "0 0 20px #00ffff, 0 0 40px #00ffff",
-                    "0 0 40px #ff00ff, 0 0 80px #ff00ff",
-                    "0 0 20px #00ffff, 0 0 40px #00ffff",
-                  ],
-                }}
-                transition={{ duration: 1, repeat: Infinity }}
-              >
-                ORBLITZ
-              </motion.h1>
-
+          {/* Convergence core glow */}
+          <AnimatePresence>
+            {(phase === "converge" || phase === "flash") && (
               <motion.div
-                className="mt-4 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent"
-                initial={{ scaleX: 0 }}
-                animate={{ scaleX: 1 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
+                className="absolute rounded-full pointer-events-none"
+                style={{
+                  width: 120,
+                  height: 120,
+                  left: "50%",
+                  top: "50%",
+                  marginLeft: -60,
+                  marginTop: -60,
+                  background: "radial-gradient(circle, #ffffff 0%, #00ffff 30%, #ff00ff 60%, transparent 80%)",
+                  filter: "blur(18px)",
+                }}
+                initial={{ scale: 0, opacity: 0 }}
+                animate={
+                  phase === "flash"
+                    ? { scale: [0.5, 2.8, 0.3], opacity: [0.8, 1, 0] }
+                    : { scale: 0.5, opacity: 0.6 }
+                }
+                exit={{ opacity: 0, scale: 0 }}
+                transition={{ duration: phase === "flash" ? 0.55 : 0.4, ease: "easeOut" }}
               />
+            )}
+          </AnimatePresence>
 
-              {[...Array(8)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  className="absolute w-2 h-2 rounded-full"
+          {/* Soft halo ring behind title */}
+          <AnimatePresence>
+            {(phase === "title" || phase === "waiting") && (
+              <motion.div
+                className="absolute rounded-full pointer-events-none"
+                style={{
+                  width: 580,
+                  height: 200,
+                  left: "50%",
+                  top: "50%",
+                  marginLeft: -290,
+                  marginTop: -100,
+                  background: "transparent",
+                  boxShadow: "inset 0 0 0 1px rgba(0,255,255,0.07)",
+                  filter: "blur(1px)",
+                }}
+                initial={{ opacity: 0, scale: 0.6 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 1.2, ease: "easeOut" }}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* ORBLITZ title */}
+          <AnimatePresence>
+            {(phase === "title" || phase === "waiting") && (
+              <motion.div
+                className="absolute z-10 text-center pointer-events-none"
+                initial={{ opacity: 0, scale: 0.65, y: 8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ duration: 1.1, ease: [0.22, 0.61, 0.36, 1] }}
+              >
+                <motion.h1
+                  className="font-black tracking-widest text-transparent bg-clip-text"
                   style={{
-                    background: i % 2 === 0 ? "#00ffff" : "#ff00ff",
+                    fontSize: "clamp(3.5rem, 11vw, 7rem)",
+                    backgroundImage: "linear-gradient(135deg, #00ffff 0%, #aa00ff 45%, #ff00ff 75%, #ffff00 100%)",
                   }}
-                  initial={{ opacity: 0 }}
                   animate={{
-                    opacity: [0, 1, 0],
-                    x: Math.cos((i / 8) * Math.PI * 2) * 150,
-                    y: Math.sin((i / 8) * Math.PI * 2) * 80,
+                    filter: [
+                      "drop-shadow(0 0 18px rgba(0,255,255,0.55)) drop-shadow(0 0 36px rgba(255,0,255,0.25))",
+                      "drop-shadow(0 0 28px rgba(255,0,255,0.6))  drop-shadow(0 0 56px rgba(0,255,255,0.3))",
+                      "drop-shadow(0 0 18px rgba(0,255,255,0.55)) drop-shadow(0 0 36px rgba(255,0,255,0.25))",
+                    ],
                   }}
-                  transition={{
-                    duration: 1,
-                    delay: 0.5 + i * 0.1,
-                    ease: "easeOut",
+                  transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  ORBLITZ
+                </motion.h1>
+
+                {/* Underline rule */}
+                <motion.div
+                  className="mt-3 mx-auto"
+                  style={{
+                    height: 1,
+                    width: "clamp(160px, 36vw, 280px)",
+                    background: "linear-gradient(90deg, transparent, #00ffff 35%, #ff00ff 65%, transparent)",
                   }}
+                  initial={{ scaleX: 0, opacity: 0 }}
+                  animate={{ scaleX: 1, opacity: 0.65 }}
+                  transition={{ duration: 0.9, delay: 0.25, ease: "easeOut" }}
                 />
-              ))}
-            </motion.div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {phase === "intro" && (
-            <motion.div
-              className="absolute w-4 h-4 rounded-full bg-white"
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: [0, 3, 1], opacity: [0, 1, 0.8] }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-            />
-          )}
-
-          {(phase === "waiting" || phase === "transitioning") && (
-            <motion.div
-              className="absolute bottom-20 text-center"
-              initial={{ opacity: 0 }}
-              animate={{ 
-                opacity: phase === "transitioning" ? 0 : [0.5, 1, 0.5],
-                y: phase === "transitioning" ? 50 : 0
-              }}
-              transition={{ duration: phase === "transitioning" ? 0.4 : 1.5, repeat: phase === "transitioning" ? 0 : Infinity }}
-            >
-              <p className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-400">
-                Tap To Start
-              </p>
-            </motion.div>
-          )}
+          {/* Tap to start */}
+          <AnimatePresence>
+            {phase === "waiting" && (
+              <motion.div
+                className="absolute bottom-20 md:bottom-24 text-center z-10 pointer-events-none"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: [0, 0.9, 0.55, 0.9], y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <p
+                  className="text-lg md:text-xl font-semibold tracking-[0.22em] uppercase"
+                  style={{ color: "rgba(0,255,255,0.8)", textShadow: "0 0 18px rgba(0,255,255,0.45)" }}
+                >
+                  Tap to Start
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       )}
     </AnimatePresence>

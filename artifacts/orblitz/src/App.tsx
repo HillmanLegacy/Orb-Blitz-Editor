@@ -15,6 +15,7 @@ import { HowToPlay } from "@/components/ui/HowToPlay";
 import { LevelTransition } from "@/components/ui/LevelTransition";
 import { LevelSelect } from "@/components/ui/LevelSelect";
 import { StartupAnimation } from "@/components/ui/StartupAnimation";
+import { StartupLoading } from "@/components/ui/StartupLoading";
 import { Settings } from "@/components/ui/Settings";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { ArcadeComplete } from "@/components/ui/ArcadeComplete";
@@ -26,8 +27,13 @@ function App() {
   const [showModeSelect, setShowModeSelect] = useState(false);
   const [showLevelSelect, setShowLevelSelect] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showStartupLoading, setShowStartupLoading] = useState(true);
   const [showStartup, setShowStartup] = useState(true);
-  
+
+  const handleStartupLoadingComplete = useCallback(() => {
+    setShowStartupLoading(false);
+  }, []);
+
   const handleStartupComplete = useCallback(() => {
     setShowStartup(false);
   }, []);
@@ -76,6 +82,7 @@ function App() {
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
       {showStartup && <StartupAnimation onComplete={handleStartupComplete} />}
+      {showStartupLoading && <StartupLoading onComplete={handleStartupLoadingComplete} />}
       <GameScene />
       
       {phase === "menu" && !showHowToPlay && !showModeSelect && !showLevelSelect && !showSettings && !showStartup && (
