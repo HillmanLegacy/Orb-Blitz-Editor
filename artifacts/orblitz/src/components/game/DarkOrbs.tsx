@@ -5,6 +5,7 @@ import { useMagicOrb, DarkOrb, Particle, BossType } from "@/lib/stores/useMagicO
 import { useShop } from "@/lib/stores/useShop";
 import { DarkOrbModel } from "./DarkOrbModel";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
+import { MiniFireOrb } from "./MiniFireOrb";
 
 const DISTORT_FIELD_RADIUS = 5;
 
@@ -49,61 +50,15 @@ function BossOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
     );
   }
 
-  // ── Circle boss type: render as mini fireball ─────────────────────────────
+  // ── Circle boss type: use high-quality MiniFireOrb (same shader as Fire Boss) ──
   if (bossType === "circle") {
+    const playerPos = useMagicOrb.getState().playerPosition;
     return (
       <group position={orb.position} scale={orb.size * pulse}>
-        {/* Outer glow */}
-        <mesh>
-          <sphereGeometry args={[1.4, 10, 8]} />
-          <meshBasicMaterial
-            color="#ff2200"
-            transparent
-            opacity={0.18}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-          />
-        </mesh>
-        {/* Core fireball */}
-        <mesh>
-          <sphereGeometry args={[1, 14, 12]} />
-          <meshBasicMaterial
-            color={(() => {
-              const t = (Math.sin(time * 8 + orb.seed * 10) * 0.5 + 0.5);
-              const r = Math.floor(255);
-              const g = Math.floor(t * 140);
-              return `rgb(${r},${g},0)`;
-            })()}
-          />
-        </mesh>
-        {/* Inner bright core */}
-        <mesh>
-          <sphereGeometry args={[0.55, 10, 8]} />
-          <meshBasicMaterial
-            color="#ffee44"
-            transparent
-            opacity={0.9}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-          />
-        </mesh>
-        {/* Flame wisps */}
-        {[0, 1, 2, 3].map((i) => {
-          const wAngle = (i / 4) * Math.PI * 2 + time * 3 + orb.seed;
-          const wr = 0.6 + Math.sin(time * 5 + i) * 0.15;
-          return (
-            <mesh key={i} position={[Math.cos(wAngle) * wr, Math.sin(wAngle) * wr, 0]}>
-              <sphereGeometry args={[0.22, 6, 5]} />
-              <meshBasicMaterial
-                color="#ff6600"
-                transparent
-                opacity={0.75}
-                blending={THREE.AdditiveBlending}
-                depthWrite={false}
-              />
-            </mesh>
-          );
-        })}
+        <MiniFireOrb
+          orbPosition={orb.position}
+          playerPosition={playerPos}
+        />
       </group>
     );
   }
@@ -235,10 +190,6 @@ function BossOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
 }
 
 function UnifiedDarkOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
-  if (orb.isBossOrb) {
-    return <BossOrbMesh orb={orb} time={time} />;
-  }
-  
   const groupRef = useRef<THREE.Group>(null);
   
   const eyeData = useMemo(() => ({
@@ -520,7 +471,49 @@ function UnifiedDarkOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
   );
 }
 
-const MemoizedDarkOrbMesh = memo(UnifiedDarkOrbMesh);
+// ── World 1 enemy: miniature Fire Boss — own component so hooks are stable ────
+function World1EnemyMesh({ orb, time }: { orb: DarkOrb; time: number }) {
+  const playerPosition = useMagicOrb((s) => s.playerPosition);
+  const destroyProgress = orb.destroying ? 1 - (orb.destroyTimer || 0) / 0.6 : 0;
+  const pulse = 1 + Math.sin(time * 4 + orb.seed * 6) * 0.06;
+
+  if (orb.destroying) {
+    return (
+      <group position={orb.position}>
+        <EnergyDissipationVFX
+          progress={destroyProgress}
+          color="#ff4400"
+          glowColor="#ffaa00"
+          scale={orb.size}
+          seed={Math.round(orb.seed * 999)}
+        />
+      </group>
+    );
+  }
+
+  return (
+    <group position={orb.position} scale={orb.size * pulse}>
+      <MiniFireOrb
+        orbPosition={orb.position}
+        playerPosition={playerPosition}
+      />
+    </group>
+  );
+}
+
+// ── Router: no hooks — purely selects which mesh component to render ──────────
+function OrbRouter({ orb, time }: { orb: DarkOrb; time: number }) {
+  if (orb.isBossOrb) return <BossOrbMesh orb={orb} time={time} />;
+
+  const { arcadeLevel, gameMode } = useMagicOrb.getState();
+  if (gameMode === "arcade" && Math.floor(arcadeLevel) === 1) {
+    return <World1EnemyMesh orb={orb} time={time} />;
+  }
+
+  return <UnifiedDarkOrbMesh orb={orb} time={time} />;
+}
+
+const MemoizedDarkOrbMesh = memo(OrbRouter);
 
 export function DarkOrbs() {
   const { equippedSkin } = useShop();
