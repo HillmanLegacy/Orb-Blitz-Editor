@@ -99,42 +99,69 @@ function MiniEvilEyes({ playerPosition, orbPosition, time }: EyesProps) {
   const dx = playerPosition[0] - orbPosition[0];
   const dy = playerPosition[1] - orbPosition[1];
   const d  = Math.sqrt(dx * dx + dy * dy) || 1;
+  const nx = dx / d;
+  const ny = dy / d;
 
-  const pupilMax = 0.09;
-  const lx = (dx / d) * pupilMax;
-  const ly = (dy / d) * pupilMax;
   const zFront = 0.82;
+  const eyeR   = 0.155;          // sclera radius in local units
+  const irisR  = eyeR * 0.60;
+  const pupilR = eyeR * 0.30;
+  const travel = irisR - pupilR * 0.6;
+  const lookX  = nx * travel;
+  const lookY  = ny * travel;
 
-  const blink = Math.sin(time * 2.7) > 0.9 ? 0.03 : 0.12;
+  const blinkT = Math.sin(time * 2.7) > 0.88 ? 1.0 : 0.0;
 
-  const positions: [number, number][] = [[-0.28, 0.12], [0.28, 0.12]];
+  const positions: [number, number][] = [[-0.30, 0.12], [0.30, 0.12]];
 
   return (
     <group>
       {positions.map(([ex, ey], i) => (
         <group key={i} position={[ex, ey, zFront]}>
-          {/* glow halo */}
+          {/* Fire glow */}
           <mesh>
-            <circleGeometry args={[0.22, 10]} />
-            <meshBasicMaterial color="#ff5500" transparent opacity={0.22}
+            <circleGeometry args={[eyeR * 1.5, 16]} />
+            <meshBasicMaterial color="#ff4400" transparent opacity={0.16}
               blending={THREE.AdditiveBlending} depthWrite={false} />
           </mesh>
-          {/* sclera */}
-          <mesh position={[0, 0, 0.005]}>
-            <circleGeometry args={[0.14, 10]} />
+          {/* Black outline */}
+          <mesh position={[0, 0, 0.004]}>
+            <circleGeometry args={[eyeR * 1.1, 18]} />
+            <meshBasicMaterial color="#000000" />
+          </mesh>
+          {/* White sclera */}
+          <mesh position={[0, 0, 0.008]}>
+            <circleGeometry args={[eyeR, 18]} />
+            <meshBasicMaterial color="#f8f4e8" />
+          </mesh>
+          {/* Amber iris — shifts slightly with pupil */}
+          <mesh position={[lookX * 0.35, lookY * 0.35, 0.012]}>
+            <circleGeometry args={[irisR, 16]} />
+            <meshBasicMaterial color="#e87a00" />
+          </mesh>
+          {/* Round black pupil — full travel */}
+          <mesh position={[lookX, lookY, 0.016]}>
+            <circleGeometry args={[pupilR, 14]} />
+            <meshBasicMaterial color="#080000" />
+          </mesh>
+          {/* Specular highlight */}
+          <mesh position={[lookX - pupilR * 0.45, lookY + pupilR * 0.45, 0.02]}>
+            <circleGeometry args={[pupilR * 0.35, 10]} />
             <meshBasicMaterial color="#ffffff" transparent opacity={0.95} />
           </mesh>
-          {/* iris */}
-          <mesh position={[lx, ly, 0.01]}>
-            <circleGeometry args={[0.085, 8]} />
-            <meshBasicMaterial color="#ffee00" transparent opacity={0.95}
-              blending={THREE.AdditiveBlending} depthWrite={false} />
+          {/* Secondary mini-shine */}
+          <mesh position={[lookX + pupilR * 0.3, lookY - pupilR * 0.3, 0.021]}>
+            <circleGeometry args={[pupilR * 0.16, 8]} />
+            <meshBasicMaterial color="#ffffff" transparent opacity={0.55} />
           </mesh>
-          {/* slit pupil */}
-          <mesh position={[lx, ly, 0.015]} scale={[0.04, blink, 1]}>
-            <planeGeometry args={[1, 1]} />
-            <meshBasicMaterial color="#110000" transparent opacity={0.98} />
-          </mesh>
+          {/* Eyelid on blink */}
+          {blinkT > 0 && (
+            <mesh position={[0, eyeR * 0.48, 0.024]}
+              scale={[eyeR * 2.3, eyeR * 1.15, 1]}>
+              <planeGeometry args={[1, 1]} />
+              <meshBasicMaterial color="#080000" />
+            </mesh>
+          )}
         </group>
       ))}
     </group>
