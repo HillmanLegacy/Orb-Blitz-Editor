@@ -6,6 +6,7 @@ import { useShop } from "@/lib/stores/useShop";
 import { DarkOrbModel } from "./DarkOrbModel";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 import { MiniFireOrb } from "./MiniFireOrb";
+import { FireAura } from "./FireAura";
 
 const DISTORT_FIELD_RADIUS = 5;
 
@@ -492,6 +493,16 @@ function World1EnemyMesh({ orb, time }: { orb: DarkOrb; time: number }) {
       <MiniFireOrb
         orbPosition={orb.position}
         playerPosition={playerPosition}
+      />
+      {/* Fire aura — radius=1 matches the local-space sphere; group scale
+          propagates the world-size so it always hugs the orb correctly.
+          Budget is kept low (150 particles, 70/s) so a full wave of orbs
+          stays well within the mobile GPU budget. */}
+      <FireAura
+        radius={1}
+        flameHeight={1.4}
+        maxParticles={150}
+        spawnRate={70}
       />
     </group>
   );
