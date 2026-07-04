@@ -4,6 +4,21 @@ import { useAudio } from "@/lib/stores/useAudio";
 import { useShop } from "@/lib/stores/useShop";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 
+// ─── Custom SVG Icons ─────────────────────────────────────────────────────────
+const _svg = { viewBox: "0 0 24 24", fill: "none", width: "1em", height: "1em", style: { display: "block" } } as const;
+function IconPlay()      { return <svg {..._svg}><path d="M7 4 L20 12 L7 20 Z" fill="currentColor" opacity="0.92"/></svg>; }
+function IconShop()      { return <svg {..._svg}><path d="M6.5 7.5h11l-1.5 10h-8L6.5 7.5Z" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.15"/><path d="M9.5 7.5V6a2.5 2.5 0 0 1 5 0v1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="12" cy="13" r="1.4" fill="currentColor"/></svg>; }
+function IconGear()      { return <svg {..._svg}><rect x="3" y="3" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/><rect x="13" y="3" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/><rect x="3" y="13" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/><rect x="13" y="13" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.06" strokeDasharray="2 1.5"/></svg>; }
+function IconSettings()  { return <svg {..._svg}><line x1="3" y1="7" x2="21" y2="7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="7" r="2.2" fill="currentColor" fillOpacity="0.9"/><line x1="3" y1="14" x2="21" y2="14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="16" cy="14" r="2.2" fill="currentColor" fillOpacity="0.9"/></svg>; }
+function IconSurvive()   { return <svg {..._svg}><circle cx="12" cy="12" r="2.8" fill="currentColor"/><circle cx="12" cy="12" r="6" stroke="currentColor" strokeWidth="1.2" opacity="0.55"/><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="0.8" opacity="0.25"/></svg>; }
+function IconChill()     { return <svg {..._svg}><path d="M2 10 C5.5 7 7 13 10 10 S14.5 7 18 10 S21 13 22 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M2 15.5 C5.5 12.5 7 18.5 10 15.5 S14.5 12.5 18 15.5 S21 18.5 22 15.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.5"/></svg>; }
+function IconArcade()    { return <svg {..._svg}><rect x="4" y="14" width="16" height="7" rx="3" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.1"/><path d="M12 14 L12 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><circle cx="12" cy="7" r="3.2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.15"/><circle cx="8" cy="17.5" r="1" fill="currentColor"/><circle cx="16" cy="17.5" r="1" fill="currentColor"/></svg>; }
+function IconGauntlet()  { return <svg {..._svg}><path d="M12 3 L21 12 L12 21 L3 12 Z" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.1"/><line x1="12" y1="7" x2="12" y2="17" stroke="currentColor" strokeWidth="0.75" opacity="0.4"/><line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" strokeWidth="0.75" opacity="0.4"/><circle cx="12" cy="12" r="2" fill="currentColor" fillOpacity="0.9"/></svg>; }
+function IconBack()      { return <svg {..._svg}><path d="M11 7 L6 12 L11 17" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 12 H16 C18.2 12 20 13.8 20 16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
+function IconSound()     { return <svg {..._svg}><path d="M4 9 H7 L12 5 V19 L7 15 H4 V9 Z" fill="currentColor" fillOpacity="0.85"/><path d="M15 8 C17 9.5 17.5 11.5 17.5 12 S17 14.5 15 16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M17.5 5.5 C20.5 7.5 21.5 9.8 21.5 12 S20.5 16.5 17.5 18.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
+function IconSoundOff()  { return <svg {..._svg}><path d="M4 9 H7 L12 5 V19 L7 15 H4 V9 Z" fill="currentColor" fillOpacity="0.5"/><line x1="16.5" y1="9" x2="22" y2="15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/><line x1="22" y1="9" x2="16.5" y2="15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>; }
+function IconBrightness(){ return <svg {..._svg}><circle cx="12" cy="12" r="3.8" fill="currentColor" fillOpacity="0.85"/><line x1="12" y1="2" x2="12" y2="5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><line x1="12" y1="19" x2="12" y2="22" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><line x1="2" y1="12" x2="5" y2="12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><line x1="19" y1="12" x2="22" y2="12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><line x1="4.93" y1="4.93" x2="7.07" y2="7.07" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="16.93" y1="16.93" x2="19.07" y2="19.07" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="19.07" y1="4.93" x2="16.93" y2="7.07" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="7.07" y1="16.93" x2="4.93" y2="19.07" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>; }
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 type AnimPhase = "idle" | "flying" | "converge" | "flash" | "title" | "waiting" | "menu" | "done";
 export type MenuState = "root" | "modes" | "settings" | "worlds" | "levels";
@@ -83,7 +98,7 @@ const TITLE_LETTERS = ["O","R","B","L","I","T","Z"];
 
 // ─── Button row definitions ───────────────────────────────────────────────────
 interface BtnDef {
-  id: string; icon: string; label: string;
+  id: string; icon: React.ReactNode; label: string;
   color: string; shadow: string; action: () => void;
 }
 
@@ -101,7 +116,7 @@ export function StartupAnimation({
   const [highestLevel, setHighestLevel] = useState(1.1);
   const [pressedBtn, setPressedBtn]   = useState<string | null>(null);
 
-  const { playOrbWhoosh, playOrbConverge, playTitleReveal, startMenuMusic, playMenuSelect, isMuted, toggleMute } = useAudio();
+  const { playOrbWhoosh, playOrbConverge, playTitleReveal, startMenuMusic, playMenuSelect, isMuted, toggleMute, brightness, setBrightness } = useAudio();
   const { openShop, openInventory, activateDevMode, coins: shopStars, devMode } = useShop();
   const { setGameMode, startLoading } = useMagicOrb();
 
@@ -150,26 +165,23 @@ export function StartupAnimation({
   // ── Button definitions per state ──────────────────────────────────────────
   const getPanelButtons = useCallback((): BtnDef[] => {
     const back = (label: string, action: () => void): BtnDef =>
-      ({ id: "back", icon: "←", label, color: "#778", shadow: "rgba(119,119,136,0.2)", action });
+      ({ id: "back", icon: <IconBack />, label, color: "#667788", shadow: "rgba(100,110,130,0.25)", action });
 
     switch (menuState) {
       case "root": return [
-        { id:"play",      icon:"▶", label:"PLAY",  color:"#00ffff", shadow:"rgba(0,255,255,0.45)",   action: () => { btn("play");      setMenuState("modes");    } },
-        { id:"shop",      icon:"★", label:"SHOP",  color:"#ff00ff", shadow:"rgba(255,0,255,0.4)",    action: () => { btn("shop");      openShop();               } },
-        { id:"inventory", icon:"⊞", label:"GEAR",  color:"#ff7700", shadow:"rgba(255,119,0,0.4)",    action: () => { btn("inventory"); openInventory();          } },
-        { id:"settings",  icon:"⚙", label:"OPTS",  color:"#ddcc00", shadow:"rgba(221,204,0,0.35)",   action: () => { btn("settings");  setMenuState("settings"); } },
+        { id:"play",      icon:<IconPlay />,     label:"PLAY",  color:"#00ffff", shadow:"rgba(0,255,255,0.45)",  action: () => { btn("play");      setMenuState("modes");    } },
+        { id:"shop",      icon:<IconShop />,     label:"SHOP",  color:"#ff00ff", shadow:"rgba(255,0,255,0.45)",  action: () => { btn("shop");      openShop();               } },
+        { id:"inventory", icon:<IconGear />,     label:"GEAR",  color:"#aa00ff", shadow:"rgba(170,0,255,0.45)",  action: () => { btn("inventory"); openInventory();          } },
+        { id:"settings",  icon:<IconSettings />, label:"OPTS",  color:"#ffff00", shadow:"rgba(255,255,0,0.4)",   action: () => { btn("settings");  setMenuState("settings"); } },
       ];
       case "modes": return [
-        { id:"survival",  icon:"⚡", label:"SURVIVE",  color:"#00ffff", shadow:"rgba(0,255,255,0.45)",  action: () => handleStartMode("survival")  },
-        { id:"chill",     icon:"≋",  label:"CHILL",    color:"#8844ff", shadow:"rgba(136,68,255,0.4)",  action: () => handleStartMode("chill")     },
-        { id:"arcade",    icon:"◆",  label:"ARCADE",   color:"#ff00ff", shadow:"rgba(255,0,255,0.4)",   action: () => { btn("arcade"); setMenuState("worlds"); } },
-        { id:"gauntlet",  icon:"◎",  label:"GAUNTLET", color:"#ff7700", shadow:"rgba(255,119,0,0.4)",   action: () => handleStartMode("gauntlet")  },
+        { id:"survival",  icon:<IconSurvive />,  label:"SURVIVE",  color:"#00ffff", shadow:"rgba(0,255,255,0.45)",  action: () => handleStartMode("survival")  },
+        { id:"chill",     icon:<IconChill />,    label:"CHILL",    color:"#aa00ff", shadow:"rgba(170,0,255,0.45)",  action: () => handleStartMode("chill")     },
+        { id:"arcade",    icon:<IconArcade />,   label:"ARCADE",   color:"#ff00ff", shadow:"rgba(255,0,255,0.45)",  action: () => { btn("arcade"); setMenuState("worlds"); }  },
+        { id:"gauntlet",  icon:<IconGauntlet />, label:"GAUNTLET", color:"#ffff00", shadow:"rgba(255,255,0,0.4)",   action: () => handleStartMode("gauntlet")  },
         back("BACK", () => { btn("back"); setMenuState("root"); }),
       ];
       case "settings": return [
-        { id:"sound", icon: isMuted ? "○" : "♪", label: isMuted ? "MUTED" : "SOUND",
-          color: isMuted ? "#556" : "#00ffff", shadow: isMuted ? "transparent" : "rgba(0,255,255,0.4)",
-          action: () => { btn("sound"); toggleMute(); } },
         back("BACK", () => { btn("back"); setMenuState("root"); }),
       ];
       case "worlds": return [
@@ -179,39 +191,10 @@ export function StartupAnimation({
         back("WORLDS", () => { btn("back"); setMenuState("worlds"); }),
       ];
     }
-  }, [menuState, isMuted, btn, openShop, openInventory, toggleMute, handleStartMode]);
+  }, [menuState, btn, openShop, openInventory, handleStartMode]);
 
   // ── Content panels ────────────────────────────────────────────────────────
   const renderContent = () => {
-    if (menuState === "settings") return (
-      <div className="space-y-3 pb-1">
-        <div className="rounded-xl border border-white/10 bg-white/5 p-3 flex items-center justify-between">
-          <div>
-            <p className="font-bold text-white text-sm">Sound</p>
-            <p className="text-white/50 text-xs mt-0.5">Toggle game audio</p>
-          </div>
-          <motion.button
-            onClick={toggleMute}
-            className="relative flex-none"
-            style={{ width: 52, height: 30, borderRadius: 15,
-              background: !isMuted ? "linear-gradient(90deg,#00ffff,#8844ff)" : "#334" }}
-            whileTap={{ scale: 0.92 }}
-          >
-            <motion.div className="absolute top-[3px] w-6 h-6 rounded-full bg-white shadow"
-              animate={{ left: !isMuted ? "calc(100% - 27px)" : 3 }}
-              transition={{ type: "spring", stiffness: 500, damping: 30 }}
-            />
-          </motion.button>
-        </div>
-        <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-          <p className="font-bold text-white text-sm mb-2">Controls</p>
-          <Row label="Tap" val="Shoot" />
-          <Row label="Hold" val="Rapid fire" />
-          <Row label="Pause" val="Access menu / abilities" />
-        </div>
-      </div>
-    );
-
     if (menuState === "worlds") return (
       <div>
         <p className="text-white/40 text-[10px] uppercase tracking-widest mb-2 text-center">Select World</p>
@@ -310,7 +293,7 @@ export function StartupAnimation({
   const showTitle   = animPhase === "title" || animPhase === "waiting" || animPhase === "menu";
   const showWaiting = animPhase === "waiting";
   const showMenu    = animPhase === "menu";
-  const isContent   = showMenu && (menuState === "settings" || menuState === "worlds" || menuState === "levels");
+  const isContent   = showMenu && (menuState === "worlds" || menuState === "levels");
   const isClickable = animPhase === "waiting";
   const panelButtons = showMenu ? getPanelButtons() : [];
 
@@ -486,7 +469,14 @@ export function StartupAnimation({
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.3, ease: [0.22, 0.61, 0.36, 1] }}
           >
-            <ButtonRow buttons={panelButtons} pressedBtn={pressedBtn} setPressedBtn={setPressedBtn} />
+            {menuState === "settings"
+              ? <SettingsButtonRow
+                  isMuted={isMuted} toggleMute={toggleMute}
+                  brightness={brightness} setBrightness={setBrightness}
+                  onBack={() => setMenuState("root")} btn={btn}
+                />
+              : <ButtonRow buttons={panelButtons} pressedBtn={pressedBtn} setPressedBtn={setPressedBtn} />
+            }
           </motion.div>
         )}
       </AnimatePresence>
@@ -620,7 +610,8 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false }: Butt
             <span style={{
               fontSize: iconSz, lineHeight: 1,
               marginBottom: compact ? "2px" : "clamp(2px,0.6vw,5px)",
-              filter: `drop-shadow(0 0 5px ${b.color}88)`, display: "block",
+              filter: `drop-shadow(0 0 5px ${b.color}88)`,
+              display: "flex", alignItems: "center", justifyContent: "center",
             }}>{b.icon}</span>
             {/* Label */}
             <span style={{
@@ -634,12 +625,122 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false }: Butt
   );
 }
 
-// ─── Small helper for settings content ───────────────────────────────────────
-function Row({ label, val }: { label: string; val: string }) {
+// ─── Settings button row: sound toggle + brightness slider + back ─────────────
+function SettingsButtonRow({ isMuted, toggleMute, brightness, setBrightness, onBack, btn }: {
+  isMuted: boolean; toggleMute: () => void;
+  brightness: number; setBrightness: (v: number) => void;
+  onBack: () => void; btn: (id: string) => void;
+}) {
+  const btnH  = "clamp(68px,12vw,96px)";
+  const iconSz = "clamp(1.2rem,3.2vw,1.8rem)";
+  const labelSz = "clamp(0.48rem,1.25vw,0.68rem)";
+  const sc = isMuted ? "#667788" : "#00ffff";
+  const ss = isMuted ? "rgba(100,110,130,0.2)" : "rgba(0,255,255,0.45)";
+  const bPct = Math.round(((brightness - 0.2) / 1.8) * 100);
+
+  const itemVariants = {
+    hidden:  { opacity: 0, y: 16, scale: 0.86 },
+    visible: { opacity: 1, y: 0,  scale: 1,
+      transition: { type: "spring" as const, stiffness: 360, damping: 26 } },
+  };
+
+  const btnStyle = (color: string, shadow: string): React.CSSProperties => ({
+    height: btnH, borderRadius: "clamp(10px,1.6vw,14px)",
+    border: `1.5px solid ${color}55`,
+    background: `linear-gradient(160deg,${color}10 0%,${color}06 100%)`,
+    color, boxShadow: `0 0 12px ${shadow}, inset 0 1px 0 ${color}14`,
+    cursor: "pointer", WebkitTapHighlightColor: "transparent",
+    transition: "background 0.14s, box-shadow 0.14s, border-color 0.14s",
+    position: "relative" as const, overflow: "hidden" as const,
+  });
+
+  const TopLine = ({ color }: { color: string }) => (
+    <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{
+      height: 2, opacity: 0.55,
+      background: `linear-gradient(90deg,transparent 8%,${color}88 50%,transparent 92%)`,
+    }} />
+  );
+  const Scanlines = () => (
+    <div className="absolute inset-0 pointer-events-none" style={{
+      backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 4px,rgba(255,255,255,0.012) 4px,rgba(255,255,255,0.012) 5px)",
+      borderRadius: "inherit",
+    }} />
+  );
+
   return (
-    <div className="flex gap-2 text-xs">
-      <span className="text-white/60 flex-none w-20 shrink-0 font-semibold">{label}</span>
-      <span className="text-white/80">{val}</span>
-    </div>
+    <>
+      <style>{`.orb-bslider{-webkit-appearance:none;appearance:none;outline:none;cursor:pointer;border-radius:2px}.orb-bslider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#ffff00;box-shadow:0 0 6px rgba(255,255,0,0.85)}.orb-bslider::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:50%;background:#ffff00;box-shadow:0 0 6px rgba(255,255,0,0.85)}`}</style>
+      <motion.div
+        className="flex flex-row items-stretch justify-center w-full"
+        style={{ gap: "clamp(6px,1.8vw,16px)" }}
+        initial="hidden" animate="visible"
+        variants={{
+          visible: { transition: { staggerChildren: 0.055, delayChildren: 0.04 } },
+          hidden:  { transition: { staggerChildren: 0.03,  staggerDirection: -1 } },
+        }}
+      >
+        {/* SOUND toggle */}
+        <motion.button
+          className="relative flex flex-col items-center justify-center overflow-hidden flex-1"
+          style={{ ...btnStyle(sc, ss), minWidth: 0, maxWidth: "clamp(52px,17vw,100px)" }}
+          variants={itemVariants} whileTap={{ scale: 0.9 }}
+          onClick={() => { btn("sound"); toggleMute(); }}
+        >
+          <TopLine color={sc} /><Scanlines />
+          <span style={{ fontSize: iconSz, lineHeight: 1, marginBottom: "clamp(2px,0.6vw,5px)", filter: `drop-shadow(0 0 5px ${sc}88)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {isMuted ? <IconSoundOff /> : <IconSound />}
+          </span>
+          <span style={{ fontSize: labelSz, fontWeight: 800, letterSpacing: "0.13em", lineHeight: 1, opacity: 0.88 }}>
+            {isMuted ? "MUTED" : "SOUND"}
+          </span>
+        </motion.button>
+
+        {/* BRIGHTNESS slider */}
+        <motion.div
+          className="relative flex flex-col items-center justify-center overflow-hidden flex-[2]"
+          style={{ ...btnStyle("#ffff00", "rgba(255,255,0,0.38)"), minWidth: 0, cursor: "default",
+            padding: "0 clamp(6px,1.5vw,14px)" }}
+          variants={itemVariants}
+        >
+          <TopLine color="#ffff00" /><Scanlines />
+          <span style={{ fontSize: iconSz, lineHeight: 1, marginBottom: 2, filter: "drop-shadow(0 0 5px #ffff0088)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <IconBrightness />
+          </span>
+          <span style={{ fontSize: labelSz, fontWeight: 800, letterSpacing: "0.13em", lineHeight: 1, opacity: 0.88, marginBottom: 5 }}>
+            BRIGHT
+          </span>
+          <input
+            type="range" min={0.2} max={2.0} step={0.05}
+            value={brightness}
+            onChange={e => setBrightness(Number(e.target.value))}
+            onClick={e => e.stopPropagation()}
+            className="orb-bslider"
+            style={{
+              width: "100%", height: 4,
+              background: `linear-gradient(90deg,#ffff00 ${bPct}%,rgba(255,255,255,0.15) ${bPct}%)`,
+            }}
+          />
+          <span style={{ fontSize: "clamp(0.38rem,1vw,0.5rem)", opacity: 0.4, marginTop: 3, letterSpacing: "0.1em" }}>
+            {bPct}%
+          </span>
+        </motion.div>
+
+        {/* BACK */}
+        <motion.button
+          className="relative flex flex-col items-center justify-center overflow-hidden flex-1"
+          style={{ ...btnStyle("#667788", "rgba(100,110,130,0.2)"), minWidth: 0, maxWidth: "clamp(52px,17vw,100px)" }}
+          variants={itemVariants} whileTap={{ scale: 0.9 }}
+          onClick={() => { btn("back"); onBack(); }}
+        >
+          <TopLine color="#667788" /><Scanlines />
+          <span style={{ fontSize: iconSz, lineHeight: 1, marginBottom: "clamp(2px,0.6vw,5px)", filter: "drop-shadow(0 0 5px #66778888)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <IconBack />
+          </span>
+          <span style={{ fontSize: labelSz, fontWeight: 800, letterSpacing: "0.13em", lineHeight: 1, opacity: 0.88 }}>
+            BACK
+          </span>
+        </motion.button>
+      </motion.div>
+    </>
   );
 }

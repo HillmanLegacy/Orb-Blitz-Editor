@@ -88,8 +88,10 @@ interface AudioState {
   synthMenuMusic: SynthMusicNode | null;
   synthBossMusic: SynthMusicNode | null;
   isMuted: boolean;
+  brightness: number;
   currentMusicType: "menu" | "game" | "boss" | null;
-  
+
+  setBrightness: (v: number) => void;
   setBackgroundMusic: (music: HTMLAudioElement) => void;
   setMenuMusic: (music: HTMLAudioElement) => void;
   initSynthMenuMusic: () => SynthMusicNode;
@@ -145,8 +147,14 @@ export const useAudio = create<AudioState>((set, get) => ({
   synthMenuMusic: null,
   synthBossMusic: null,
   isMuted: false,
+  brightness: (() => { try { const v = parseFloat(localStorage.getItem("orb_brightness") ?? "1"); return isFinite(v) ? Math.min(2, Math.max(0.2, v)) : 1; } catch { return 1; } })(),
   currentMusicType: null,
-  
+
+  setBrightness: (v: number) => {
+    const clamped = Math.min(2, Math.max(0.2, v));
+    set({ brightness: clamped });
+    try { localStorage.setItem("orb_brightness", String(clamped)); } catch {}
+  },
   setBackgroundMusic: (music) => set({ backgroundMusic: music }),
   setMenuMusic: (music) => set({ menuMusic: music }),
   initSynthMenuMusic: () => {

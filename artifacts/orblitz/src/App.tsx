@@ -3,6 +3,7 @@ import { AnimatePresence } from "framer-motion";
 import "@fontsource/inter";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
+import { useAudio } from "@/lib/stores/useAudio";
 import { GameScene } from "@/components/game/GameScene";
 import { SoundManager } from "@/components/game/SoundManager";
 import { GameUI } from "@/components/ui/GameUI";
@@ -19,6 +20,7 @@ import { ArcadeComplete } from "@/components/ui/ArcadeComplete";
 function App() {
   const { phase } = useMagicOrb();
   const { addCoins, shopOpen, inventoryOpen } = useShop();
+  const { brightness } = useAudio();
   const [showStartupLoading, setShowStartupLoading] = useState(true);
   const [skipIntro, setSkipIntro] = useState(false);
   // When coming from GameOver "Level Select", open directly into worlds
@@ -52,7 +54,11 @@ function App() {
   return (
     <div style={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden" }}>
       {showStartupLoading && <StartupLoading onComplete={handleStartupLoadingComplete} />}
-      <GameScene />
+      <div style={{ position: "absolute", inset: 0, filter: `brightness(${brightness})`, pointerEvents: "none" }}>
+        <div style={{ pointerEvents: "auto", width: "100%", height: "100%" }}>
+          <GameScene />
+        </div>
+      </div>
 
       <AnimatePresence>
         {showMenuScreen && (
