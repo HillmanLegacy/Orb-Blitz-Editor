@@ -696,13 +696,6 @@ export function PlayerOrb() {
         />
       </Suspense>
 
-      {/* 3-D glow — layered transparent spheres, skin colour */}
-      <PlayerGlow
-        scale={scale}
-        coreColor={coreColor}
-        glowColor={glowColor}
-        isRainbow={(skinColors as any).isRainbow === true}
-      />
 
       {/* Swirling 3-D particles — always match the orb core colour */}
       <PlayerParticles
