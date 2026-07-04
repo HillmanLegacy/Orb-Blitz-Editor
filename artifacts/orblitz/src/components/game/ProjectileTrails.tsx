@@ -18,11 +18,13 @@ export function ProjectileTrails() {
   const { projectiles } = useMagicOrb();
   const trailsRef = useRef<Map<string, TrailData>>(new Map());
   const groupRef = useRef<THREE.Group>(null);
+  // Pre-allocated Set — cleared and refilled each frame instead of reallocating
+  const currentIdsRef = useRef(new Set<string>());
   
   useEffect(() => {
     return () => {
       const trails = trailsRef.current;
-      for (const trail of Array.from(trails.values())) {
+      for (const trail of trails.values()) {
         trail.geometry.dispose();
         trail.material.dispose();
       }
@@ -34,9 +36,12 @@ export function ProjectileTrails() {
     if (!groupRef.current) return;
     
     const trails = trailsRef.current;
-    const currentIds = new Set(projectiles.map(p => p.id));
+    // Reuse the Set — avoids allocating a new Set + intermediate array each frame
+    const currentIds = currentIdsRef.current;
+    currentIds.clear();
+    for (const p of projectiles) currentIds.add(p.id);
     
-    for (const [id, trail] of Array.from(trails.entries())) {
+    for (const [id, trail] of trails) {
       if (!currentIds.has(id)) {
         groupRef.current.remove(trail.line);
         trail.geometry.dispose();

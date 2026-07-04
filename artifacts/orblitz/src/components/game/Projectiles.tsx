@@ -274,10 +274,12 @@ export function Projectiles() {
     
     if (phase !== "playing") return;
     
-    const updatedEffects = impactEffects
-      .map(e => ({ ...e, timer: e.timer - delta }))
-      .filter(e => e.timer > 0);
-    updateImpactEffects(updatedEffects);
+    if (impactEffects.length > 0) {
+      const updatedEffects = impactEffects
+        .map(e => ({ ...e, timer: e.timer - delta }))
+        .filter(e => e.timer > 0);
+      updateImpactEffects(updatedEffects);
+    }
     
     if (projectiles.length === 0) return;
     
@@ -564,7 +566,9 @@ export function Projectiles() {
       }
     }
     
-    for (const projId of Array.from(projectileOrbHits.current.keys())) {
+    // Iterate the Map directly — avoids Array.from() allocation; safe to delete
+    // the current key during Map iteration per the ECMAScript spec.
+    for (const projId of projectileOrbHits.current.keys()) {
       if (!updatedProjectiles.find(p => p.id === projId)) {
         projectileOrbHits.current.delete(projId);
       }

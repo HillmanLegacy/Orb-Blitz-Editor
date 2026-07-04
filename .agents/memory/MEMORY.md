@@ -1,0 +1,1 @@
+- [R3F pooled prop pitfall](r3f-pooled-prop-pitfall.md) — Mutating array props in-place breaks R3F rendering; React skips same-reference prop updates.

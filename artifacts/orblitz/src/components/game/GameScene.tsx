@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useRef } from "react";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
+import { IS_MOBILE } from "@/lib/isMobile";
 import { EffectComposer, Bloom, SMAA } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { PlayerOrb } from "./PlayerOrb";
@@ -65,35 +66,29 @@ function CameraController() {
     targetYRef.current = playerPosition[1];
   }, [playerPosition]);
 
-  useEffect(() => {
-    let animating = true;
-    const animate = () => {
-      if (!animating) return;
-      const diffZ = targetZRef.current - camera.position.z;
-      const diffX = targetXRef.current - camera.position.x;
-      const diffY = targetYRef.current - camera.position.y;
+  // Use R3F's useFrame instead of a standalone rAF loop — stays in sync with
+  // the renderer and stops automatically when the canvas is not rendering.
+  useFrame(() => {
+    const diffZ = targetZRef.current - camera.position.z;
+    const diffX = targetXRef.current - camera.position.x;
+    const diffY = targetYRef.current - camera.position.y;
 
-      if (Math.abs(diffZ) > 0.05) {
-        camera.position.z += diffZ * 0.05;
-      } else {
-        camera.position.z = targetZRef.current;
-      }
-      if (Math.abs(diffX) > 0.01) {
-        camera.position.x += diffX * 0.08;
-      } else {
-        camera.position.x = targetXRef.current;
-      }
-      if (Math.abs(diffY) > 0.01) {
-        camera.position.y += diffY * 0.08;
-      } else {
-        camera.position.y = targetYRef.current;
-      }
-
-      requestAnimationFrame(animate);
-    };
-    animate();
-    return () => { animating = false; };
-  }, [camera]);
+    if (Math.abs(diffZ) > 0.05) {
+      camera.position.z += diffZ * 0.05;
+    } else {
+      camera.position.z = targetZRef.current;
+    }
+    if (Math.abs(diffX) > 0.01) {
+      camera.position.x += diffX * 0.08;
+    } else {
+      camera.position.x = targetXRef.current;
+    }
+    if (Math.abs(diffY) > 0.01) {
+      camera.position.y += diffY * 0.08;
+    } else {
+      camera.position.y = targetYRef.current;
+    }
+  });
 
   return null;
 }
@@ -103,6 +98,7 @@ export function GameScene() {
   return (
     <Canvas
       camera={{ position: [0, 0, 10], fov: 60, near: 0.1, far: 100 }}
+      dpr={IS_MOBILE ? [1, 1.5] : [1, 2]}
       gl={{
         powerPreference: "high-performance",
         antialias: false,

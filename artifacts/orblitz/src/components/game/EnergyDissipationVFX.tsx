@@ -20,9 +20,11 @@ const DUST_COUNT   =  60;
 const STREAM_COUNT =  12;
 const DEBRIS_COUNT =  16;
 
-const _dummy = new THREE.Object3D();
-const _q1    = new THREE.Quaternion();
-const _yUp   = new THREE.Vector3(0, 1, 0);
+const _dummy   = new THREE.Object3D();
+const _q1      = new THREE.Quaternion();
+const _yUp     = new THREE.Vector3(0, 1, 0);
+// Pre-allocated temp vector — avoids one new THREE.Vector3() per stream per frame
+const _negDir  = new THREE.Vector3();
 
 function sr(seed: number, i: number) {
   const x = Math.sin(seed * 9301 + i * 49297 + 233) * 43758.5453;
@@ -246,7 +248,8 @@ export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, se
         const tipDist = (1 - lp) * maxR * 0.9;
         const len     = Math.max(0.0001, (1 - Math.pow(streamProgress * spd, 0.3)) * scale * 1.4);
         _dummy.position.copy(dir).multiplyScalar(tipDist + len * 0.5);
-        _dummy.quaternion.setFromUnitVectors(_yUp, dir.clone().negate());
+        _negDir.copy(dir).negate();
+        _dummy.quaternion.setFromUnitVectors(_yUp, _negDir);
         _dummy.scale.set(scale * 0.07, len, scale * 0.07);
         _dummy.updateMatrix();
         streamFillRef.current?.setMatrixAt(i, _dummy.matrix);

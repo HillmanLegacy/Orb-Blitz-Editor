@@ -555,7 +555,9 @@ export function GameLogic() {
     
     const onPointerMove = (e: PointerEvent) => {
       if (isPointerDown.current) {
-        pointerPosition.current = { x: e.clientX, y: e.clientY };
+        // Mutate in-place — avoids one { x, y } object allocation per pointer event
+        pointerPosition.current.x = e.clientX;
+        pointerPosition.current.y = e.clientY;
       }
     };
     
@@ -737,10 +739,12 @@ export function GameLogic() {
       }
     }
     
-    const updatedBeams = laserBeams
-      .map(b => ({ ...b, timer: b.timer - delta }))
-      .filter(b => b.timer > 0);
-    updateLaserBeams(updatedBeams);
+    if (laserBeams.length > 0) {
+      const updatedBeams = laserBeams
+        .map(b => ({ ...b, timer: b.timer - delta }))
+        .filter(b => b.timer > 0);
+      updateLaserBeams(updatedBeams);
+    }
     
     lastOrbSpawn.current += delta;
     const worldLevel = Math.floor(arcadeLevel);
