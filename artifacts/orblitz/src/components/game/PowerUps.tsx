@@ -165,6 +165,16 @@ function PowerUpMesh({ powerUp, time }: { powerUp: PowerUp; time: number }) {
       rotation={[0, 0, floatRotation]}
       scale={powerUp.collected ? 1 + collectProgress * 2 : pulseScale}
     >
+      {/* Point light centred on the power-up, colour-matched to its glow */}
+      {!powerUp.collected && (
+        <pointLight
+          color={colors.glow}
+          intensity={2.5}
+          distance={5}
+          decay={2}
+        />
+      )}
+
       <mesh scale={1.2} position={[0, 0, -0.05]}>
         <circleGeometry args={[0.5, 24]} />
         <meshBasicMaterial color={colors.glow} transparent opacity={0.3 * opacity} />

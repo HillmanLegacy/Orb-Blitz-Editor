@@ -54,6 +54,7 @@ function BossOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
   if (bossType === "circle") {
     return (
       <group position={orb.position} scale={orb.size * pulse}>
+        <pointLight color="#ff6600" intensity={2} distance={5} decay={2} />
         <MiniFireOrb />
       </group>
     );
@@ -160,6 +161,8 @@ function BossOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
   
   return (
     <group position={orb.position} scale={orb.size * pulse}>
+      {/* Point light colour-matched to this boss-orb type */}
+      <pointLight color={colors.glow} intensity={1.8} distance={5} decay={2} />
       <mesh scale={1.1} position={[0, 0, -0.01]}>
         <circleGeometry args={[1, 16]} />
         <meshBasicMaterial color="#0a0a0a" transparent opacity={opacity * 0.95} />
@@ -446,6 +449,8 @@ function UnifiedDarkOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
   
   return (
     <group ref={groupRef} position={orb.position} scale={orb.size * pulseScale * breathe} rotation={[0, 0, wobble]}>
+      {/* DarkOrbModel already contains its own pointLight — no duplicate here */}
+
       {/* 3D FBX model body with volumetric shadow glow + animated tendrils */}
       <Suspense fallback={
         <mesh scale={1}>
@@ -484,6 +489,7 @@ function World1EnemyMesh({ orb, time }: { orb: DarkOrb; time: number }) {
 
   return (
     <group position={orb.position} scale={orb.size * pulse}>
+      <pointLight color="#ff6600" intensity={1.6} distance={4.5} decay={2} />
       <MiniFireOrb />
     </group>
   );
