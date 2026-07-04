@@ -108,10 +108,13 @@ function Backdrop({ mode }: { mode: "fast" | "loading" }) {
   // Keyframe opacity schedule as fractions of total animation duration
   // fast (1.42 s):    fade-in 0→280 ms, hold until 870 ms, fade-out by 1180 ms
   // loading (3.10 s): fade-in 0→480 ms, hold until 2350 ms, fade-out by 2980 ms
+  // fast (1.42 s):    fade-in by 280 ms, hold until 870 ms, out by 1 180 ms
+  // loading (3.10 s): fade-in by 465 ms, hold until 2 604 ms (past the 2 500 ms
+  //                   finishLoading call), then fade-out by 3 007 ms
   const [times, totalSec] =
     mode === "fast"
       ? ([[0, 0.20, 0.61, 0.83, 1.0] as number[], 1.42])
-      : ([[0, 0.15, 0.76, 0.96, 1.0] as number[], 3.10]);
+      : ([[0, 0.15, 0.84, 0.97, 1.0] as number[], 3.10]);
 
   return (
     <motion.div

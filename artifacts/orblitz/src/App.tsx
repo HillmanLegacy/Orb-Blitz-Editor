@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
 import "@fontsource/inter";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
@@ -15,7 +15,6 @@ import { Inventory } from "@/components/ui/Inventory";
 import { LevelTransition } from "@/components/ui/LevelTransition";
 import { StartupAnimation, type MenuState } from "@/components/ui/StartupAnimation";
 import { StartupLoading } from "@/components/ui/StartupLoading";
-import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { ArcadeComplete } from "@/components/ui/ArcadeComplete";
 import { OrbSweepOverlay } from "@/components/ui/OrbSweepOverlay";
 
@@ -25,8 +24,10 @@ function App() {
   const { brightness } = useAudio();
   const [showStartupLoading, setShowStartupLoading] = useState(true);
   const [skipIntro, setSkipIntro] = useState(false);
-  // When coming from GameOver "Level Select", open directly into worlds
   const [initialMenuState, setInitialMenuState] = useState<MenuState>("root");
+
+  // Prevent music from being triggered twice per loading phase
+  const musicFiredRef = useRef(false);
 
   const handleStartupLoadingComplete = useCallback(() => setShowStartupLoading(false), []);
   const handleMenuReady = useCallback(() => { setSkipIntro(true); }, []);
@@ -44,18 +45,47 @@ function App() {
     }
   }, [addCoins]);
 
+  // ── Loading phase: orb sweep + music transition + finishLoading ───────────
+  // Replaces LoadingScreen entirely – the orb sweep is the visual transition.
+  useEffect(() => {
+    if (phase !== "loading") {
+      musicFiredRef.current = false;
+      return;
+    }
+
+    // Kick off the orb sweep overlay (visual)
+    useOrbTransition.getState().loadingSweep();
+
+    // Music – stop current track, start the appropriate one after 1 200 ms.
+    // Capture loadingType now (snapshot) so the callback uses the right value.
+    const { loadingType } = useMagicOrb.getState();
+    const { stopMusic, startGameMusic, startMenuMusic } = useAudio.getState();
+    const goingIntoGame = loadingType === "entering" || loadingType === "nextLevel";
+    stopMusic();
+    const musicTimer = window.setTimeout(() => {
+      // Guard: only start music if we're still in this loading phase
+      if (useMagicOrb.getState().phase !== "loading") return;
+      try { if (goingIntoGame) startGameMusic(); else startMenuMusic(); } catch {}
+    }, 1200);
+
+    // finishLoading after 2 500 ms – same window as the old LoadingScreen.
+    // The orb sweep backdrop stays fully opaque until 2 604 ms so the scene
+    // change is invisible; orbs then sweep out revealing the new scene.
+    const finishTimer = window.setTimeout(() => {
+      useMagicOrb.getState().finishLoading();
+    }, 2500);
+
+    return () => {
+      window.clearTimeout(musicTimer);
+      window.clearTimeout(finishTimer);
+    };
+  }, [phase]);
+
   // From GameOver/LevelTransition: jump straight to the level select world grid
   const handleShowLevelSelect = useCallback(() => setInitialMenuState("worlds"), []);
 
   // From GameOver/LevelTransition: return to root menu
   const handleShowMainMenu = useCallback(() => setInitialMenuState("root"), []);
-
-  // Trigger the orb sweep overlay on every loading transition
-  useEffect(() => {
-    if (phase === "loading") {
-      useOrbTransition.getState().loadingSweep();
-    }
-  }, [phase]);
 
   // Show the startup/menu screen when in menu phase and shop/inventory not open
   const showMenuScreen = phase === "menu" && !shopOpen && !inventoryOpen;
@@ -93,7 +123,6 @@ function App() {
       <Shop />
       <Inventory />
       <SoundManager />
-      <LoadingScreen />
 
       {/* Orb sweep transition – z-9999, above all UI */}
       <OrbSweepOverlay />
