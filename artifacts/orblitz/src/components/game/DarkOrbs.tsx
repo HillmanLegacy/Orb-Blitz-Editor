@@ -164,10 +164,6 @@ function BossOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
   
   return (
     <group position={orb.position} scale={orb.size * pulse}>
-      <mesh scale={1.3} position={[0, 0, -0.02]}>
-        <circleGeometry args={[1, 16]} />
-        <meshBasicMaterial color={colors.glow} transparent opacity={0.3} />
-      </mesh>
       <mesh scale={1.1} position={[0, 0, -0.01]}>
         <circleGeometry args={[1, 16]} />
         <meshBasicMaterial color="#0a0a0a" transparent opacity={opacity * 0.95} />

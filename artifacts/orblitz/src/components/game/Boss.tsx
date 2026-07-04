@@ -490,10 +490,6 @@ export function Boss() {
     const size = bossSize * pulse * angryPulse * scale;
     return (
       <>
-        <mesh scale={size * 1.25} position={[0, 0, -0.04]}>
-          <circleGeometry args={[1, 32]} />
-          <meshBasicMaterial color={glowColor} transparent opacity={0.3} />
-        </mesh>
         <mesh scale={size * 1.12} position={[0, 0, -0.02]}>
           <circleGeometry args={[1, 32]} />
           <meshBasicMaterial color="#0a0a0a" />
