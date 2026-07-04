@@ -44,13 +44,31 @@ const getAttackDelay = (projectileCount: number): number => {
 };
 
 export function Boss() {
-  const { boss, updateBoss, spawnBossOrb, projectiles, darkOrbs, damageBoss, addParticles, phase, triggerStagger, playerPosition, gameMode } = useMagicOrb();
-  const meshRef = useRef<THREE.Group>(null);
-  const dodgeTimerRef = useRef(0);
-  const dodgeDirRef = useRef<[number, number]>([0, 0]);
-  const phaseTimerRef = useRef(0);
-  const attackBurstRef = useRef(0);
+  // Narrow selectors — only re-render when these rarely-changing values change.
+  // projectiles / darkOrbs are NOT subscribed here because they update every frame
+  // and would cause Boss to re-render 60×/sec, flooding React reconciliation.
+  const boss          = useMagicOrb(s => s.boss);
+  const phase         = useMagicOrb(s => s.phase);
+  const gameMode      = useMagicOrb(s => s.gameMode);
+  const playerPosition = useMagicOrb(s => s.playerPosition);
+
+  const meshRef           = useRef<THREE.Group>(null);
+  const dodgeTimerRef     = useRef(0);
+  const dodgeDirRef       = useRef<[number, number]>([0, 0]);
+  const phaseTimerRef     = useRef(0);
+  const attackBurstRef    = useRef(0);
   const fireOrbitAngleRef = useRef(0);
+  // Local position ref — updated every frame so the lerp start is always fresh,
+  // even on frames where we skip the Zustand updateBoss call.
+  const bossPosRef           = useRef<[number, number, number]>([0, 0, 0]);
+  // Local angle ref — accumulates at 0.5 rad/s every frame so boss.angle in
+  // Zustand (written only on throttled frames) never under-accumulates.
+  const localAngleRef        = useRef<number | null>(null);
+  // Local attack-timer ref — tracks the countdown each frame without depending
+  // on a potentially-stale Zustand boss.attackTimer value.
+  const localAttackTimerRef  = useRef<number | null>(null);
+  // Frame counter used to throttle how often we push state to Zustand.
+  const frameCountRef        = useRef(0);
   
   
   const keepDistanceFromPlayer = (
@@ -84,12 +102,15 @@ export function Boss() {
   };
   
   const checkIncomingProjectiles = (bossPos: [number, number, number]): { threatened: boolean; dodgeDir: [number, number] } => {
+    // Read projectiles imperatively — avoids a reactive subscription that would
+    // force Boss to re-render every time a projectile moves (60×/sec).
+    const { projectiles: liveProjectiles } = useMagicOrb.getState();
     let threatened = false;
     let avgDodgeX = 0;
     let avgDodgeY = 0;
     let threatCount = 0;
     
-    for (const proj of projectiles) {
+    for (const proj of liveProjectiles) {
       const dx = bossPos[0] - proj.position[0];
       const dy = bossPos[1] - proj.position[1];
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -126,8 +147,13 @@ export function Boss() {
     if (boss.destroying) {
       const newTimer = (boss.destroyTimer || 0) - delta;
       if (newTimer > 0) {
-        updateBoss({ ...boss, destroyTimer: newTimer });
+        useMagicOrb.getState().updateBoss({ ...boss, destroyTimer: newTimer });
       } else {
+        // Reset per-boss local accumulators so they re-initialise on next spawn.
+        bossPosRef.current          = [0, 0, 0];
+        localAngleRef.current       = null;
+        localAttackTimerRef.current = null;
+        frameCountRef.current       = 0;
         useMagicOrb.setState({ boss: null });
         if (gameMode === "survival") {
           useMagicOrb.setState({ survivalBossTimer: 0, survivalBossPending: false });
@@ -140,7 +166,19 @@ export function Boss() {
     
     if (phase !== "playing") return;
     if (!meshRef.current) return;
-    
+
+    // Seed bossPosRef from Zustand on the first frame after each spawn.
+    // After that it is kept in sync imperatively every frame, making the
+    // lerp start independent of whether we called updateBoss last frame.
+    if (bossPosRef.current[0] === 0 && bossPosRef.current[1] === 0 &&
+        (boss.position[0] !== 0 || boss.position[1] !== 0)) {
+      bossPosRef.current = [boss.position[0], boss.position[1], boss.position[2] || 0];
+    }
+    // Derive a single local angle value seeded from Zustand on first frame.
+    // All switch cases and the outer increment read this so angle never
+    // under-accumulates on frames where the Zustand write is throttled.
+    const localAngle = localAngleRef.current ?? boss.angle;
+
     // Hoist bossType early — shield and movement both need it
     const bossType = boss.bossType || "circle";
     const config   = BOSS_CONFIGS[bossType] || BOSS_CONFIGS.circle;
@@ -178,7 +216,7 @@ export function Boss() {
     const playerX = playerPosition[0];
     const playerY = playerPosition[1];
     
-    const { threatened, dodgeDir } = checkIncomingProjectiles(boss.position);
+    const { threatened, dodgeDir } = checkIncomingProjectiles(bossPosRef.current);
     
     if (threatened && dodgeTimerRef.current <= 0) {
       dodgeTimerRef.current = 0.3;
@@ -192,7 +230,9 @@ export function Boss() {
     const fireProjectiles = (bossPos: [number, number, number], attackTimer: number, burstCount: number): { timer: number; burst: number } => {
       let newAttackTimer = attackTimer - delta;
       let newBurstCount = burstCount;
-      const currentOrbs = darkOrbs.filter(o => o.isBossOrb && !o.destroying).length;
+      // Read imperatively — avoids reactive subscription on darkOrbs (updates every frame).
+      const { darkOrbs: liveDarkOrbs, spawnBossOrb } = useMagicOrb.getState();
+      const currentOrbs = liveDarkOrbs.filter(o => o.isBossOrb && !o.destroying).length;
       const projectileCount = config.projectileCount;
       const patterns: MovementPattern[] = ["direct", "zigzag", "spiral", "wave", "homing"];
       
@@ -234,8 +274,8 @@ export function Boss() {
       return { timer: newAttackTimer, burst: newBurstCount };
     };
     
-    let targetX = boss.position[0];
-    let targetY = boss.position[1];
+    let targetX = bossPosRef.current[0];
+    let targetY = bossPosRef.current[1];
     let lerpSpeed = 2;
     let newBounceVelocity: [number, number] | undefined = boss.bounceVelocity;
     
@@ -245,7 +285,7 @@ export function Boss() {
     switch (config.movementStyle) {
       case "drift": {
         const driftSpeed = 0.3;
-        const newAngle = boss.angle + delta * driftSpeed;
+        const newAngle = localAngle + delta * driftSpeed;
         const driftX = 8 + Math.sin(time * 0.2) * 2;
         const driftY = 5 + Math.cos(time * 0.15) * 1.5;
         targetX = Math.sin(newAngle * 0.6) * driftX;
@@ -269,8 +309,8 @@ export function Boss() {
           lerpSpeed = 50;
           phaseTimerRef.current = 1.5 + Math.random() * 2;
         } else {
-          targetX = boss.position[0];
-          targetY = boss.position[1];
+          targetX = bossPosRef.current[0];
+          targetY = bossPosRef.current[1];
           lerpSpeed = 0.5;
         }
         break;
@@ -299,7 +339,7 @@ export function Boss() {
       }
       case "perimeter": {
         const perimeterSpeed = 0.4;
-        const newAngle = boss.angle + delta * perimeterSpeed;
+        const newAngle = localAngle + delta * perimeterSpeed;
         const normalizedAngle = ((newAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
         const segment = normalizedAngle / (Math.PI * 0.5);
         if (segment < 1) {
@@ -320,7 +360,7 @@ export function Boss() {
       }
       case "figure8": {
         const figure8Speed = 0.6;
-        const newAngle = boss.angle + delta * figure8Speed;
+        const newAngle = localAngle + delta * figure8Speed;
         const radiusX = 9;
         const radiusY = 5;
         targetX = Math.sin(newAngle) * radiusX;
@@ -337,8 +377,8 @@ export function Boss() {
         const bounceVel = boss.bounceVelocity || [3, 2.5];
         let newVelX = bounceVel[0];
         let newVelY = bounceVel[1];
-        targetX = boss.position[0] + newVelX * delta * 3;
-        targetY = boss.position[1] + newVelY * delta * 3;
+        targetX = bossPosRef.current[0] + newVelX * delta * 3;
+        targetY = bossPosRef.current[1] + newVelY * delta * 3;
         if (targetX > playAreaWidth || targetX < -playAreaWidth) {
           newVelX = -newVelX * (0.9 + Math.random() * 0.2);
           targetX = Math.max(-playAreaWidth, Math.min(playAreaWidth, targetX));
@@ -353,7 +393,7 @@ export function Boss() {
       }
       case "spiral": {
         const spiralSpeed = 0.5;
-        const newAngle = boss.angle + delta * spiralSpeed;
+        const newAngle = localAngle + delta * spiralSpeed;
         const spiralRadius = 4 + Math.sin(time * 0.3) * 4;
         const spiralExpand = Math.sin(time * 0.2) * 3;
         targetX = Math.cos(newAngle * 2) * (spiralRadius + spiralExpand);
@@ -368,7 +408,7 @@ export function Boss() {
       }
       case "wave": {
         const waveSpeed = 0.4;
-        const newAngle = boss.angle + delta * waveSpeed;
+        const newAngle = localAngle + delta * waveSpeed;
         const waveAmplitude = 4;
         const waveFreq = 2;
         targetX = Math.sin(newAngle) * playAreaWidth * 0.8;
@@ -384,15 +424,15 @@ export function Boss() {
         if (phaseTimerRef.current <= 0) {
           const chaosAngle = Math.random() * Math.PI * 2;
           const chaosDist = 3 + Math.random() * 6;
-          targetX = boss.position[0] + Math.cos(chaosAngle) * chaosDist;
-          targetY = boss.position[1] + Math.sin(chaosAngle) * chaosDist;
+          targetX = bossPosRef.current[0] + Math.cos(chaosAngle) * chaosDist;
+          targetY = bossPosRef.current[1] + Math.sin(chaosAngle) * chaosDist;
           targetX = Math.max(-playAreaWidth, Math.min(playAreaWidth, targetX));
           targetY = Math.max(-playAreaHeight + 2, Math.min(playAreaHeight, targetY));
           phaseTimerRef.current = 0.3 + Math.random() * 0.5;
           lerpSpeed = 8 + Math.random() * 6;
         } else {
-          targetX = boss.position[0] + (Math.random() - 0.5) * 0.5;
-          targetY = boss.position[1] + (Math.random() - 0.5) * 0.5;
+          targetX = bossPosRef.current[0] + (Math.random() - 0.5) * 0.5;
+          targetY = bossPosRef.current[1] + (Math.random() - 0.5) * 0.5;
           lerpSpeed = 5;
         }
         break;
@@ -432,28 +472,49 @@ export function Boss() {
       }
     }
     
-    let finalX = boss.position[0] + (targetX - boss.position[0]) * delta * lerpSpeed;
-    let finalY = boss.position[1] + (targetY - boss.position[1]) * delta * lerpSpeed;
+    // bossPosRef is updated every frame so it's never stale, even on frames
+    // where we skip the Zustand write.  Math.min(1, …) prevents overshooting
+    // on large-delta frames (slow mobile, background tabs).
+    const lerpFactor = Math.min(1, delta * lerpSpeed);
+    let finalX = bossPosRef.current[0] + (targetX - bossPosRef.current[0]) * lerpFactor;
+    let finalY = bossPosRef.current[1] + (targetY - bossPosRef.current[1]) * lerpFactor;
     
     const safePos = keepDistanceFromPlayer([finalX, finalY, 0], [playerX, playerY, 0], MIN_PLAYER_DISTANCE, delta);
     finalX = safePos[0];
     finalY = safePos[1];
-    
-    const attackResult = fireProjectiles([finalX, finalY, 0], boss.attackTimer, attackBurstRef.current);
+
+    // bossPosRef tracks the true visual position every frame — it's the authoritative
+    // source for next frame's lerp start, independent of Zustand sync frequency.
+    bossPosRef.current = [finalX, finalY, 0];
+
+    // Initialise localAttackTimerRef from Zustand once per boss spawn, then
+    // count down locally so the attack cadence is accurate on throttled frames.
+    if (localAttackTimerRef.current === null) localAttackTimerRef.current = boss.attackTimer;
+    const attackResult = fireProjectiles([finalX, finalY, 0], localAttackTimerRef.current, attackBurstRef.current);
+    localAttackTimerRef.current = attackResult.timer;
     attackBurstRef.current = attackResult.burst;
-    const newAngle = boss.angle + delta * 0.5;
-    
-    updateBoss({
-      ...boss,
-      position: [finalX, finalY, 0],
-      angle: newAngle,
-      attackTimer: attackResult.timer,
-      shieldActive,
-      shieldTimer,
-      shieldCooldown,
-      bounceVelocity: newBounceVelocity,
-    });
-    
+    // Accumulate locally every frame so Zustand's boss.angle (written only on
+    // even frames) never causes an under-accumulation of the orbit angle.
+    const newAngle = localAngle + delta * 0.5;
+    localAngleRef.current = newAngle;
+
+    // Throttle Zustand writes to every 2 frames — halves re-render pressure on
+    // all 138 store subscribers with no perceptible gameplay or visual impact
+    // (the mesh is driven imperatively every frame via meshRef below).
+    frameCountRef.current++;
+    if (frameCountRef.current % 2 === 0) {
+      useMagicOrb.getState().updateBoss({
+        ...boss,
+        position: [finalX, finalY, 0],
+        angle: newAngle,
+        attackTimer: attackResult.timer,
+        shieldActive,
+        shieldTimer,
+        shieldCooldown,
+        bounceVelocity: newBounceVelocity,
+      });
+    }
+
     meshRef.current.position.set(finalX, finalY, 0);
   });
   

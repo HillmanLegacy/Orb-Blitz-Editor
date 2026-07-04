@@ -275,9 +275,13 @@ export function Projectiles() {
     if (phase !== "playing") return;
     
     if (impactEffects.length > 0) {
-      const updatedEffects = impactEffects
-        .map(e => ({ ...e, timer: e.timer - delta }))
-        .filter(e => e.timer > 0);
+      // Single-pass loop avoids the two intermediate array allocations that
+      // map+filter creates every frame when impact effects are active.
+      const updatedEffects: typeof impactEffects = [];
+      for (const e of impactEffects) {
+        const newTimer = e.timer - delta;
+        if (newTimer > 0) updatedEffects.push({ ...e, timer: newTimer });
+      }
       updateImpactEffects(updatedEffects);
     }
     
@@ -307,12 +311,12 @@ export function Projectiles() {
       
       if (proj.homing) {
         const homingBoundary = 12;
-        const orbTargets = darkOrbs.filter(o => !o.destroying && Math.abs(o.position[0]) <= homingBoundary && Math.abs(o.position[1]) <= homingBoundary);
-        
+        // Inline the filter into the closest-orb search (single pass, no allocation).
         let closestTarget: { position: [number, number, number] } | null = null;
         let closestDist = Infinity;
         
-        for (const orb of orbTargets) {
+        for (const orb of darkOrbs) {
+          if (orb.destroying || Math.abs(orb.position[0]) > homingBoundary || Math.abs(orb.position[1]) > homingBoundary) continue;
           const d = Math.sqrt((orb.position[0] - px) ** 2 + (orb.position[1] - py) ** 2);
           if (d < closestDist) {
             closestDist = d;

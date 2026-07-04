@@ -1,5 +1,18 @@
 let audioContext: AudioContext | null = null;
 
+// ── Per-sound throttle timestamps + shared buffer cache ───────────────────────
+// playHitSound fires on every projectile collision and playShootSound fires on
+// every player shot. During rapid fire these can exceed 10–20 calls/frame.
+// Each call allocates new Web Audio nodes AND (for hit) a ~6 600-element
+// Float32Array noise buffer, flooding both the audio thread and the GC.
+// Fixes:
+//   • Throttle: skip calls that arrive within the minimum perceptible interval.
+//   • Buffer cache: allocate the hit noise buffer once per AudioContext lifetime.
+let _lastHitTime   = 0;
+let _lastShootTime = 0;
+let _hitNoiseBuf:    AudioBuffer  | null = null;
+let _hitNoiseBufCtx: AudioContext | null = null; // invalidate cache if ctx changes
+
 function getAudioContext(): AudioContext {
   if (!audioContext) {
     audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -11,6 +24,9 @@ function getAudioContext(): AudioContext {
 }
 
 export function playShootSound(volume = 0.25) {
+  const _now = performance.now();
+  if (_now - _lastShootTime < 30) return; // max ~33 shots/sec audible
+  _lastShootTime = _now;
   try {
     const ctx = getAudioContext();
     const now = ctx.currentTime;
@@ -49,15 +65,26 @@ export function playShootSound(volume = 0.25) {
 }
 
 export function playHitSound(volume = 0.3) {
+  // Throttle: human perception cannot distinguish separate hits < ~60 ms apart.
+  // Skipping surplus calls avoids flooding the audio thread with node allocation.
+  const _now = performance.now();
+  if (_now - _lastHitTime < 75) return; // max ~13 audible hits/sec
+  _lastHitTime = _now;
   try {
     const ctx = getAudioContext();
     const now = ctx.currentTime;
     
     const osc1 = ctx.createOscillator();
     const osc2 = ctx.createOscillator();
-    const noise = createNoiseBuffer(ctx, 0.15);
+    // Reuse the cached noise buffer — avoids allocating a new ~6 600-element
+    // Float32Array on every hit (the single biggest per-call GC pressure source).
+    // Invalidate the cache if the AudioContext was recreated.
+    if (!_hitNoiseBuf || _hitNoiseBufCtx !== ctx) {
+      _hitNoiseBuf    = createNoiseBuffer(ctx, 0.15);
+      _hitNoiseBufCtx = ctx;
+    }
     const noiseSource = ctx.createBufferSource();
-    noiseSource.buffer = noise;
+    noiseSource.buffer = _hitNoiseBuf;
     
     const gain = ctx.createGain();
     const noiseGain = ctx.createGain();
