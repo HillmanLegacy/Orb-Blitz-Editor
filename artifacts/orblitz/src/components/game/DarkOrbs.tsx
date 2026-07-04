@@ -6,7 +6,6 @@ import { useShop } from "@/lib/stores/useShop";
 import { DarkOrbModel } from "./DarkOrbModel";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 import { MiniFireOrb } from "./MiniFireOrb";
-import { FireAura } from "./FireAura";
 
 const DISTORT_FIELD_RADIUS = 5;
 
@@ -51,15 +50,11 @@ function BossOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
     );
   }
 
-  // ── Circle boss type: use high-quality MiniFireOrb (same shader as Fire Boss) ──
+  // ── Circle boss type: MiniFireOrb (identical look to Fire Boss) ──────────────
   if (bossType === "circle") {
-    const playerPos = useMagicOrb.getState().playerPosition;
     return (
       <group position={orb.position} scale={orb.size * pulse}>
-        <MiniFireOrb
-          orbPosition={orb.position}
-          playerPosition={playerPos}
-        />
+        <MiniFireOrb />
       </group>
     );
   }
@@ -470,7 +465,6 @@ function UnifiedDarkOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
 
 // ── World 1 enemy: miniature Fire Boss — own component so hooks are stable ────
 function World1EnemyMesh({ orb, time }: { orb: DarkOrb; time: number }) {
-  const playerPosition = useMagicOrb((s) => s.playerPosition);
   const destroyProgress = orb.destroying ? 1 - (orb.destroyTimer || 0) / 0.6 : 0;
   const pulse = 1 + Math.sin(time * 4 + orb.seed * 6) * 0.06;
 
@@ -490,20 +484,7 @@ function World1EnemyMesh({ orb, time }: { orb: DarkOrb; time: number }) {
 
   return (
     <group position={orb.position} scale={orb.size * pulse}>
-      <MiniFireOrb
-        orbPosition={orb.position}
-        playerPosition={playerPosition}
-      />
-      {/* Fire aura — radius=1 matches the local-space sphere; group scale
-          propagates the world-size so it always hugs the orb correctly.
-          Budget is kept low (150 particles, 70/s) so a full wave of orbs
-          stays well within the mobile GPU budget. */}
-      <FireAura
-        radius={1}
-        flameHeight={1.4}
-        maxParticles={150}
-        spawnRate={70}
-      />
+      <MiniFireOrb />
     </group>
   );
 }
