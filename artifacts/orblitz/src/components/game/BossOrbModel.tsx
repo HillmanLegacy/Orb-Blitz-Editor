@@ -26,8 +26,14 @@ export function BossOrbModel({ scale = 2.5, healthPercent = 1 }: BossOrbModelPro
         const mesh = child as THREE.Mesh;
         const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         for (const m of mats) {
-          const tex = (m as any).map ?? (m as any).emissiveMap ?? (m as any).baseColorTexture;
-          if (tex) { orbTexture = tex; break; }
+          const tex = (m as any).map ?? (m as any).emissiveMap ?? (m as any).emissiveMap ?? (m as any).aoMap;
+          if (tex) {
+            orbTexture = tex;
+            // Force GPU re-upload — required when re-using a texture from one
+            // GLTF scene in a freshly-created material on a different scene.
+            orbTexture.needsUpdate = true;
+            break;
+          }
         }
       }
     });
