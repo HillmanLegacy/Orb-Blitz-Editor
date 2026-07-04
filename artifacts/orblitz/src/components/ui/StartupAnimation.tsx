@@ -298,82 +298,92 @@ export function StartupAnimation({
         )}
       </AnimatePresence>
 
-      {/* ORBLITZ title — letter-by-letter for dev mode in menu phase, monolithic during intro */}
+      {/* ── Intro / waiting title (original centered position) ── */}
       <AnimatePresence>
-        {showTitle && (
+        {(phase === "title" || phase === "waiting") && (
+          <motion.div
+            className="absolute z-10 text-center pointer-events-none"
+            initial={{ opacity: 0, scale: 0.65, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 1.1, ease: [0.22, 0.61, 0.36, 1] }}
+          >
+            <motion.h1
+              className="font-black tracking-widest text-transparent bg-clip-text"
+              style={{
+                fontSize: "clamp(3.5rem, 11vw, 7rem)",
+                backgroundImage: "linear-gradient(135deg, #00ffff 0%, #aa00ff 45%, #ff00ff 75%, #ffff00 100%)",
+              }}
+              animate={{
+                filter: [
+                  "drop-shadow(0 0 18px rgba(0,255,255,0.55)) drop-shadow(0 0 36px rgba(255,0,255,0.25))",
+                  "drop-shadow(0 0 28px rgba(255,0,255,0.6))  drop-shadow(0 0 56px rgba(0,255,255,0.3))",
+                  "drop-shadow(0 0 18px rgba(0,255,255,0.55)) drop-shadow(0 0 36px rgba(255,0,255,0.25))",
+                ],
+              }}
+              transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+            >
+              ORBLITZ
+            </motion.h1>
+            <motion.div
+              className="mt-3 mx-auto"
+              style={{
+                height: 1,
+                width: "clamp(160px, 36vw, 280px)",
+                background: "linear-gradient(90deg, transparent, #00ffff 35%, #ff00ff 65%, transparent)",
+              }}
+              initial={{ scaleX: 0, opacity: 0 }}
+              animate={{ scaleX: 1, opacity: 0.65 }}
+              transition={{ duration: 0.9, delay: 0.25, ease: "easeOut" }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Menu-phase title (top-anchored, interactive letters) ── */}
+      <AnimatePresence>
+        {showMenu && (
           <motion.div
             className="absolute z-10 text-center"
-            style={{
-              top: showMenu ? "clamp(28px, 8vh, 64px)" : "50%",
-              left: "50%",
-              transform: showMenu ? "translateX(-50%)" : "translateX(-50%) translateY(-50%)",
-              zIndex: 10,
-              pointerEvents: showMenu ? "auto" : "none",
-            }}
-            initial={{ opacity: 0, scale: 0.65, y: 8 }}
-            animate={{
-              opacity: 1, scale: showMenu ? 0.82 : 1,
-              y: 0,
-            }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: showMenu ? 0.55 : 1.1, ease: [0.22, 0.61, 0.36, 1] }}
+            style={{ top: "clamp(24px, 7vh, 60px)", left: "50%", x: "-50%", zIndex: 10 }}
+            initial={{ opacity: 0, scale: 0.82, y: -8 }}
+            animate={{ opacity: 1, scale: 0.82, y: 0 }}
+            exit={{ opacity: 0, scale: 0.75 }}
+            transition={{ duration: 0.45, ease: [0.22, 0.61, 0.36, 1] }}
           >
-            {/* Dev-clickable letters in menu phase */}
-            {showMenu ? (
-              <motion.h1
-                className="font-black tracking-widest flex items-center justify-center gap-0"
-                style={{ fontSize: "clamp(2.8rem, 9vw, 5.5rem)" }}
-                animate={{
-                  filter: devFlash
-                    ? ["drop-shadow(0 0 24px #ffff00) drop-shadow(0 0 48px #ffaa00)"]
-                    : [
-                        "drop-shadow(0 0 18px rgba(0,255,255,0.55)) drop-shadow(0 0 36px rgba(255,0,255,0.25))",
-                        "drop-shadow(0 0 28px rgba(255,0,255,0.6))  drop-shadow(0 0 56px rgba(0,255,255,0.3))",
-                        "drop-shadow(0 0 18px rgba(0,255,255,0.55)) drop-shadow(0 0 36px rgba(255,0,255,0.25))",
-                      ],
-                }}
-                transition={{ duration: devFlash ? 0.15 : 2.2, repeat: devFlash ? 0 : Infinity, ease: "easeInOut" }}
-              >
-                {TITLE_LETTERS.map((letter, idx) => (
-                  <motion.span
-                    key={idx}
-                    className="cursor-pointer"
-                    style={{
-                      backgroundImage: "linear-gradient(135deg, #00ffff 0%, #aa00ff 45%, #ff00ff 75%, #ffff00 100%)",
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                      backgroundClip: "text",
-                      opacity: idx < devProgress ? 0.5 : 1,
-                    }}
-                    whileHover={{ scale: 1.15, y: -2 }}
-                    whileTap={{ scale: 0.92 }}
-                    onClick={(e) => { e.stopPropagation(); handleLetterClick(letter, idx); }}
-                  >
-                    {letter}
-                  </motion.span>
-                ))}
-              </motion.h1>
-            ) : (
-              <motion.h1
-                className="font-black tracking-widest text-transparent bg-clip-text pointer-events-none"
-                style={{
-                  fontSize: "clamp(3.5rem, 11vw, 7rem)",
-                  backgroundImage: "linear-gradient(135deg, #00ffff 0%, #aa00ff 45%, #ff00ff 75%, #ffff00 100%)",
-                }}
-                animate={{
-                  filter: [
-                    "drop-shadow(0 0 18px rgba(0,255,255,0.55)) drop-shadow(0 0 36px rgba(255,0,255,0.25))",
-                    "drop-shadow(0 0 28px rgba(255,0,255,0.6))  drop-shadow(0 0 56px rgba(0,255,255,0.3))",
-                    "drop-shadow(0 0 18px rgba(0,255,255,0.55)) drop-shadow(0 0 36px rgba(255,0,255,0.25))",
-                  ],
-                }}
-                transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-              >
-                ORBLITZ
-              </motion.h1>
-            )}
-
-            {/* Underline rule */}
+            <motion.h1
+              className="font-black tracking-widest flex items-center justify-center gap-0"
+              style={{ fontSize: "clamp(3.5rem, 11vw, 7rem)" }}
+              animate={{
+                filter: devFlash
+                  ? ["drop-shadow(0 0 24px #ffff00) drop-shadow(0 0 48px #ffaa00)"]
+                  : [
+                      "drop-shadow(0 0 18px rgba(0,255,255,0.55)) drop-shadow(0 0 36px rgba(255,0,255,0.25))",
+                      "drop-shadow(0 0 28px rgba(255,0,255,0.6))  drop-shadow(0 0 56px rgba(0,255,255,0.3))",
+                      "drop-shadow(0 0 18px rgba(0,255,255,0.55)) drop-shadow(0 0 36px rgba(255,0,255,0.25))",
+                    ],
+              }}
+              transition={{ duration: devFlash ? 0.15 : 2.2, repeat: devFlash ? 0 : Infinity, ease: "easeInOut" }}
+            >
+              {TITLE_LETTERS.map((letter, idx) => (
+                <motion.span
+                  key={idx}
+                  className="cursor-pointer"
+                  style={{
+                    backgroundImage: "linear-gradient(135deg, #00ffff 0%, #aa00ff 45%, #ff00ff 75%, #ffff00 100%)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
+                    opacity: idx < devProgress ? 0.5 : 1,
+                  }}
+                  whileHover={{ scale: 1.15, y: -2 }}
+                  whileTap={{ scale: 0.92 }}
+                  onClick={(e) => { e.stopPropagation(); handleLetterClick(letter, idx); }}
+                >
+                  {letter}
+                </motion.span>
+              ))}
+            </motion.h1>
             <motion.div
               className="mt-2 mx-auto"
               style={{
@@ -382,24 +392,19 @@ export function StartupAnimation({
                 background: "linear-gradient(90deg, transparent, #00ffff 35%, #ff00ff 65%, transparent)",
               }}
               initial={{ scaleX: 0, opacity: 0 }}
-              animate={{ scaleX: 1, opacity: showMenu ? 0.45 : 0.65 }}
-              transition={{ duration: 0.9, delay: 0.25, ease: "easeOut" }}
+              animate={{ scaleX: 1, opacity: 0.45 }}
+              transition={{ duration: 0.9, delay: 0.15, ease: "easeOut" }}
             />
-
-            {/* Shop stars badge in menu phase */}
-            <AnimatePresence>
-              {showMenu && (
-                <motion.div
-                  className="mt-2 flex items-center justify-center gap-1"
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                >
-                  <span style={{ color: "#ffd700", fontSize: "0.85rem" }}>★</span>
-                  <span style={{ color: "#fde68a", fontSize: "0.85rem", fontWeight: 700 }}>{shopStars}</span>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {/* Shop stars badge */}
+            <motion.div
+              className="mt-2 flex items-center justify-center gap-1"
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+            >
+              <span style={{ color: "#ffd700", fontSize: "0.85rem" }}>★</span>
+              <span style={{ color: "#fde68a", fontSize: "0.85rem", fontWeight: 700 }}>{shopStars}</span>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
