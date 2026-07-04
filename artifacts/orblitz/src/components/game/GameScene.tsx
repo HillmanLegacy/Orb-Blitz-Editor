@@ -14,7 +14,6 @@ import { DistortField } from "./DistortField";
 import { Boss } from "./Boss";
 import { DefenseOrbs } from "./DefenseOrbs";
 import { MagiOrbEffects } from "./MagiOrbEffects";
-import { ScreenEffects } from "./ScreenEffects";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 
 // ── Renderer configuration ────────────────────────────────────────────────────
@@ -137,7 +136,6 @@ export function GameScene() {
         <DistortField />
         <DefenseOrbs />
         <MagiOrbEffects />
-        <ScreenEffects />
         <GameLogic />
 
         {/* Post-processing stack */}
