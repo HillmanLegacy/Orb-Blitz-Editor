@@ -6,7 +6,7 @@ import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type AnimPhase = "idle" | "flying" | "converge" | "flash" | "title" | "waiting" | "menu" | "done";
-export type MenuState = "root" | "modes" | "guide" | "settings" | "worlds" | "levels";
+export type MenuState = "root" | "modes" | "settings" | "worlds" | "levels";
 
 interface StartupAnimationProps {
   skipIntro?: boolean;
@@ -155,7 +155,6 @@ export function StartupAnimation({
     switch (menuState) {
       case "root": return [
         { id:"play",      icon:"▶", label:"PLAY",  color:"#00ffff", shadow:"rgba(0,255,255,0.45)",   action: () => { btn("play");      setMenuState("modes");    } },
-        { id:"guide",     icon:"?", label:"GUIDE", color:"#8844ff", shadow:"rgba(136,68,255,0.4)",   action: () => { btn("guide");     setMenuState("guide");    } },
         { id:"shop",      icon:"★", label:"SHOP",  color:"#ff00ff", shadow:"rgba(255,0,255,0.4)",    action: () => { btn("shop");      openShop();               } },
         { id:"inventory", icon:"⊞", label:"GEAR",  color:"#ff7700", shadow:"rgba(255,119,0,0.4)",    action: () => { btn("inventory"); openInventory();          } },
         { id:"settings",  icon:"⚙", label:"OPTS",  color:"#ddcc00", shadow:"rgba(221,204,0,0.35)",   action: () => { btn("settings");  setMenuState("settings"); } },
@@ -165,9 +164,6 @@ export function StartupAnimation({
         { id:"chill",     icon:"≋",  label:"CHILL",    color:"#8844ff", shadow:"rgba(136,68,255,0.4)",  action: () => handleStartMode("chill")     },
         { id:"arcade",    icon:"◆",  label:"ARCADE",   color:"#ff00ff", shadow:"rgba(255,0,255,0.4)",   action: () => { btn("arcade"); setMenuState("worlds"); } },
         { id:"gauntlet",  icon:"◎",  label:"GAUNTLET", color:"#ff7700", shadow:"rgba(255,119,0,0.4)",   action: () => handleStartMode("gauntlet")  },
-        back("BACK", () => { btn("back"); setMenuState("root"); }),
-      ];
-      case "guide": return [
         back("BACK", () => { btn("back"); setMenuState("root"); }),
       ];
       case "settings": return [
@@ -187,37 +183,6 @@ export function StartupAnimation({
 
   // ── Content panels ────────────────────────────────────────────────────────
   const renderContent = () => {
-    const col = (c: string) => ({ color: c });
-
-    if (menuState === "guide") return (
-      <div className="space-y-3 pb-1 text-sm">
-        <Section title="Controls" color="#00ffff">
-          <Row label="Tap" val="Fire projectile" />
-          <Row label="Hold" val="Rapid fire" />
-          <Row label="Pause btn" val="Pause / abilities" />
-        </Section>
-        <Section title="Game Modes" color="#8844ff">
-          <Row label="Survive" val="Classic — orbs accelerate over time" />
-          <Row label="Chill" val="Relaxed — constant speed, no game over" />
-          <Row label="Arcade" val="Level-based stages, epic boss fights" />
-          <Row label="Gauntlet" val="Miss one shot and it's over" />
-        </Section>
-        <Section title="Power-Ups" color="#ff00ff">
-          <Row label="⚡ Charge" val="Burst of energy" />
-          <Row label="🛡 Shield" val="Block one hit" />
-          <Row label="❤ Heal" val="Restore one health" />
-          <Row label="↯ Distort" val="Freeze nearby orbs" />
-          <Row label="★★ 2× Stars" val="Double coin drops" />
-          <Row label="〰 Rapid" val="Fire rate boost" />
-        </Section>
-        <Section title="Tips" color="#ff7700">
-          <Row label="Loadout" val="Equip weapons & defenses before playing" />
-          <Row label="Shop" val="Spend stars on skins, trails, Magi-Orbs" />
-          <Row label="Boss fights" val="Dodge orb barrages, target the shield first" />
-        </Section>
-      </div>
-    );
-
     if (menuState === "settings") return (
       <div className="space-y-3 pb-1">
         <div className="rounded-xl border border-white/10 bg-white/5 p-3 flex items-center justify-between">
@@ -345,7 +310,7 @@ export function StartupAnimation({
   const showTitle   = animPhase === "title" || animPhase === "waiting" || animPhase === "menu";
   const showWaiting = animPhase === "waiting";
   const showMenu    = animPhase === "menu";
-  const isContent   = showMenu && (menuState === "guide" || menuState === "settings" || menuState === "worlds" || menuState === "levels");
+  const isContent   = showMenu && (menuState === "settings" || menuState === "worlds" || menuState === "levels");
   const isClickable = animPhase === "waiting";
   const panelButtons = showMenu ? getPanelButtons() : [];
 
@@ -669,15 +634,7 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false }: Butt
   );
 }
 
-// ─── Small helpers for guide content ─────────────────────────────────────────
-function Section({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl border bg-white/[0.03] px-3 pt-2 pb-3" style={{ borderColor: color + "33" }}>
-      <p className="font-black text-xs uppercase tracking-widest mb-2" style={{ color }}>{title}</p>
-      <div className="space-y-1">{children}</div>
-    </div>
-  );
-}
+// ─── Small helper for settings content ───────────────────────────────────────
 function Row({ label, val }: { label: string; val: string }) {
   return (
     <div className="flex gap-2 text-xs">
