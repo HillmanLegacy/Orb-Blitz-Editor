@@ -256,9 +256,6 @@ function LoadoutView({ slots, eq, onSlotClick, onClose }: {
           })}
         </div>
 
-        <p className="text-center text-white/20 text-[10px] uppercase tracking-widest mt-4">
-          Tap a slot to change item
-        </p>
       </div>
     </motion.div>
   );

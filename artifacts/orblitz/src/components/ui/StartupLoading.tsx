@@ -137,14 +137,6 @@ export function StartupLoading({ onComplete }: Props) {
             transition={{ duration: 0.05 }}
           />
         </div>
-        <motion.p
-          className="text-center mt-3 text-xs tracking-[0.2em] uppercase"
-          style={{ color: "rgba(255,255,255,0.22)" }}
-          animate={{ opacity: [0.22, 0.45, 0.22] }}
-          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-        >
-          {audioUnlocked ? "Loading…" : "Tap to enable audio"}
-        </motion.p>
       </motion.div>
     </motion.div>
   );

@@ -350,29 +350,14 @@ export function StartupAnimation({
         )}
       </AnimatePresence>
 
-      {/* Halo ring */}
-      <AnimatePresence>
-        {showTitle && (
-          <motion.div className="absolute rounded-full pointer-events-none" style={{
-            width: 580, height: 200, left: "50%", top: "50%",
-            marginLeft: -290, marginTop: -100,
-            boxShadow: "inset 0 0 0 1px rgba(0,255,255,0.06)", filter: "blur(1px)", zIndex: 3,
-          }}
-            initial={{ opacity: 0, scale: 0.6 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1.2, ease: "easeOut" }}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* ── ORBLITZ TITLE — always stays centered ────────────────────────── */}
+      {/* ── ORBLITZ TITLE — pinned at viewport center, never moves ─────── */}
       <AnimatePresence>
         {showTitle && (
           <motion.div className="absolute z-10 text-center"
-            initial={{ opacity: 0, scale: 0.65, y: 8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.8 }}
+            style={{ top: "50%", left: 0, right: 0 }}
+            initial={{ opacity: 0, scale: 0.65, y: "-50%" }}
+            animate={{ opacity: 1, scale: 1, y: "-50%" }}
+            exit={{ opacity: 0, scale: 0.8, y: "-50%" }}
             transition={{ duration: 1.1, ease: [0.22, 0.61, 0.36, 1] }}
           >
             {/* Letters clickable in menu phase for dev-mode easter egg */}
@@ -424,18 +409,21 @@ export function StartupAnimation({
               transition={{ duration: 0.9, delay: 0.25, ease: "easeOut" }}
             />
 
-            {/* Stars badge — menu only */}
-            <AnimatePresence>
-              {showMenu && (
-                <motion.div className="mt-2 flex items-center justify-center gap-1.5"
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  transition={{ delay: 0.15 }}
-                >
-                  <span style={{ color: "#ffd700", fontSize: "0.78rem" }}>★</span>
-                  <span style={{ color: "#fde68a", fontSize: "0.78rem", fontWeight: 700 }}>{shopStars}</span>
-                </motion.div>
-              )}
-            </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── STARS BADGE — separate element so title height never changes ── */}
+      <AnimatePresence>
+        {showMenu && (
+          <motion.div
+            className="absolute z-10 flex items-center justify-center gap-1.5 pointer-events-none"
+            style={{ top: "calc(50% + clamp(44px, 8vw, 68px))", left: 0, right: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            <span style={{ color: "#ffd700", fontSize: "0.78rem" }}>★</span>
+            <span style={{ color: "#fde68a", fontSize: "0.78rem", fontWeight: 700 }}>{shopStars}</span>
           </motion.div>
         )}
       </AnimatePresence>
