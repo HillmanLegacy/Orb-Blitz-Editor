@@ -509,6 +509,8 @@ export function StartupAnimation({
             className="absolute bottom-0 left-0 right-0 z-20 flex flex-col overflow-hidden"
             style={{ borderRadius: isContent ? "20px 20px 0 0" : 0 }}
             animate={{
+              opacity: 1,
+              y: 0,
               minHeight: isContent ? "clamp(300px,52vh,440px)" : 0,
               background: isContent ? "rgba(4,4,18,0.90)" : "transparent",
               borderTop: isContent ? "1px solid rgba(0,255,255,0.13)" : "1px solid transparent",
