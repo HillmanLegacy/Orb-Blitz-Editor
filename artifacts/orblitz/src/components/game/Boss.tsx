@@ -3,11 +3,9 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb, MovementPattern } from "@/lib/stores/useMagicOrb";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
-import { Suspense } from "react";
 import { FireBoss } from "./FireBoss";
 import { FireExplosionVFX } from "./FireExplosionVFX";
 import { BossShield } from "./BossShield";
-import { BossOrbModel } from "./BossOrbModel";
 
 const MIN_PLAYER_DISTANCE = 7;
 const HARD_COLLISION_RADIUS = 4;
@@ -811,16 +809,12 @@ export function Boss() {
     return (
       <group ref={meshRef} position={boss.position}>
         {boss.shieldActive && <BossShield bossType={bossType} />}
-        <Suspense fallback={
-          <FireBoss
-            radius={2.2}
-            healthPercent={healthPercent}
-            playerPosition={playerPosition}
-            bossPosition={boss.position}
-          />
-        }>
-          <BossOrbModel scale={2.2} healthPercent={healthPercent} />
-        </Suspense>
+        <FireBoss
+          radius={2.2}
+          healthPercent={healthPercent}
+          playerPosition={playerPosition}
+          bossPosition={boss.position}
+        />
       </group>
     );
   }
