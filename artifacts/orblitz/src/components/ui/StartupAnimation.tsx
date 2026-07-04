@@ -249,8 +249,8 @@ export function StartupAnimation({
 
     if (menuState === "worlds") return (
       <div>
-        <p className="text-white/50 text-xs uppercase tracking-widest mb-3 text-center">Select World</p>
-        <div className="grid grid-cols-3 gap-2">
+        <p className="text-white/40 text-[10px] uppercase tracking-widest mb-2 text-center">Select World</p>
+        <div className="grid grid-cols-3 gap-1.5">
           {Array.from({ length: 9 }, (_, i) => i + 1).map(w => {
             const unlocked = isWorldUnlocked(w);
             const wc = WORLD_COLORS[w - 1];
@@ -261,7 +261,7 @@ export function StartupAnimation({
                 disabled={!unlocked}
                 className="relative flex flex-col items-center justify-center rounded-xl font-black"
                 style={{
-                  height: "clamp(52px,9vw,80px)",
+                  height: "clamp(44px,7vh,64px)",
                   background: unlocked ? `linear-gradient(145deg, ${wc}22, ${wc}0a)` : "rgba(20,20,30,0.6)",
                   border: `1.5px solid ${unlocked ? wc + "66" : "#33355555"}`,
                   boxShadow: unlocked ? `0 0 12px ${wc}30` : "none",
@@ -292,10 +292,10 @@ export function StartupAnimation({
       const wc = WORLD_COLORS[selectedWorld - 1];
       return (
         <div>
-          <p className="text-center font-black mb-3" style={{ color: wc, fontSize: "clamp(0.75rem, 2.5vw, 1rem)", letterSpacing: "0.15em" }}>
+          <p className="text-center font-black mb-2" style={{ color: wc, fontSize: "clamp(0.65rem, 2vw, 0.85rem)", letterSpacing: "0.15em" }}>
             WORLD {selectedWorld}
           </p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-1.5">
             {Array.from({ length: 9 }, (_, i) => i + 1).map(sub => {
               const level = selectedWorld + sub / 10;
               const unlocked = isLevelUnlocked(level);
@@ -308,7 +308,7 @@ export function StartupAnimation({
                   disabled={!unlocked}
                   className="relative flex flex-col items-center justify-center rounded-xl font-bold"
                   style={{
-                    height: "clamp(52px,9vw,80px)",
+                    height: "clamp(44px,7vh,64px)",
                     background: unlocked ? `linear-gradient(145deg, ${bc}22, ${bc}0a)` : "rgba(20,20,30,0.6)",
                     border: `1.5px solid ${unlocked ? bc + "66" : "#333"}`,
                     boxShadow: unlocked ? `0 0 10px ${bc}28` : "none",
@@ -556,9 +556,21 @@ export function StartupAnimation({
               >
                 {renderContent()}
               </div>
-              {/* Navigation buttons footer */}
-              <div className="flex-none border-t px-4 py-3" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
-                <ButtonRow buttons={panelButtons} pressedBtn={pressedBtn} setPressedBtn={setPressedBtn} compact />
+              {/* Navigation footer — slim back-link for grid states, compact buttons otherwise */}
+              <div className="flex-none border-t" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+                {(menuState === "worlds" || menuState === "levels") ? (
+                  <button
+                    onClick={panelButtons[0]?.action}
+                    className="w-full py-2 text-center text-xs font-bold tracking-widest uppercase"
+                    style={{ color: "rgba(0,255,255,0.65)", letterSpacing: "0.18em" }}
+                  >
+                    ← {menuState === "levels" ? "WORLDS" : "BACK"}
+                  </button>
+                ) : (
+                  <div className="px-4 py-3">
+                    <ButtonRow buttons={panelButtons} pressedBtn={pressedBtn} setPressedBtn={setPressedBtn} compact />
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>
