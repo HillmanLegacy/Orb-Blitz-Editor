@@ -371,7 +371,7 @@ function PickerRow({ label, desc, isSelected, color, onClick }: {
       {/* Text */}
       <div className="flex-1 min-w-0">
         <p className="font-bold text-sm text-white leading-tight truncate">{label}</p>
-        <p className="text-white/35 text-[11px] leading-tight mt-0.5 line-clamp-1">{desc}</p>
+        <p className="text-white/35 text-[11px] leading-tight mt-0.5">{desc}</p>
       </div>
       {/* Equipped badge */}
       {isSelected && (

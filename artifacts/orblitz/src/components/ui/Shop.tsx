@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useShop, SHOP_ITEMS, ShopItem, OrbSkin, TrailEffect, RingStyle, WeaponType, DefenseType, MagiOrbType } from "@/lib/stores/useShop";
+import { useShop, SHOP_ITEMS, ShopItem } from "@/lib/stores/useShop";
 import { useState, useRef } from "react";
 
 // ─── Per-category design tokens ──────────────────────────────────────────────
@@ -17,10 +17,10 @@ type CatKey = typeof CAT_ORDER[number];
 
 // ─── Compact item row ─────────────────────────────────────────────────────────
 function ItemRow({
-  item, isOwned, isEquipped, canAfford, onPurchase, onEquip,
+  item, isOwned, canAfford, onPurchase,
 }: {
-  item: ShopItem; isOwned: boolean; isEquipped: boolean;
-  canAfford: boolean; onPurchase: () => void; onEquip: () => void;
+  item: ShopItem; isOwned: boolean;
+  canAfford: boolean; onPurchase: () => void;
 }) {
   const pal = PALETTE[item.category];
   return (
@@ -29,20 +29,19 @@ function ItemRow({
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 10 }}
-      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl"
+      className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl"
       style={{
-        background: isEquipped ? `${pal.color}0e` : "rgba(255,255,255,0.025)",
-        border: `1px solid ${isEquipped ? pal.color + "50" : "rgba(255,255,255,0.07)"}`,
-        boxShadow: isEquipped ? `0 0 14px ${pal.shadow}` : "none",
+        background: isOwned ? `${pal.color}0a` : "rgba(255,255,255,0.025)",
+        border: `1px solid ${isOwned ? pal.color + "35" : "rgba(255,255,255,0.07)"}`,
       }}
     >
       {/* Accent bar */}
       <div style={{
         width: 3, alignSelf: "stretch", minHeight: 36,
-        background: pal.color, borderRadius: 2, opacity: isEquipped ? 1 : 0.35, flexShrink: 0,
+        background: pal.color, borderRadius: 2, opacity: isOwned ? 0.7 : 0.3, flexShrink: 0,
       }} />
       {/* Category icon */}
-      <div className="flex items-center justify-center flex-shrink-0" style={{
+      <div className="flex items-center justify-center flex-shrink-0 mt-0.5" style={{
         width: 36, height: 36, borderRadius: 10,
         background: `${pal.color}16`, border: `1px solid ${pal.color}44`,
         color: pal.color, fontSize: "1.1rem", lineHeight: 1,
@@ -50,26 +49,20 @@ function ItemRow({
         {pal.icon}
       </div>
       {/* Name + description */}
-      <div className="flex-1 min-w-0">
-        <p className="text-white font-bold text-sm leading-tight truncate">{item.name}</p>
-        <p className="text-white/40 text-[11px] leading-tight mt-0.5 line-clamp-1">{item.description}</p>
+      <div className="flex-1 min-w-0 py-0.5">
+        <p className="text-white font-bold text-sm leading-tight">{item.name}</p>
+        <p className="text-white/40 text-[11px] leading-snug mt-1">{item.description}</p>
       </div>
       {/* Action */}
-      {isEquipped ? (
-        <span className="flex-shrink-0 text-[9px] font-black tracking-widest uppercase px-2 py-1 rounded-lg"
-          style={{ color: pal.color, background: `${pal.color}18`, border: `1px solid ${pal.color}55` }}>
-          EQUIPPED
+      {isOwned ? (
+        <span className="flex-shrink-0 mt-1 text-[9px] font-black tracking-widest uppercase px-2 py-1 rounded-lg"
+          style={{ color: "rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+          OWNED
         </span>
-      ) : isOwned ? (
-        <motion.button whileTap={{ scale: 0.9 }} onClick={onEquip}
-          className="flex-shrink-0 text-[9px] font-black tracking-widest uppercase px-2 py-1 rounded-lg cursor-pointer"
-          style={{ color: pal.color, background: `${pal.color}12`, border: `1px solid ${pal.color}55` }}>
-          EQUIP
-        </motion.button>
       ) : (
         <motion.button whileTap={{ scale: canAfford ? 0.9 : 1 }} onClick={canAfford ? onPurchase : undefined}
           disabled={!canAfford}
-          className="flex-shrink-0 flex items-center gap-1 text-[10px] font-black tracking-wider px-2 py-1 rounded-lg"
+          className="flex-shrink-0 mt-1 flex items-center gap-1 text-[10px] font-black tracking-wider px-2 py-1 rounded-lg"
           style={{
             color: canAfford ? "#ddcc00" : "#555",
             background: canAfford ? "rgba(221,204,0,0.1)" : "rgba(255,255,255,0.04)",
@@ -89,9 +82,6 @@ export function Shop() {
   const {
     coins: stars, shopOpen, closeShop,
     purchaseItem, isOwned, canAfford,
-    equippedSkin, equippedTrail, equippedRing,
-    equippedWeapon, equippedDefenses, equippedMagiOrb,
-    equipSkin, equipTrail, equipRing, equipWeapon, equipDefense, equipMagiOrb,
   } = useShop();
 
   const [cat, setCat] = useState<CatKey>("weapon");
@@ -101,31 +91,8 @@ export function Shop() {
     .filter(i => i.category === cat)
     .sort((a, b) => a.price - b.price);
 
-  const isItemEquipped = (item: ShopItem): boolean => {
-    if (item.category === "skin")     return equippedSkin === item.value;
-    if (item.category === "trail")    return equippedTrail === item.value;
-    if (item.category === "ring")     return equippedRing === item.value;
-    if (item.category === "weapon")   return equippedWeapon === item.value;
-    if (item.category === "defense")  return equippedDefenses.includes(item.value as DefenseType);
-    if (item.category === "magi_orb") return equippedMagiOrb === item.value;
-    return false;
-  };
-
   const handlePurchase = (item: ShopItem) => {
-    if (!purchaseItem(item.id)) return;
-    handleEquip(item);
-  };
-
-  const handleEquip = (item: ShopItem) => {
-    if (item.category === "skin")     return equipSkin(item.value as OrbSkin);
-    if (item.category === "trail")    return equipTrail(item.value as TrailEffect);
-    if (item.category === "ring")     return equipRing(item.value as RingStyle);
-    if (item.category === "weapon")   return equipWeapon(item.value as WeaponType);
-    if (item.category === "defense") {
-      const slot = equippedDefenses[0] === "none" ? 0 : equippedDefenses[1] === "none" ? 1 : 0;
-      return equipDefense(item.value as DefenseType, slot as 0 | 1);
-    }
-    if (item.category === "magi_orb") return equipMagiOrb(item.value as MagiOrbType);
+    purchaseItem(item.id);
   };
 
   return (
@@ -241,10 +208,8 @@ export function Shop() {
                       key={item.id}
                       item={item}
                       isOwned={isOwned(item.id)}
-                      isEquipped={isItemEquipped(item)}
                       canAfford={canAfford(item.price)}
                       onPurchase={() => handlePurchase(item)}
-                      onEquip={() => handleEquip(item)}
                     />
                   ))}
                   {filteredItems.length === 0 && (
