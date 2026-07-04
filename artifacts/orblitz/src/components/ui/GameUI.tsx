@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useAudio } from "@/lib/stores/useAudio";
 import { useShop } from "@/lib/stores/useShop";
+import { useOrbTransition } from "@/lib/stores/useOrbTransition";
 
 export function GameUI() {
   const { 
@@ -261,7 +262,7 @@ export function GameUI() {
             <motion.button
               onClick={() => {
                 playPause();
-                pauseGame();
+                useOrbTransition.getState().fastSweep(pauseGame);
               }}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}

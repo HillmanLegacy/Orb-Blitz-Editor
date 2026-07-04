@@ -4,6 +4,7 @@ import "@fontsource/inter";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
 import { useAudio } from "@/lib/stores/useAudio";
+import { useOrbTransition } from "@/lib/stores/useOrbTransition";
 import { GameScene } from "@/components/game/GameScene";
 import { SoundManager } from "@/components/game/SoundManager";
 import { GameUI } from "@/components/ui/GameUI";
@@ -16,6 +17,7 @@ import { StartupAnimation, type MenuState } from "@/components/ui/StartupAnimati
 import { StartupLoading } from "@/components/ui/StartupLoading";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { ArcadeComplete } from "@/components/ui/ArcadeComplete";
+import { OrbSweepOverlay } from "@/components/ui/OrbSweepOverlay";
 
 function App() {
   const { phase } = useMagicOrb();
@@ -47,6 +49,13 @@ function App() {
 
   // From GameOver/LevelTransition: return to root menu
   const handleShowMainMenu = useCallback(() => setInitialMenuState("root"), []);
+
+  // Trigger the orb sweep overlay on every loading transition
+  useEffect(() => {
+    if (phase === "loading") {
+      useOrbTransition.getState().loadingSweep();
+    }
+  }, [phase]);
 
   // Show the startup/menu screen when in menu phase and shop/inventory not open
   const showMenuScreen = phase === "menu" && !shopOpen && !inventoryOpen;
@@ -85,6 +94,9 @@ function App() {
       <Inventory />
       <SoundManager />
       <LoadingScreen />
+
+      {/* Orb sweep transition – z-9999, above all UI */}
+      <OrbSweepOverlay />
     </div>
   );
 }

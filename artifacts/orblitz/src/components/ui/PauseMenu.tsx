@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
 import { useAudio } from "@/lib/stores/useAudio";
+import { useOrbTransition } from "@/lib/stores/useOrbTransition";
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 const _svg = { viewBox: "0 0 24 24", fill: "none", width: "1em", height: "1em", style: { display: "block" } } as const;
@@ -111,7 +112,7 @@ export function PauseMenu() {
   const sfx = () => { try { playMenuSelect(); } catch {} };
 
   const topRow: BtnDef[] = [
-    { id: "resume", icon: <IconResume />, label: "RESUME", color: "#00ffff", shadow: "rgba(0,255,255,0.45)",  action: () => { sfx(); resumeGame(); } },
+    { id: "resume", icon: <IconResume />, label: "RESUME", color: "#00ffff", shadow: "rgba(0,255,255,0.45)",  action: () => { sfx(); useOrbTransition.getState().fastSweep(resumeGame); } },
     { id: "shop",   icon: <IconShop />,   label: "SHOP",   color: "#ff00ff", shadow: "rgba(255,0,255,0.45)",  action: () => { sfx(); openShop(); } },
     { id: "gear",   icon: <IconGear />,   label: "GEAR",   color: "#aa00ff", shadow: "rgba(170,0,255,0.45)",  action: () => { sfx(); openInventory(); } },
   ];
