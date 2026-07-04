@@ -732,29 +732,6 @@ export function PlayerOrb() {
         <meshBasicMaterial />
       </mesh>
 
-      {/* Equipped ring decorations */}
-      {ringConfig.count > 0 && (
-        <group scale={scale * 1.35}>
-          {ringConfig.colors.slice(0, ringConfig.count).map((color, i) => {
-            const segments = ringConfig.segments || 64;
-            const thickness = ringConfig.thickness || 0.08;
-            const innerRadius = 0.88 + i * 0.12;
-            const outerRadius = innerRadius + thickness + (ringConfig.halo ? 0.06 : 0);
-            return (
-              <group key={i}>
-                <mesh ref={(el) => { if (el) ringRefs.current[i] = el; }}>
-                  <torusGeometry args={[(innerRadius + outerRadius) / 2, Math.max(0.02, (outerRadius - innerRadius) / 2), 6, segments]} />
-                  <meshBasicMaterial
-                    color={color}
-                    transparent
-                    opacity={(0.85 - i * 0.08) * dimFactor * (ringConfig.glowIntensity || 0.8)}
-                  />
-                </mesh>
-              </group>
-            );
-          })}
-        </group>
-      )}
 
       {/* Shield power-up — rotating 3D wireframe icosahedron */}
       {hasShield && <ShieldEffect scale={scale} />}
