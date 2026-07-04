@@ -21,9 +21,8 @@ import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 function RendererSetup() {
   const { gl } = useThree();
   useEffect(() => {
-    gl.toneMapping         = THREE.ReinhardToneMapping;
-    gl.toneMappingExposure = 1.2;
-    gl.outputColorSpace    = THREE.SRGBColorSpace;
+    gl.toneMapping      = THREE.NoToneMapping;
+    gl.outputColorSpace = THREE.SRGBColorSpace;
   }, [gl]);
   return null;
 }

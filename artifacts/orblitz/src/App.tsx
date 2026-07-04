@@ -91,7 +91,7 @@ function App() {
   return (
     <div style={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden" }}>
       {showStartupLoading && <StartupLoading onComplete={handleStartupLoadingComplete} />}
-      <div style={{ position: "absolute", inset: 0, filter: `brightness(${brightness})`, pointerEvents: "none" }}>
+      <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
         <div style={{ pointerEvents: "auto", width: "100%", height: "100%" }}>
           <GameScene />
         </div>
