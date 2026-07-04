@@ -259,8 +259,9 @@ export function StartupAnimation({
               <motion.button key={w}
                 onClick={() => { if (unlocked) { btn(`w${w}`); setSelectedWorld(w); setMenuState("levels"); } }}
                 disabled={!unlocked}
-                className="relative flex flex-col items-center justify-center aspect-square rounded-xl font-black"
+                className="relative flex flex-col items-center justify-center rounded-xl font-black"
                 style={{
+                  height: "clamp(52px,9vw,80px)",
                   background: unlocked ? `linear-gradient(145deg, ${wc}22, ${wc}0a)` : "rgba(20,20,30,0.6)",
                   border: `1.5px solid ${unlocked ? wc + "66" : "#33355555"}`,
                   boxShadow: unlocked ? `0 0 12px ${wc}30` : "none",
@@ -305,8 +306,9 @@ export function StartupAnimation({
                 <motion.button key={sub}
                   onClick={() => { if (unlocked) { btn(`l${level}`); setGameMode("arcade"); startLoading("nextLevel", level); } }}
                   disabled={!unlocked}
-                  className="relative flex flex-col items-center justify-center aspect-square rounded-xl font-bold"
+                  className="relative flex flex-col items-center justify-center rounded-xl font-bold"
                   style={{
+                    height: "clamp(52px,9vw,80px)",
                     background: unlocked ? `linear-gradient(145deg, ${bc}22, ${bc}0a)` : "rgba(20,20,30,0.6)",
                     border: `1.5px solid ${unlocked ? bc + "66" : "#333"}`,
                     boxShadow: unlocked ? `0 0 10px ${bc}28` : "none",
@@ -485,14 +487,16 @@ export function StartupAnimation({
         )}
       </AnimatePresence>
 
-      {/* ── TAP TO START ─────────────────────────────────────────────────── */}
+      {/* ── TAP TO START — stationary, pure opacity crossfade ───────────── */}
       <AnimatePresence>
         {showWaiting && (
-          <motion.div className="absolute bottom-20 md:bottom-24 text-center z-10 pointer-events-none"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: [0, 0.9, 0.55, 0.9], y: 0 }}
-            exit={{ opacity: 0, y: 8 }}
-            transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+          <motion.div
+            className="absolute left-0 right-0 text-center z-10 pointer-events-none"
+            style={{ bottom: "clamp(44px, 8vh, 80px)" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.85 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
           >
             <p className="text-lg md:text-xl font-semibold tracking-[0.22em] uppercase"
               style={{ color: "rgba(0,255,255,0.8)", textShadow: "0 0 18px rgba(0,255,255,0.45)" }}>
@@ -502,124 +506,153 @@ export function StartupAnimation({
         )}
       </AnimatePresence>
 
-      {/* ── BOTTOM PANEL — morphs between button-only and full content ────── */}
-      <AnimatePresence>
-        {showMenu && (
+      {/* ── BUTTON ROW (root / modes) — floats between title and bottom ── */}
+      <AnimatePresence mode="wait">
+        {showMenu && !isContent && (
           <motion.div
-            className="absolute bottom-0 left-0 right-0 z-20 flex flex-col overflow-hidden"
-            style={{ borderRadius: isContent ? "20px 20px 0 0" : 0 }}
-            animate={{
-              opacity: 1,
-              y: 0,
-              minHeight: isContent ? "clamp(300px,52vh,440px)" : 0,
-              background: isContent ? "rgba(4,4,18,0.90)" : "transparent",
-              borderTop: isContent ? "1px solid rgba(0,255,255,0.13)" : "1px solid transparent",
-              backdropFilter: isContent ? "blur(24px)" : "none",
+            key={menuState}
+            className="absolute left-0 right-0 z-20"
+            style={{
+              top: "calc(50% + clamp(80px, 11vw, 108px))",
+              padding: "0 clamp(10px, 3.5vw, 44px)",
             }}
-            transition={{ type: "spring", stiffness: 260, damping: 30 }}
-            initial={{ opacity: 0, y: 20 }}
-            exit={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.3, ease: [0.22, 0.61, 0.36, 1] }}
           >
-            {/* Scrollable content area */}
-            <AnimatePresence mode="wait">
-              {isContent && (
-                <motion.div
-                  key={menuState}
-                  className="flex-1 overflow-y-auto px-4 pt-4 pb-1 min-h-0"
-                  style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(0,255,255,0.2) transparent" }}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.22 }}
-                >
-                  {renderContent()}
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <ButtonRow buttons={panelButtons} pressedBtn={pressedBtn} setPressedBtn={setPressedBtn} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-            {/* Button row — morphs per state */}
-            <div className="flex-none py-4 px-4">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={menuState}
-                  className="flex flex-row items-stretch justify-center"
-                  style={{ gap: "clamp(6px,1.8vw,16px)" }}
-                  initial="hidden"
-                  animate="visible"
-                  exit="hidden"
-                  variants={{
-                    visible: { transition: { staggerChildren: 0.055, delayChildren: 0.04 } },
-                    hidden:  { transition: { staggerChildren: 0.03, staggerDirection: -1 } },
-                  }}
-                >
-                  {panelButtons.map((b) => {
-                    const isPress = pressedBtn === b.id;
-                    return (
-                      <motion.button key={b.id}
-                        className="relative flex flex-col items-center justify-center overflow-hidden flex-1"
-                        style={{
-                          minWidth: 0,
-                          maxWidth: panelButtons.length === 1 ? "clamp(140px,36vw,220px)"
-                                  : panelButtons.length === 2 ? "clamp(100px,24vw,160px)"
-                                  : "clamp(56px,17vw,100px)",
-                          height: "clamp(68px,12vw,96px)",
-                          borderRadius: "clamp(10px,1.6vw,14px)",
-                          border: `1.5px solid ${isPress ? b.color + "cc" : b.color + "55"}`,
-                          background: isPress
-                            ? `${b.color}20`
-                            : `linear-gradient(160deg,${b.color}10 0%,${b.color}06 100%)`,
-                          color: b.color,
-                          boxShadow: isPress
-                            ? `0 0 24px ${b.shadow}, 0 0 48px ${b.shadow}, inset 0 0 14px ${b.color}14`
-                            : `0 0 12px ${b.shadow}, inset 0 1px 0 ${b.color}14`,
-                          cursor: "pointer",
-                          WebkitTapHighlightColor: "transparent",
-                          transition: "background 0.14s, box-shadow 0.14s, border-color 0.14s",
-                        }}
-                        variants={{
-                          hidden:  { opacity: 0, y: 22, scale: 0.85 },
-                          visible: { opacity: 1, y: 0, scale: 1,
-                            transition: { type: "spring", stiffness: 360, damping: 26 } },
-                        }}
-                        whileTap={{ scale: 0.9 }}
-                        onHoverStart={() => setPressedBtn(b.id)}
-                        onHoverEnd={() => setPressedBtn(null)}
-                        onPointerDown={() => setPressedBtn(b.id)}
-                        onPointerUp={() => setPressedBtn(null)}
-                        onPointerLeave={() => setPressedBtn(null)}
-                        onClick={b.action}
-                      >
-                        {/* Top accent */}
-                        <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{
-                          height: 2,
-                          background: `linear-gradient(90deg,transparent 8%,${b.color}88 50%,transparent 92%)`,
-                          opacity: isPress ? 1 : 0.55, transition: "opacity 0.14s",
-                        }} />
-                        {/* Scanlines */}
-                        <div className="absolute inset-0 pointer-events-none" style={{
-                          backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 4px,rgba(255,255,255,0.012) 4px,rgba(255,255,255,0.012) 5px)",
-                          borderRadius: "inherit",
-                        }} />
-                        {/* Icon */}
-                        <span style={{
-                          fontSize: "clamp(1.2rem,3.2vw,1.8rem)", lineHeight: 1,
-                          marginBottom: "clamp(2px,0.6vw,5px)",
-                          filter: `drop-shadow(0 0 5px ${b.color}88)`, display: "block",
-                        }}>{b.icon}</span>
-                        {/* Label */}
-                        <span style={{
-                          fontSize: "clamp(0.48rem,1.25vw,0.68rem)",
-                          fontWeight: 800, letterSpacing: "0.13em", lineHeight: 1, opacity: 0.88,
-                        }}>{b.label}</span>
-                      </motion.button>
-                    );
-                  })}
-                </motion.div>
-              </AnimatePresence>
+      {/* ── CONTENT PANEL (guide / settings / worlds / levels) ──────────── */}
+      <AnimatePresence mode="wait">
+        {showMenu && isContent && (
+          <motion.div
+            key={menuState}
+            className="absolute left-0 right-0 z-20 flex flex-col"
+            style={{
+              top: "calc(50% + clamp(80px, 11vw, 108px))",
+              bottom: "clamp(16px, 2.5vh, 32px)",
+              padding: "0 clamp(10px, 3.5vw, 44px)",
+            }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.28 }}
+          >
+            <div className="flex-1 min-h-0 rounded-2xl flex flex-col overflow-hidden"
+              style={{
+                background: "rgba(4,4,18,0.88)",
+                border: "1px solid rgba(0,255,255,0.13)",
+                backdropFilter: "blur(24px)",
+              }}
+            >
+              {/* Scrollable content */}
+              <div
+                className="flex-1 overflow-y-auto px-4 pt-4 pb-2 min-h-0"
+                style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(0,255,255,0.18) transparent" }}
+              >
+                {renderContent()}
+              </div>
+              {/* Navigation buttons footer */}
+              <div className="flex-none border-t px-4 py-3" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+                <ButtonRow buttons={panelButtons} pressedBtn={pressedBtn} setPressedBtn={setPressedBtn} compact />
+              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+    </motion.div>
+  );
+}
+
+// ─── Reusable button row ──────────────────────────────────────────────────────
+interface ButtonRowProps {
+  buttons: BtnDef[];
+  pressedBtn: string | null;
+  setPressedBtn: (id: string | null) => void;
+  compact?: boolean;
+}
+function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false }: ButtonRowProps) {
+  const btnH = compact ? "clamp(48px,8vw,64px)" : "clamp(68px,12vw,96px)";
+  const iconSz = compact ? "clamp(1rem,2.5vw,1.4rem)" : "clamp(1.2rem,3.2vw,1.8rem)";
+  const labelSz = compact ? "clamp(0.44rem,1.1vw,0.6rem)" : "clamp(0.48rem,1.25vw,0.68rem)";
+  const maxW =
+    buttons.length === 1 ? "clamp(120px,32vw,200px)" :
+    buttons.length === 2 ? "clamp(90px,22vw,150px)" :
+    "clamp(52px,17vw,100px)";
+
+  return (
+    <motion.div
+      className="flex flex-row items-stretch justify-center w-full"
+      style={{ gap: compact ? "clamp(5px,1.4vw,12px)" : "clamp(6px,1.8vw,16px)" }}
+      initial="hidden"
+      animate="visible"
+      variants={{
+        visible: { transition: { staggerChildren: 0.055, delayChildren: 0.04 } },
+        hidden:  { transition: { staggerChildren: 0.03, staggerDirection: -1 } },
+      }}
+    >
+      {buttons.map((b) => {
+        const isPress = pressedBtn === b.id;
+        return (
+          <motion.button
+            key={b.id}
+            className="relative flex flex-col items-center justify-center overflow-hidden flex-1"
+            style={{
+              minWidth: 0, maxWidth: maxW,
+              height: btnH,
+              borderRadius: "clamp(10px,1.6vw,14px)",
+              border: `1.5px solid ${isPress ? b.color + "cc" : b.color + "55"}`,
+              background: isPress ? `${b.color}20` : `linear-gradient(160deg,${b.color}10 0%,${b.color}06 100%)`,
+              color: b.color,
+              boxShadow: isPress
+                ? `0 0 24px ${b.shadow}, 0 0 48px ${b.shadow}, inset 0 0 14px ${b.color}14`
+                : `0 0 12px ${b.shadow}, inset 0 1px 0 ${b.color}14`,
+              cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+              transition: "background 0.14s, box-shadow 0.14s, border-color 0.14s",
+            }}
+            variants={{
+              hidden:  { opacity: 0, y: 16, scale: 0.86 },
+              visible: { opacity: 1, y: 0,  scale: 1,
+                transition: { type: "spring", stiffness: 360, damping: 26 } },
+            }}
+            whileTap={{ scale: 0.9 }}
+            onHoverStart={() => setPressedBtn(b.id)}
+            onHoverEnd={() => setPressedBtn(null)}
+            onPointerDown={() => setPressedBtn(b.id)}
+            onPointerUp={() => setPressedBtn(null)}
+            onPointerLeave={() => setPressedBtn(null)}
+            onClick={b.action}
+          >
+            {/* Top accent line */}
+            <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{
+              height: 2,
+              background: `linear-gradient(90deg,transparent 8%,${b.color}88 50%,transparent 92%)`,
+              opacity: isPress ? 1 : 0.55, transition: "opacity 0.14s",
+            }} />
+            {/* Scanlines */}
+            <div className="absolute inset-0 pointer-events-none" style={{
+              backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 4px,rgba(255,255,255,0.012) 4px,rgba(255,255,255,0.012) 5px)",
+              borderRadius: "inherit",
+            }} />
+            {/* Icon */}
+            <span style={{
+              fontSize: iconSz, lineHeight: 1,
+              marginBottom: compact ? "2px" : "clamp(2px,0.6vw,5px)",
+              filter: `drop-shadow(0 0 5px ${b.color}88)`, display: "block",
+            }}>{b.icon}</span>
+            {/* Label */}
+            <span style={{
+              fontSize: labelSz, fontWeight: 800,
+              letterSpacing: "0.13em", lineHeight: 1, opacity: 0.88,
+            }}>{b.label}</span>
+          </motion.button>
+        );
+      })}
     </motion.div>
   );
 }
