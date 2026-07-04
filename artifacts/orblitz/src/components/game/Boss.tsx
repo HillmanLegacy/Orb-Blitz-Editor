@@ -141,31 +141,40 @@ export function Boss() {
     if (phase !== "playing") return;
     if (!meshRef.current) return;
     
-    let shieldActive = boss.shieldActive || false;
-    let shieldTimer = boss.shieldTimer || 0;
-    let shieldCooldown = boss.shieldCooldown || 0;
-    
-    if (shieldActive) {
-      shieldTimer -= delta;
-      if (shieldTimer <= 0) {
-        shieldActive = false;
-        shieldTimer = 0;
-        shieldCooldown = 10;
-      }
-    } else if (shieldCooldown > 0) {
-      shieldCooldown -= delta;
-      if (shieldCooldown <= 0) {
-        shieldActive = true;
-        shieldTimer = 5;
-        shieldCooldown = 0;
-      }
-    } else if (!shieldActive && shieldCooldown <= 0) {
-      shieldActive = true;
-      shieldTimer = 5;
-    }
-    
+    // Hoist bossType early — shield and movement both need it
     const bossType = boss.bossType || "circle";
-    const config = BOSS_CONFIGS[bossType] || BOSS_CONFIGS.circle;
+    const config   = BOSS_CONFIGS[bossType] || BOSS_CONFIGS.circle;
+
+    // Shield — permanently disabled for the FireBoss (circle) which relies on
+    // fluid movement for survival rather than a passive damage-block.
+    let shieldActive  = false;
+    let shieldTimer   = 0;
+    let shieldCooldown = 0;
+
+    if (bossType !== "circle") {
+      shieldActive  = boss.shieldActive  || false;
+      shieldTimer   = boss.shieldTimer   || 0;
+      shieldCooldown = boss.shieldCooldown || 0;
+
+      if (shieldActive) {
+        shieldTimer -= delta;
+        if (shieldTimer <= 0) {
+          shieldActive   = false;
+          shieldTimer    = 0;
+          shieldCooldown = 10;
+        }
+      } else if (shieldCooldown > 0) {
+        shieldCooldown -= delta;
+        if (shieldCooldown <= 0) {
+          shieldActive  = true;
+          shieldTimer   = 5;
+          shieldCooldown = 0;
+        }
+      } else if (!shieldActive && shieldCooldown <= 0) {
+        shieldActive = true;
+        shieldTimer  = 5;
+      }
+    }
     const playerX = playerPosition[0];
     const playerY = playerPosition[1];
     
@@ -389,25 +398,36 @@ export function Boss() {
         break;
       }
       case "orbit_player": {
-        // Fast fluid orbit — gets faster as health drops
+        // ── FireBoss easy-mode fluid orbit ──────────────────────────────
+        // Slow, readable orbit that the player can learn to dodge.
+        // Projectile avoidance is a gentle angle nudge, not a snap.
         const healthFrac = boss.maxHealth > 0 ? boss.health / boss.maxHealth : 1;
-        const orbitSpeed = 1.25 + (1 - healthFrac) * 0.75;
+
+        // Speed ramps very gently with damage — stays easy the whole fight
+        const orbitSpeed = 0.55 + (1 - healthFrac) * 0.20; // 0.55–0.75 rad/s
+
+        // Advance orbit angle smoothly every frame
         fireOrbitAngleRef.current += delta * orbitSpeed;
 
-        // Dodge: burst orbit angle sideways the SAME frame a threat is first detected.
-        // dodgeTimerRef is set to 0.3 above only when timer was already <= 0, so
-        // we use a window just above the fresh set value to catch the burst frame.
+        // Gentle avoidance: when a projectile is close, nudge the angle
+        // sideways by a small amount rather than snapping hard.
+        // This keeps motion continuous and readable.
         if (threatened && dodgeTimerRef.current >= 0.28) {
-          fireOrbitAngleRef.current += Math.PI * 0.38 * (dodgeDirRef.current[0] >= 0 ? 1 : -1);
+          const bias = dodgeDirRef.current[0] >= 0 ? 1 : -1;
+          fireOrbitAngleRef.current += bias * Math.PI * 0.18;
         }
 
-        const orbitRadius = 6.8 + Math.sin(time * 0.4) * 1.2;
+        // Radius breathes slowly — feels organic, not mechanical
+        const orbitRadius = 7.5 + Math.sin(time * 0.25) * 1.8;
         targetX = playerX + Math.cos(fireOrbitAngleRef.current) * orbitRadius;
         targetY = playerY + Math.sin(fireOrbitAngleRef.current) * orbitRadius;
+
         // Clamp to play area
         targetX = Math.max(-playAreaWidth, Math.min(playAreaWidth, targetX));
         targetY = Math.max(-playAreaHeight + 2, Math.min(playAreaHeight, targetY));
-        lerpSpeed = threatened ? 14 : 7;
+
+        // Smooth, constant chase speed — no snappy acceleration on threat
+        lerpSpeed = 3.5;
         break;
       }
     }
@@ -808,13 +828,7 @@ export function Boss() {
   if (bossType === "circle") {
     return (
       <group ref={meshRef} position={boss.position}>
-        {boss.shieldActive && <BossShield bossType={bossType} />}
-        <FireBoss
-          radius={2.2}
-          healthPercent={healthPercent}
-          playerPosition={playerPosition}
-          bossPosition={boss.position}
-        />
+        <FireBoss radius={2.2} healthPercent={healthPercent} />
       </group>
     );
   }

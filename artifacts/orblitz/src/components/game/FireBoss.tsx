@@ -1,7 +1,6 @@
 /**
  * FireBoss — Boss 1 "Fire Orb"
  * • Procedural GLSL fire texture (FBM noise, crimson → orange → bright yellow)
- * • Neon-yellow evil eyes tracking the player
  * • Ambient fire particle corona (additive InstancedMesh)
  */
 
@@ -164,114 +163,19 @@ function FireCorona({ radius }: { radius: number }) {
   );
 }
 
-// ── Evil Eyes ─────────────────────────────────────────────────────────────────
-
-interface EyeProps {
-  radius: number;
-  playerPosition: [number, number, number];
-  bossPosition: [number, number, number];
-  time: number;
-}
-
-function EvilEyes({ radius, playerPosition, bossPosition, time }: EyeProps) {
-  const dx = playerPosition[0] - bossPosition[0];
-  const dy = playerPosition[1] - bossPosition[1];
-  const d  = Math.sqrt(dx * dx + dy * dy) || 1;
-  const nx = dx / d;
-  const ny = dy / d;
-
-  const eyeOffset = radius * 0.55;
-  const eyeR      = radius * 0.30;
-  const zFront    = radius * 0.82;
-
-  // Pupil travels inside the iris — max travel = iris radius minus pupil radius
-  const irisR  = eyeR * 0.60;
-  const pupilR = eyeR * 0.30;
-  const travel = irisR - pupilR * 0.6;
-  const lookX  = nx * travel;
-  const lookY  = ny * travel;
-
-  // Toon blink: upper eyelid slides down
-  const blinkT   = Math.sin(time * 2.3) > 0.88 ? 1.0 : 0.0;
-  const lidScale = blinkT;              // 0 = open, 1 = closed
-
-  const eyePositions: [number, number][] = [
-    [-eyeOffset * 0.65, eyeOffset * 0.2],
-    [ eyeOffset * 0.65, eyeOffset * 0.2],
-  ];
-
-  return (
-    <group>
-      {eyePositions.map(([ex, ey], i) => (
-        <group key={i} position={[ex, ey, zFront]}>
-          {/* Outer fire glow */}
-          <mesh>
-            <circleGeometry args={[eyeR * 1.4, 20]} />
-            <meshBasicMaterial color="#ff4400" transparent opacity={0.18}
-              blending={THREE.AdditiveBlending} depthWrite={false} />
-          </mesh>
-          {/* Black outline ring */}
-          <mesh position={[0, 0, 0.005]}>
-            <circleGeometry args={[eyeR * 1.08, 20]} />
-            <meshBasicMaterial color="#000000" />
-          </mesh>
-          {/* White sclera */}
-          <mesh position={[0, 0, 0.01]}>
-            <circleGeometry args={[eyeR, 20]} />
-            <meshBasicMaterial color="#f8f4e8" />
-          </mesh>
-          {/* Iris — amber orange */}
-          <mesh position={[lookX * 0.35, lookY * 0.35, 0.015]}>
-            <circleGeometry args={[irisR, 18]} />
-            <meshBasicMaterial color="#e87a00" />
-          </mesh>
-          {/* Round black pupil — tracks player */}
-          <mesh position={[lookX, lookY, 0.02]}>
-            <circleGeometry args={[pupilR, 16]} />
-            <meshBasicMaterial color="#0a0000" />
-          </mesh>
-          {/* Toon specular highlight — upper-left, static */}
-          <mesh position={[lookX - pupilR * 0.45, lookY + pupilR * 0.45, 0.025]}>
-            <circleGeometry args={[pupilR * 0.32, 10]} />
-            <meshBasicMaterial color="#ffffff" transparent opacity={0.92} />
-          </mesh>
-          {/* Tiny secondary shine */}
-          <mesh position={[lookX + pupilR * 0.28, lookY - pupilR * 0.28, 0.026]}>
-            <circleGeometry args={[pupilR * 0.14, 8]} />
-            <meshBasicMaterial color="#ffffff" transparent opacity={0.6} />
-          </mesh>
-          {/* Toon eyelid — slides down on blink */}
-          {blinkT > 0 && (
-            <mesh position={[0, eyeR * 0.5 * (1 - lidScale * 0.1), 0.03]}
-              scale={[eyeR * 2.2, eyeR * 1.2 * lidScale, 1]}>
-              <planeGeometry args={[1, 1]} />
-              <meshBasicMaterial color="#0a0000" />
-            </mesh>
-          )}
-        </group>
-      ))}
-    </group>
-  );
-}
-
 // ── Main component ────────────────────────────────────────────────────────────
 
 interface FireBossProps {
   radius?: number;
   healthPercent?: number;
-  playerPosition?: [number, number, number];
-  bossPosition?: [number, number, number];
 }
 
 export function FireBoss({
   radius = 2.2,
   healthPercent = 1,
-  playerPosition = [0, 0, 0],
-  bossPosition   = [0, 0, 0],
 }: FireBossProps) {
   const matRef   = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
-  const timeRef  = useRef(0);
 
   const uniforms = useMemo(
     () => ({
@@ -282,9 +186,8 @@ export function FireBoss({
   );
 
   useFrame((state, delta) => {
-    timeRef.current = state.clock.getElapsedTime();
     if (matRef.current) {
-      matRef.current.uniforms.uTime.value   = timeRef.current;
+      matRef.current.uniforms.uTime.value   = state.clock.getElapsedTime();
       matRef.current.uniforms.uHealth.value = healthPercent;
     }
     // Slow axial rotation around Z for visual richness
@@ -308,40 +211,8 @@ export function FireBoss({
         />
       </mesh>
 
-      {/* Soft outer glow corona (back-face sphere) */}
-      <mesh>
-        <sphereGeometry args={[radius * 1.18, 20, 16]} />
-        <meshBasicMaterial
-          color="#ff3300"
-          transparent
-          opacity={0.12}
-          side={THREE.BackSide}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
-      </mesh>
-      <mesh>
-        <sphereGeometry args={[radius * 1.38, 14, 10]} />
-        <meshBasicMaterial
-          color="#ff1100"
-          transparent
-          opacity={0.05}
-          side={THREE.BackSide}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
-      </mesh>
-
       {/* Ember corona */}
       <FireCorona radius={radius} />
-
-      {/* Evil eyes (rendered outside groupRef rotation so they always face camera) */}
-      <EvilEyes
-        radius={radius}
-        playerPosition={playerPosition}
-        bossPosition={bossPosition}
-        time={timeRef.current}
-      />
     </group>
   );
 }
