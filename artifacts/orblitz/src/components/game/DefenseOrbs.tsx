@@ -125,7 +125,6 @@ export function DefenseOrbs() {
   const updateDefenseOrbs = useMagicOrb((s) => s.updateDefenseOrbs);
   const phase = useMagicOrb((s) => s.phase);
   const addScore = useMagicOrb((s) => s.addScore);
-  const addOrbDestroyStars = useMagicOrb((s) => s.addOrbDestroyStars);
   const { playHit } = useAudio();
   const { addCoins } = useShop();
   
@@ -154,8 +153,7 @@ export function DefenseOrbs() {
           markOrbDestroying(darkOrb.id);
           destroyDefenseOrb(defOrb.id);
           addScore(10);
-          addOrbDestroyStars();
-          addCoins(1);
+          addCoins(5);
           playHit();
           break;
         }

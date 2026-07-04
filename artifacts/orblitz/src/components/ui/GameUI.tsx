@@ -8,7 +8,6 @@ export function GameUI() {
     health, 
     maxHealth, 
     score, 
-    stars,
     hasShield, 
     hasChargeBeam, 
     chargeBeamTimer, 
@@ -195,15 +194,6 @@ export function GameUI() {
             <span className="text-yellow-300 text-sm md:text-lg">&#9733;</span>
             <span className="text-yellow-200 font-bold text-sm md:text-lg">{shopStars}</span>
           </div>
-
-          <motion.div 
-            className="flex items-center gap-1.5 md:gap-2 bg-gradient-to-r from-purple-600/30 to-pink-500/30 px-2.5 md:px-4 py-1 md:py-2 rounded-lg md:rounded-xl border border-purple-400/40 backdrop-blur-sm shadow-lg"
-            animate={{ scale: stars > 0 ? [1, 1.05, 1] : 1 }}
-            transition={{ duration: 0.3 }}
-          >
-            <span className="text-purple-300 text-sm md:text-lg">&#10022;</span>
-            <span className="text-purple-200 font-bold text-sm md:text-lg">{stars}</span>
-          </motion.div>
 
           <div className="bg-black/40 backdrop-blur-sm px-2.5 md:px-4 py-1 md:py-2 rounded-lg md:rounded-xl border border-white/10">
             <p className="text-xs md:text-sm text-gray-300 font-medium">

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import type { MagiOrbType, DefenseType } from "./useShop";
+import { useShop } from "./useShop";
 
 export type GamePhase = "menu" | "loading" | "playing" | "paused" | "gameOver" | "levelComplete" | "modeSelect" | "arcadeComplete";
 export type LoadingType = "entering" | "exiting" | "exiting_to_menu" | "nextLevel" | null;
@@ -1601,14 +1602,11 @@ export const useMagicOrb = create<MagicOrbState>()(
     })),
     
     addOrbDestroyStars: () => {
-      const { gameMode, stars } = get();
-      const starsToAdd = gameMode === "chill" ? 2 : 5;
-      set({ stars: stars + starsToAdd });
+      useShop.getState().addCoins(5);
     },
-    
+
     addBossDefeatStars: () => {
-      const { stars } = get();
-      set({ stars: stars + 50 });
+      useShop.getState().addCoins(50);
     },
     
     updateGameTime: (delta) => {

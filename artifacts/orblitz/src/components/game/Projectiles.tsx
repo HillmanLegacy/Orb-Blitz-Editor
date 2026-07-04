@@ -213,7 +213,6 @@ export function Projectiles() {
     heal,
     activateDoubleCoins,
     activateRapidFire,
-    hasDoubleCoins,
     addScore, 
     addParticles,
     impactEffects,
@@ -224,7 +223,6 @@ export function Projectiles() {
     damageBoss,
     incrementOrbsDestroyed,
     gameMode,
-    addOrbDestroyStars,
     registerMissedShot,
     incrementGauntletOrbs,
   } = useMagicOrb();
@@ -254,7 +252,6 @@ export function Projectiles() {
       impactEffects,
       phase,
       boss,
-      hasDoubleCoins,
       gameMode,
       updateProjectiles,
       markOrbDestroying,
@@ -271,7 +268,6 @@ export function Projectiles() {
       addImpactEffect,
       damageBoss,
       incrementOrbsDestroyed,
-      addOrbDestroyStars,
       registerMissedShot,
       incrementGauntletOrbs,
     } = useMagicOrb.getState();
@@ -483,10 +479,8 @@ export function Projectiles() {
           hitOrbsThisFrame.current.add(orb.id);
           markOrbDestroying(orb.id);
           addScore(10);
-          addOrbDestroyStars();
           incrementGauntletOrbs();
-          const baseCoins = 1 + Math.floor(Math.random() * 3);
-          addCoins(hasDoubleCoins ? baseCoins * 2 : baseCoins);
+          addCoins(5);
           playHit();
           
           if (gameMode === "arcade") {

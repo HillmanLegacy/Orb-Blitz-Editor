@@ -539,9 +539,7 @@ export function DarkOrbs() {
       orbsRequiredForLevel,
       completeLevel,
       addScore,
-      addStars,
       gameMode,
-      hasDoubleCoins,
       phase,
       magiOrb4Active,
       magiOrb4Direction,
@@ -688,8 +686,7 @@ export function DarkOrbs() {
               seed: Math.random(),
             });
             addScore(10);
-            const coinAmount = hasDoubleCoins ? 2 : 1;
-            addStars(coinAmount);
+            useShop.getState().addCoins(5);
             
             if (gameMode === "arcade" && !orb.isBossOrb) {
               const newDestroyed = orbsDestroyedInLevel + 1;
@@ -777,8 +774,7 @@ export function DarkOrbs() {
           seed: Math.random(),
         });
         addScore(10);
-        const coinAmount = hasDoubleCoins ? 2 : 1;
-        addStars(coinAmount);
+        useShop.getState().addCoins(5);
         
         if (gameMode === "arcade" && !orb.isBossOrb) {
           const newDestroyed = orbsDestroyedInLevel + 1;
