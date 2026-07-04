@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAudio } from "@/lib/stores/useAudio";
 import { useShop } from "@/lib/stores/useShop";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
+import { useOrbTransition } from "@/lib/stores/useOrbTransition";
 
 // ─── Custom SVG Icons ─────────────────────────────────────────────────────────
 const _svg = { viewBox: "0 0 24 24", fill: "none", width: "1em", height: "1em", style: { display: "block" } } as const;
@@ -155,7 +156,11 @@ export function StartupAnimation({
   const btn = useCallback((id: string) => { try { playMenuSelect(); } catch {} }, [playMenuSelect]);
 
   const handleStartMode = useCallback((mode: string) => {
-    btn(mode); setGameMode(mode as any); startLoading("entering");
+    btn(mode);
+    useOrbTransition.getState().loadingSweep(() => {
+      setGameMode(mode as any);
+      startLoading("entering");
+    });
   }, [btn, setGameMode, startLoading]);
 
   const isLevelUnlocked = (level: number) => devMode || level <= highestLevel + 0.01;
@@ -252,7 +257,7 @@ export function StartupAnimation({
               const bc = boss ? "#ff4444" : wc;
               return (
                 <motion.button key={sub}
-                  onClick={() => { if (unlocked) { btn(`l${level}`); setGameMode("arcade"); startLoading("nextLevel", level); } }}
+                  onClick={() => { if (unlocked) { btn(`l${level}`); useOrbTransition.getState().loadingSweep(() => { setGameMode("arcade"); startLoading("nextLevel", level); }); } }}
                   disabled={!unlocked}
                   className="relative flex flex-col items-center justify-center rounded-xl font-bold"
                   style={{

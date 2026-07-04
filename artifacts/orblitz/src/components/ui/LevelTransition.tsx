@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
 import { useAudio } from "@/lib/stores/useAudio";
+import { useOrbTransition } from "@/lib/stores/useOrbTransition";
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 const _svg = { viewBox: "0 0 24 24", fill: "none", width: "1em", height: "1em", style: { display: "block" } } as const;
@@ -158,18 +159,25 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
     const newLevel = currentSub >= 9
       ? currentLevel + 1 + 0.1
       : currentLevel + (currentSub + 1) / 10;
-    startLoading("nextLevel", newLevel);
+    useOrbTransition.getState().loadingSweep(() => {
+      startLoading("nextLevel", newLevel);
+    });
   };
 
   const handleLevelSelect = () => {
     sfx();
-    if (onLevelSelect) { onLevelSelect(); setTimeout(() => setPhase("menu"), 0); }
+    useOrbTransition.getState().fastSweep(() => {
+      if (onLevelSelect) onLevelSelect();
+      setPhase("menu");
+    });
   };
 
   const handleMainMenu = () => {
     sfx();
-    if (onMainMenu) onMainMenu();
-    useMagicOrb.getState().startLoading("exiting");
+    useOrbTransition.getState().loadingSweep(() => {
+      if (onMainMenu) onMainMenu();
+      useMagicOrb.getState().startLoading("exiting");
+    });
   };
 
   const buttons: BtnDef[] = [

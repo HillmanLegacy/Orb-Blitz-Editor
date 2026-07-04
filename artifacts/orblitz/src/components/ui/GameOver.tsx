@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useAudio } from "@/lib/stores/useAudio";
+import { useOrbTransition } from "@/lib/stores/useOrbTransition";
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 const _svg = { viewBox: "0 0 24 24", fill: "none", width: "1em", height: "1em", style: { display: "block" } } as const;
@@ -226,17 +227,24 @@ export function GameOver({ onLevelSelect, onMainMenu }: GameOverProps) {
 
   const handlePlayAgain = () => {
     sfx();
-    if (gameMode === "arcade") startLoading("nextLevel", arcadeLevel);
-    else startLoading("entering");
+    useOrbTransition.getState().loadingSweep(() => {
+      if (gameMode === "arcade") startLoading("nextLevel", arcadeLevel);
+      else startLoading("entering");
+    });
   };
   const handleMainMenu = () => {
     sfx();
-    if (onMainMenu) onMainMenu();
-    useMagicOrb.getState().startLoading("exiting");
+    useOrbTransition.getState().loadingSweep(() => {
+      if (onMainMenu) onMainMenu();
+      useMagicOrb.getState().startLoading("exiting");
+    });
   };
   const handleLevelSelect = () => {
     sfx();
-    if (onLevelSelect) { setPhase("menu"); onLevelSelect(); }
+    useOrbTransition.getState().fastSweep(() => {
+      setPhase("menu");
+      if (onLevelSelect) onLevelSelect();
+    });
   };
 
   const buttons: BtnDef[] = [

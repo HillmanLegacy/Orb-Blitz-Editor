@@ -262,7 +262,9 @@ export function GameUI() {
             <motion.button
               onClick={() => {
                 playPause();
-                useOrbTransition.getState().fastSweep(pauseGame);
+                // Freeze game at this exact frame, then sweep in over it
+                pauseGame();
+                useOrbTransition.getState().pauseSweep();
               }}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}

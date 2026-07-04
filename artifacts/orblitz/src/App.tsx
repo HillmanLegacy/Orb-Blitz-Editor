@@ -22,11 +22,12 @@ function App() {
   const { phase } = useMagicOrb();
   const { addCoins, shopOpen, inventoryOpen } = useShop();
   const { brightness } = useAudio();
+  // Transition state — drives render gates for pause menu and menu screen
+  const { isActive, isMidpointPassed, pauseMenuVisible } = useOrbTransition();
+
   const [showStartupLoading, setShowStartupLoading] = useState(true);
   const [skipIntro, setSkipIntro] = useState(false);
   const [initialMenuState, setInitialMenuState] = useState<MenuState>("root");
-
-  // Prevent music from being triggered twice per loading phase
   const musicFiredRef = useRef(false);
 
   const handleStartupLoadingComplete = useCallback(() => setShowStartupLoading(false), []);
@@ -45,50 +46,47 @@ function App() {
     }
   }, [addCoins]);
 
-  // ── Loading phase: orb sweep + music transition + finishLoading ───────────
-  // Replaces LoadingScreen entirely – the orb sweep is the visual transition.
+  // ── Loading phase: music transition + finishLoading ───────────────────────
+  // The orb sweep (loadingSweep) is triggered from each call site at tap time.
+  // startLoading() fires at the sweep midpoint (550 ms), so finishLoading needs
+  // only 1 800 ms from here (total from tap ≈ 2 350 ms, within the opaque
+  // backdrop window that ends at 2 604 ms).
   useEffect(() => {
     if (phase !== "loading") {
       musicFiredRef.current = false;
       return;
     }
 
-    // Kick off the orb sweep overlay (visual)
-    useOrbTransition.getState().loadingSweep();
+    if (!musicFiredRef.current) {
+      musicFiredRef.current = true;
+      const { loadingType } = useMagicOrb.getState();
+      const { stopMusic, startGameMusic, startMenuMusic } = useAudio.getState();
+      const goingIntoGame = loadingType === "entering" || loadingType === "nextLevel";
+      stopMusic();
+      const musicTimer = window.setTimeout(() => {
+        if (useMagicOrb.getState().phase !== "loading") return;
+        try { if (goingIntoGame) startGameMusic(); else startMenuMusic(); } catch {}
+      }, 1200);
+      // musicTimer fires before finishLoading (1 200 ms < 1 800 ms) — no need to cancel
+      void musicTimer;
+    }
 
-    // Music – stop current track, start the appropriate one after 1 200 ms.
-    // Capture loadingType now (snapshot) so the callback uses the right value.
-    const { loadingType } = useMagicOrb.getState();
-    const { stopMusic, startGameMusic, startMenuMusic } = useAudio.getState();
-    const goingIntoGame = loadingType === "entering" || loadingType === "nextLevel";
-    stopMusic();
-    const musicTimer = window.setTimeout(() => {
-      // Guard: only start music if we're still in this loading phase
-      if (useMagicOrb.getState().phase !== "loading") return;
-      try { if (goingIntoGame) startGameMusic(); else startMenuMusic(); } catch {}
-    }, 1200);
-
-    // finishLoading after 2 500 ms – same window as the old LoadingScreen.
-    // The orb sweep backdrop stays fully opaque until 2 604 ms so the scene
-    // change is invisible; orbs then sweep out revealing the new scene.
     const finishTimer = window.setTimeout(() => {
       useMagicOrb.getState().finishLoading();
-    }, 2500);
+    }, 1800);
 
-    return () => {
-      window.clearTimeout(musicTimer);
-      window.clearTimeout(finishTimer);
-    };
+    return () => window.clearTimeout(finishTimer);
   }, [phase]);
 
-  // From GameOver/LevelTransition: jump straight to the level select world grid
   const handleShowLevelSelect = useCallback(() => setInitialMenuState("worlds"), []);
+  const handleShowMainMenu    = useCallback(() => setInitialMenuState("root"),   []);
 
-  // From GameOver/LevelTransition: return to root menu
-  const handleShowMainMenu = useCallback(() => setInitialMenuState("root"), []);
-
-  // Show the startup/menu screen when in menu phase and shop/inventory not open
-  const showMenuScreen = phase === "menu" && !shopOpen && !inventoryOpen;
+  // Menu screen stays visible during loading sweep-in so the old frame is present
+  // behind the orbs until the screen is fully hidden (midpoint at 550 ms).
+  const showMenuScreen =
+    ((phase === "menu") ||
+     (phase === "loading" && isActive && !isMidpointPassed)) &&
+    !shopOpen && !inventoryOpen;
 
   return (
     <div style={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden" }}>
@@ -111,7 +109,12 @@ function App() {
       </AnimatePresence>
 
       {(phase === "playing" || phase === "paused") && <GameUI />}
-      {phase === "paused" && <PauseMenu />}
+
+      {/* PauseMenu is gated by pauseMenuVisible: during a pauseSweep() it is hidden
+          so the frozen game frame is visible during sweep-in, then shown at midpoint
+          (still covered by the backdrop) ready to be revealed as orbs exit. */}
+      {phase === "paused" && pauseMenuVisible && <PauseMenu />}
+
       {phase === "gameOver" && (
         <GameOver onLevelSelect={handleShowLevelSelect} onMainMenu={handleShowMainMenu} />
       )}
