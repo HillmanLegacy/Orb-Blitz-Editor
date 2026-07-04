@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { useOrbTransition } from "@/lib/stores/useOrbTransition";
 
@@ -18,97 +18,112 @@ const SWEEP_COLORS = [
 ];
 
 // ─── Deterministic seeded pseudo-random (no Math.random in render) ────────────
-function seededRand(seed: number): number {
+function sr(seed: number): number {
   const x = Math.sin(seed + 1) * 43758.5453123;
   return x - Math.floor(x);
 }
 
-// ─── Build orb data for each mode ────────────────────────────────────────────
-//  fast:    56 orbs, stagger 0–300 ms  → full screen covered ≈ 350–700 ms
-//  loading: 72 orbs, stagger 0–1700 ms → covers the full 2 500 ms loading window
-
+// ─── Orb data ─────────────────────────────────────────────────────────────────
 interface OrbDef {
   id:       number;
-  size:     number;   // px diameter
-  yTop:     number;   // top edge, px (may be negative for bleed)
-  delay:    number;   // animation-delay, ms
-  duration: number;   // transit duration, ms
+  size:     number;
+  yTop:     number;
+  delay:    number;
+  duration: number;
   color:    string;
-  blur:     number;   // px
-  xStart:   number;   // initial translateX (off-left)
-  xEnd:     number;   // final  translateX (off-right)
+  blur:     number;
+  xStart:   number;
+  xEnd:     number;
 }
 
-function buildOrbs(
-  mode: "fast" | "loading",
-  screenW: number,
-  screenH: number,
-): OrbDef[] {
-  const ROWS = 8;
-  const COUNT = mode === "fast" ? 56 : 72;
-  const MAX_STAGGER = mode === "fast" ? 300 : 1700;
-  const DUR_BASE    = mode === "fast" ? 780 : 980;
-  const DUR_RANGE   = mode === "fast" ? 180 : 240;
+// fast:    64 orbs, stagger 0–320 ms
+// loading: 80 orbs, stagger 0–1720 ms
+function buildOrbs(mode: "fast" | "loading", W: number, H: number): OrbDef[] {
+  const ROWS        = 8;
+  const COUNT       = mode === "fast" ? 64 : 80;
+  const MAX_STAGGER = mode === "fast" ? 320  : 1720;
+  const DUR_BASE    = mode === "fast" ? 800  : 1000;
+  const DUR_RANGE   = mode === "fast" ? 160  : 220;
 
   return Array.from({ length: COUNT }, (_, i) => {
-    const r = (s: number) => seededRand(i * 17 + s * 3);
+    const r = (s: number) => sr(i * 19 + s * 7);
 
-    // Row assignment – evenly distribute for coverage, then add jitter
-    const row  = i % ROWS;
-    const rowT = row / (ROWS - 1); // 0..1
-    const size = 120 + r(1) * 160; // 120–280 px
+    const row   = i % ROWS;
+    const rowT  = row / (ROWS - 1);
+    const size  = 140 + r(1) * 160;                             // 140–300 px
 
-    const baseY = rowT * (screenH + 240) - 120 - size / 2;
-    const yTop  = baseY + (r(2) - 0.5) * 80; // ±40 px jitter
+    const baseY = rowT * (H + 280) - 140 - size / 2;
+    const yTop  = baseY + (r(2) - 0.5) * 70;
 
-    // Stagger: evenly space within the window + small random jitter
-    const evenDelay  = (i / COUNT) * MAX_STAGGER;
-    const delay      = Math.max(0, evenDelay + (r(3) - 0.5) * 60);
+    const evenDelay = (i / COUNT) * MAX_STAGGER;
+    const delay     = Math.max(0, evenDelay + (r(3) - 0.5) * 50);
+    const duration  = DUR_BASE + r(4) * DUR_RANGE;
+    const blur      = 14 + r(5) * 28;                           // 14–42 px
+    const color     = SWEEP_COLORS[Math.round(r(6) * (SWEEP_COLORS.length - 1))];
 
-    const duration = DUR_BASE + r(4) * DUR_RANGE;
-    const blur     = 18 + r(5) * 32; // 18–50 px
-    const color    = SWEEP_COLORS[Math.round(r(6) * (SWEEP_COLORS.length - 1))];
-
-    // Orb positioned at left:0; margins account for blur (≤50 px) + glow halo (≤size×1.8)
-    // overflow:hidden on the container clips any residual bleed, but travel range is generous
-    const margin = Math.ceil(size * 2 + 60);
+    // Travel well past viewport edges; blur/glow clipped by container overflow:hidden
+    const margin = Math.ceil(size * 2.2 + 80);
     const xStart = -(size + margin);
-    const xEnd   =   screenW + margin;
+    const xEnd   =   W + margin;
 
-    return { id: i, size, yTop, delay: delay, duration, color, blur, xStart, xEnd };
+    return { id: i, size, yTop, delay, duration, color, blur, xStart, xEnd };
   });
 }
 
-// ─── Single animated orb ─────────────────────────────────────────────────────
+// ─── Per-orb ──────────────────────────────────────────────────────────────────
 function SweepOrb({ orb }: { orb: OrbDef }) {
-  const glow = orb.size * 0.55;
+  const glow = orb.size * 0.5;
   return (
     <motion.div
       initial={{ x: orb.xStart }}
       animate={{ x: orb.xEnd }}
-      transition={{
-        duration:  orb.duration / 1000,
-        delay:     orb.delay    / 1000,
-        ease:      "easeInOut",
+      transition={{ duration: orb.duration / 1000, delay: orb.delay / 1000, ease: "easeInOut" }}
+      style={{
+        position:     "absolute",
+        top:          orb.yTop,
+        left:         0,
+        width:        orb.size,
+        height:       orb.size,
+        borderRadius: "50%",
+        // Larger solid core so overlapping orbs form an opaque mass
+        background: `radial-gradient(circle at 38% 32%,
+          ${orb.color}ff  0%,
+          ${orb.color}ff 22%,
+          ${orb.color}dd 42%,
+          ${orb.color}99 60%,
+          ${orb.color}44 76%,
+          transparent    90%)`,
+        filter:        `blur(${orb.blur}px)`,
+        boxShadow:     `0 0 ${glow}px ${orb.color}99, 0 0 ${glow * 1.6}px ${orb.color}55`,
+        willChange:    "transform",
       }}
+    />
+  );
+}
+
+// ─── Solid backdrop – the guarantee of 100 % opacity behind the orb wave ──────
+// Fades in quickly as the first orbs enter, holds opaque while screens swap,
+// then fades out as the last orbs exit.
+function Backdrop({ mode }: { mode: "fast" | "loading" }) {
+  // Keyframe opacity schedule as fractions of total animation duration
+  // fast (1.42 s):    fade-in 0→280 ms, hold until 870 ms, fade-out by 1180 ms
+  // loading (3.10 s): fade-in 0→480 ms, hold until 2350 ms, fade-out by 2980 ms
+  const [times, totalSec] =
+    mode === "fast"
+      ? ([[0, 0.20, 0.61, 0.83, 1.0] as number[], 1.42])
+      : ([[0, 0.15, 0.76, 0.96, 1.0] as number[], 3.10]);
+
+  return (
+    <motion.div
       style={{
         position:      "absolute",
-        top:           orb.yTop,
-        left:          0,
-        width:         orb.size,
-        height:        orb.size,
-        borderRadius:  "50%",
+        inset:          0,
+        background:    "black",
         pointerEvents: "none",
-        background: `radial-gradient(circle at 38% 32%,
-          ${orb.color}ff 0%,
-          ${orb.color}cc 28%,
-          ${orb.color}66 55%,
-          ${orb.color}22 75%,
-          transparent  88%)`,
-        filter:    `blur(${orb.blur}px)`,
-        boxShadow: `0 0 ${glow}px ${orb.color}88, 0 0 ${glow * 1.8}px ${orb.color}44`,
-        willChange: "transform",
       }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: [0, 1, 1, 0, 0] }}
+      transition={{ duration: totalSec, times, ease: "easeInOut" }}
     />
   );
 }
@@ -117,23 +132,13 @@ function SweepOrb({ orb }: { orb: OrbDef }) {
 export function OrbSweepOverlay() {
   const { isActive, sweepKey, mode } = useOrbTransition();
 
-  // Compute orb layout once per sweep (sweepKey changes each time)
   const orbs = useMemo(() => {
     if (!isActive) return [];
-    const w = typeof window !== "undefined" ? window.innerWidth  : 390;
-    const h = typeof window !== "undefined" ? window.innerHeight : 844;
-    return buildOrbs(mode, w, h);
+    const W = typeof window !== "undefined" ? window.innerWidth  : 390;
+    const H = typeof window !== "undefined" ? window.innerHeight : 844;
+    return buildOrbs(mode, W, H);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sweepKey, isActive]); // re-build on every new sweep
-
-  // Prevent scroll/interaction while sweeping
-  useEffect(() => {
-    if (!isActive) return;
-    const prev = document.body.style.pointerEvents;
-    // overlay itself is pointer-events: none, so we only need to block
-    // nothing extra here – the overlay sits above everything at z-9999
-    return () => { document.body.style.pointerEvents = prev; };
-  }, [isActive]);
+  }, [sweepKey, isActive]);
 
   if (!isActive) return null;
 
@@ -148,9 +153,11 @@ export function OrbSweepOverlay() {
         overflow:      "hidden",
       }}
     >
-      {orbs.map((orb) => (
-        <SweepOrb key={orb.id} orb={orb} />
-      ))}
+      {/* Solid black fill – guarantees zero bleed-through when screen swaps */}
+      <Backdrop mode={mode} />
+
+      {/* Colourful orb wave on top of the backdrop */}
+      {orbs.map((orb) => <SweepOrb key={orb.id} orb={orb} />)}
     </div>
   );
 }
