@@ -6,6 +6,7 @@ import { useShop } from "@/lib/stores/useShop";
 import { DarkOrbModel } from "./DarkOrbModel";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 import { MiniFireOrb } from "./MiniFireOrb";
+import { addExplosionImpulse } from "./Background";
 
 const DISTORT_FIELD_RADIUS  = 5;
 const HURT_FLASH_DURATION   = 0.15;
@@ -581,6 +582,10 @@ export function DarkOrbs() {
       if (orb.destroying) {
         const newTimer = (orb.destroyTimer || 0) - delta;
         if (newTimer <= 0) {
+          // Trigger background particle blast at the orb's death position
+          if (orb.position) {
+            addExplosionImpulse(orb.position[0], orb.position[1], 10);
+          }
           continue;
         }
         updatedOrbs.push({ ...orb, destroyTimer: newTimer });
