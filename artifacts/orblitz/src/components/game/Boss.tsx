@@ -69,6 +69,14 @@ export function Boss() {
   const localAttackTimerRef  = useRef<number | null>(null);
   // Frame counter used to throttle how often we push state to Zustand.
   const frameCountRef        = useRef(0);
+
+  // ── FireBoss (circle) strike-and-retreat state machine ──────────────────────
+  const fireMovePhaseRef = useRef<'entering' | 'firing' | 'waiting' | 'exiting'>('entering');
+  const fireTargetRef    = useRef<[number, number]>([0, 0]);
+  const fireOffscreenRef = useRef<[number, number]>([18, 0]);
+  const fireWaitTimerRef = useRef(3.0);
+  const firePatternRef   = useRef(0);
+  const fireInitRef      = useRef(false);
   
   
   const keepDistanceFromPlayer = (
@@ -154,6 +162,8 @@ export function Boss() {
         localAngleRef.current       = null;
         localAttackTimerRef.current = null;
         frameCountRef.current       = 0;
+        fireMovePhaseRef.current    = 'entering';
+        fireInitRef.current         = false;
         useMagicOrb.setState({ boss: null });
         if (gameMode === "survival") {
           useMagicOrb.setState({ survivalBossTimer: 0, survivalBossPending: false });
@@ -438,84 +448,221 @@ export function Boss() {
         break;
       }
       case "orbit_player": {
-        // ── FireBoss easy-mode fluid orbit ──────────────────────────────
-        // Slow, readable orbit that the player can learn to dodge.
-        // Projectile avoidance is a gentle angle nudge, not a snap.
-        const healthFrac = boss.maxHealth > 0 ? boss.health / boss.maxHealth : 1;
+        // ── FireBoss "strike-and-retreat" state machine ──────────────────────
+        // Phases: entering → firing → waiting(3 s) → exiting → (repeat)
+        // 6 attack patterns fire 1–3 mini fire orbs at the player.
+        // No player-distance enforcement — boss transits freely off/on screen.
 
-        // Speed ramps very gently with damage — stays easy the whole fight
-        const orbitSpeed = 0.55 + (1 - healthFrac) * 0.20; // 0.55–0.75 rad/s
+        const PW  = 12;   // play area half-width
+        const PH  = 8;    // play area half-height
+        const OFF = 18;   // off-screen margin (safe beyond camera frustum)
 
-        // Advance orbit angle smoothly every frame
-        fireOrbitAngleRef.current += delta * orbitSpeed;
+        // ── Helpers ─────────────────────────────────────────────────────────
 
-        // Gentle avoidance: when a projectile is close, nudge the angle
-        // sideways by a small amount rather than snapping hard.
-        // This keeps motion continuous and readable.
-        if (threatened && dodgeTimerRef.current >= 0.28) {
-          const bias = dodgeDirRef.current[0] >= 0 ? 1 : -1;
-          fireOrbitAngleRef.current += bias * Math.PI * 0.18;
+        // Choose a new random entry side, off-screen pos, on-screen target, and pattern.
+        const pickNewCycle = () => {
+          const side = Math.floor(Math.random() * 4); // 0=L 1=R 2=T 3=B
+          if (side === 0) {
+            fireOffscreenRef.current = [-OFF, (Math.random() - 0.5) * PH * 1.4];
+          } else if (side === 1) {
+            fireOffscreenRef.current = [ OFF, (Math.random() - 0.5) * PH * 1.4];
+          } else if (side === 2) {
+            fireOffscreenRef.current = [(Math.random() - 0.5) * PW * 1.6,  OFF];
+          } else {
+            fireOffscreenRef.current = [(Math.random() - 0.5) * PW * 1.6, -OFF];
+          }
+          // Random on-screen landing position (clamped safely inside play area)
+          fireTargetRef.current = [
+            (Math.random() - 0.5) * PW * 1.2,
+            (Math.random() - 0.5) * PH * 0.9,
+          ];
+          firePatternRef.current = Math.floor(Math.random() * 6);
+        };
+
+        // Spawn one boss fire orb in a given direction with a speed multiplier.
+        const spawnFireOrb = (angle: number, speedMult: number) => {
+          const { arcadeLevel, boss: liveBoss, addDarkOrb } = useMagicOrb.getState();
+          const wl         = Math.max(1, Math.floor(arcadeLevel));
+          const speedScale = 1 + (wl - 1) * 0.15;
+          const sizeScale  = 0.5 + (wl - 1) * 0.03;
+          addDarkOrb({
+            id:           `boss-fire-${Date.now()}-${Math.random()}`,
+            position:     [bossPosRef.current[0], bossPosRef.current[1], 0.5],
+            direction:    [Math.cos(angle), Math.sin(angle), 0],
+            speed:        2.5 * speedScale * speedMult,
+            size:         sizeScale,
+            seed:         Math.random(),
+            shape:        'circle',
+            pattern:      'direct',
+            patternPhase: Math.random() * Math.PI * 2,
+            isBossOrb:    true,
+            bossType:     liveBoss?.bossType ?? 'circle',
+          });
+        };
+
+        // ── First-frame init: snap to off-screen, begin entering ─────────────
+        if (!fireInitRef.current) {
+          pickNewCycle();
+          bossPosRef.current       = [fireOffscreenRef.current[0], fireOffscreenRef.current[1], 0];
+          fireMovePhaseRef.current = 'entering';
+          fireInitRef.current      = true;
         }
 
-        // Radius breathes slowly — feels organic, not mechanical
-        const orbitRadius = 7.5 + Math.sin(time * 0.25) * 1.8;
-        targetX = playerX + Math.cos(fireOrbitAngleRef.current) * orbitRadius;
-        targetY = playerY + Math.sin(fireOrbitAngleRef.current) * orbitRadius;
+        const curX = bossPosRef.current[0];
+        const curY = bossPosRef.current[1];
+        let bx = curX;
+        let by = curY;
 
-        // Clamp to play area
-        targetX = Math.max(-playAreaWidth, Math.min(playAreaWidth, targetX));
-        targetY = Math.max(-playAreaHeight + 2, Math.min(playAreaHeight, targetY));
+        const ENTER_SPEED = 5.0;
+        const EXIT_SPEED  = 6.5;
 
-        // Smooth, constant chase speed — no snappy acceleration on threat
-        lerpSpeed = 3.5;
+        // ── Phase state machine ──────────────────────────────────────────────
+        switch (fireMovePhaseRef.current) {
+
+          case 'entering': {
+            const tx = fireTargetRef.current[0];
+            const ty = fireTargetRef.current[1];
+            const dx = tx - curX;
+            const dy = ty - curY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 0.3) {
+              bx = tx; by = ty;
+              fireMovePhaseRef.current = 'firing';
+            } else {
+              const f = Math.min(1, delta * ENTER_SPEED);
+              bx = curX + dx * f;
+              by = curY + dy * f;
+            }
+            break;
+          }
+
+          case 'firing': {
+            // Aim toward the player's current position
+            const baseAngle = Math.atan2(playerY - curY, playerX - curX);
+            // ── 6 attack patterns ──────────────────────────────────────────
+            switch (firePatternRef.current) {
+              case 0: // 1 orb — straight at player, normal speed
+                spawnFireOrb(baseAngle, 1.0);
+                break;
+              case 1: // 2 orbs — ±25° spread, slightly slower
+                spawnFireOrb(baseAngle - 0.44, 0.9);
+                spawnFireOrb(baseAngle + 0.44, 0.9);
+                break;
+              case 2: // 3 orbs — 60° fan, center orb faster
+                spawnFireOrb(baseAngle - 0.52, 0.8);
+                spawnFireOrb(baseAngle,         1.15);
+                spawnFireOrb(baseAngle + 0.52, 0.8);
+                break;
+              case 3: // 2 orbs — both near player direction, one fast one slow
+                spawnFireOrb(baseAngle + (Math.random() - 0.5) * 0.35, 1.55);
+                spawnFireOrb(baseAngle + (Math.random() - 0.5) * 0.35, 0.55);
+                break;
+              case 4: // 3 orbs — 1 direct + 2 wide flanking at ±75°
+                spawnFireOrb(baseAngle,                   1.2);
+                spawnFireOrb(baseAngle + Math.PI * 0.42, 0.8);
+                spawnFireOrb(baseAngle - Math.PI * 0.42, 0.8);
+                break;
+              case 5: // 1 orb — random angle near player, random speed
+                spawnFireOrb(
+                  baseAngle + (Math.random() - 0.5) * 0.6,
+                  0.7 + Math.random() * 0.85,
+                );
+                break;
+            }
+            fireWaitTimerRef.current = 3.0;
+            fireMovePhaseRef.current = 'waiting';
+            break;
+          }
+
+          case 'waiting': {
+            // Hold position — timer counts down then boss retreats
+            bx = curX; by = curY;
+            fireWaitTimerRef.current -= delta;
+            if (fireWaitTimerRef.current <= 0) {
+              fireMovePhaseRef.current = 'exiting';
+            }
+            break;
+          }
+
+          case 'exiting': {
+            const ex = fireOffscreenRef.current[0];
+            const ey = fireOffscreenRef.current[1];
+            const dx = ex - curX;
+            const dy = ey - curY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 0.6) {
+              // Fully off-screen — pick a fresh cycle and begin entering again
+              pickNewCycle();
+              bx = fireOffscreenRef.current[0];
+              by = fireOffscreenRef.current[1];
+              bossPosRef.current       = [bx, by, 0];
+              fireMovePhaseRef.current = 'entering';
+            } else {
+              const f = Math.min(1, delta * EXIT_SPEED);
+              bx = curX + dx * f;
+              by = curY + dy * f;
+            }
+            break;
+          }
+        }
+
+        // Commit position imperatively — bypasses generic lerp/keepDistance below.
+        bossPosRef.current = [bx, by, 0];
+        meshRef.current.position.set(bx, by, 0);
+
+        // Throttled Zustand write (position only — fire boss has no shield/bounce).
+        frameCountRef.current++;
+        if (frameCountRef.current % 2 === 0) {
+          useMagicOrb.getState().updateBoss({
+            ...boss,
+            position: [bx, by, 0],
+          });
+        }
         break;
       }
     }
-    
-    // bossPosRef is updated every frame so it's never stale, even on frames
-    // where we skip the Zustand write.  Math.min(1, …) prevents overshooting
-    // on large-delta frames (slow mobile, background tabs).
-    const lerpFactor = Math.min(1, delta * lerpSpeed);
-    let finalX = bossPosRef.current[0] + (targetX - bossPosRef.current[0]) * lerpFactor;
-    let finalY = bossPosRef.current[1] + (targetY - bossPosRef.current[1]) * lerpFactor;
-    
-    const safePos = keepDistanceFromPlayer([finalX, finalY, 0], [playerX, playerY, 0], MIN_PLAYER_DISTANCE, delta);
-    finalX = safePos[0];
-    finalY = safePos[1];
 
-    // bossPosRef tracks the true visual position every frame — it's the authoritative
-    // source for next frame's lerp start, independent of Zustand sync frequency.
-    bossPosRef.current = [finalX, finalY, 0];
+    // ── Generic post-switch logic (all non-FireBoss bosses) ─────────────────
+    // The circle / FireBoss drives position imperatively inside orbit_player and
+    // has already written to meshRef and Zustand — skip everything below for it.
+    if (bossType !== "circle") {
+      // bossPosRef is updated every frame so it's never stale, even on frames
+      // where we skip the Zustand write.  Math.min(1, …) prevents overshooting
+      // on large-delta frames (slow mobile, background tabs).
+      const lerpFactor = Math.min(1, delta * lerpSpeed);
+      let finalX = bossPosRef.current[0] + (targetX - bossPosRef.current[0]) * lerpFactor;
+      let finalY = bossPosRef.current[1] + (targetY - bossPosRef.current[1]) * lerpFactor;
 
-    // Initialise localAttackTimerRef from Zustand once per boss spawn, then
-    // count down locally so the attack cadence is accurate on throttled frames.
-    if (localAttackTimerRef.current === null) localAttackTimerRef.current = boss.attackTimer;
-    const attackResult = fireProjectiles([finalX, finalY, 0], localAttackTimerRef.current, attackBurstRef.current);
-    localAttackTimerRef.current = attackResult.timer;
-    attackBurstRef.current = attackResult.burst;
-    // Accumulate locally every frame so Zustand's boss.angle (written only on
-    // even frames) never causes an under-accumulation of the orbit angle.
-    const newAngle = localAngle + delta * 0.5;
-    localAngleRef.current = newAngle;
+      const safePos = keepDistanceFromPlayer([finalX, finalY, 0], [playerX, playerY, 0], MIN_PLAYER_DISTANCE, delta);
+      finalX = safePos[0];
+      finalY = safePos[1];
 
-    // Throttle Zustand writes to every 2 frames — halves re-render pressure on
-    // all 138 store subscribers with no perceptible gameplay or visual impact
-    // (the mesh is driven imperatively every frame via meshRef below).
-    frameCountRef.current++;
-    if (frameCountRef.current % 2 === 0) {
-      useMagicOrb.getState().updateBoss({
-        ...boss,
-        position: [finalX, finalY, 0],
-        angle: newAngle,
-        attackTimer: attackResult.timer,
-        shieldActive,
-        shieldTimer,
-        shieldCooldown,
-        bounceVelocity: newBounceVelocity,
-      });
+      bossPosRef.current = [finalX, finalY, 0];
+
+      if (localAttackTimerRef.current === null) localAttackTimerRef.current = boss.attackTimer;
+      const attackResult = fireProjectiles([finalX, finalY, 0], localAttackTimerRef.current, attackBurstRef.current);
+      localAttackTimerRef.current = attackResult.timer;
+      attackBurstRef.current = attackResult.burst;
+
+      const newAngle = localAngle + delta * 0.5;
+      localAngleRef.current = newAngle;
+
+      frameCountRef.current++;
+      if (frameCountRef.current % 2 === 0) {
+        useMagicOrb.getState().updateBoss({
+          ...boss,
+          position: [finalX, finalY, 0],
+          angle: newAngle,
+          attackTimer: attackResult.timer,
+          shieldActive,
+          shieldTimer,
+          shieldCooldown,
+          bounceVelocity: newBounceVelocity,
+        });
+      }
+
+      meshRef.current.position.set(finalX, finalY, 0);
     }
-
-    meshRef.current.position.set(finalX, finalY, 0);
   });
   
   if (!boss) return null;
