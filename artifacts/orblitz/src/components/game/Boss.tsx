@@ -43,6 +43,98 @@ const getAttackDelay = (projectileCount: number): number => {
   return 0;
 };
 
+// ── Fiery eyes overlay for the FireBoss ──────────────────────────────────────
+// Rendered as a sibling to <FireBoss> so it never rotates with the body.
+// All eye materials use depthTest={false} so they always paint over the sphere.
+function FireBossEyes({ radius, healthPercent }: { radius: number; healthPercent: number }) {
+  const eyeSpacingX = 0.42 * radius;
+  const eyeY        = 0.22 * radius;
+  // Place the eye group slightly beyond the sphere front face (radius + margin).
+  // depthTest:false ensures the sclera/iris/pupil always paint on top regardless.
+  const eyeZ        = radius + 0.12;
+
+  const scleraR = 0.28 * radius;
+  const irisR   = 0.19 * radius;
+  const pupilR  = 0.10 * radius;
+  const glowR   = 0.44 * radius;
+  const maxLook = 0.12 * radius;
+
+  const lPupilRef = useRef<THREE.Mesh>(null);
+  const rPupilRef = useRef<THREE.Mesh>(null);
+  const lGlowRef  = useRef<THREE.Mesh>(null);
+  const rGlowRef  = useRef<THREE.Mesh>(null);
+
+  useFrame(({ clock }) => {
+    const t     = clock.getElapsedTime();
+    const state = useMagicOrb.getState();
+    const boss  = state.boss;
+    if (!boss) return;
+
+    // Direction from boss world position to player world position
+    const dx   = state.playerPosition[0] - boss.position[0];
+    const dy   = state.playerPosition[1] - boss.position[1];
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const nx   = dist > 0.01 ? dx / dist : 0;
+    const ny   = dist > 0.01 ? dy / dist : 0;
+
+    const lookX = nx * maxLook;
+    const lookY = ny * maxLook * 0.65;
+
+    lPupilRef.current?.position.set(lookX, lookY, 0.02);
+    rPupilRef.current?.position.set(lookX, lookY, 0.02);
+
+    // Glow pulses faster and brighter in anger phase
+    const pulseFreq = healthPercent < 0.3 ? 9.0 : 2.8;
+    const glowBase  = healthPercent < 0.3 ? 0.55 : 0.28;
+    const glowAmt   = glowBase + Math.sin(t * pulseFreq) * 0.16;
+    const lMat = lGlowRef.current?.material as THREE.MeshBasicMaterial | undefined;
+    const rMat = rGlowRef.current?.material as THREE.MeshBasicMaterial | undefined;
+    if (lMat) lMat.opacity = glowAmt;
+    if (rMat) rMat.opacity = glowAmt;
+  });
+
+  const eye = (
+    side: -1 | 1,
+    pupilRef: React.RefObject<THREE.Mesh>,
+    glowRef:  React.RefObject<THREE.Mesh>,
+  ) => (
+    <group key={side} position={[side * eyeSpacingX, eyeY, eyeZ]}>
+      {/* Outer flame glow halo — additive, opacity driven by useFrame */}
+      <mesh ref={glowRef} renderOrder={101}>
+        <circleGeometry args={[glowR, 16]} />
+        <meshBasicMaterial
+          color="#ff5500"
+          transparent opacity={0.28}
+          depthTest={false} depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </mesh>
+      {/* Sclera — warm amber rather than stark white */}
+      <mesh renderOrder={102}>
+        <circleGeometry args={[scleraR, 16]} />
+        <meshBasicMaterial color="#ffe4bb" depthTest={false} depthWrite={false} />
+      </mesh>
+      {/* Iris — deep orange-red ring */}
+      <mesh position={[0, 0, 0.01]} renderOrder={103}>
+        <circleGeometry args={[irisR, 12]} />
+        <meshBasicMaterial color="#cc2000" depthTest={false} depthWrite={false} />
+      </mesh>
+      {/* Pupil — dark, tracked by useFrame */}
+      <mesh ref={pupilRef} renderOrder={104}>
+        <circleGeometry args={[pupilR, 8]} />
+        <meshBasicMaterial color="#080000" depthTest={false} depthWrite={false} />
+      </mesh>
+    </group>
+  );
+
+  return (
+    <>
+      {eye(-1, lPupilRef, lGlowRef)}
+      {eye( 1, rPupilRef, rGlowRef)}
+    </>
+  );
+}
+
 export function Boss() {
   // Narrow selectors — only re-render when these rarely-changing values change.
   // projectiles / darkOrbs are NOT subscribed here because they update every frame
@@ -887,9 +979,12 @@ export function Boss() {
   };
 
   if (bossType === "circle") {
+    // radius = 2 × player base scale (0.72 × 2 = 1.44)
+    const fireRadius = 1.44;
     return (
       <group ref={meshRef} position={boss.position}>
-        <FireBoss radius={2.2} healthPercent={healthPercent} />
+        <FireBoss radius={fireRadius} healthPercent={healthPercent} />
+        <FireBossEyes radius={fireRadius} healthPercent={healthPercent} />
       </group>
     );
   }

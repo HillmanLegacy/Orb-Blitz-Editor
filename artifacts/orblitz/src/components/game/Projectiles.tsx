@@ -534,7 +534,7 @@ export function Projectiles() {
       if (boss && !boss.destroying && !boss.shieldActive) {
         const [bx, by, bz] = boss.position;
         const dist = Math.sqrt((px - bx) ** 2 + (py - by) ** 2 + (bz || 0 - pz) ** 2);
-        const bossHitRadius = 2.5;
+        const bossHitRadius = 1.65;
         
         if (dist < bossHitRadius) {
           hitSomething = true;

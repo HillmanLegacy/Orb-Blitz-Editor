@@ -113,7 +113,7 @@ function FireCorona({ radius }: { radius: number }) {
       speed:     0.4 + Math.random() * 0.8,
       life:      Math.random(),
       maxLife:   0.6 + Math.random() * 0.8,
-      size:      0.06 + Math.random() * 0.12,
+      size:      radius * 0.027 + Math.random() * radius * 0.055,
       seed:      Math.random() * Math.PI * 2,
     }))
   );
