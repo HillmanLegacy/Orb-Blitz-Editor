@@ -139,16 +139,19 @@ const _kPh = new Float32Array(SPARK_N), _kTw = new Float32Array(SPARK_N);
 
 const _dummy = new THREE.Object3D();
 
-// ── HD Orb shaders ─────────────────────────────────────────────────────────────
-// Three.js injects "attribute mat4 instanceMatrix" and (when setColorAt is used)
-// "attribute vec3 instanceColor" into ShaderMaterial prefix — do NOT re-declare.
+// ── HD Orb shaders (GLSL ES 3.00) ─────────────────────────────────────────────
+// Written in GLSL3 syntax (in/out varyings, named frag output) with
+// glslVersion: THREE.GLSL3 so that gl_InstanceID is valid and guaranteed.
+// Colors are supplied via uColors[8] indexed by gl_InstanceID — no instanceColor
+// attribute means no timing dependency between useEffect and shader compilation.
 const ORB_VERT = /* glsl */`
-  varying vec3  vColor;
-  varying float vFresnel;
-  varying float vCore;
-  varying float vShimmer;
+  out vec3  vColor;
+  out float vFresnel;
+  out float vCore;
+  out float vShimmer;
 
   uniform float uTime;
+  uniform vec3  uColors[8];
 
   float h3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5); }
   float n3(vec3 p) {
@@ -163,7 +166,7 @@ const ORB_VERT = /* glsl */`
   }
 
   void main() {
-    vColor = instanceColor;
+    vColor = uColors[gl_InstanceID % 8];
 
     vec4 worldPos = instanceMatrix * vec4(position, 1.0);
     vec4 mvPos    = modelViewMatrix * worldPos;
@@ -188,11 +191,12 @@ const ORB_VERT = /* glsl */`
 `;
 
 const ORB_FRAG = /* glsl */`
-  varying vec3  vColor;
-  varying float vFresnel;
-  varying float vCore;
-  varying float vShimmer;
+  in vec3  vColor;
+  in float vFresnel;
+  in float vCore;
+  in float vShimmer;
   uniform float uTime;
+  out vec4 fragColor;
 
   void main() {
     float pulse  = sin(uTime * 2.6) * 0.10 + 0.90;
@@ -202,18 +206,20 @@ const ORB_FRAG = /* glsl */`
     vec3 chroma  = vec3(vColor.b, vColor.r, vColor.g) * vFresnel * 0.4;
     vec3 col     = (coreCol + rimCol + chroma) * vShimmer * pulse;
     float alpha  = clamp(vCore * 0.84 + vFresnel * 1.0, 0.0, 1.0) * pulse;
-    gl_FragColor = vec4(col, alpha);
+    fragColor = vec4(col, alpha);
   }
 `;
 
 // Corona: larger outer sphere — bright only at rim (Fresnel), transparent center
 // FrontSide (default): outer surface renders, ndv≈0 at sphere edge → max rim glow
 const CORONA_VERT = /* glsl */`
-  varying vec3  vColor;
-  varying float vRim;
+  out vec3  vColor;
+  out float vRim;
+
+  uniform vec3 uColors[8];
 
   void main() {
-    vColor = instanceColor;
+    vColor = uColors[gl_InstanceID % 8];
     vec4 worldPos = instanceMatrix * vec4(position, 1.0);
     vec4 mvPos    = modelViewMatrix * worldPos;
     vec3 objNorm  = normalize(mat3(instanceMatrix) * normal);
@@ -226,12 +232,13 @@ const CORONA_VERT = /* glsl */`
 `;
 
 const CORONA_FRAG = /* glsl */`
-  varying vec3  vColor;
-  varying float vRim;
+  in vec3  vColor;
+  in float vRim;
+  out vec4 fragColor;
 
   void main() {
     float a = vRim * vRim * 0.55;
-    gl_FragColor = vec4(mix(vColor, vec3(1.0), 0.3) * 1.8, a);
+    fragColor = vec4(mix(vColor, vec3(1.0), 0.3) * 1.8, a);
   }
 `;
 
@@ -291,36 +298,33 @@ function ShootingOrbs() {
 
   const pos = useRef(orbs.map(o => ({ x: o.x, y: o.y })));
 
+  // Build the 8-entry color palette uniform once — both orb and corona shaders
+  // index into it via gl_InstanceID % 8, so colors are correct from frame zero
+  // without any instanceColor timing dependency.
+  const uColorValues = useMemo(
+    () => SHOOT_COLORS.slice(0, 8).map(c => new THREE.Color(c)),
+    [],
+  );
+
   const orbMat = useMemo(() => new THREE.ShaderMaterial({
-    uniforms:       { uTime: { value: 0 } },
+    glslVersion:    THREE.GLSL3,
+    uniforms:       { uTime: { value: 0 }, uColors: { value: uColorValues } },
     vertexShader:   ORB_VERT,
     fragmentShader: ORB_FRAG,
     transparent:    true,
     blending:       THREE.AdditiveBlending,
     depthWrite:     false,
-  }), []);
+  }), [uColorValues]);
 
-  // Corona has no time-based animation — no uTime uniform needed
   const coronaMat = useMemo(() => new THREE.ShaderMaterial({
-    uniforms:       {},
+    glslVersion:    THREE.GLSL3,
+    uniforms:       { uColors: { value: uColorValues } },
     vertexShader:   CORONA_VERT,
     fragmentShader: CORONA_FRAG,
     transparent:    true,
     blending:       THREE.AdditiveBlending,
     depthWrite:     false,
-  }), []);
-
-  // Set per-instance colors in useEffect; runs before first Three.js rAF frame
-  useEffect(() => {
-    const col = new THREE.Color();
-    for (let i = 0; i < SHOOT_COUNT; i++) {
-      col.set(SHOOT_COLORS[i % SHOOT_COLORS.length]);
-      orbRef.current?.setColorAt(i, col);
-      coronaRef.current?.setColorAt(i, col);
-    }
-    if (orbRef.current?.instanceColor)    orbRef.current.instanceColor.needsUpdate    = true;
-    if (coronaRef.current?.instanceColor) coronaRef.current.instanceColor.needsUpdate = true;
-  }, []);
+  }), [uColorValues]);
 
   useFrame((state, delta) => {
     const t = state.clock.getElapsedTime();

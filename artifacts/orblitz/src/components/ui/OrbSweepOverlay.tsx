@@ -123,14 +123,22 @@ function drawFrame(
 
   // ── Orbs ────────────────────────────────────────────────────────────────────
   ctx.globalCompositeOperation = "lighter"; // additive blend — glowing accumulation
+  const FADE_EDGE = 0.18; // proportion of traversal used for fade-in / fade-out
   for (const orb of orbs) {
     const orbElapsed = elapsed - orb.delay;
     if (orbElapsed < 0 || orbElapsed > orb.duration) continue;
 
-    const t  = easeInOut(Math.min(1, orbElapsed / orb.duration));
+    const progress = orbElapsed / orb.duration; // 0 → 1 across traversal
+    const t  = easeInOut(Math.min(1, progress));
     const cx = orb.xStart + (orb.xEnd - orb.xStart) * t;
     const cy = orb.yCenter;
     const r  = orb.size / 2;
+
+    // Each orb fades in as it enters the screen and fades out as it leaves —
+    // the fade occurs exactly as this orb's motion begins, not as a separate effect.
+    const fadeIn  = Math.min(1, progress / FADE_EDGE);
+    const fadeOut = Math.min(1, (1 - progress) / FADE_EDGE);
+    ctx.globalAlpha = fadeIn * fadeOut;
 
     const { r: rr, g, b } = hexToRgb(orb.color);
     const grad = ctx.createRadialGradient(
@@ -149,6 +157,7 @@ function drawFrame(
     ctx.fillStyle = grad;
     ctx.fill();
   }
+  ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = "source-over";
 }
 
