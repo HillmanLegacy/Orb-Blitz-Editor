@@ -66,9 +66,10 @@ interface Props {
   scale?:     number;
   seed?:      number;
   depthTest?: boolean;
+  hideCrush?: boolean;
 }
 
-export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, seed = 0, depthTest = true }: Props) {
+export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, seed = 0, depthTest = true, hideCrush = false }: Props) {
   const progressRef = useRef(progress);
   progressRef.current = progress;
 
@@ -413,15 +414,19 @@ export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, se
       <instancedMesh ref={debrisOutRef}  args={[debrisGeo, debrisOutMat, DEBRIS_COUNT]} frustumCulled={false} />
       <instancedMesh ref={debrisFillRef} args={[debrisGeo, debrisFillMat, DEBRIS_COUNT]} frustumCulled={false} />
 
-      {/* Crush flash — IcosahedronGeometry, spinning */}
-      <mesh ref={crushOutRef}>
-        <icosahedronGeometry args={[1, 1]} />
-        <meshBasicMaterial color="#0d0d0d" transparent opacity={0} depthWrite={false} depthTest={depthTest} side={THREE.BackSide} />
-      </mesh>
-      <mesh ref={crushRef}>
-        <icosahedronGeometry args={[1, 1]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0} depthWrite={false} depthTest={depthTest} />
-      </mesh>
+      {/* Crush flash — IcosahedronGeometry, spinning (suppressed for boss hits) */}
+      {!hideCrush && (
+        <>
+          <mesh ref={crushOutRef}>
+            <icosahedronGeometry args={[1, 1]} />
+            <meshBasicMaterial color="#0d0d0d" transparent opacity={0} depthWrite={false} depthTest={depthTest} side={THREE.BackSide} />
+          </mesh>
+          <mesh ref={crushRef}>
+            <icosahedronGeometry args={[1, 1]} />
+            <meshBasicMaterial color="#ffffff" transparent opacity={0} depthWrite={false} depthTest={depthTest} />
+          </mesh>
+        </>
+      )}
 
       {/* Residual heat — real point light, not a 2D disc */}
       <pointLight ref={remnantLightRef} color={color} intensity={0} distance={4 * scale} decay={2} />

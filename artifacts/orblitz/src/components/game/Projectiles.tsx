@@ -295,6 +295,35 @@ function ImpactEffectMesh({ effect, skinColors }: {
   skinColors: { particles: string[]; glow: string; core: string; emissive: string };
 }) {
   const progress = 1 - effect.timer / effect.maxTimer;
+
+  if (effect.isBossHit) {
+    // Boss hit: point-light flash + particles only — no white crush geometry.
+    // Light fades from peak brightness to zero over the effect lifetime.
+    const fade = Math.max(0, 1 - progress);
+    const lightIntensity = fade * fade * 24;
+    return (
+      <group position={effect.position}>
+        {/* Warm fire-orange burst light — replaces the white circle */}
+        <pointLight
+          color="#ff7722"
+          intensity={lightIntensity}
+          distance={6}
+          decay={2}
+        />
+        {/* Particle scatter rendered on top of the boss (depthTest off) */}
+        <EnergyDissipationVFX
+          progress={progress}
+          color={skinColors.core}
+          glowColor={skinColors.glow}
+          scale={0.38}
+          seed={Math.round(effect.seed * 9999)}
+          depthTest={false}
+          hideCrush={true}
+        />
+      </group>
+    );
+  }
+
   return (
     <group position={effect.position}>
       <EnergyDissipationVFX
@@ -559,6 +588,7 @@ export function Projectiles() {
             timer: 0.5,
             maxTimer: 0.5,
             seed: Math.random(),
+            isBossHit: true,
           });
           
           

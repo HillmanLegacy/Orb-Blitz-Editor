@@ -116,6 +116,7 @@ export interface ImpactEffect {
   timer: number;
   maxTimer: number;
   seed: number;
+  isBossHit?: boolean;
 }
 
 export interface LaserBeam {
