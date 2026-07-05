@@ -582,14 +582,33 @@ export function Projectiles() {
             playSparkleExplosion();
           }
           
-          addImpactEffect({
-            id: `impact-${impactIdCounter++}`,
-            position: [bx, by, (bz || 0) + 1.5],
-            timer: 0.5,
-            maxTimer: 0.5,
-            seed: Math.random(),
-            isBossHit: true,
-          });
+          // Place impact at the sphere surface point the projectile entered.
+          // Direction: from boss centre toward projectile; fall back to the
+          // projectile's own travel direction when they share the same position.
+          {
+            const bzSafe = bz || 0;
+            let dx = px - bx, dy = py - by, dz = pz - bzSafe;
+            let len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (len < 1e-6) {
+              // Degenerate: use reversed travel direction so the flash
+              // appears on the face the shot came from.
+              [dx, dy, dz] = proj.direction;
+              len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+            }
+            const surfaceR = 1.44; // matches FireBoss rendered sphere radius
+            addImpactEffect({
+              id: `impact-${impactIdCounter++}`,
+              position: [
+                bx + (dx / len) * surfaceR,
+                by + (dy / len) * surfaceR,
+                bzSafe + (dz / len) * surfaceR,
+              ],
+              timer: 0.5,
+              maxTimer: 0.5,
+              seed: Math.random(),
+              isBossHit: true,
+            });
+          }
           
           
         }
