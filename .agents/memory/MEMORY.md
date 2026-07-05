@@ -1,1 +1,2 @@
 - [R3F pooled prop pitfall](r3f-pooled-prop-pitfall.md) — Mutating array props in-place breaks R3F rendering; React skips same-reference prop updates.
+- [Orblitz music scheduler pattern](orblitz-music-scheduler.md) — `active` gate stops AudioNode creation when muted; `fadeIn` must reset `active+nextT` before gain ramp; `playComboSound(comboCount, volume)` order matches useAudio call site.
