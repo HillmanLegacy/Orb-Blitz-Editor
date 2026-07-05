@@ -23,6 +23,7 @@ const vertexShader = /* glsl */ `
 const fragmentShader = /* glsl */ `
   uniform float uTime;
   uniform float uHealth;
+  uniform float uHurt;
   varying vec2 vUv;
   varying vec3 vNormal;
 
@@ -82,6 +83,9 @@ const fragmentShader = /* glsl */ `
 
     // Anger tint
     col = mix(col, vec3(1.0, 0.04, 0.0), anger * 0.55);
+
+    // Hurt flash: rapid red wash on damage
+    col = mix(col, vec3(1.0, 0.05, 0.0), uHurt * 0.9);
 
     gl_FragColor = vec4(col, 1.0);
   }
@@ -174,21 +178,36 @@ export function FireBoss({
   radius = 2.2,
   healthPercent = 1,
 }: FireBossProps) {
-  const matRef   = useRef<THREE.ShaderMaterial>(null);
-  const groupRef = useRef<THREE.Group>(null);
+  const matRef        = useRef<THREE.ShaderMaterial>(null);
+  const groupRef      = useRef<THREE.Group>(null);
+  const hurtTimerRef  = useRef(0);
+  const prevHealthRef = useRef(healthPercent);
 
   const uniforms = useMemo(
     () => ({
       uTime:   { value: 0 },
       uHealth: { value: 1 },
+      uHurt:   { value: 0 },
     }),
     []
   );
 
   useFrame((state, delta) => {
+    // Detect damage: healthPercent dropped since last frame → arm the hurt timer
+    if (healthPercent < prevHealthRef.current) {
+      hurtTimerRef.current = 0.15;
+    }
+    prevHealthRef.current = healthPercent;
+    hurtTimerRef.current  = Math.max(0, hurtTimerRef.current - delta);
+
     if (matRef.current) {
-      matRef.current.uniforms.uTime.value   = state.clock.getElapsedTime();
+      const t    = state.clock.getElapsedTime();
+      const frac = hurtTimerRef.current / 0.15;
+      // Rapid oscillation gives a strobe-flash HD feel
+      const osc  = Math.abs(Math.sin(t * 50));
+      matRef.current.uniforms.uTime.value   = t;
       matRef.current.uniforms.uHealth.value = healthPercent;
+      matRef.current.uniforms.uHurt.value   = frac * osc;
     }
     // Slow axial rotation around Z for visual richness
     if (groupRef.current) {

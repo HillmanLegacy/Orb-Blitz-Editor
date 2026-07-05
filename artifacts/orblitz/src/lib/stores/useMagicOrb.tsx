@@ -26,6 +26,7 @@ export interface DarkOrb {
   isBossOrb?: boolean;
   bossType?: BossType;
   bossDefeatColor?: BossType;
+  hurtTimer?: number;
 }
 
 export type BossType = "bird" | "star" | "arrow" | "triangle" | "trapezoid" | "cube" | "cloud" | "circle" | "tentacle" | "monster";

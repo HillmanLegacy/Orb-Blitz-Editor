@@ -7,7 +7,8 @@ import { DarkOrbModel } from "./DarkOrbModel";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 import { MiniFireOrb } from "./MiniFireOrb";
 
-const DISTORT_FIELD_RADIUS = 5;
+const DISTORT_FIELD_RADIUS  = 5;
+const HURT_FLASH_DURATION   = 0.15;
 
 
 const BOSS_ORB_COLORS: Record<BossType, { primary: string; secondary: string; glow: string }> = {
@@ -23,6 +24,29 @@ const BOSS_ORB_COLORS: Record<BossType, { primary: string; secondary: string; gl
   bird: { primary: "#4a6a2a", secondary: "#88cc44", glow: "#aaff44" },
 };
 
+
+// ── HD red hurt-flash overlay — mounted on fire orbs when hurtTimer > 0 ────────
+function FireHurtFlash({ hurtTimer }: { hurtTimer: number }) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  useFrame((state) => {
+    if (!meshRef.current) return;
+    const frac = Math.max(0, hurtTimer / HURT_FLASH_DURATION);
+    const osc  = Math.abs(Math.sin(state.clock.elapsedTime * 50));
+    (meshRef.current.material as THREE.MeshBasicMaterial).opacity = frac * osc * 0.88;
+  });
+  return (
+    <mesh ref={meshRef}>
+      <sphereGeometry args={[1.08, 16, 12]} />
+      <meshBasicMaterial
+        color="#ff1100"
+        transparent
+        opacity={0}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+      />
+    </mesh>
+  );
+}
 
 function BossOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
   const bossType = orb.bossType || "circle";
@@ -54,6 +78,7 @@ function BossOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
       <group position={orb.position} scale={orb.size * pulse}>
         <pointLight color="#ff6600" intensity={2} distance={5} decay={2} />
         <MiniFireOrb />
+        {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
       </group>
     );
   }
@@ -489,6 +514,7 @@ function World1EnemyMesh({ orb, time }: { orb: DarkOrb; time: number }) {
     <group position={orb.position} scale={orb.size * pulse}>
       <pointLight color="#ff6600" intensity={1.6} distance={4.5} decay={2} />
       <MiniFireOrb />
+      {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
     </group>
   );
 }
@@ -746,14 +772,18 @@ export function DarkOrbs() {
       const distToCenter = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
       const inDistortField = distortActive && distToCenter < DISTORT_FIELD_RADIUS;
       
+      // Projectile hit — suppressed while orb is already in the hurt-flash window
+      // (prevents double-triggering; player/barrier collisions still fire above)
       let hit = false;
-      for (const proj of projectiles) {
-        const projDist = Math.sqrt(
-          (x - proj.position[0]) ** 2 + (y - proj.position[1]) ** 2
-        );
-        if (projDist < orb.size * 0.8 + 0.3) {
-          hit = true;
-          break;
+      if ((orb.hurtTimer || 0) <= 0) {
+        for (const proj of projectiles) {
+          const projDist = Math.sqrt(
+            (x - proj.position[0]) ** 2 + (y - proj.position[1]) ** 2
+          );
+          if (projDist < orb.size * 0.8 + 0.3) {
+            hit = true;
+            break;
+          }
         }
       }
       
@@ -775,22 +805,34 @@ export function DarkOrbs() {
           }
         }
         
+        // Fire orbs (circle boss-type or world-1 enemies) show a brief hurt
+        // flash before their destroy animation; all other orbs die immediately.
+        const isFireOrb = (orb.isBossOrb && orb.bossType === "circle") ||
+          (!orb.isBossOrb && gameMode === "arcade" && Math.floor(arcadeLevel) === 1);
         updatedOrbs.push({
           ...orb,
           position: [x, y, z] as [number, number, number],
           direction: [dx, dy, dz] as [number, number, number],
-          destroying: true,
-          destroyTimer: 0.6,
+          ...(isFireOrb
+            ? { hurtTimer: HURT_FLASH_DURATION }
+            : { destroying: true, destroyTimer: 0.6 }),
         });
         continue;
       }
       
-      updatedOrbs.push({
-        ...orb,
-        position: [x, y, z],
-        direction: [dx, dy, dz],
-        frozen: inDistortField,
-      });
+      // Decrement hurt timer; transition to destroying when the window expires
+      const newHurtTimer = Math.max(0, (orb.hurtTimer || 0) - delta);
+      if ((orb.hurtTimer || 0) > 0 && newHurtTimer <= 0) {
+        updatedOrbs.push({ ...orb, position: [x, y, z], direction: [dx, dy, dz], hurtTimer: 0, destroying: true, destroyTimer: 0.6 });
+      } else {
+        updatedOrbs.push({
+          ...orb,
+          position: [x, y, z],
+          direction: [dx, dy, dz],
+          frozen: inDistortField,
+          ...(newHurtTimer > 0 ? { hurtTimer: newHurtTimer } : {}),
+        });
+      }
     }
     
     updateDarkOrbs(updatedOrbs);
