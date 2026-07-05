@@ -99,15 +99,8 @@ function HDTrailEffect({
 
 const MemoizedHDTrailEffect = memo(HDTrailEffect);
 
-// ─── Shared geometry for charge aura orbs ────────────────────────────────────
-const _geoCircle10 = new THREE.CircleGeometry(1, 10);
-const _geoCircle14 = new THREE.CircleGeometry(1, 14);
-
-// ─── Projectile charge aura — mini orbiting swarm + electric sparks ───────────
+// ─── Projectile charge aura — electric sparks only ───────────────────────────
 // Rendered inside the projectile group so positions are already world-correct.
-const PAURA_ORB_COUNT  = 3;
-const PAURA_ORB_SPEEDS = [2.6, 2.3, 2.9] as const;
-const PAURA_ORB_LAYERS = 2; // glow + core
 
 // Electric spark instanced mesh for the projectile aura
 const PAURA_SPARK_COUNT = 24;
@@ -223,69 +216,7 @@ function ProjectileChargeSparks({ projScale }: { projScale: number }) {
 }
 
 function ProjectileChargeAura({ projScale }: { projScale: number }) {
-  const orbRadius = projScale * 3.0;
-
-  const orbRefs = useRef<(THREE.Mesh | null)[]>(Array(PAURA_ORB_COUNT * PAURA_ORB_LAYERS).fill(null));
-
-  const baseAngles = useMemo(
-    () => Array.from({ length: PAURA_ORB_COUNT }, (_, i) => (i / PAURA_ORB_COUNT) * Math.PI * 2),
-    [],
-  );
-
-  useFrame(({ clock }) => {
-    const t = clock.getElapsedTime();
-
-    for (let i = 0; i < PAURA_ORB_COUNT; i++) {
-      const angle = baseAngles[i] + t * PAURA_ORB_SPEEDS[i];
-      const ox    = Math.cos(angle) * orbRadius;
-      const oy    = Math.sin(angle) * orbRadius;
-      const phase = i * 1.4;
-
-      const glow = orbRefs.current[i * PAURA_ORB_LAYERS + 0];
-      if (glow) {
-        glow.position.set(ox, oy, 0.01);
-        glow.scale.setScalar(projScale * 0.30 + Math.sin(t * 6.2 + phase) * projScale * 0.04);
-        (glow.material as THREE.MeshBasicMaterial).opacity =
-          0.38 + Math.sin(t * 7.1 + phase) * 0.14;
-      }
-
-      const core = orbRefs.current[i * PAURA_ORB_LAYERS + 1];
-      if (core) {
-        core.position.set(ox, oy, 0.02);
-        core.scale.setScalar(projScale * 0.17 + Math.sin(t * 9.3 + phase) * projScale * 0.02);
-      }
-    }
-  });
-
-  return (
-    <>
-      {/* Orbiting mini orbs (glow + core) */}
-      {Array.from({ length: PAURA_ORB_COUNT }, (_, i) => (
-        <group key={`paura-orb-${i}`}>
-          <mesh ref={el => { orbRefs.current[i * PAURA_ORB_LAYERS + 0] = el; }}
-                geometry={_geoCircle14}>
-            <meshBasicMaterial
-              color="#ffcc00"
-              transparent opacity={0.40}
-              depthWrite={false}
-              blending={THREE.AdditiveBlending}
-            />
-          </mesh>
-          <mesh ref={el => { orbRefs.current[i * PAURA_ORB_LAYERS + 1] = el; }}
-                geometry={_geoCircle10}>
-            <meshBasicMaterial
-              color="#ffffff"
-              transparent opacity={0.90}
-              depthWrite={false}
-            />
-          </mesh>
-        </group>
-      ))}
-
-      {/* Electric spark particles */}
-      <ProjectileChargeSparks projScale={projScale} />
-    </>
-  );
+  return <ProjectileChargeSparks projScale={projScale} />;
 }
 
 function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: {
@@ -353,19 +284,6 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: 
           />
         )}
 
-        {/* Charged: extra torus rings around the mini orb */}
-        {isCharged && (
-          <>
-            <mesh rotation={[Math.PI / 2, 0, time * 4]}>
-              <torusGeometry args={[projScale * 2.4, projScale * 0.08, 6, 28]} />
-              <meshBasicMaterial color={skinColors.emissive} transparent opacity={0.65} depthWrite={false} />
-            </mesh>
-            <mesh rotation={[0.8, 0, -time * 3]}>
-              <torusGeometry args={[projScale * 2.9, projScale * 0.05, 6, 28]} />
-              <meshBasicMaterial color="#ffffff" transparent opacity={0.35} depthWrite={false} />
-            </mesh>
-          </>
-        )}
       </group>
     </group>
   );
