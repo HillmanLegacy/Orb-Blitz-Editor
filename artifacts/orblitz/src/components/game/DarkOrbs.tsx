@@ -507,6 +507,12 @@ function World1EnemyMesh({ orb, time }: { orb: DarkOrb; time: number }) {
           scale={orb.size}
           seed={Math.round(orb.seed * 999)}
         />
+        {/* Keep orb visible until the crush flash (progress 0.80) covers it */}
+        {destroyProgress > 0.80 && (
+          <group scale={orb.size * pulse}>
+            <MiniFireOrb />
+          </group>
+        )}
       </group>
     );
   }
