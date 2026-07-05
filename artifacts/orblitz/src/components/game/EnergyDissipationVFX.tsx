@@ -8,7 +8,7 @@
  *  0.50 – 0.80  Crush flash                    (IcosahedronGeometry, toon outlined)
  *  0.55 – 0.95  16 3D debris shards            (IcosahedronGeometry, fly outward + spin)
  *  0.62 – 1.00  Void remnant                   (IcosahedronGeometry, shrinks)
- *  0.58 – 1.00  Three fat shockwave tori       (spinning while expanding)
+ *  0.55 – 1.00  80 HD spark particles          (tiny bright fire sparks, additive)
  */
 
 import { useRef, useMemo } from "react";
@@ -19,12 +19,14 @@ const SPECK_COUNT  = 120;
 const DUST_COUNT   =  60;
 const STREAM_COUNT =  12;
 const DEBRIS_COUNT =  16;
+const SPARK_COUNT  =  80;
 
 const _dummy   = new THREE.Object3D();
 const _q1      = new THREE.Quaternion();
 const _yUp     = new THREE.Vector3(0, 1, 0);
 // Pre-allocated temp vector — avoids one new THREE.Vector3() per stream per frame
-const _negDir  = new THREE.Vector3();
+const _negDir     = new THREE.Vector3();
+const _sparkColor = new THREE.Color();
 
 function sr(seed: number, i: number) {
   const x = Math.sin(seed * 9301 + i * 49297 + 233) * 43758.5453;
@@ -47,6 +49,14 @@ interface DebrisDatum {
   speed:    number;
   size:     number;
   delay:    number;
+}
+
+interface SparkDatum {
+  dir:   THREE.Vector3;
+  speed: number;
+  size:  number;
+  delay: number;
+  hue:   number;
 }
 
 interface Props {
@@ -72,7 +82,7 @@ export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, se
   const crushOutRef = useRef<THREE.Mesh>(null);
   const voidRef     = useRef<THREE.Mesh>(null);
   const voidOutRef  = useRef<THREE.Mesh>(null);
-  const ringRefs    = useRef<(THREE.Mesh | null)[]>([]);
+  const sparkRef    = useRef<THREE.InstancedMesh>(null);
 
   const gColor = glowColor ?? color;
 
@@ -164,11 +174,30 @@ export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, se
     return list;
   }, [seed]);
 
-  const ringDefs = useMemo(() => [
-    { rotX: Math.PI / 2, rotZ: 0,           spinX:  1.8, spinZ:  0.9, rate: 4.0, delay: 0.58, tubeR: 0.18 },
-    { rotX: Math.PI / 4, rotZ: Math.PI / 5, spinX: -1.2, spinZ:  1.5, rate: 2.8, delay: 0.63, tubeR: 0.14 },
-    { rotX: 0.9,         rotZ: Math.PI / 3, spinX:  0.7, spinZ: -2.0, rate: 3.3, delay: 0.68, tubeR: 0.16 },
-  ], []);
+  const sparks = useMemo<SparkDatum[]>(() => {
+    const list: SparkDatum[] = [];
+    for (let i = 0; i < SPARK_COUNT; i++) {
+      const phi   = Math.acos(1 - 2 * (i + 0.5) / SPARK_COUNT);
+      const theta = Math.PI * (1 + Math.sqrt(5)) * i + sr(seed + 200, i) * 2.0;
+      const dir   = new THREE.Vector3(
+        Math.sin(phi) * Math.cos(theta),
+        Math.cos(phi),
+        Math.sin(phi) * Math.sin(theta),
+      ).normalize();
+      const r = sr(seed + 200, i * 4);
+      list.push({
+        dir,
+        // High velocity — sparks shoot out fast
+        speed: 0.8 + sr(seed + 200, i * 4 + 1) * 2.4,
+        // Tiny size — looks like a real spark
+        size:  0.018 + sr(seed + 200, i * 4 + 2) * 0.028,
+        delay: sr(seed + 200, i * 4 + 3) * 0.12,
+        // Fire palette: deep-red → orange → yellow → near-white
+        hue:   r < 0.25 ? 0.0 : r < 0.55 ? 0.07 : r < 0.80 ? 0.13 : 0.17,
+      });
+    }
+    return list;
+  }, [seed]);
 
   // ── Geometries & materials ─────────────────────────────────────────────
 
@@ -338,17 +367,36 @@ export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, se
       }
     }
 
-    // ── Shockwave tori — spinning while expanding ────────────────────────
-    for (let ri = 0; ri < ringDefs.length; ri++) {
-      const mesh = ringRefs.current[ri];
-      if (!mesh) continue;
-      const r  = ringDefs[ri];
-      const lp = Math.max(0, (p - r.delay) / (1 - r.delay));
-      mesh.scale.setScalar(Math.max(0.001, scale * (0.18 + lp * r.rate)));
-      // Spin continuously so the 3D torus tube is clearly visible
-      mesh.rotation.x = r.rotX + t * r.spinX;
-      mesh.rotation.z = r.rotZ + t * r.spinZ;
-      (mesh.material as THREE.MeshBasicMaterial).opacity = Math.max(0, (1 - lp * 1.6) * 0.95);
+    // ── HD spark burst (progress 0.55 → 1.0) ─────────────────────────────
+    // Tiny high-velocity fire sparks shooting outward — additive, fire palette.
+    if (sparkRef.current) {
+      for (let i = 0; i < SPARK_COUNT; i++) {
+        const s  = sparks[i];
+        const lp = Math.max(0, (p - 0.55 - s.delay) / (0.45 - s.delay));
+        if (lp <= 0) {
+          _dummy.scale.setScalar(0);
+          _dummy.position.set(0, 0, 0);
+          _dummy.updateMatrix();
+          sparkRef.current.setMatrixAt(i, _dummy.matrix);
+          continue;
+        }
+        // Ease-out: fast initial burst that drifts to a stop
+        const dist = s.speed * scale * lp * (2 - lp);
+        _dummy.position.set(s.dir.x * dist, s.dir.y * dist, s.dir.z * dist);
+        // Snap in (15%), linger, then fade out (last 45%)
+        const fadeIn  = Math.min(1, lp / 0.15);
+        const fadeOut = Math.max(0, 1 - Math.max(0, lp - 0.55) / 0.45);
+        const fade    = fadeIn * fadeOut;
+        _dummy.scale.setScalar(Math.max(0.0001, s.size * scale * fade));
+        _dummy.updateMatrix();
+        sparkRef.current.setMatrixAt(i, _dummy.matrix);
+        // Fire ramp: white-hot at birth, settles to orange-red at extinction
+        const brightness = 0.72 + (1 - lp) * 0.23;
+        _sparkColor.setHSL(s.hue + lp * 0.05, 1.0, brightness);
+        sparkRef.current.setColorAt(i, _sparkColor);
+      }
+      sparkRef.current.instanceMatrix.needsUpdate = true;
+      if (sparkRef.current.instanceColor) sparkRef.current.instanceColor.needsUpdate = true;
     }
   });
 
@@ -390,17 +438,16 @@ export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, se
         <meshBasicMaterial color={color} transparent opacity={0} depthWrite={false} />
       </mesh>
 
-      {/* Shockwave tori — fat tube, spinning so 3D nature is obvious */}
-      {ringDefs.map((r, i) => (
-        <mesh key={i} ref={(el) => { ringRefs.current[i] = el; }}>
-          <torusGeometry args={[1, r.tubeR, 12, 48]} />
-          <meshBasicMaterial
-            color={i === 1 ? gColor : color}
-            transparent opacity={0}
-            depthWrite={false}
-          />
-        </mesh>
-      ))}
+      {/* HD fire sparks — tiny additive-blended spheres shooting outward */}
+      <instancedMesh ref={sparkRef} args={[undefined, undefined, SPARK_COUNT]} frustumCulled={false}>
+        <sphereGeometry args={[1, 4, 3]} />
+        <meshBasicMaterial
+          transparent
+          opacity={1}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </instancedMesh>
     </>
   );
 }
