@@ -189,6 +189,7 @@ interface MagicOrbState {
   
   isDamaged: boolean;
   damageTimer: number;
+  isLastHitPoint: boolean;
   isDying: boolean;
   deathTimer: number;
   isStaggered: boolean;
@@ -453,6 +454,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     
     isDamaged: false,
     damageTimer: 0,
+    isLastHitPoint: false,
     isDying: false,
     deathTimer: 0,
     isStaggered: false,
@@ -551,6 +553,7 @@ export const useMagicOrb = create<MagicOrbState>()(
           selectedWeapon: "normal",
           isDamaged: false,
           damageTimer: 0,
+          isLastHitPoint: false,
           isDying: false,
           deathTimer: 0,
           isStaggered: false,
@@ -643,6 +646,7 @@ export const useMagicOrb = create<MagicOrbState>()(
           maxHealth: maxHP,
           isDamaged: false,
           damageTimer: 0,
+          isLastHitPoint: false,
           isDying: false,
           deathTimer: 0,
           darkOrbs: [],
@@ -723,6 +727,7 @@ export const useMagicOrb = create<MagicOrbState>()(
         selectedWeapon: "normal",
         isDamaged: false,
         damageTimer: 0,
+        isLastHitPoint: false,
         isDying: false,
         deathTimer: 0,
         isStaggered: false,
@@ -861,6 +866,7 @@ export const useMagicOrb = create<MagicOrbState>()(
         staggerTimer: 0,
         isDamaged: false,
         damageTimer: 0,
+        isLastHitPoint: false,
         isDying: false,
         deathTimer: 0,
         playerPosition: [0, 0, 0] as [number, number, number],
@@ -1100,6 +1106,7 @@ export const useMagicOrb = create<MagicOrbState>()(
         laserBeams: [],
         isDamaged: false,
         damageTimer: 0,
+        isLastHitPoint: false,
         backgroundShake: 0,
       });
     },
@@ -1140,7 +1147,7 @@ export const useMagicOrb = create<MagicOrbState>()(
       if (newHealth <= 0) {
         get().triggerDeath();
       } else {
-        set({ health: newHealth, isDamaged: true, damageTimer: 0.3 });
+        set({ health: newHealth, isDamaged: true, damageTimer: 0.3, isLastHitPoint: newHealth === 1 });
         get().triggerBackgroundShake();
         
         const getEquippedDefenses = (): [DefenseType, DefenseType] => {
@@ -1163,7 +1170,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     },
     
     triggerDeath: () => {
-      set({ isDying: true, deathTimer: 1.5, health: 0 });
+      set({ isDying: true, deathTimer: 1.5, health: 0, isLastHitPoint: false });
     },
     
     teleportPlayer: (position: [number, number, number]) => {
@@ -1192,11 +1199,8 @@ export const useMagicOrb = create<MagicOrbState>()(
     },
     
     updateDamageTimer: (delta) => {
-      const { isDamaged, damageTimer, health } = get();
+      const { isDamaged, damageTimer } = get();
       if (!isDamaged) return;
-
-      // At last hit point the damage effects persist — don't let the timer clear them
-      if (health === 1) return;
 
       const newTimer = damageTimer - delta;
       if (newTimer <= 0) {
@@ -1219,11 +1223,10 @@ export const useMagicOrb = create<MagicOrbState>()(
     },
     
     heal: () => {
-      const { health, maxHealth } = get();
+      const { health, maxHealth, isLastHitPoint } = get();
       const newHealth = Math.min(health + 1, maxHealth);
-      // Healing off the last hit point clears the persistent damage effects
-      const clearDamage = health === 1 && newHealth > 1
-        ? { isDamaged: false, damageTimer: 0, backgroundShake: 0 }
+      const clearDamage = isLastHitPoint
+        ? { isLastHitPoint: false, isDamaged: false, damageTimer: 0, backgroundShake: 0 }
         : {};
       set({ health: newHealth, ...clearDamage });
     },
@@ -1576,11 +1579,8 @@ export const useMagicOrb = create<MagicOrbState>()(
     triggerBackgroundShake: () => set({ backgroundShake: 0.5 }),
     
     updateBackgroundEffects: (delta) => {
-      const { backgroundPulse, backgroundShake, health, isDamaged } = get();
-      // At last hit point keep a baseline shake so the distortion/aberration persist,
-      // but only once a damage event has actually occurred (isDamaged gate prevents
-      // a fresh run that happens to start at 1 HP from shaking immediately)
-      const minShake = (health === 1 && isDamaged) ? 0.22 : 0;
+      const { backgroundPulse, backgroundShake, isLastHitPoint } = get();
+      const minShake = isLastHitPoint ? 0.22 : 0;
       set({
         backgroundPulse: Math.max(0, backgroundPulse - delta * 2),
         backgroundShake: Math.max(minShake, backgroundShake - delta * 2),

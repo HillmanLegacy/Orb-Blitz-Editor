@@ -18,7 +18,7 @@ interface BossConfig {
 }
 
 const BOSS_CONFIGS: Record<string, BossConfig> = {
-  circle: { projectileCount: 3, movementStyle: "orbit_player" },
+  circle: { projectileCount: 1, movementStyle: "orbit_player" },
   star: { projectileCount: 2, movementStyle: "teleport" },
   triangle: { projectileCount: 3, movementStyle: "dash" },
   trapezoid: { projectileCount: 4, movementStyle: "perimeter" },
