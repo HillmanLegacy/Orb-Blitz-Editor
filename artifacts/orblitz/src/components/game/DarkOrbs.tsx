@@ -37,12 +37,14 @@ function BossOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
   const spin = time * 3;
   
   if (orb.destroying) {
+    // Circle boss type = MiniFireOrb — uses the same fire explosion as world 1 enemies
+    const isFireOrb = bossType === "circle";
     return (
       <group position={orb.position}>
         <EnergyDissipationVFX
           progress={destroyProgress}
-          color={colors.primary}
-          glowColor={colors.glow}
+          color={isFireOrb ? "#ff4400" : colors.primary}
+          glowColor={isFireOrb ? "#ffaa00" : colors.glow}
           scale={orb.size}
           seed={Math.round(orb.seed * 1000)}
         />
