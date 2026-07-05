@@ -5,9 +5,7 @@ import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 
 // ── ScreenEffects ─────────────────────────────────────────────────────────────
 // 3D screen-space overlays rendered slightly in front of the scene:
-//   • Impact flash — full-screen white/red flash on heavy hits (the most impactful
-//     visual addition; gives instant feedback on player damage and boss kills)
-//   • Bloom overlays — additive color tinting for neon ambience
+//   • Impact flash — full-screen white/red flash on heavy hits
 //   • Damage vignette — red ring that pulses at low health
 //   • Scanlines — classic CRT scanline effect moving up the screen
 //
@@ -24,11 +22,6 @@ export function ScreenEffects() {
   const prevDamagedRef    = useRef(false);
   const prevBossRef       = useRef<string | null>(null);
 
-  // ── Dynamic bloom / color-grade overlays ─────────────────────────────────
-  const bloomOverlay1Ref  = useRef<THREE.Mesh>(null);
-  const bloomOverlay2Ref  = useRef<THREE.Mesh>(null);
-  const colorGradeRef     = useRef<THREE.Mesh>(null);
-
   // ── Damage vignette ring ─────────────────────────────────────────────────
   const vignetteRef       = useRef<THREE.Mesh>(null);
 
@@ -40,13 +33,11 @@ export function ScreenEffects() {
   const scanRefs          = [scanRef0, scanRef1, scanRef2];
 
   const {
-    phase, isDamaged, boss, backgroundPulse, arcadeLevel, gameMode,
+    phase, isDamaged, boss,
     health, maxHealth,
   } = useMagicOrb();
 
-  const healthRatio  = maxHealth > 0 ? health / maxHealth : 1;
-  const isBossLevel  = gameMode === "arcade" && Math.round((arcadeLevel % 1) * 10) === 9;
-  const inBossFight  = boss !== null || isBossLevel;
+  const healthRatio = maxHealth > 0 ? health / maxHealth : 1;
 
   // ── Detect events and trigger flashes ───────────────────────────────────
   useEffect(() => {
@@ -90,32 +81,6 @@ export function ScreenEffects() {
       }
     }
 
-    // ── Bloom overlay 1 — slowly cycling hue ─────────────────────────────
-    if (bloomOverlay1Ref.current) {
-      const mat = bloomOverlay1Ref.current.material as THREE.MeshBasicMaterial;
-      const hue = (time * 0.018) % 1;
-      mat.color.setHSL(hue, 0.75, 0.7);
-      mat.opacity = 0.018 + backgroundPulse * 0.028 + (inBossFight ? 0.016 : 0);
-    }
-
-    // ── Bloom overlay 2 — complementary hue ──────────────────────────────
-    if (bloomOverlay2Ref.current) {
-      const mat = bloomOverlay2Ref.current.material as THREE.MeshBasicMaterial;
-      const hue = ((time * 0.018) + 0.5) % 1;
-      mat.color.setHSL(hue, 0.6, 0.8);
-      mat.opacity = 0.012 + backgroundPulse * 0.02 + Math.sin(time * 2.8) * 0.006;
-    }
-
-    // ── Color grade overlay — subtle warm/cool shift ──────────────────────
-    if (colorGradeRef.current) {
-      const mat = colorGradeRef.current.material as THREE.MeshBasicMaterial;
-      const hue = inBossFight
-        ? 0.04 + Math.sin(time * 0.4) * 0.03   // orange-ish during boss
-        : 0.78 + Math.sin(time * 0.5) * 0.04;  // purple in normal play
-      mat.color.setHSL(hue, 0.35, 0.5);
-      mat.opacity = 0.025 + (inBossFight ? 0.022 : 0) + backgroundPulse * 0.01;
-    }
-
     // ── Damage vignette ring ─────────────────────────────────────────────
     if (vignetteRef.current) {
       const mat = vignetteRef.current.material as THREE.MeshBasicMaterial;
@@ -148,44 +113,6 @@ export function ScreenEffects() {
 
   return (
     <group position={[0, 0, 8]}>
-
-      {/* ── Bloom overlays ── */}
-      <mesh ref={bloomOverlay1Ref}>
-        <planeGeometry args={[32, 24]} />
-        <meshBasicMaterial
-          color="#ff00ff"
-          transparent
-          opacity={0.018}
-          blending={THREE.AdditiveBlending}
-          depthTest={false}
-          depthWrite={false}
-        />
-      </mesh>
-
-      <mesh ref={bloomOverlay2Ref} position={[0, 0, 0.01]}>
-        <planeGeometry args={[32, 24]} />
-        <meshBasicMaterial
-          color="#00ffff"
-          transparent
-          opacity={0.012}
-          blending={THREE.AdditiveBlending}
-          depthTest={false}
-          depthWrite={false}
-        />
-      </mesh>
-
-      {/* ── Colour grading overlay ── */}
-      <mesh ref={colorGradeRef} position={[0, 0, 0.02]}>
-        <planeGeometry args={[32, 24]} />
-        <meshBasicMaterial
-          color="#9900ff"
-          transparent
-          opacity={0.025}
-          blending={THREE.AdditiveBlending}
-          depthTest={false}
-          depthWrite={false}
-        />
-      </mesh>
 
       {/* ── Damage vignette ring ── */}
       <mesh ref={vignetteRef} position={[0, 0, 0.03]}>
