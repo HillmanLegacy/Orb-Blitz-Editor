@@ -493,7 +493,8 @@ function UnifiedDarkOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
 
 // ── World 1 enemy: miniature Fire Boss — own component so hooks are stable ────
 function World1EnemyMesh({ orb, time }: { orb: DarkOrb; time: number }) {
-  const destroyProgress = orb.destroying ? 1 - (orb.destroyTimer || 0) / 0.6 : 0;
+  // Reversed: animation plays from 1→0 (converging inward) instead of 0→1 (exploding out)
+  const destroyProgress = orb.destroying ? (orb.destroyTimer || 0) / 0.6 : 0;
   const pulse = 1 + Math.sin(time * 4 + orb.seed * 6) * 0.06;
 
   if (orb.destroying) {
