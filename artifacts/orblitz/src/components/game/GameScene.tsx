@@ -113,57 +113,42 @@ function CameraController() {
   return null;
 }
 
-// ── Dynamic post-processing: chromatic aberration reacts to screen shake ──────
+// ── Dynamic post-processing ───────────────────────────────────────────────────
+// IMPORTANT: do NOT call useMagicOrb() here. Every Zustand state change would
+// cause EffectComposer to re-render and rebuild its WebGL effect pipeline,
+// throwing a rendering error. Use getState() inside useFrame instead.
 function PostProcessing() {
-  const { boss, arcadeLevel, gameMode } = useMagicOrb();
-  const isBossLevel = gameMode === "arcade" && Math.round((arcadeLevel % 1) * 10) === 9;
-  const inBossFight = boss !== null || isBossLevel;
-
-  // Pre-allocated Vector2 — mutated each frame; postprocessing reads it via uniform ref
+  // Pre-allocated Vector2 — mutated each frame via getState() in useFrame.
+  // Postprocessing reads it through the uniform reference on each render tick.
   const abOffset = useRef(new THREE.Vector2(0.0006, 0.0004));
 
-  // Ref to ChromaticAberration effect instance for imperative updates
-  const caRef = useRef<any>(null);
-
   useFrame(() => {
-    const shake = useMagicOrb.getState().backgroundShake;
-    const bossBoost = inBossFight ? 0.0004 : 0;
-    const x = 0.0006 + shake * 0.014 + bossBoost;
-    const y = 0.0004 + shake * 0.007 + bossBoost * 0.5;
-    // Try imperative update first (works if ref exposes the effect instance)
-    if (caRef.current?.offset) {
-      caRef.current.offset.set(x, y);
-    } else {
-      // Fallback: mutate the pre-allocated vector (works if postprocessing stores the ref)
-      abOffset.current.set(x, y);
-    }
+    const s        = useMagicOrb.getState();
+    const shake    = s.backgroundShake;
+    const isBoss   = s.boss !== null ||
+      (s.gameMode === "arcade" && Math.round((s.arcadeLevel % 1) * 10) === 9);
+    const boost    = isBoss ? 0.0004 : 0;
+    abOffset.current.set(
+      0.0006 + shake * 0.014 + boost,
+      0.0004 + shake * 0.007 + boost * 0.5,
+    );
   });
-
-  // Bloom intensity: slightly higher during boss fights
-  const bloomIntensity = inBossFight ? 0.72 : 0.58;
 
   return (
     <EffectComposer multisampling={0}>
       <Bloom
-        intensity={bloomIntensity}
+        intensity={0.62}
         luminanceThreshold={0.28}
         luminanceSmoothing={0.82}
         mipmapBlur
         radius={0.72}
       />
-      {/* Chromatic aberration — adds modern arcade HUD-hit look */}
-      <ChromaticAberration
-        ref={caRef}
-        offset={abOffset.current}
-        radialModulation={false}
-        modulationOffset={0}
-      />
-      {/* Subtle vignette — darker corners, more dramatic than the old 3D ring mesh */}
-      <Vignette
-        eskil={false}
-        offset={0.28}
-        darkness={0.78}
-      />
+      {/* Pass the same Vector2 object every render — uniform stores the ref,
+          so mutations in useFrame are reflected without re-mounting the effect.
+          Do NOT pass a `ref` prop: in React 19 refs are regular props and get
+          spread into the effect constructor causing unexpected behaviour. */}
+      <ChromaticAberration offset={abOffset.current} />
+      <Vignette eskil={false} offset={0.28} darkness={0.78} />
       <SMAA />
     </EffectComposer>
   );

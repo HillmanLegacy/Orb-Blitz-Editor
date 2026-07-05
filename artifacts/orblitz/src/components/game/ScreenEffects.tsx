@@ -32,12 +32,12 @@ export function ScreenEffects() {
   // ── Damage vignette ring ─────────────────────────────────────────────────
   const vignetteRef       = useRef<THREE.Mesh>(null);
 
-  // ── Multiple scanlines moving at different speeds ─────────────────────────
-  const scanRefs          = [
-    useRef<THREE.Mesh>(null),
-    useRef<THREE.Mesh>(null),
-    useRef<THREE.Mesh>(null),
-  ];
+  // ── Multiple scanlines — individual refs (hooks must not be in array literals)
+  const scanRef0          = useRef<THREE.Mesh>(null);
+  const scanRef1          = useRef<THREE.Mesh>(null);
+  const scanRef2          = useRef<THREE.Mesh>(null);
+  // Collect after all hooks so the array is stable across renders
+  const scanRefs          = [scanRef0, scanRef1, scanRef2];
 
   const {
     phase, isDamaged, boss, backgroundPulse, arcadeLevel, gameMode,
