@@ -7,7 +7,7 @@
  *  0.00 – 0.65  12 suction streams             (CylinderGeometry, 6-sided)
  *  0.50 – 0.80  Crush flash                    (IcosahedronGeometry, toon outlined)
  *  0.55 – 0.95  16 3D debris shards            (IcosahedronGeometry, fly outward + spin)
- *  0.62 – 1.00  Void remnant                   (IcosahedronGeometry, shrinks)
+ *  0.62 – 1.00  Residual heat light            (PointLight, fades out)
  *  0.55 – 1.00  80 HD spark particles          (tiny bright fire sparks, additive)
  */
 
@@ -78,10 +78,9 @@ export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, se
   const debrisFillRef  = useRef<THREE.InstancedMesh>(null);
   const debrisOutRef   = useRef<THREE.InstancedMesh>(null);
 
-  const crushRef    = useRef<THREE.Mesh>(null);
-  const crushOutRef = useRef<THREE.Mesh>(null);
-  const voidRef     = useRef<THREE.Mesh>(null);
-  const voidOutRef  = useRef<THREE.Mesh>(null);
+  const crushRef       = useRef<THREE.Mesh>(null);
+  const crushOutRef    = useRef<THREE.Mesh>(null);
+  const remnantLightRef = useRef<THREE.PointLight>(null);
   const sparkRef    = useRef<THREE.InstancedMesh>(null);
 
   const gColor = glowColor ?? color;
@@ -350,20 +349,15 @@ export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, se
       }
     }
 
-    // ── Void remnant (IcosahedronGeometry, spins while shrinking) ───────
-    if (voidRef.current) {
-      const vp  = Math.max(0, (p - 0.62) / 0.38);
-      const sz  = scale * Math.max(0.001, 0.70 * (1 - vp));
-      const op  = Math.max(0, 1 - vp * 1.1);
-      voidRef.current.scale.setScalar(sz);
-      voidRef.current.rotation.x = t * 1.8;
-      voidRef.current.rotation.z = t * 2.4;
-      (voidRef.current.material as THREE.MeshBasicMaterial).opacity = op * 0.82;
-      if (voidOutRef.current) {
-        voidOutRef.current.scale.setScalar(sz * 1.22);
-        voidOutRef.current.rotation.x = t * 1.8;
-        voidOutRef.current.rotation.z = t * 2.4;
-        (voidOutRef.current.material as THREE.MeshBasicMaterial).opacity = op * 0.68;
+    // ── Residual heat light (progress 0.62 → 1.0) ───────────────────────
+    // Replaces the old void-remnant mesh — real lighting instead of a 2D disc.
+    if (remnantLightRef.current) {
+      if (p < 0.62) {
+        remnantLightRef.current.intensity = 0;
+      } else {
+        const vp = Math.min(1, (p - 0.62) / 0.38);
+        // Ease-out²: bright at onset (vp=0), zero at end (vp=1)
+        remnantLightRef.current.intensity = (1 - vp) * (1 - vp) * 10 * scale;
       }
     }
 
@@ -428,15 +422,8 @@ export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, se
         <meshBasicMaterial color="#ffffff" transparent opacity={0} depthWrite={false} />
       </mesh>
 
-      {/* Void remnant — IcosahedronGeometry, spinning while shrinking */}
-      <mesh ref={voidOutRef}>
-        <icosahedronGeometry args={[1, 1]} />
-        <meshBasicMaterial color="#0d0d0d" transparent opacity={0} depthWrite={false} side={THREE.BackSide} />
-      </mesh>
-      <mesh ref={voidRef}>
-        <icosahedronGeometry args={[1, 1]} />
-        <meshBasicMaterial color={color} transparent opacity={0} depthWrite={false} />
-      </mesh>
+      {/* Residual heat — real point light, not a 2D disc */}
+      <pointLight ref={remnantLightRef} color={color} intensity={0} distance={4 * scale} decay={2} />
 
       {/* HD fire sparks — tiny additive-blended spheres shooting outward */}
       <instancedMesh ref={sparkRef} args={[undefined, undefined, SPARK_COUNT]} frustumCulled={false}>

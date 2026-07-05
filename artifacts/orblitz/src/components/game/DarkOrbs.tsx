@@ -9,10 +9,6 @@ import { MiniFireOrb } from "./MiniFireOrb";
 
 const DISTORT_FIELD_RADIUS = 5;
 
-const sharedCircleGeo = new THREE.CircleGeometry(1, 16);
-const sharedCircleGeoHigh = new THREE.CircleGeometry(1, 24);
-const sharedPlaneGeo = new THREE.PlaneGeometry(1, 1);
-const sharedRingGeo = new THREE.RingGeometry(0.8, 1, 16);
 
 const BOSS_ORB_COLORS: Record<BossType, { primary: string; secondary: string; glow: string }> = {
   circle: { primary: "#6a2a8a", secondary: "#aa44cc", glow: "#8844aa" },
