@@ -1054,7 +1054,11 @@ export const useMagicOrb = create<MagicOrbState>()(
       
       const speedScale = 1 + (worldLevel - 1) * 0.15;
       const baseSpeed = 2.5 * speedScale;
-      const sizeScale = 0.5 + (worldLevel - 1) * 0.03;
+      // Circle boss = fire orb boss: 2× the player orb's base scale (0.72).
+      // All other boss types keep the original level-scaling formula.
+      const sizeScale = bossType === "circle"
+        ? 1.44
+        : 0.5 + (worldLevel - 1) * 0.03;
       
       const orb: DarkOrb = {
         id: `boss-orb-${Date.now()}-${Math.random()}`,
