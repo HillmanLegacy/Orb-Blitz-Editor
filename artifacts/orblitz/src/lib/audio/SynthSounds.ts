@@ -1182,77 +1182,177 @@ export type SynthMusicNode = {
 const FADE_TIME = 1.2; // seconds for music crossfade
 
 /**
- * Generative ambient menu music — soft pad chords + sparse melody at 90 BPM.
- * Returns a SynthMusicNode with fade control.
+ * Menu music — "Neon Plaza" — HD arcade lobby feel at 128 BPM.
+ *
+ * Layers:  kick · snare · closed hi-hat · synth bass (saw+dist) ·
+ *          square-wave lead melody · triangle arpeggio · sine pad chords
+ *
+ * Chord progression (16 steps = 2 bars, loops):
+ *   Dm | Am | B♭ | C  — each chord holds for 4 eighth-note steps
  */
 export function createMenuMusicNode(targetVol = 0.2): SynthMusicNode {
   try {
     const ctx   = getAudioContext();
-    // Per-music-instance gain node — used for fade in/out
     const mgain = ctx.createGain();
-    mgain.gain.value = 0; // start silent; fadeIn() will ramp up
+    mgain.gain.value = 0;
     mgain.connect(dst(ctx));
     if (rev()) mgain.connect(rev()!);
 
     let running = true;
+    let active  = true;
 
-    const BPM   = 90;
-    const STEP  = (60 / BPM) / 2; // eighth note = 0.333 s
+    const BPM  = 128;
+    const STEP = 60 / BPM / 2; // eighth note ≈ 0.234 s
 
-    const CHORDS = [
-      [220, 329.6, 440],
-      [174.6, 261.6, 349.2],
-      [261.6, 392, 523.25],
-      [196, 293.7, 392],
+    // ── 16-step patterns (2 bars of 4/4) ────────────────────────────────
+    const KICK_PAT  = [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0]; // beats 1 & 3
+    const SNARE_PAT = [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0]; // beats 2 & 4
+    const HAT_PAT   = [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1]; // all 8ths
+
+    // Pad chords: one chord per 4-step block
+    const CHORD_PADS: number[][] = [
+      [146.8, 220, 293.7],  // Dm  (D3 A3 D4)
+      [110,   164.8, 220],  // Am  (A2 E3 A3)
+      [116.5, 174.6, 233.1],// B♭  (B♭2 F3 B♭3)
+      [130.8, 196,   261.6],// C   (C3 G3 C4)
     ];
-    const MELODY = [440, 523.25, 659.26, 523.25, 440, 392, 329.6, 392];
 
-    let step     = 0;
-    let chordIdx = 0;
-    let nextT    = ctx.currentTime + 0.1;
-    // 'active' gates note scheduling without stopping the loop; lets fadeIn()
-    // cheaply restart music without recreating the node or restarting the loop.
-    let active   = true;
+    // Lead melody — square wave, one note per step
+    const LEAD: number[] = [
+      587.33, 698.46, 880,    587.33,  // Dm:  D5 F5 A5 D5
+       440,   523.25, 659.26,  440,    // Am:  A4 C5 E5 A4
+      466.16, 587.33, 698.46, 466.16,  // B♭:  B♭4 D5 F5 B♭4
+      523.25, 659.26, 783.99, 1046.5,  // C:   C5 E5 G5 C6
+    ];
 
-    function schedPad(t: number, chord: number[]) {
-      chord.forEach((freq) => {
-        const o  = ctx.createOscillator(); o.type = 'sine';
-        o.frequency.value = freq * 0.5;
-        const o2 = ctx.createOscillator(); o2.type = 'sine';
-        o2.frequency.value = freq * 0.502;
+    // Triangle arpeggio — one note per step (chord tones, octave below lead)
+    const ARP: number[] = [
+      293.7, 349.2, 440,   587.33,   // Dm  arp
+      220,   261.6, 329.6,  440,     // Am  arp
+      233.1, 293.7, 349.2, 466.16,   // B♭  arp
+      261.6, 329.6, 392,   523.25,   // C   arp
+    ];
+
+    // Bass — sawtooth + waveshaper, one note per step (same root held 4 steps)
+    const BASS: number[] = [
+       73.4,  73.4,  73.4,  73.4,   // D2
+       55,    55,    55,    55,      // A1
+       58.3,  58.3,  58.3,  58.3,   // B♭1
+       65.4,  65.4,  65.4,  65.4,   // C2
+    ];
+
+    let step  = 0;
+    let nextT = ctx.currentTime + 0.1;
+
+    function schedKick(t: number) {
+      const o = ctx.createOscillator(); o.type = 'sine';
+      o.frequency.setValueAtTime(165, t);
+      o.frequency.exponentialRampToValueAtTime(30, t + 0.25);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.60, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+      o.connect(g); g.connect(mgain);
+      o.start(t); o.stop(t + 0.30);
+      // Transient click
+      const ns = ctx.createBufferSource(); ns.buffer = noise(ctx, 'xs');
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 4500;
+      const ng = ctx.createGain();
+      ng.gain.setValueAtTime(0.30, t); ng.gain.exponentialRampToValueAtTime(0.001, t + 0.016);
+      ns.connect(hp); hp.connect(ng); ng.connect(mgain);
+      ns.start(t); ns.stop(t + 0.020);
+    }
+
+    function schedSnare(t: number) {
+      const ns = ctx.createBufferSource(); ns.buffer = noise(ctx, 'sm');
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1800;
+      const lp = ctx.createBiquadFilter(); lp.type  = 'lowpass';
+      lp.frequency.setValueAtTime(8500, t); lp.frequency.exponentialRampToValueAtTime(2400, t + 0.13);
+      const g  = ctx.createGain();
+      g.gain.setValueAtTime(0.50, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+      ns.connect(hp); hp.connect(lp); lp.connect(g); g.connect(mgain);
+      ns.start(t); ns.stop(t + 0.16);
+      // Snare tone
+      const o  = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = 195;
+      const og = ctx.createGain();
+      og.gain.setValueAtTime(0.34, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+      o.connect(og); og.connect(mgain);
+      o.start(t); o.stop(t + 0.09);
+    }
+
+    function schedHat(t: number) {
+      const ns = ctx.createBufferSource(); ns.buffer = noise(ctx, 'xs');
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 9500;
+      const g  = ctx.createGain();
+      g.gain.setValueAtTime(0.16, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.022);
+      ns.connect(hp); hp.connect(g); g.connect(mgain);
+      ns.start(t); ns.stop(t + 0.028);
+    }
+
+    function schedBass(t: number, freq: number) {
+      const o  = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = freq;
+      const ws = ctx.createWaveShaper(); ws.curve = _distCurve(10);
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(650, t); lp.frequency.exponentialRampToValueAtTime(160, t + STEP * 0.85);
+      lp.Q.value = 2.5;
+      const g  = ctx.createGain();
+      g.gain.setValueAtTime(0.45, t);
+      g.gain.setValueAtTime(0.45, t + STEP * 0.78);
+      g.gain.exponentialRampToValueAtTime(0.001, t + STEP * 0.95);
+      o.connect(ws); ws.connect(lp); lp.connect(g); g.connect(mgain);
+      o.start(t); o.stop(t + STEP);
+    }
+
+    function schedLead(t: number, freq: number) {
+      const o  = ctx.createOscillator(); o.type = 'square';
+      o.frequency.setValueAtTime(freq, t);
+      o.frequency.linearRampToValueAtTime(freq * 1.012, t + STEP * 0.8);
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(4200, t); lp.frequency.exponentialRampToValueAtTime(1800, t + STEP * 0.88);
+      lp.Q.value = 1.2;
+      const g  = ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.13, t + 0.005);
+      g.gain.setValueAtTime(0.13, t + STEP * 0.72);
+      g.gain.exponentialRampToValueAtTime(0.001, t + STEP * 0.94);
+      o.connect(lp); lp.connect(g); g.connect(mgain);
+      o.start(t); o.stop(t + STEP);
+    }
+
+    function schedArp(t: number, freq: number) {
+      const o = ctx.createOscillator(); o.type = 'triangle';
+      o.frequency.value = freq;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.065, t); g.gain.exponentialRampToValueAtTime(0.001, t + STEP * 1.35);
+      o.connect(g); g.connect(mgain);
+      o.start(t); o.stop(t + STEP * 1.4);
+    }
+
+    function schedPad(t: number, freqs: number[]) {
+      freqs.forEach(freq => {
+        const o1 = ctx.createOscillator(); o1.type = 'sine'; o1.frequency.value = freq;
+        const o2 = ctx.createOscillator(); o2.type = 'sine'; o2.frequency.value = freq * 1.003;
         const g  = ctx.createGain();
         g.gain.setValueAtTime(0, t);
-        g.gain.linearRampToValueAtTime(0.08, t + 0.18);
-        g.gain.setValueAtTime(0.08, t + STEP * 8 * 0.85);
-        g.gain.exponentialRampToValueAtTime(0.001, t + STEP * 8 * 1.05);
-        o.connect(g); o2.connect(g); g.connect(mgain);
-        o.start(t); o2.start(t);
-        o.stop(t + STEP * 8 * 1.1); o2.stop(t + STEP * 8 * 1.1);
+        g.gain.linearRampToValueAtTime(0.048, t + 0.12);
+        g.gain.setValueAtTime(0.048, t + STEP * 3.6);
+        g.gain.exponentialRampToValueAtTime(0.001, t + STEP * 4.05);
+        o1.connect(g); o2.connect(g); g.connect(mgain);
+        o1.start(t); o1.stop(t + STEP * 4.1);
+        o2.start(t); o2.stop(t + STEP * 4.1);
       });
     }
 
-    function schedMelody(t: number, freq: number) {
-      const o = ctx.createOscillator(); o.type = 'sine';
-      o.frequency.value = freq;
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.1, t + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.001, t + STEP * 1.4);
-      o.connect(g); g.connect(mgain);
-      o.start(t); o.stop(t + STEP * 1.5);
-    }
-
     function schedule() {
-      // Only schedule audio events when active; keep looping so fadeIn() resumes
-      // seamlessly without recreating nodes.
       while (active && nextT < ctx.currentTime + LOOKAHEAD) {
-        if (step === 0) schedPad(nextT, CHORDS[chordIdx % CHORDS.length]);
-        if (step % 2 === 0) schedMelody(nextT, MELODY[step % MELODY.length]);
+        if (KICK_PAT[step])  schedKick(nextT);
+        if (SNARE_PAT[step]) schedSnare(nextT);
+        if (HAT_PAT[step])   schedHat(nextT);
+        schedBass(nextT, BASS[step]);
+        schedLead(nextT, LEAD[step]);
+        schedArp(nextT, ARP[step]);
+        if (step % 4 === 0) schedPad(nextT, CHORD_PADS[step / 4]);
         step = (step + 1) % 16;
-        if (step === 0) chordIdx++;
         nextT += STEP;
       }
-      // When inactive, advance nextT so there's no catch-up burst on resume
       if (!active) nextT = Math.max(nextT, ctx.currentTime + 0.05);
       if (running) setTimeout(schedule, SCHED_INTV);
     }
@@ -1260,10 +1360,9 @@ export function createMenuMusicNode(targetVol = 0.2): SynthMusicNode {
     schedule();
 
     return {
-      start:   () => { /* scheduler already running */ },
+      start:   () => {},
       stop:    () => { running = false; try { mgain.disconnect(); } catch (_) {} },
       fadeIn:  () => {
-        // Resume note scheduling before ramping up gain
         active = true;
         nextT  = ctx.currentTime + 0.05;
         mgain.gain.cancelScheduledValues(ctx.currentTime);
@@ -1274,7 +1373,6 @@ export function createMenuMusicNode(targetVol = 0.2): SynthMusicNode {
         mgain.gain.cancelScheduledValues(ctx.currentTime);
         mgain.gain.setValueAtTime(mgain.gain.value, ctx.currentTime);
         mgain.gain.linearRampToValueAtTime(0, ctx.currentTime + FADE_TIME);
-        // Stop scheduling notes once silent — no CPU waste while muted
         setTimeout(() => { active = false; onComplete?.(); }, (FADE_TIME + 0.1) * 1000);
       },
     };
@@ -1284,158 +1382,192 @@ export function createMenuMusicNode(targetVol = 0.2): SynthMusicNode {
 }
 
 /**
- * Driving HD electronic boss battle track — 140 BPM, 4/4, step sequencer.
+ * Gameplay music — "Vector Storm" — HD bullet-hell / shmup feel at 148 BPM.
  *
- * Layers: kick • snare • hi-hat • sub bass • synth bass • lead arp • pad
- * Intensity 0–1 controls lead volume and synth complexity.
+ * Layers:  heavy kick (sub + click) · snare · open & closed hi-hat ·
+ *          distorted sawtooth bass · sub-sine bass octave down ·
+ *          square-wave lead arpeggio · sine chord stabs · intensity gate
+ *
+ * 16-step pattern = 2 bars.  Intensity 0–1 thickens chord stabs + bass drive.
  */
 export function createBossMusicNode(targetVol = 0.18): SynthMusicNode {
   try {
     const ctx   = getAudioContext();
-    // Per-music-instance gain for fade
     const mgain = ctx.createGain();
     mgain.gain.value = 0;
     mgain.connect(dst(ctx));
     if (rev()) mgain.connect(rev()!);
 
-    let running = true;
+    let running   = true;
+    let active    = true;
     let intensity = 0.5;
 
-    const BPM   = 140;
-    const STEP  = (60 / BPM) / 2; // eighth note = 0.2143 s
+    const BPM  = 148;
+    const STEP = 60 / BPM / 2; // eighth note ≈ 0.203 s
 
-    // 8-step patterns (each step = one eighth note)
-    //   1 = play, 0 = rest  (per 8-step bar, loops)
-    const KICK_PAT  = [1, 0, 0, 1, 0, 0, 1, 0];  // beats 1, 2.5, 3.5
-    const SNARE_PAT = [0, 0, 1, 0, 0, 0, 1, 0];  // beats 2, 4
-    const HAT_PAT   = [1, 1, 1, 1, 1, 1, 1, 1];  // all 8ths
-    const OHAT_PAT  = [0, 0, 1, 0, 0, 0, 1, 0];  // same as snare
-    // Bass notes (Hz): A2 – G2 – F2 – G2 – A2 – A2 – G2 – F2
-    const BASS_F    = [110, 98, 87.3, 98, 110, 110, 98, 87.3];
-    // Lead arpeggio (Hz): A3 – C4 – E4 – A4  cycling
-    const LEAD_F    = [220, 261.6, 329.6, 440, 220, 329.6, 440, 523.25];
+    // ── 16-step patterns (2 bars of 4/4) ────────────────────────────────
+    // Kick: beat 1 every bar + syncopated hit on the "and" of 2 in bar 2
+    const KICK_PAT  = [1,0,0,0, 1,0,1,0, 1,0,0,0, 1,0,1,0];
+    const SNARE_PAT = [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0];
+    const OHAT_PAT  = [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0]; // open on snare
+    const CHAT_PAT  = [1,1,0,1, 1,1,0,1, 1,1,0,1, 1,1,0,1]; // closed fills
 
-    let step    = 0;
-    let nextT   = ctx.currentTime + 0.1;
-    // active gate: when false, loop keeps running but creates no AudioNodes
-    let active  = true;
+    // Bass: Am – G – F – Em  (4 steps each)
+    const BASS_F: number[] = [
+      110, 110, 110, 110,    // A2
+       98,  98,  98,  98,    // G2
+      87.3,87.3,87.3,87.3,  // F2
+      82.4,82.4,82.4,82.4,  // E2
+    ];
 
-    // ── Drum schedules (all connect through mgain) ────────────────────────
-    function schedKick(t: number, vol: number) {
+    // Lead arpeggio ascending then descending across the phrase
+    const LEAD_F: number[] = [
+      440,  523.25, 659.26, 880,      // Am:  A4 C5 E5 A5
+      392,  493.88, 587.33, 783.99,   // G:   G4 B4 D5 G5
+      349.2, 440,  523.25, 698.46,    // F:   F4 A4 C5 F5
+      329.6, 440,  493.88, 659.26,    // Em:  E4 A4 B4 E5
+    ];
+
+    // Chord stab tones (fired on beat 1 of each chord block = steps 0,4,8,12)
+    const STAB_CHORDS: number[][] = [
+      [220, 261.6, 329.6],   // Am  (A3 C4 E4)
+      [196, 246.9, 293.7],   // G   (G3 B3 D4)
+      [174.6, 220, 261.6],   // F   (F3 A3 C4)
+      [164.8, 196, 246.9],   // Em  (E3 G3 B3)
+    ];
+
+    let step  = 0;
+    let nextT = ctx.currentTime + 0.1;
+
+    function schedKick(t: number) {
+      // Sub sine — heavy thud
       const o = ctx.createOscillator(); o.type = 'sine';
-      o.frequency.setValueAtTime(185, t);
-      o.frequency.exponentialRampToValueAtTime(35, t + 0.28);
+      o.frequency.setValueAtTime(190, t);
+      o.frequency.exponentialRampToValueAtTime(32, t + 0.30);
       const g = ctx.createGain();
-      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+      g.gain.setValueAtTime(0.72, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.34);
       o.connect(g); g.connect(mgain);
-      o.start(t); o.stop(t + 0.35);
-      // Click transient
-      const ns  = ctx.createBufferSource(); ns.buffer = noise(ctx, 'xs');
-      const nhp = ctx.createBiquadFilter(); nhp.type = 'highpass'; nhp.frequency.value = 3000;
-      const ng  = ctx.createGain();
-      ng.gain.setValueAtTime(vol * 0.5, t); ng.gain.exponentialRampToValueAtTime(0.001, t + 0.02);
-      ns.connect(nhp); nhp.connect(ng); ng.connect(mgain);
-      ns.start(t); ns.stop(t + 0.025);
+      o.start(t); o.stop(t + 0.36);
+      // Sharp click transient
+      const ns = ctx.createBufferSource(); ns.buffer = noise(ctx, 'xs');
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 3500;
+      const ng = ctx.createGain();
+      ng.gain.setValueAtTime(0.38, t); ng.gain.exponentialRampToValueAtTime(0.001, t + 0.018);
+      ns.connect(hp); hp.connect(ng); ng.connect(mgain);
+      ns.start(t); ns.stop(t + 0.022);
     }
 
-    function schedSnare(t: number, vol: number) {
-      const ns  = ctx.createBufferSource(); ns.buffer = noise(ctx, 'sm');
-      const hp  = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1800;
-      const lp  = ctx.createBiquadFilter(); lp.type = 'lowpass';
-      lp.frequency.setValueAtTime(8000, t); lp.frequency.exponentialRampToValueAtTime(2000, t + 0.14);
-      const g   = ctx.createGain();
-      g.gain.setValueAtTime(vol * 0.7, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+    function schedSnare(t: number) {
+      const ns = ctx.createBufferSource(); ns.buffer = noise(ctx, 'sm');
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1600;
+      const lp = ctx.createBiquadFilter(); lp.type  = 'lowpass';
+      lp.frequency.setValueAtTime(9000, t); lp.frequency.exponentialRampToValueAtTime(2200, t + 0.16);
+      const g  = ctx.createGain();
+      g.gain.setValueAtTime(0.58, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.17);
       ns.connect(hp); hp.connect(lp); lp.connect(g); g.connect(mgain);
-      ns.start(t); ns.stop(t + 0.16);
-      const o   = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = 180;
-      const og  = ctx.createGain();
-      og.gain.setValueAtTime(vol * 0.5, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+      ns.start(t); ns.stop(t + 0.19);
+      // Rim tone
+      const o  = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = 210;
+      const og = ctx.createGain();
+      og.gain.setValueAtTime(0.40, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
       o.connect(og); og.connect(mgain);
-      o.start(t); o.stop(t + 0.1);
+      o.start(t); o.stop(t + 0.10);
     }
 
-    function schedHat(t: number, vol: number, open: boolean) {
-      const dur = open ? 0.1 : 0.035;
+    function schedHat(t: number, open: boolean) {
+      const dur = open ? 0.095 : 0.028;
       const ns  = ctx.createBufferSource(); ns.buffer = noise(ctx, 'xs');
       const hp  = ctx.createBiquadFilter(); hp.type = 'highpass';
-      hp.frequency.value = open ? 6000 : 8000;
+      hp.frequency.value = open ? 5800 : 9000;
       const g   = ctx.createGain();
-      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      g.gain.setValueAtTime(open ? 0.22 : 0.15, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + dur);
       ns.connect(hp); hp.connect(g); g.connect(mgain);
       ns.start(t); ns.stop(t + dur + 0.005);
     }
 
-    function schedBass(t: number, freq: number, vol: number) {
+    function schedBass(t: number, freq: number) {
+      const v   = 0.38 + intensity * 0.18;
+      // Sawtooth main with filter envelope
       const o   = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = freq;
+      const ws  = ctx.createWaveShaper(); ws.curve = _distCurve(12);
       const lp  = ctx.createBiquadFilter(); lp.type = 'lowpass';
-      lp.frequency.setValueAtTime(480, t);
-      lp.frequency.exponentialRampToValueAtTime(200, t + STEP * 0.85);
-      lp.Q.value = 2;
-      const ws  = ctx.createWaveShaper(); ws.curve = _distCurve(8);
+      lp.frequency.setValueAtTime(700 + intensity * 400, t);
+      lp.frequency.exponentialRampToValueAtTime(180, t + STEP * 0.85);
+      lp.Q.value = 3;
       const g   = ctx.createGain();
-      g.gain.setValueAtTime(vol, t); g.gain.setValueAtTime(vol, t + STEP * 0.75);
+      g.gain.setValueAtTime(v, t);
+      g.gain.setValueAtTime(v, t + STEP * 0.76);
       g.gain.exponentialRampToValueAtTime(0.001, t + STEP * 0.95);
       o.connect(ws); ws.connect(lp); lp.connect(g); g.connect(mgain);
       o.start(t); o.stop(t + STEP);
+      // Sub octave sine — adds weight on low end
+      const sub = ctx.createOscillator(); sub.type = 'sine'; sub.frequency.value = freq * 0.5;
+      const sg  = ctx.createGain();
+      sg.gain.setValueAtTime(v * 0.55, t); sg.gain.exponentialRampToValueAtTime(0.001, t + STEP * 0.90);
+      sub.connect(sg); sg.connect(mgain);
+      sub.start(t); sub.stop(t + STEP);
     }
 
-    function schedLead(t: number, freq: number, vol: number) {
-      const o   = ctx.createOscillator(); o.type = 'square';
+    function schedLead(t: number, freq: number) {
+      const v  = 0.14 + intensity * 0.10;
+      const o  = ctx.createOscillator(); o.type = 'square';
       o.frequency.setValueAtTime(freq, t);
-      o.frequency.linearRampToValueAtTime(freq * 1.015, t + STEP * 0.5);
-      const lp  = ctx.createBiquadFilter(); lp.type = 'lowpass';
-      lp.frequency.setValueAtTime(3200, t); lp.frequency.exponentialRampToValueAtTime(1200, t + STEP * 0.85);
-      lp.Q.value = 1.5;
-      const ws  = ctx.createWaveShaper(); ws.curve = _distCurve(6);
-      const g   = ctx.createGain();
+      o.frequency.linearRampToValueAtTime(freq * 1.018, t + STEP * 0.5);
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(3800, t); lp.frequency.exponentialRampToValueAtTime(1400, t + STEP * 0.85);
+      lp.Q.value = 1.8;
+      const ws = ctx.createWaveShaper(); ws.curve = _distCurve(7);
+      const g  = ctx.createGain();
       g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(vol, t + 0.006);
-      g.gain.setValueAtTime(vol, t + STEP * 0.7);
-      g.gain.exponentialRampToValueAtTime(0.001, t + STEP * 0.92);
+      g.gain.linearRampToValueAtTime(v, t + 0.005);
+      g.gain.setValueAtTime(v, t + STEP * 0.70);
+      g.gain.exponentialRampToValueAtTime(0.001, t + STEP * 0.93);
       o.connect(ws); ws.connect(lp); lp.connect(g); g.connect(mgain);
       o.start(t); o.stop(t + STEP);
     }
 
-    function schedPad(t: number, vol: number) {
-      [110, 164.8].forEach((freq) => {
+    function schedStab(t: number, freqs: number[]) {
+      const v = 0.06 + intensity * 0.06;
+      freqs.forEach(freq => {
         const o1 = ctx.createOscillator(); o1.type = 'sine'; o1.frequency.value = freq;
-        const o2 = ctx.createOscillator(); o2.type = 'sine'; o2.frequency.value = freq * 1.004;
+        const o2 = ctx.createOscillator(); o2.type = 'triangle'; o2.frequency.value = freq * 1.002;
+        const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
+        lp.frequency.setValueAtTime(2800, t); lp.frequency.exponentialRampToValueAtTime(900, t + STEP * 3.8);
+        lp.Q.value = 0.8;
         const g  = ctx.createGain();
         g.gain.setValueAtTime(0, t);
-        g.gain.linearRampToValueAtTime(vol * 0.14, t + 0.2);
-        g.gain.setValueAtTime(vol * 0.14, t + STEP * 7.5);
-        g.gain.exponentialRampToValueAtTime(0.001, t + STEP * 8.1);
-        o1.connect(g); o2.connect(g); g.connect(mgain);
-        o1.start(t); o1.stop(t + STEP * 8.2);
-        o2.start(t); o2.stop(t + STEP * 8.2);
+        g.gain.linearRampToValueAtTime(v, t + 0.012);
+        g.gain.setValueAtTime(v, t + STEP * 3.5);
+        g.gain.exponentialRampToValueAtTime(0.001, t + STEP * 3.95);
+        o1.connect(lp); o2.connect(lp); lp.connect(g); g.connect(mgain);
+        o1.start(t); o1.stop(t + STEP * 4.0);
+        o2.start(t); o2.stop(t + STEP * 4.0);
       });
     }
 
     function schedule() {
       while (active && nextT < ctx.currentTime + LOOKAHEAD) {
-        const v = 0.32 + intensity * 0.22;
-        if (KICK_PAT[step])  schedKick(nextT, v * 0.90);
-        if (SNARE_PAT[step]) schedSnare(nextT, v * 0.75);
-        if (HAT_PAT[step])   schedHat(nextT, v * 0.28, OHAT_PAT[step] === 1);
-        schedBass(nextT, BASS_F[step], v * 0.55);
-        if (step % 2 === 0 || intensity > 0.65) {
-          schedLead(nextT, LEAD_F[step], v * (0.28 + intensity * 0.18));
-        }
-        if (step === 0) schedPad(nextT, v);
-        step = (step + 1) % 8;
+        if (KICK_PAT[step])  schedKick(nextT);
+        if (SNARE_PAT[step]) schedSnare(nextT);
+        if (OHAT_PAT[step])  schedHat(nextT, true);
+        if (CHAT_PAT[step])  schedHat(nextT, false);
+        schedBass(nextT, BASS_F[step]);
+        // Lead plays every step; on off-beats skip when intensity is low
+        if (step % 2 === 0 || intensity > 0.45) schedLead(nextT, LEAD_F[step]);
+        if (step % 4 === 0) schedStab(nextT, STAB_CHORDS[step / 4]);
+        step = (step + 1) % 16;
         nextT += STEP;
       }
-      // Advance timeline cursor when inactive so there's no catch-up burst on resume
       if (!active) nextT = Math.max(nextT, ctx.currentTime + 0.05);
       if (running) setTimeout(schedule, SCHED_INTV);
     }
 
     schedule();
     return {
-      start:        () => { /* scheduler running */ },
+      start:        () => {},
       stop:         () => { running = false; try { mgain.disconnect(); } catch (_) {} },
       fadeIn:       () => {
-        // Re-enable note scheduling and restart timeline cursor before ramping gain
         active = true;
         nextT  = ctx.currentTime + 0.05;
         mgain.gain.cancelScheduledValues(ctx.currentTime);
@@ -1446,7 +1578,6 @@ export function createBossMusicNode(targetVol = 0.18): SynthMusicNode {
         mgain.gain.cancelScheduledValues(ctx.currentTime);
         mgain.gain.setValueAtTime(mgain.gain.value, ctx.currentTime);
         mgain.gain.linearRampToValueAtTime(0, ctx.currentTime + FADE_TIME);
-        // Pause note scheduling after silence — no wasted AudioNode creation while muted
         setTimeout(() => { active = false; onComplete?.(); }, (FADE_TIME + 0.1) * 1000);
       },
       setIntensity: (i: number) => { intensity = Math.max(0, Math.min(1, i)); },

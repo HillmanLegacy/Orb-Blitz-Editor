@@ -88,7 +88,7 @@ function ShootingOrbs() {
         vx: Math.cos(vAngle) * speed * dir,
         vy: Math.sin(vAngle) * speed,
         color: SHOOT_COLORS[i % SHOOT_COLORS.length],
-        size:  0.07 + Math.random() * 0.22,
+        size:  0.14 + Math.random() * 0.44,
         phase: Math.random() * Math.PI * 2,
         twink: 1.8 + Math.random() * 4.5,
       };
