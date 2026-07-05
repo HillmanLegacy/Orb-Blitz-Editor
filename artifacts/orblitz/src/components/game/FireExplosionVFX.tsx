@@ -5,7 +5,6 @@
  *  0.00 – 0.50  Fire corona aura burst — 60 embers radiating outward (scaled-down boss aura)
  *  0.00 – 1.00  600 high-velocity fire particles (InstancedMesh, additive)
  *  0.00 – 0.80  16 mini fire-orb fragments — tiny versions of the boss, no hitboxes
- *  0.00 – 0.55  3 expanding shockwave rings (flattened torus, fading)
  *  0.10 – 0.70  Bright flash core
  *  0.50 – 1.00  Residual ember drift
  */
@@ -16,7 +15,6 @@ import * as THREE from "three";
 
 const PARTICLE_COUNT   = 600;
 const EMBER_COUNT      = 120;
-const RING_COUNT       = 3;
 const MINI_ORB_COUNT   = 16;   // mini-boss fragments — pure visual, no hitboxes
 const CORONA_BURST_COUNT = 60; // scaled-down fire aura radiating at the start
 
@@ -70,7 +68,6 @@ export function FireExplosionVFX({ progress, scale = 3.0 }: Props) {
   const emberRef     = useRef<THREE.InstancedMesh>(null);
   const miniOrbRef   = useRef<THREE.InstancedMesh>(null);
   const coronaRef    = useRef<THREE.InstancedMesh>(null);
-  const ringRefs     = useRef<(THREE.Mesh | null)[]>([]);
   const flashRef     = useRef<THREE.Mesh>(null);
 
   // ── Static particle data ───────────────────────────────────────────────────
@@ -164,12 +161,6 @@ export function FireExplosionVFX({ progress, scale = 3.0 }: Props) {
     }
     return list;
   }, [scale]);
-
-  const ringDefs = useMemo(() => [
-    { speed: 6.0, tube: 0.22, delay: 0.0,  tilt: 0 },
-    { speed: 4.5, tube: 0.16, delay: 0.08, tilt: Math.PI / 6 },
-    { speed: 3.2, tube: 0.12, delay: 0.16, tilt: -Math.PI / 5 },
-  ], []);
 
   // ── Per-frame update ───────────────────────────────────────────────────────
   const color = useMemo(() => new THREE.Color(), []);
@@ -321,20 +312,6 @@ export function FireExplosionVFX({ progress, scale = 3.0 }: Props) {
       if (emberRef.current.instanceColor) emberRef.current.instanceColor.needsUpdate = true;
     }
 
-    // ── Shockwave rings ────────────────────────────────────────────────────
-    ringRefs.current.forEach((mesh, i) => {
-      if (!mesh) return;
-      const def   = ringDefs[i];
-      const local = Math.max(0, p - def.delay);
-      const r     = local * def.speed * scale;
-      const fade  = Math.max(0, 1 - local * 2.2);
-
-      mesh.scale.set(r, 1, r);
-      const mat = mesh.material as THREE.MeshBasicMaterial;
-      mat.opacity = fade * 0.85;
-      mesh.rotation.x = Math.PI / 2 + def.tilt;
-    });
-
     // ── Flash core ─────────────────────────────────────────────────────────
     if (flashRef.current) {
       const flashLocal = p < 0.1 ? p / 0.1 : Math.max(0, 1 - (p - 0.1) / 0.55);
@@ -390,24 +367,6 @@ export function FireExplosionVFX({ progress, scale = 3.0 }: Props) {
           depthWrite={false}
         />
       </instancedMesh>
-
-      {/* Shockwave rings — flattened torus */}
-      {ringDefs.map((def, i) => (
-        <mesh
-          key={i}
-          ref={(el) => { ringRefs.current[i] = el; }}
-          rotation={[Math.PI / 2 + def.tilt, 0, 0]}
-        >
-          <torusGeometry args={[1, def.tube, 8, 48]} />
-          <meshBasicMaterial
-            color="#ff5500"
-            transparent
-            opacity={0}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-          />
-        </mesh>
-      ))}
 
       {/* Flash core */}
       <mesh ref={flashRef}>
