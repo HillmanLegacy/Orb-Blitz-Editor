@@ -7,51 +7,34 @@ import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 // 3D screen-space overlays rendered slightly in front of the scene:
 //   • Impact flash — full-screen white/red flash on heavy hits
 //   • Damage vignette — red ring that pulses at low health
-//   • Scanlines — classic CRT scanline effect moving up the screen
-//
-// The post-processing Vignette and ChromaticAberration in GameScene.tsx handle
-// edge-darkening and aberration; this file focuses on dynamic on-hit feedback.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function ScreenEffects() {
-  // ── Flash mesh — full-screen white flash on heavy events ─────────────────
-  const flashRef          = useRef<THREE.Mesh>(null);
-  const flashTimerRef     = useRef(0);
-  const flashDurRef       = useRef(0.14);   // seconds
-  const flashColorRef     = useRef<[number, number, number]>([1, 1, 1]);
-  const prevDamagedRef    = useRef(false);
-  const prevBossRef       = useRef<string | null>(null);
+  // ── Flash mesh ────────────────────────────────────────────────────────────
+  const flashRef       = useRef<THREE.Mesh>(null);
+  const flashTimerRef  = useRef(0);
+  const flashDurRef    = useRef(0.14);
+  const flashColorRef  = useRef<[number, number, number]>([1, 1, 1]);
+  const prevDamagedRef = useRef(false);
+  const prevBossRef    = useRef<string | null>(null);
 
-  // ── Damage vignette ring ─────────────────────────────────────────────────
-  const vignetteRef       = useRef<THREE.Mesh>(null);
+  // ── Damage vignette ring ──────────────────────────────────────────────────
+  const vignetteRef = useRef<THREE.Mesh>(null);
 
-  // ── Multiple scanlines — individual refs (hooks must not be in array literals)
-  const scanRef0          = useRef<THREE.Mesh>(null);
-  const scanRef1          = useRef<THREE.Mesh>(null);
-  const scanRef2          = useRef<THREE.Mesh>(null);
-  // Collect after all hooks so the array is stable across renders
-  const scanRefs          = [scanRef0, scanRef1, scanRef2];
-
-  const {
-    phase, isDamaged, boss,
-    health, maxHealth,
-  } = useMagicOrb();
-
+  const { phase, isDamaged, boss, health, maxHealth } = useMagicOrb();
   const healthRatio = maxHealth > 0 ? health / maxHealth : 1;
 
-  // ── Detect events and trigger flashes ───────────────────────────────────
+  // ── Trigger flashes on events ─────────────────────────────────────────────
   useEffect(() => {
     if (isDamaged && !prevDamagedRef.current) {
-      // Player took damage — harsh red/white flash
-      flashColorRef.current  = [1, 0.08, 0.08];
-      flashTimerRef.current  = 0.18;
-      flashDurRef.current    = 0.18;
+      flashColorRef.current = [1, 0.08, 0.08];
+      flashTimerRef.current = 0.18;
+      flashDurRef.current   = 0.18;
     }
     prevDamagedRef.current = isDamaged;
   }, [isDamaged]);
 
   useEffect(() => {
-    // Boss just died (ref was set, now null) — white victory flash
     if (prevBossRef.current !== null && boss === null) {
       flashColorRef.current = [1, 1, 1];
       flashTimerRef.current = 0.25;
@@ -60,19 +43,17 @@ export function ScreenEffects() {
     prevBossRef.current = boss?.id ?? null;
   }, [boss]);
 
-  // ── Frame update ─────────────────────────────────────────────────────────
+  // ── Frame update ──────────────────────────────────────────────────────────
   useFrame((state, delta) => {
     const time = state.clock.getElapsedTime();
 
-    // ── Impact flash ─────────────────────────────────────────────────────
+    // Impact flash
     if (flashRef.current) {
       const mat = flashRef.current.material as THREE.MeshBasicMaterial;
       if (flashTimerRef.current > 0) {
         flashTimerRef.current -= delta;
         const progress = Math.max(0, flashTimerRef.current / flashDurRef.current);
-        // Quadratic curve: hits hard then fades fast
-        const opacity  = Math.pow(progress, 0.4) * 0.65;
-        mat.opacity    = opacity;
+        mat.opacity = Math.pow(progress, 0.4) * 0.65;
         const [r, g, b] = flashColorRef.current;
         mat.color.setRGB(r, g, b);
         flashRef.current.visible = true;
@@ -81,32 +62,20 @@ export function ScreenEffects() {
       }
     }
 
-    // ── Damage vignette ring ─────────────────────────────────────────────
+    // Damage vignette
     if (vignetteRef.current) {
       const mat = vignetteRef.current.material as THREE.MeshBasicMaterial;
-      // Low health: red pulsing ring; normal: very faint purple ring
-      const lowHealthRatio = Math.max(0, 0.5 - healthRatio) * 2; // 0→1 as health drops to 0
-      const lowPulse   = lowHealthRatio * (0.2 + Math.sin(time * 4) * 0.08);
-      const atLastHP = health === 1 && phase === "playing";
+      const lowHealthRatio = Math.max(0, 0.5 - healthRatio) * 2;
+      const lowPulse    = lowHealthRatio * (0.2 + Math.sin(time * 4) * 0.08);
+      const atLastHP    = health === 1 && phase === "playing";
       const damagePulse = (isDamaged || atLastHP) ? 0.3 : 0;
-      const baseOpacity = 0.08;
-      mat.opacity  = baseOpacity + damagePulse + lowPulse;
+      mat.opacity = 0.08 + damagePulse + lowPulse;
       if (isDamaged || atLastHP || lowHealthRatio > 0.2) {
-        mat.color.setHSL(0, 0.9, 0.12); // red
+        mat.color.setHSL(0, 0.9, 0.12);
       } else {
-        mat.color.setHSL(0.82, 0.6, 0.1); // purple
+        mat.color.setHSL(0.82, 0.6, 0.1);
       }
     }
-
-    // ── Moving scanlines at different speeds ─────────────────────────────
-    const scanSpeeds = [0.35, 0.58, 0.82];
-    const scanOffsets = [0, 7, 14]; // vertical stagger
-    scanRefs.forEach((ref, i) => {
-      if (!ref.current) return;
-      ref.current.position.y = ((time * scanSpeeds[i] + scanOffsets[i]) % 22) - 11;
-      const mat = ref.current.material as THREE.MeshBasicMaterial;
-      mat.opacity = 0.018 + (i === 0 ? 0.008 : 0);
-    });
   });
 
   if (phase !== "playing") return null;
@@ -114,7 +83,7 @@ export function ScreenEffects() {
   return (
     <group position={[0, 0, 8]}>
 
-      {/* ── Damage vignette ring ── */}
+      {/* Damage vignette ring */}
       <mesh ref={vignetteRef} position={[0, 0, 0.03]}>
         <ringGeometry args={[7, 20, 64]} />
         <meshBasicMaterial
@@ -127,9 +96,9 @@ export function ScreenEffects() {
         />
       </mesh>
 
-      {/* ── Dark corner gradients (4-corner vignette accent) ── */}
+      {/* Dark corner accents */}
       {([[-13, 10], [13, 10], [-13, -10], [13, -10]] as [number, number][]).map(([cx, cy], i) => (
-        <mesh key={`corner-${i}`} position={[cx, cy, 0.035]}>
+        <mesh key={i} position={[cx, cy, 0.035]}>
           <circleGeometry args={[7, 16]} />
           <meshBasicMaterial
             color="#000011"
@@ -141,22 +110,7 @@ export function ScreenEffects() {
         </mesh>
       ))}
 
-      {/* ── Moving scanlines ── */}
-      {scanRefs.map((ref, i) => (
-        <mesh key={`scan-${i}`} ref={ref} position={[0, i * 7 - 7, 0.04]}>
-          <planeGeometry args={[32, i === 0 ? 0.03 : 0.016]} />
-          <meshBasicMaterial
-            color="#ffffff"
-            transparent
-            opacity={0.018}
-            blending={THREE.AdditiveBlending}
-            depthTest={false}
-            depthWrite={false}
-          />
-        </mesh>
-      ))}
-
-      {/* ── Impact flash — full-screen, rendered last (highest Z) ── */}
+      {/* Impact flash — highest Z, rendered last */}
       <mesh ref={flashRef} position={[0, 0, 0.5]} visible={false}>
         <planeGeometry args={[40, 30]} />
         <meshBasicMaterial
