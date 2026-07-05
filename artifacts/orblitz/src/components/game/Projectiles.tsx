@@ -145,7 +145,7 @@ const _pauraSparkDefs = (() => {
       orbitSpeed: (2.5 + Math.random() * 5.0) * (Math.random() < 0.5 ? 1 : -1),
       phase:      Math.random() * Math.PI * 2,
       perp1, perp2,
-      baseSize:   0.010 + Math.random() * 0.018,
+      baseSize:   0.028 + Math.random() * 0.030,
       pulseFreq:  9 + Math.random() * 20,
       pulsePhase: Math.random() * Math.PI * 2,
       zapFreq:    3.0 + Math.random() * 5.0,
@@ -190,7 +190,7 @@ function ProjectileChargeSparks({ projScale }: { projScale: number }) {
         (sp.perp1.y * cosT + sp.perp2.y * sinT) * r,
         (sp.perp1.z * cosT + sp.perp2.z * sinT) * r,
       );
-      _pauraDummy.scale.setScalar(sp.baseSize * (0.4 + pulse * 0.6 + zapAmt * 3.0));
+      _pauraDummy.scale.setScalar(sp.baseSize * projScale * (0.4 + pulse * 0.6 + zapAmt * 3.0));
       _pauraDummy.updateMatrix();
       mesh.setMatrixAt(i, _pauraDummy.matrix);
 
