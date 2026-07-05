@@ -303,6 +303,7 @@ function ImpactEffectMesh({ effect, skinColors }: {
         glowColor={skinColors.glow}
         scale={0.38}
         seed={Math.round(effect.seed * 9999)}
+        depthTest={false}
       />
     </group>
   );
@@ -533,7 +534,7 @@ export function Projectiles() {
       
       if (boss && !boss.destroying && !boss.shieldActive) {
         const [bx, by, bz] = boss.position;
-        const dist = Math.sqrt((px - bx) ** 2 + (py - by) ** 2 + (bz || 0 - pz) ** 2);
+        const dist = Math.sqrt((px - bx) ** 2 + (py - by) ** 2 + ((bz || 0) - pz) ** 2);
         const bossHitRadius = 1.65;
         
         if (dist < bossHitRadius) {
@@ -554,7 +555,7 @@ export function Projectiles() {
           
           addImpactEffect({
             id: `impact-${impactIdCounter++}`,
-            position: [bx, by, bz || 0],
+            position: [bx, by, (bz || 0) + 1.5],
             timer: 0.5,
             maxTimer: 0.5,
             seed: Math.random(),
@@ -564,7 +565,7 @@ export function Projectiles() {
         }
       } else if (boss && boss.shieldActive) {
         const [bx, by, bz] = boss.position;
-        const dist = Math.sqrt((px - bx) ** 2 + (py - by) ** 2 + (bz || 0 - pz) ** 2);
+        const dist = Math.sqrt((px - bx) ** 2 + (py - by) ** 2 + ((bz || 0) - pz) ** 2);
         const shieldRadius = 3.5;
         
         if (dist < shieldRadius) {

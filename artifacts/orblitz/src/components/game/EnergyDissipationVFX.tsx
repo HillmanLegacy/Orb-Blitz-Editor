@@ -65,9 +65,10 @@ interface Props {
   glowColor?: string;
   scale?:     number;
   seed?:      number;
+  depthTest?: boolean;
 }
 
-export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, seed = 0 }: Props) {
+export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, seed = 0, depthTest = true }: Props) {
   const progressRef = useRef(progress);
   progressRef.current = progress;
 
@@ -206,12 +207,12 @@ export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, se
   // Faceted icosahedron for debris shards — clearly 3D at any angle
   const debrisGeo = useMemo(() => new THREE.IcosahedronGeometry(1, 0), []);
 
-  const speckMat      = useMemo(() => new THREE.MeshBasicMaterial({ color,     transparent: true, depthWrite: false }), [color]);
-  const dustMat       = useMemo(() => new THREE.MeshBasicMaterial({ color: gColor, transparent: true, depthWrite: false }), [gColor]);
-  const streamFillMat = useMemo(() => new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, depthWrite: false }), []);
-  const streamOutMat  = useMemo(() => new THREE.MeshBasicMaterial({ color: "#0d0d0d", transparent: true, depthWrite: false, side: THREE.BackSide }), []);
-  const debrisFillMat = useMemo(() => new THREE.MeshBasicMaterial({ color: gColor, transparent: true, depthWrite: false }), [gColor]);
-  const debrisOutMat  = useMemo(() => new THREE.MeshBasicMaterial({ color: "#0d0d0d", transparent: true, depthWrite: false, side: THREE.BackSide }), []);
+  const speckMat      = useMemo(() => new THREE.MeshBasicMaterial({ color,     transparent: true, depthWrite: false, depthTest }), [color, depthTest]);
+  const dustMat       = useMemo(() => new THREE.MeshBasicMaterial({ color: gColor, transparent: true, depthWrite: false, depthTest }), [gColor, depthTest]);
+  const streamFillMat = useMemo(() => new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, depthWrite: false, depthTest }), [depthTest]);
+  const streamOutMat  = useMemo(() => new THREE.MeshBasicMaterial({ color: "#0d0d0d", transparent: true, depthWrite: false, side: THREE.BackSide, depthTest }), [depthTest]);
+  const debrisFillMat = useMemo(() => new THREE.MeshBasicMaterial({ color: gColor, transparent: true, depthWrite: false, depthTest }), [gColor, depthTest]);
+  const debrisOutMat  = useMemo(() => new THREE.MeshBasicMaterial({ color: "#0d0d0d", transparent: true, depthWrite: false, side: THREE.BackSide, depthTest }), [depthTest]);
 
   // ── Frame update ───────────────────────────────────────────────────────
 
@@ -415,11 +416,11 @@ export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, se
       {/* Crush flash — IcosahedronGeometry, spinning */}
       <mesh ref={crushOutRef}>
         <icosahedronGeometry args={[1, 1]} />
-        <meshBasicMaterial color="#0d0d0d" transparent opacity={0} depthWrite={false} side={THREE.BackSide} />
+        <meshBasicMaterial color="#0d0d0d" transparent opacity={0} depthWrite={false} depthTest={depthTest} side={THREE.BackSide} />
       </mesh>
       <mesh ref={crushRef}>
         <icosahedronGeometry args={[1, 1]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0} depthWrite={false} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={0} depthWrite={false} depthTest={depthTest} />
       </mesh>
 
       {/* Residual heat — real point light, not a 2D disc */}
@@ -433,6 +434,7 @@ export function EnergyDissipationVFX({ progress, color, glowColor, scale = 1, se
           opacity={1}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
+          depthTest={depthTest}
         />
       </instancedMesh>
     </>
