@@ -22,6 +22,7 @@ import {
   playSparkleSound,
   playTitleRevealSound,
   createMenuMusicNode,
+  createGameplayMusicNode,
   createBossMusicNode,
   playShieldActivateSound,
   playTeleportSound,
@@ -86,6 +87,7 @@ interface AudioState {
   backgroundMusic: HTMLAudioElement | null;
   menuMusic: HTMLAudioElement | null;
   synthMenuMusic: SynthMusicNode | null;
+  synthGameMusic: SynthMusicNode | null;
   synthBossMusic: SynthMusicNode | null;
   isMuted: boolean;
   brightness: number;
@@ -95,6 +97,7 @@ interface AudioState {
   setBackgroundMusic: (music: HTMLAudioElement) => void;
   setMenuMusic: (music: HTMLAudioElement) => void;
   initSynthMenuMusic: () => SynthMusicNode;
+  initSynthGameMusic: () => SynthMusicNode;
   initSynthBossMusic: () => SynthMusicNode;
   
   toggleMute: () => void;
@@ -145,6 +148,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   backgroundMusic: null,
   menuMusic: null,
   synthMenuMusic: null,
+  synthGameMusic: null,
   synthBossMusic: null,
   isMuted: false,
   brightness: (() => { try { const v = parseFloat(localStorage.getItem("orb_brightness") ?? "1"); return isFinite(v) ? Math.min(2, Math.max(0.2, v)) : 1; } catch { return 1; } })(),
@@ -166,6 +170,15 @@ export const useAudio = create<AudioState>((set, get) => ({
     }
     return current;
   },
+  initSynthGameMusic: () => {
+    const current = get().synthGameMusic;
+    if (!current) {
+      const newMusic = createGameplayMusicNode(0.2);
+      set({ synthGameMusic: newMusic });
+      return newMusic;
+    }
+    return current;
+  },
   initSynthBossMusic: () => {
     const current = get().synthBossMusic;
     if (!current) {
@@ -177,99 +190,64 @@ export const useAudio = create<AudioState>((set, get) => ({
   },
   
   toggleMute: () => {
-    const { isMuted, backgroundMusic, synthMenuMusic, synthBossMusic, currentMusicType } = get();
+    const { isMuted, synthMenuMusic, synthGameMusic, synthBossMusic, currentMusicType } = get();
     const newMutedState = !isMuted;
     set({ isMuted: newMutedState });
     
     if (newMutedState) {
-      if (backgroundMusic) {
-        fadeAudio(backgroundMusic, 0, 300);
-      }
       synthMenuMusic?.fadeOut();
+      synthGameMusic?.fadeOut();
       synthBossMusic?.fadeOut();
     } else {
       if (currentMusicType === "menu") {
-        const music = get().initSynthMenuMusic();
-        music?.fadeIn();
+        get().initSynthMenuMusic()?.fadeIn();
+      } else if (currentMusicType === "game") {
+        get().initSynthGameMusic()?.fadeIn();
       } else if (currentMusicType === "boss") {
-        const music = get().initSynthBossMusic();
-        music?.fadeIn();
-      } else if (currentMusicType === "game" && backgroundMusic) {
-        backgroundMusic.volume = 0;
-        backgroundMusic.play().catch(() => {});
-        fadeAudio(backgroundMusic, TARGET_GAME_VOLUME, FADE_DURATION);
+        get().initSynthBossMusic()?.fadeIn();
       }
     }
   },
   
   startMenuMusic: () => {
-    const { backgroundMusic, synthBossMusic, isMuted, currentMusicType } = get();
+    const { synthGameMusic, synthBossMusic, isMuted, currentMusicType } = get();
     if (currentMusicType === "menu") return;
-    if (backgroundMusic && !backgroundMusic.paused) {
-      fadeAudio(backgroundMusic, 0, FADE_DURATION, () => {
-        backgroundMusic.pause();
-      });
-    }
-    if (synthBossMusic) {
-      synthBossMusic.fadeOut();
-    }
+    synthGameMusic?.fadeOut();
+    synthBossMusic?.fadeOut();
     set({ currentMusicType: "menu" });
     if (!isMuted) {
-      const music = get().initSynthMenuMusic();
-      music?.fadeIn();
+      get().initSynthMenuMusic()?.fadeIn();
     }
   },
   
   startGameMusic: () => {
-    const { backgroundMusic, synthMenuMusic, synthBossMusic, isMuted, currentMusicType } = get();
+    const { synthMenuMusic, synthGameMusic, synthBossMusic, isMuted, currentMusicType } = get();
     if (currentMusicType === "game") return;
-    if (synthMenuMusic) {
-      synthMenuMusic.fadeOut(() => {});
-    }
-    if (synthBossMusic) {
-      synthBossMusic.fadeOut(() => {});
-    }
+    synthMenuMusic?.fadeOut();
+    synthGameMusic?.fadeOut();
+    synthBossMusic?.fadeOut();
     set({ currentMusicType: "game" });
-    if (backgroundMusic && !isMuted) {
-      backgroundMusic.currentTime = 0;
-      backgroundMusic.volume = 0;
-      backgroundMusic.loop = true;
-      backgroundMusic.play().catch(() => {});
-      fadeAudio(backgroundMusic, TARGET_GAME_VOLUME, FADE_DURATION);
+    if (!isMuted) {
+      get().initSynthGameMusic()?.fadeIn();
     }
   },
   
   startBossMusic: () => {
-    const { backgroundMusic, synthMenuMusic, isMuted, currentMusicType } = get();
+    const { synthMenuMusic, synthGameMusic, isMuted, currentMusicType } = get();
     if (currentMusicType === "boss") return;
-    if (backgroundMusic && !backgroundMusic.paused) {
-      fadeAudio(backgroundMusic, 0, FADE_DURATION, () => {
-        backgroundMusic.pause();
-      });
-    }
-    if (synthMenuMusic) {
-      synthMenuMusic.fadeOut(() => {});
-    }
+    synthMenuMusic?.fadeOut();
+    synthGameMusic?.fadeOut();
     set({ currentMusicType: "boss" });
     if (!isMuted) {
-      const music = get().initSynthBossMusic();
-      music?.fadeIn();
+      get().initSynthBossMusic()?.fadeIn();
     }
   },
   
   stopMusic: () => {
-    const { backgroundMusic, synthMenuMusic, synthBossMusic } = get();
-    if (backgroundMusic && !backgroundMusic.paused) {
-      fadeAudio(backgroundMusic, 0, FADE_DURATION, () => {
-        backgroundMusic.pause();
-      });
-    }
-    if (synthMenuMusic) {
-      synthMenuMusic.fadeOut();
-    }
-    if (synthBossMusic) {
-      synthBossMusic.fadeOut();
-    }
+    const { synthMenuMusic, synthGameMusic, synthBossMusic } = get();
+    synthMenuMusic?.fadeOut();
+    synthGameMusic?.fadeOut();
+    synthBossMusic?.fadeOut();
     set({ currentMusicType: null });
   },
   

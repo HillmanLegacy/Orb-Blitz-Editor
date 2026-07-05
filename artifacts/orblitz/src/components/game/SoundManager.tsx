@@ -35,6 +35,7 @@ export function SoundManager() {
     isMuted, 
     backgroundMusic,
     synthMenuMusic,
+    synthGameMusic,
     initSynthMenuMusic,
     currentMusicType,
     synthBossMusic,
@@ -130,7 +131,8 @@ export function SoundManager() {
       fadeAudio(defaultMusic, 0, FADE_DURATION, () => defaultMusic.pause());
     }
     synthMenuMusic?.stop();
-  }, [synthMenuMusic]);
+    synthGameMusic?.fadeOut();
+  }, [synthMenuMusic, synthGameMusic]);
 
   const transitionToTrack = useCallback((targetTrack: "pixel_drift" | "powerline_cappuccino" | "menu" | "boss" | "none") => {
     if (isMuted) return;
@@ -144,6 +146,16 @@ export function SoundManager() {
       stopAllGameMusic();
       if (currentMusicType !== "boss") {
         startBossMusic();
+      }
+      fadeInProgressRef.current = false;
+      return;
+    }
+
+    // Route normal gameplay through the synth engine instead of the MP3 file
+    if (targetTrack === "pixel_drift") {
+      stopAllGameMusic();
+      if (currentMusicType !== "game") {
+        startGameMusic();
       }
       fadeInProgressRef.current = false;
       return;
