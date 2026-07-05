@@ -71,14 +71,12 @@ export function Boss() {
   const frameCountRef        = useRef(0);
 
   // ── FireBoss (circle) strike-and-retreat state machine ──────────────────────
-  const fireMovePhaseRef = useRef<'entering' | 'firing' | 'waiting' | 'exiting'>('entering');
+  const fireMovePhaseRef = useRef<'entering' | 'waiting' | 'exiting'>('entering');
   const fireTargetRef    = useRef<[number, number]>([0, 0]);
   const fireOffscreenRef = useRef<[number, number]>([18, 0]);
   const fireWaitTimerRef = useRef(3.0);
-  const firePatternRef   = useRef(0);
   const fireInitRef      = useRef(false);
-  const fireQueueRef     = useRef<Array<{ angle: number; speedMult: number }>>([]);
-  const fireShotTimerRef = useRef(0);
+  const fireShotTimerRef = useRef(0); // countdown until next shot while moving
   
   
   const keepDistanceFromPlayer = (
@@ -166,7 +164,6 @@ export function Boss() {
         frameCountRef.current       = 0;
         fireMovePhaseRef.current    = 'entering';
         fireInitRef.current         = false;
-        fireQueueRef.current        = [];
         fireShotTimerRef.current    = 0;
         useMagicOrb.setState({ boss: null });
         if (gameMode === "survival") {
@@ -453,19 +450,30 @@ export function Boss() {
       }
       case "orbit_player": {
         // ── FireBoss "strike-and-retreat" state machine ──────────────────────
-        // Phases: entering → firing(consecutive) → waiting(3 s) → exiting → repeat
-        // Boss stays at least minDistWU (300 px in world units) from player while on-screen.
+        // Phases: entering (fires while moving) → waiting (3 s, no fire)
+        //       → exiting (fires while moving) → repeat
+        // Landing target is 100–300 px from the player in world units.
+        // All fired orbs use indirect approach movement patterns.
 
         const PW  = 12;
         const PH  = 8;
         const OFF = 18;
 
-        // Convert 300 px → world units using the live viewport dimensions.
-        const minDistWU = 300 * state.viewport.height / state.size.height;
+        // Live px→world-unit conversion.
+        const pxPerWU   = state.size.height / state.viewport.height;
+        const minDistWU = 100 / pxPerWU;
+        const maxDistWU = 300 / pxPerWU;
+
+        // Indirect movement patterns for fired orbs.
+        const INDIRECT: MovementPattern[] = [
+          'zigzag', 'spiral', 'wave', 'homing',
+          'sine_horizontal', 'sine_vertical', 'pendulum',
+        ];
 
         // ── Helpers ─────────────────────────────────────────────────────────
 
         const pickNewCycle = () => {
+          // Random edge for off-screen origin/destination.
           const side = Math.floor(Math.random() * 4);
           if (side === 0) {
             fireOffscreenRef.current = [-OFF, (Math.random() - 0.5) * PH * 1.4];
@@ -476,67 +484,35 @@ export function Boss() {
           } else {
             fireOffscreenRef.current = [(Math.random() - 0.5) * PW * 1.6, -OFF];
           }
-          // Random landing position, nudged away from player if too close.
-          let tx = (Math.random() - 0.5) * PW * 1.2;
-          let ty = (Math.random() - 0.5) * PH * 0.9;
-          const tdx = tx - playerX;
-          const tdy = ty - playerY;
-          const tdist = Math.sqrt(tdx * tdx + tdy * tdy);
-          if (tdist < minDistWU && tdist > 0.01) {
-            const s = minDistWU / tdist;
-            tx = playerX + tdx * s;
-            ty = playerY + tdy * s;
-          }
-          fireTargetRef.current  = [tx, ty];
-          firePatternRef.current = Math.floor(Math.random() * 6);
+          // Landing: random angle around player, radius in [100 px, 300 px].
+          const angle  = Math.random() * Math.PI * 2;
+          const radius = minDistWU + Math.random() * (maxDistWU - minDistWU);
+          const tx = Math.max(-PW * 0.9, Math.min(PW * 0.9, playerX + Math.cos(angle) * radius));
+          const ty = Math.max(-PH * 0.85, Math.min(PH * 0.85, playerY + Math.sin(angle) * radius));
+          fireTargetRef.current = [tx, ty];
         };
 
-        // Build the ordered shot list for the chosen pattern.
-        const buildFireQueue = (baseAngle: number): Array<{ angle: number; speedMult: number }> => {
-          switch (firePatternRef.current) {
-            case 0: return [
-              { angle: baseAngle, speedMult: 1.0 },
-            ];
-            case 1: return [
-              { angle: baseAngle - 0.44, speedMult: 0.9 },
-              { angle: baseAngle + 0.44, speedMult: 0.9 },
-            ];
-            case 2: return [
-              { angle: baseAngle - 0.52, speedMult: 0.8  },
-              { angle: baseAngle,        speedMult: 1.15 },
-              { angle: baseAngle + 0.52, speedMult: 0.8  },
-            ];
-            case 3: return [
-              { angle: baseAngle + (Math.random() - 0.5) * 0.35, speedMult: 1.55 },
-              { angle: baseAngle + (Math.random() - 0.5) * 0.35, speedMult: 0.55 },
-            ];
-            case 4: return [
-              { angle: baseAngle,                   speedMult: 1.2 },
-              { angle: baseAngle + Math.PI * 0.42, speedMult: 0.8 },
-              { angle: baseAngle - Math.PI * 0.42, speedMult: 0.8 },
-            ];
-            case 5: return [
-              { angle: baseAngle + (Math.random() - 0.5) * 0.6, speedMult: 0.7 + Math.random() * 0.85 },
-            ];
-            default: return [{ angle: baseAngle, speedMult: 1.0 }];
-          }
-        };
-
-        // Spawn one boss fire orb.
-        const spawnFireOrb = (angle: number, speedMult: number) => {
+        // Spawn one orb aimed roughly at the player with a random indirect pattern.
+        const spawnFireOrb = () => {
           const { arcadeLevel, boss: liveBoss, addDarkOrb } = useMagicOrb.getState();
           const wl         = Math.max(1, Math.floor(arcadeLevel));
           const speedScale = 1 + (wl - 1) * 0.15;
           const sizeScale  = 0.5 + (wl - 1) * 0.03;
+          const baseAngle  = Math.atan2(
+            playerY - bossPosRef.current[1],
+            playerX - bossPosRef.current[0],
+          );
+          const angle   = baseAngle + (Math.random() - 0.5) * 0.5;
+          const pattern = INDIRECT[Math.floor(Math.random() * INDIRECT.length)];
           addDarkOrb({
             id:           `boss-fire-${Date.now()}-${Math.random()}`,
             position:     [bossPosRef.current[0], bossPosRef.current[1], 0.5],
             direction:    [Math.cos(angle), Math.sin(angle), 0],
-            speed:        2.5 * speedScale * speedMult,
+            speed:        2.5 * speedScale * (0.7 + Math.random() * 0.6),
             size:         sizeScale,
             seed:         Math.random(),
             shape:        'circle',
-            pattern:      'direct',
+            pattern,
             patternPhase: Math.random() * Math.PI * 2,
             isBossOrb:    true,
             bossType:     liveBoss?.bossType ?? 'circle',
@@ -548,6 +524,7 @@ export function Boss() {
           pickNewCycle();
           bossPosRef.current       = [fireOffscreenRef.current[0], fireOffscreenRef.current[1], 0];
           fireMovePhaseRef.current = 'entering';
+          fireShotTimerRef.current = 0.5;
           fireInitRef.current      = true;
         }
 
@@ -556,26 +533,30 @@ export function Boss() {
         let bx = curX;
         let by = curY;
 
-        const ENTER_SPEED   = 5.0;
-        const EXIT_SPEED    = 6.5;
-        const SHOT_INTERVAL = 0.35; // seconds between consecutive shots
+        const ENTER_SPEED = 5.0;
+        const EXIT_SPEED  = 6.5;
 
         // ── Phase state machine ──────────────────────────────────────────────
         switch (fireMovePhaseRef.current) {
 
           case 'entering': {
-            const tx = fireTargetRef.current[0];
-            const ty = fireTargetRef.current[1];
-            const dx = tx - curX;
-            const dy = ty - curY;
+            const tx   = fireTargetRef.current[0];
+            const ty   = fireTargetRef.current[1];
+            const dx   = tx - curX;
+            const dy   = ty - curY;
             const dist = Math.sqrt(dx * dx + dy * dy);
+
+            // Fire while moving.
+            fireShotTimerRef.current -= delta;
+            if (fireShotTimerRef.current <= 0) {
+              spawnFireOrb();
+              fireShotTimerRef.current = 0.4 + Math.random() * 0.4;
+            }
+
             if (dist < 0.3) {
               bx = tx; by = ty;
-              // Arrived — lock in shot queue, timer=0 so first shot fires next frame.
-              const baseAngle = Math.atan2(playerY - by, playerX - bx);
-              fireQueueRef.current     = buildFireQueue(baseAngle);
-              fireShotTimerRef.current = 0;
-              fireMovePhaseRef.current = 'firing';
+              fireWaitTimerRef.current = 3.0;
+              fireMovePhaseRef.current = 'waiting';
             } else {
               const f = Math.min(1, delta * ENTER_SPEED);
               bx = curX + dx * f;
@@ -584,43 +565,37 @@ export function Boss() {
             break;
           }
 
-          case 'firing': {
-            bx = curX; by = curY;
-            fireShotTimerRef.current -= delta;
-            // Fire the next queued shot when the inter-shot timer expires.
-            if (fireShotTimerRef.current <= 0 && fireQueueRef.current.length > 0) {
-              const shot = fireQueueRef.current.shift()!;
-              spawnFireOrb(shot.angle, shot.speedMult);
-              fireShotTimerRef.current = SHOT_INTERVAL;
-            }
-            // Queue drained and cooldown elapsed → begin waiting phase.
-            if (fireQueueRef.current.length === 0 && fireShotTimerRef.current <= 0) {
-              fireWaitTimerRef.current = 3.0;
-              fireMovePhaseRef.current = 'waiting';
-            }
-            break;
-          }
-
           case 'waiting': {
+            // Stationary — no firing.
             bx = curX; by = curY;
             fireWaitTimerRef.current -= delta;
             if (fireWaitTimerRef.current <= 0) {
+              fireShotTimerRef.current = 0.3; // fire shortly after movement begins
               fireMovePhaseRef.current = 'exiting';
             }
             break;
           }
 
           case 'exiting': {
-            const ex = fireOffscreenRef.current[0];
-            const ey = fireOffscreenRef.current[1];
-            const dx = ex - curX;
-            const dy = ey - curY;
+            const ex   = fireOffscreenRef.current[0];
+            const ey   = fireOffscreenRef.current[1];
+            const dx   = ex - curX;
+            const dy   = ey - curY;
             const dist = Math.sqrt(dx * dx + dy * dy);
+
+            // Fire while retreating.
+            fireShotTimerRef.current -= delta;
+            if (fireShotTimerRef.current <= 0) {
+              spawnFireOrb();
+              fireShotTimerRef.current = 0.4 + Math.random() * 0.4;
+            }
+
             if (dist < 0.6) {
               pickNewCycle();
               bx = fireOffscreenRef.current[0];
               by = fireOffscreenRef.current[1];
               bossPosRef.current       = [bx, by, 0];
+              fireShotTimerRef.current = 0.5;
               fireMovePhaseRef.current = 'entering';
             } else {
               const f = Math.min(1, delta * EXIT_SPEED);
@@ -628,18 +603,6 @@ export function Boss() {
               by = curY + dy * f;
             }
             break;
-          }
-        }
-
-        // ── Enforce minimum 300 px distance from player (on-screen phases) ───
-        if (fireMovePhaseRef.current !== 'exiting') {
-          const pdx = bx - playerX;
-          const pdy = by - playerY;
-          const pd  = Math.sqrt(pdx * pdx + pdy * pdy);
-          if (pd < minDistWU && pd > 0.01) {
-            const push = minDistWU - pd;
-            bx += (pdx / pd) * push;
-            by += (pdy / pd) * push;
           }
         }
 
