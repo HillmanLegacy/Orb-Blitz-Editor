@@ -441,6 +441,66 @@ function ChargeBeamEffect({ scale }: { scale: number }) {
   );
 }
 
+// ── Lightning arcs that surround the charge-beam particle swarm ───────────────
+// Rendered inside the player group (already at playerPosition), so all positions
+// are relative to the player center.
+const _CB_L_ARCS  = 10;
+const _CB_L_SEGS  = 3;
+const _CB_L_TOTAL = _CB_L_ARCS * _CB_L_SEGS;
+const _cbLitGeo   = new THREE.BoxGeometry(1, 1, 1);
+
+function ChargeBeamLightning({ scale }: { scale: number }) {
+  const refs = useRef<(THREE.Mesh | null)[]>(Array(_CB_L_TOTAL).fill(null));
+  // Particles orbit at scale*1.5–3.5; target the mid-to-outer band
+  const orbitR = scale * 2.6;
+
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    for (let b = 0; b < _CB_L_ARCS; b++) {
+      const baseA  = (b / _CB_L_ARCS) * Math.PI * 2;
+      const rotA   = baseA + t * 1.3;
+      // Independent rapid flicker — high-frequency sin gives convincing lightning
+      const flicker = Math.max(0, Math.sin(t * 61.7 + b * 14.3));
+      const alive   = Math.sin(t * 21.3 + b * 5.1) > -0.45;
+      const opacity = alive ? flicker * 0.88 : 0;
+
+      for (let s = 0; s < _CB_L_SEGS; s++) {
+        const mesh = refs.current[b * _CB_L_SEGS + s];
+        if (!mesh) continue;
+        const segT  = s / Math.max(1, _CB_L_SEGS - 1);
+        const r     = orbitR * (0.82 + segT * 0.35);
+        // Perpendicular zigzag displacement per segment
+        const perp  = Math.sin(t * 79.1 + b * 9.7 + s * 6.3) * scale * 0.38;
+        const cx    = Math.cos(rotA) * r - Math.sin(rotA) * perp;
+        const cy    = Math.sin(rotA) * r + Math.cos(rotA) * perp;
+        const cz    = Math.sin(t * 53.1 + b * 7.9 + s * 3.3) * scale * 0.2;
+
+        mesh.position.set(cx, cy, cz);
+        mesh.rotation.z = rotA + Math.PI / 2;
+        mesh.scale.set(scale * 0.032, scale * 0.28 + Math.abs(perp) * 0.6, scale * 0.032);
+
+        (mesh.material as THREE.MeshBasicMaterial).opacity =
+          opacity * (s % 2 === 0 ? 1.0 : 0.5);
+      }
+    }
+  });
+
+  return (
+    <>
+      {Array.from({ length: _CB_L_TOTAL }, (_, i) => (
+        <mesh key={`cbl-${i}`} ref={el => { refs.current[i] = el; }} geometry={_cbLitGeo}>
+          <meshBasicMaterial
+            color={i % 4 === 0 ? "#ffffff" : i % 4 === 1 ? "#aaffff" : "#ffff00"}
+            transparent opacity={0}
+            depthWrite={false}
+            blending={THREE.AdditiveBlending}
+          />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
 export function PlayerOrb() {
   const coreRef = useRef<THREE.Mesh>(null);
   const innerCoreRef = useRef<THREE.Mesh>(null);
@@ -697,12 +757,17 @@ export function PlayerOrb() {
       </Suspense>
 
 
-      {/* Swirling 3-D particles — always match the orb core colour */}
-      <PlayerParticles
-        scale={scale}
-        particleColors={[coreColor]}
-        isRainbow={(skinColors as any).isRainbow === true}
-      />
+      {/* Swirling 3-D particles — only active during charge beam, with electric colour theme */}
+      {hasChargeBeam && (
+        <>
+          <PlayerParticles
+            scale={scale}
+            particleColors={["#ffdd00", "#ffffff", "#aaffff"]}
+            isRainbow={false}
+          />
+          <ChargeBeamLightning scale={scale} />
+        </>
+      )}
 
       {/* Flame Aura cosmetic trail */}
       {equippedTrail === "flame_aura" && <FlameAura scale={scale} />}

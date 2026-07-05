@@ -99,6 +99,133 @@ function HDTrailEffect({
 
 const MemoizedHDTrailEffect = memo(HDTrailEffect);
 
+// ─── Shared geometry for charge aura (created once) ──────────────────────────
+const _geoCircle10 = new THREE.CircleGeometry(1, 10);
+const _geoCircle14 = new THREE.CircleGeometry(1, 14);
+const _geoBox      = new THREE.BoxGeometry(1, 1, 1);
+
+// ─── Projectile charge aura — mini orbiting swarm + lightning ─────────────────
+// Rendered inside the projectile group so positions are already world-correct.
+const PAURA_ORB_COUNT  = 3;
+const PAURA_ORB_SPEEDS = [2.6, 2.3, 2.9] as const;
+const PAURA_L_ARCS     = 6;
+const PAURA_L_SEGS     = 2;
+const PAURA_L_TOTAL    = PAURA_L_ARCS * PAURA_L_SEGS;
+const PAURA_ORB_LAYERS = 2; // glow + core
+
+function ProjectileChargeAura({ projScale }: { projScale: number }) {
+  const orbRadius = projScale * 3.0;
+
+  // Flat ref arrays — updated imperatively in useFrame
+  const orbRefs = useRef<(THREE.Mesh | null)[]>(Array(PAURA_ORB_COUNT * PAURA_ORB_LAYERS).fill(null));
+  const litRefs = useRef<(THREE.Mesh | null)[]>(Array(PAURA_L_TOTAL).fill(null));
+
+  const baseAngles = useMemo(
+    () => Array.from({ length: PAURA_ORB_COUNT }, (_, i) => (i / PAURA_ORB_COUNT) * Math.PI * 2),
+    [],
+  );
+
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+
+    // ── Orbiting mini orbs ───────────────────────────────────────────────────
+    for (let i = 0; i < PAURA_ORB_COUNT; i++) {
+      const angle = baseAngles[i] + t * PAURA_ORB_SPEEDS[i];
+      const ox    = Math.cos(angle) * orbRadius;
+      const oy    = Math.sin(angle) * orbRadius;
+      const phase = i * 1.4;
+
+      const glow = orbRefs.current[i * PAURA_ORB_LAYERS + 0];
+      if (glow) {
+        glow.position.set(ox, oy, 0.01);
+        glow.scale.setScalar(projScale * 0.30 + Math.sin(t * 6.2 + phase) * projScale * 0.04);
+        (glow.material as THREE.MeshBasicMaterial).opacity =
+          0.38 + Math.sin(t * 7.1 + phase) * 0.14;
+      }
+
+      const core = orbRefs.current[i * PAURA_ORB_LAYERS + 1];
+      if (core) {
+        core.position.set(ox, oy, 0.02);
+        core.scale.setScalar(projScale * 0.17 + Math.sin(t * 9.3 + phase) * projScale * 0.02);
+      }
+    }
+
+    // ── Lightning arcs ───────────────────────────────────────────────────────
+    for (let b = 0; b < PAURA_L_ARCS; b++) {
+      const baseA = (b / PAURA_L_ARCS) * Math.PI * 2;
+      const rotA  = baseA + t * 2.4; // faster rotation than player swarm
+
+      const flicker = Math.max(0, Math.sin(t * 63.7 + b * 11.3));
+      const alive   = Math.sin(t * 24.1 + b * 4.7) > -0.40;
+      const opacity = alive ? flicker * 0.85 : 0;
+
+      for (let s = 0; s < PAURA_L_SEGS; s++) {
+        const mesh = litRefs.current[b * PAURA_L_SEGS + s];
+        if (!mesh) continue;
+
+        const segT  = s / Math.max(1, PAURA_L_SEGS - 1);
+        const r     = orbRadius * (0.82 + segT * 0.34);
+        const perp  = Math.sin(t * 83.1 + b * 7.7 + s * 4.1) * 0.15;
+        const cx    = Math.cos(rotA) * r - Math.sin(rotA) * perp;
+        const cy    = Math.sin(rotA) * r + Math.cos(rotA) * perp;
+
+        mesh.position.set(cx, cy, 0.05);
+        mesh.rotation.z = rotA + Math.PI / 2;
+        // Scale proportional to projScale so lightning stays tight on small projectiles
+        mesh.scale.set(
+          projScale * 0.14,
+          projScale * 1.0 + Math.abs(perp) * 0.6,
+          projScale * 0.14,
+        );
+
+        (mesh.material as THREE.MeshBasicMaterial).opacity =
+          opacity * (s === 0 ? 1.0 : 0.55);
+      }
+    }
+  });
+
+  return (
+    <>
+      {/* Orbiting mini orbs (glow + core) */}
+      {Array.from({ length: PAURA_ORB_COUNT }, (_, i) => (
+        <group key={`paura-orb-${i}`}>
+          <mesh ref={el => { orbRefs.current[i * PAURA_ORB_LAYERS + 0] = el; }}
+                geometry={_geoCircle14}>
+            <meshBasicMaterial
+              color="#ffcc00"
+              transparent opacity={0.40}
+              depthWrite={false}
+              blending={THREE.AdditiveBlending}
+            />
+          </mesh>
+          <mesh ref={el => { orbRefs.current[i * PAURA_ORB_LAYERS + 1] = el; }}
+                geometry={_geoCircle10}>
+            <meshBasicMaterial
+              color="#ffffff"
+              transparent opacity={0.90}
+              depthWrite={false}
+            />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Lightning arc segments */}
+      {Array.from({ length: PAURA_L_TOTAL }, (_, i) => (
+        <mesh key={`paura-lit-${i}`}
+              ref={el => { litRefs.current[i] = el; }}
+              geometry={_geoBox}>
+          <meshBasicMaterial
+            color={i % 3 === 0 ? "#ffffff" : i % 3 === 1 ? "#aaffff" : "#ffff00"}
+            transparent opacity={0}
+            depthWrite={false}
+            blending={THREE.AdditiveBlending}
+          />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
 function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: {
   projectile: Projectile;
   time: number;
@@ -136,6 +263,10 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: 
         />
       )}
 
+      {/* Charge beam aura — mini orbiting swarm + lightning, outside the scale group
+          so it stays at full size regardless of spawn-in progress */}
+      {isCharged && <ProjectileChargeAura projScale={projScale * groupScale} />}
+
       {/* Mini player orb at 1/5th scale — FBX model + glow + particles, all skin-matched */}
       <group scale={groupScale}>
         <Suspense fallback={null}>
@@ -160,7 +291,7 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: 
           />
         )}
 
-        {/* Charged: extra rings around the mini orb */}
+        {/* Charged: extra torus rings around the mini orb */}
         {isCharged && (
           <>
             <mesh rotation={[Math.PI / 2, 0, time * 4]}>
