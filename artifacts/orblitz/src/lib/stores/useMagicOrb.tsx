@@ -189,7 +189,6 @@ interface MagicOrbState {
   
   isDamaged: boolean;
   damageTimer: number;
-  isLastHitPoint: boolean;
   isDying: boolean;
   deathTimer: number;
   isStaggered: boolean;
@@ -454,7 +453,6 @@ export const useMagicOrb = create<MagicOrbState>()(
     
     isDamaged: false,
     damageTimer: 0,
-    isLastHitPoint: false,
     isDying: false,
     deathTimer: 0,
     isStaggered: false,
@@ -553,7 +551,6 @@ export const useMagicOrb = create<MagicOrbState>()(
           selectedWeapon: "normal",
           isDamaged: false,
           damageTimer: 0,
-          isLastHitPoint: false,
           isDying: false,
           deathTimer: 0,
           isStaggered: false,
@@ -646,7 +643,6 @@ export const useMagicOrb = create<MagicOrbState>()(
           maxHealth: maxHP,
           isDamaged: false,
           damageTimer: 0,
-          isLastHitPoint: false,
           isDying: false,
           deathTimer: 0,
           darkOrbs: [],
@@ -673,7 +669,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     pauseGame: () => {
       const { phase } = get();
       if (phase === "playing") {
-        set({ phase: "paused" });
+        set({ phase: "paused", backgroundShake: 0 });
       }
     },
     
@@ -727,7 +723,6 @@ export const useMagicOrb = create<MagicOrbState>()(
         selectedWeapon: "normal",
         isDamaged: false,
         damageTimer: 0,
-        isLastHitPoint: false,
         isDying: false,
         deathTimer: 0,
         isStaggered: false,
@@ -866,7 +861,6 @@ export const useMagicOrb = create<MagicOrbState>()(
         staggerTimer: 0,
         isDamaged: false,
         damageTimer: 0,
-        isLastHitPoint: false,
         isDying: false,
         deathTimer: 0,
         playerPosition: [0, 0, 0] as [number, number, number],
@@ -1106,7 +1100,6 @@ export const useMagicOrb = create<MagicOrbState>()(
         laserBeams: [],
         isDamaged: false,
         damageTimer: 0,
-        isLastHitPoint: false,
         backgroundShake: 0,
       });
     },
@@ -1147,7 +1140,7 @@ export const useMagicOrb = create<MagicOrbState>()(
       if (newHealth <= 0) {
         get().triggerDeath();
       } else {
-        set({ health: newHealth, isDamaged: true, damageTimer: 0.3, isLastHitPoint: newHealth === 1 });
+        set({ health: newHealth, isDamaged: true, damageTimer: 0.3 });
         get().triggerBackgroundShake();
         
         const getEquippedDefenses = (): [DefenseType, DefenseType] => {
@@ -1170,7 +1163,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     },
     
     triggerDeath: () => {
-      set({ isDying: true, deathTimer: 1.5, health: 0, isLastHitPoint: false });
+      set({ isDying: true, deathTimer: 1.5, health: 0 });
     },
     
     teleportPlayer: (position: [number, number, number]) => {
@@ -1223,10 +1216,11 @@ export const useMagicOrb = create<MagicOrbState>()(
     },
     
     heal: () => {
-      const { health, maxHealth, isLastHitPoint } = get();
+      const { health, maxHealth } = get();
       const newHealth = Math.min(health + 1, maxHealth);
-      const clearDamage = isLastHitPoint
-        ? { isLastHitPoint: false, isDamaged: false, damageTimer: 0, backgroundShake: 0 }
+      // Healing off last HP clears the persistent low-health effects immediately
+      const clearDamage = (health === 1 && newHealth > 1)
+        ? { isDamaged: false, damageTimer: 0, backgroundShake: 0 }
         : {};
       set({ health: newHealth, ...clearDamage });
     },
@@ -1579,8 +1573,9 @@ export const useMagicOrb = create<MagicOrbState>()(
     triggerBackgroundShake: () => set({ backgroundShake: 0.5 }),
     
     updateBackgroundEffects: (delta) => {
-      const { backgroundPulse, backgroundShake, isLastHitPoint } = get();
-      const minShake = isLastHitPoint ? 0.22 : 0;
+      const { backgroundPulse, backgroundShake, health, phase } = get();
+      // At last HP while actively playing, keep a baseline shake so distortion/aberration persist
+      const minShake = (health === 1 && phase === "playing") ? 0.22 : 0;
       set({
         backgroundPulse: Math.max(0, backgroundPulse - delta * 2),
         backgroundShake: Math.max(minShake, backgroundShake - delta * 2),

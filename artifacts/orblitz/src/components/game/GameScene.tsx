@@ -72,8 +72,14 @@ function CameraController() {
 
   useFrame((_, delta) => {
     // ── Screen shake: take the larger of the store value vs local decay ───
-    const storeShake = useMagicOrb.getState().backgroundShake;
-    if (storeShake > shakeRef.current) {
+    const gs = useMagicOrb.getState();
+    // Only track store shake while actively playing — stale values must not
+    // persist into pause, game-over, or menu screens.
+    const storeShake = gs.phase === "playing" ? gs.backgroundShake : 0;
+    if (gs.phase !== "playing") {
+      // Not in active play — snap ref to zero immediately so no residual shake leaks
+      shakeRef.current = 0;
+    } else if (storeShake > shakeRef.current) {
       shakeRef.current = storeShake;
     } else {
       shakeRef.current = Math.max(0, shakeRef.current - delta * 3.5);
@@ -124,7 +130,8 @@ function PostProcessing() {
 
   useFrame(() => {
     const s        = useMagicOrb.getState();
-    const shake    = s.backgroundShake;
+    // Only apply chromatic aberration while actively playing
+    const shake    = s.phase === "playing" ? s.backgroundShake : 0;
     const isBoss   = s.boss !== null ||
       (s.gameMode === "arcade" && Math.round((s.arcadeLevel % 1) * 10) === 9);
     const boost    = isBoss ? 0.0004 : 0;

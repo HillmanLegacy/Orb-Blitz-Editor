@@ -58,6 +58,7 @@ export function GameLogic() {
     updateChargeBeamTimer,
     updateDamageTimer,
     updateDeathTimer,
+    updateBackgroundEffects,
     updateOrbaniteBeamCooldown,
     updateDistortCooldown,
     updateDistortTimer,
@@ -596,6 +597,7 @@ export function GameLogic() {
     }
     updateChargeBeamTimer(delta);
     updateDamageTimer(delta);
+    updateBackgroundEffects(delta);
     updateDeathTimer(delta);
     updateOrbaniteBeamCooldown(delta);
     updateDistortCooldown(delta);

@@ -40,7 +40,7 @@ export function ScreenEffects() {
   const scanRefs          = [scanRef0, scanRef1, scanRef2];
 
   const {
-    phase, isDamaged, isLastHitPoint, boss, backgroundPulse, arcadeLevel, gameMode,
+    phase, isDamaged, boss, backgroundPulse, arcadeLevel, gameMode,
     health, maxHealth,
   } = useMagicOrb();
 
@@ -122,10 +122,11 @@ export function ScreenEffects() {
       // Low health: red pulsing ring; normal: very faint purple ring
       const lowHealthRatio = Math.max(0, 0.5 - healthRatio) * 2; // 0→1 as health drops to 0
       const lowPulse   = lowHealthRatio * (0.2 + Math.sin(time * 4) * 0.08);
-      const damagePulse = (isDamaged || isLastHitPoint) ? 0.3 : 0;
+      const atLastHP = health === 1 && phase === "playing";
+      const damagePulse = (isDamaged || atLastHP) ? 0.3 : 0;
       const baseOpacity = 0.08;
       mat.opacity  = baseOpacity + damagePulse + lowPulse;
-      if (isDamaged || isLastHitPoint || lowHealthRatio > 0.2) {
+      if (isDamaged || atLastHP || lowHealthRatio > 0.2) {
         mat.color.setHSL(0, 0.9, 0.12); // red
       } else {
         mat.color.setHSL(0.82, 0.6, 0.1); // purple
