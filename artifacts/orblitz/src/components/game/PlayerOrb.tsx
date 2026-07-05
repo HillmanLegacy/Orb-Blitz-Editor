@@ -419,86 +419,116 @@ function ShieldEffect({ scale }: { scale: number }) {
   );
 }
 
-function ChargeBeamEffect({ scale }: { scale: number }) {
-  const r1 = useRef<THREE.Mesh>(null);
-  const r2 = useRef<THREE.Mesh>(null);
-  useFrame((state) => {
-    const t = state.clock.getElapsedTime();
-    if (r1.current) r1.current.rotation.z = t * 3.0;
-    if (r2.current) r2.current.rotation.z = -t * 2.2;
-  });
-  return (
-    <>
-      <mesh ref={r1}>
-        <torusGeometry args={[scale * 1.9, scale * 0.04, 8, 32]} />
-        <meshBasicMaterial color="#ffff00" transparent opacity={0.7} depthWrite={false} />
-      </mesh>
-      <mesh ref={r2} rotation={[Math.PI * 0.35, 0, 0]}>
-        <torusGeometry args={[scale * 2.1, scale * 0.03, 8, 28]} />
-        <meshBasicMaterial color="#ffcc00" transparent opacity={0.45} depthWrite={false} />
-      </mesh>
-    </>
-  );
+// ── Electric spark particles — charge-beam swarm aura ────────────────────────
+// Instanced mesh of 60 tiny spheres with erratic pulsing radii and periodic
+// "zap" bursts that shoot outward then retract, coloured yellow→white→cyan.
+const _CB_SPARK_COUNT = 60;
+const _cbDummy        = new THREE.Object3D();
+const _cbColor        = new THREE.Color();
+const _cbPalette      = [
+  new THREE.Color("#ffff00"),
+  new THREE.Color("#ffffff"),
+  new THREE.Color("#aaffff"),
+];
+
+interface _CBSpark {
+  baseRadius: number;
+  orbitSpeed: number;
+  phase:      number;
+  perp1:      THREE.Vector3;
+  perp2:      THREE.Vector3;
+  baseSize:   number;
+  pulseFreq:  number;
+  pulsePhase: number;
+  zapFreq:    number;
+  zapPhase:   number;
+  colorT:     number;
 }
 
-// ── Lightning arcs that surround the charge-beam particle swarm ───────────────
-// Rendered inside the player group (already at playerPosition), so all positions
-// are relative to the player center.
-const _CB_L_ARCS  = 10;
-const _CB_L_SEGS  = 3;
-const _CB_L_TOTAL = _CB_L_ARCS * _CB_L_SEGS;
-const _cbLitGeo   = new THREE.BoxGeometry(1, 1, 1);
+function ChargeBeamSparks({ scale }: { scale: number }) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
 
-function ChargeBeamLightning({ scale }: { scale: number }) {
-  const refs = useRef<(THREE.Mesh | null)[]>(Array(_CB_L_TOTAL).fill(null));
-  // Particles orbit at scale*1.5–3.5; target the mid-to-outer band
-  const orbitR = scale * 2.6;
+  const sparks = useMemo<_CBSpark[]>(() => {
+    const list: _CBSpark[] = [];
+    for (let i = 0; i < _CB_SPARK_COUNT; i++) {
+      const axis = new THREE.Vector3(
+        Math.random() - 0.5,
+        Math.random() - 0.5,
+        Math.random() - 0.5,
+      ).normalize();
+      let ref = new THREE.Vector3(0, 1, 0);
+      if (Math.abs(axis.dot(ref)) > 0.85) ref.set(1, 0, 0);
+      const perp1 = new THREE.Vector3().crossVectors(axis, ref).normalize();
+      const perp2 = new THREE.Vector3().crossVectors(axis, perp1).normalize();
+      list.push({
+        baseRadius: scale * (0.8 + Math.random() * 2.2),
+        orbitSpeed: (2.0 + Math.random() * 4.5) * (Math.random() < 0.5 ? 1 : -1),
+        phase:      Math.random() * Math.PI * 2,
+        perp1, perp2,
+        baseSize:   0.014 + Math.random() * 0.024,
+        pulseFreq:  8 + Math.random() * 18,
+        pulsePhase: Math.random() * Math.PI * 2,
+        zapFreq:    2.5 + Math.random() * 4.5,
+        zapPhase:   Math.random() * Math.PI * 2,
+        colorT:     Math.random(),
+      });
+    }
+    return list;
+  }, [scale]);
+
+  const geo = useMemo(() => new THREE.SphereGeometry(1, 3, 2), []);
+  const mat = useMemo(() => new THREE.MeshBasicMaterial({
+    color: "#ffff00",
+    transparent: true,
+    opacity: 0.9,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  }), []);
 
   useFrame(({ clock }) => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
     const t = clock.getElapsedTime();
-    for (let b = 0; b < _CB_L_ARCS; b++) {
-      const baseA  = (b / _CB_L_ARCS) * Math.PI * 2;
-      const rotA   = baseA + t * 1.3;
-      // Independent rapid flicker — high-frequency sin gives convincing lightning
-      const flicker = Math.max(0, Math.sin(t * 61.7 + b * 14.3));
-      const alive   = Math.sin(t * 21.3 + b * 5.1) > -0.45;
-      const opacity = alive ? flicker * 0.88 : 0;
 
-      for (let s = 0; s < _CB_L_SEGS; s++) {
-        const mesh = refs.current[b * _CB_L_SEGS + s];
-        if (!mesh) continue;
-        const segT  = s / Math.max(1, _CB_L_SEGS - 1);
-        const r     = orbitR * (0.82 + segT * 0.35);
-        // Perpendicular zigzag displacement per segment
-        const perp  = Math.sin(t * 79.1 + b * 9.7 + s * 6.3) * scale * 0.38;
-        const cx    = Math.cos(rotA) * r - Math.sin(rotA) * perp;
-        const cy    = Math.sin(rotA) * r + Math.cos(rotA) * perp;
-        const cz    = Math.sin(t * 53.1 + b * 7.9 + s * 3.3) * scale * 0.2;
+    for (let i = 0; i < _CB_SPARK_COUNT; i++) {
+      const sp     = sparks[i];
+      const theta  = t * sp.orbitSpeed + sp.phase;
+      const cosT   = Math.cos(theta);
+      const sinT   = Math.sin(theta);
 
-        mesh.position.set(cx, cy, cz);
-        mesh.rotation.z = rotA + Math.PI / 2;
-        mesh.scale.set(scale * 0.032, scale * 0.28 + Math.abs(perp) * 0.6, scale * 0.032);
+      // Radius pulses at high frequency (electric oscillation)
+      const pulse  = Math.abs(Math.sin(t * sp.pulseFreq + sp.pulsePhase));
+      const pulseR = sp.baseRadius * (0.25 + 0.75 * pulse);
 
-        (mesh.material as THREE.MeshBasicMaterial).opacity =
-          opacity * (s % 2 === 0 ? 1.0 : 0.5);
+      // Zap: sharp outward burst — sin raised to power 6 gives narrow peaks
+      const zapRaw = Math.sin(t * sp.zapFreq + sp.zapPhase);
+      const zapAmt = zapRaw > 0 ? zapRaw ** 6 : 0;
+      const r      = pulseR + scale * 1.8 * zapAmt;
+
+      _cbDummy.position.set(
+        (sp.perp1.x * cosT + sp.perp2.x * sinT) * r,
+        (sp.perp1.y * cosT + sp.perp2.y * sinT) * r,
+        (sp.perp1.z * cosT + sp.perp2.z * sinT) * r,
+      );
+      _cbDummy.scale.setScalar(sp.baseSize * (0.4 + pulse * 0.6 + zapAmt * 3.0));
+      _cbDummy.updateMatrix();
+      mesh.setMatrixAt(i, _cbDummy.matrix);
+
+      // Colour cycles yellow → white → cyan over time
+      const ct = ((sp.colorT + t * 0.15) % 1.0 + 1.0) % 1.0;
+      if (ct < 0.5) {
+        _cbColor.lerpColors(_cbPalette[0], _cbPalette[1], ct * 2);
+      } else {
+        _cbColor.lerpColors(_cbPalette[1], _cbPalette[2], (ct - 0.5) * 2);
       }
+      mesh.setColorAt(i, _cbColor);
     }
+
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   });
 
-  return (
-    <>
-      {Array.from({ length: _CB_L_TOTAL }, (_, i) => (
-        <mesh key={`cbl-${i}`} ref={el => { refs.current[i] = el; }} geometry={_cbLitGeo}>
-          <meshBasicMaterial
-            color={i % 4 === 0 ? "#ffffff" : i % 4 === 1 ? "#aaffff" : "#ffff00"}
-            transparent opacity={0}
-            depthWrite={false}
-            blending={THREE.AdditiveBlending}
-          />
-        </mesh>
-      ))}
-    </>
-  );
+  return <instancedMesh ref={meshRef} args={[geo, mat, _CB_SPARK_COUNT]} />;
 }
 
 export function PlayerOrb() {
@@ -757,7 +787,7 @@ export function PlayerOrb() {
       </Suspense>
 
 
-      {/* Swirling 3-D particles — only active during charge beam, with electric colour theme */}
+      {/* Electric spark swarm — only active during charge beam */}
       {hasChargeBeam && (
         <>
           <PlayerParticles
@@ -765,7 +795,7 @@ export function PlayerOrb() {
             particleColors={["#ffdd00", "#ffffff", "#aaffff"]}
             isRainbow={false}
           />
-          <ChargeBeamLightning scale={scale} />
+          <ChargeBeamSparks scale={scale} />
         </>
       )}
 
@@ -794,8 +824,6 @@ export function PlayerOrb() {
       {/* Shield power-up — rotating 3D wireframe icosahedron */}
       {hasShield && <ShieldEffect scale={scale} />}
 
-      {/* Charge beam power-up indicator — spinning 3D torus rings */}
-      {hasChargeBeam && <ChargeBeamEffect scale={scale} />}
     </group>
   );
 }

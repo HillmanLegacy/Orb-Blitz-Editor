@@ -99,26 +99,133 @@ function HDTrailEffect({
 
 const MemoizedHDTrailEffect = memo(HDTrailEffect);
 
-// ─── Shared geometry for charge aura (created once) ──────────────────────────
+// ─── Shared geometry for charge aura orbs ────────────────────────────────────
 const _geoCircle10 = new THREE.CircleGeometry(1, 10);
 const _geoCircle14 = new THREE.CircleGeometry(1, 14);
-const _geoBox      = new THREE.BoxGeometry(1, 1, 1);
 
-// ─── Projectile charge aura — mini orbiting swarm + lightning ─────────────────
+// ─── Projectile charge aura — mini orbiting swarm + electric sparks ───────────
 // Rendered inside the projectile group so positions are already world-correct.
 const PAURA_ORB_COUNT  = 3;
 const PAURA_ORB_SPEEDS = [2.6, 2.3, 2.9] as const;
-const PAURA_L_ARCS     = 6;
-const PAURA_L_SEGS     = 2;
-const PAURA_L_TOTAL    = PAURA_L_ARCS * PAURA_L_SEGS;
 const PAURA_ORB_LAYERS = 2; // glow + core
+
+// Electric spark instanced mesh for the projectile aura
+const PAURA_SPARK_COUNT = 24;
+const _pauraDummy       = new THREE.Object3D();
+const _pauraColor       = new THREE.Color();
+const _pauraPalette     = [
+  new THREE.Color("#ffff00"),
+  new THREE.Color("#ffffff"),
+  new THREE.Color("#aaffff"),
+];
+
+interface _PAuraSpark {
+  baseRadius: number;
+  orbitSpeed: number;
+  phase:      number;
+  perp1:      THREE.Vector3;
+  perp2:      THREE.Vector3;
+  baseSize:   number;
+  pulseFreq:  number;
+  pulsePhase: number;
+  zapFreq:    number;
+  zapPhase:   number;
+  colorT:     number;
+}
+
+// Sparks are built once at module level with a fixed scale seed; projScale is
+// applied as a multiplier each frame so the aura stays proportional.
+const _pauraSparkDefs = (() => {
+  const list: _PAuraSpark[] = [];
+  for (let i = 0; i < PAURA_SPARK_COUNT; i++) {
+    const axis = new THREE.Vector3(
+      Math.random() - 0.5,
+      Math.random() - 0.5,
+      Math.random() - 0.5,
+    ).normalize();
+    let ref = new THREE.Vector3(0, 1, 0);
+    if (Math.abs(axis.dot(ref)) > 0.85) ref.set(1, 0, 0);
+    const perp1 = new THREE.Vector3().crossVectors(axis, ref).normalize();
+    const perp2 = new THREE.Vector3().crossVectors(axis, perp1).normalize();
+    list.push({
+      baseRadius: 1.0 + Math.random() * 2.2, // multiplied by projScale in frame
+      orbitSpeed: (2.5 + Math.random() * 5.0) * (Math.random() < 0.5 ? 1 : -1),
+      phase:      Math.random() * Math.PI * 2,
+      perp1, perp2,
+      baseSize:   0.010 + Math.random() * 0.018,
+      pulseFreq:  9 + Math.random() * 20,
+      pulsePhase: Math.random() * Math.PI * 2,
+      zapFreq:    3.0 + Math.random() * 5.0,
+      zapPhase:   Math.random() * Math.PI * 2,
+      colorT:     Math.random(),
+    });
+  }
+  return list;
+})();
+
+const _pauraSparkGeo = new THREE.SphereGeometry(1, 3, 2);
+const _pauraSparkMat = new THREE.MeshBasicMaterial({
+  color: "#ffff00",
+  transparent: true,
+  opacity: 0.9,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+});
+
+function ProjectileChargeSparks({ projScale }: { projScale: number }) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+
+  useFrame(({ clock }) => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const t = clock.getElapsedTime();
+
+    for (let i = 0; i < PAURA_SPARK_COUNT; i++) {
+      const sp    = _pauraSparkDefs[i];
+      const theta = t * sp.orbitSpeed + sp.phase;
+      const cosT  = Math.cos(theta);
+      const sinT  = Math.sin(theta);
+
+      const pulse  = Math.abs(Math.sin(t * sp.pulseFreq + sp.pulsePhase));
+      const pulseR = sp.baseRadius * projScale * (0.25 + 0.75 * pulse);
+      const zapRaw = Math.sin(t * sp.zapFreq + sp.zapPhase);
+      const zapAmt = zapRaw > 0 ? zapRaw ** 6 : 0;
+      const r      = pulseR + projScale * 1.8 * zapAmt;
+
+      _pauraDummy.position.set(
+        (sp.perp1.x * cosT + sp.perp2.x * sinT) * r,
+        (sp.perp1.y * cosT + sp.perp2.y * sinT) * r,
+        (sp.perp1.z * cosT + sp.perp2.z * sinT) * r,
+      );
+      _pauraDummy.scale.setScalar(sp.baseSize * (0.4 + pulse * 0.6 + zapAmt * 3.0));
+      _pauraDummy.updateMatrix();
+      mesh.setMatrixAt(i, _pauraDummy.matrix);
+
+      const ct = ((sp.colorT + t * 0.18) % 1.0 + 1.0) % 1.0;
+      if (ct < 0.5) {
+        _pauraColor.lerpColors(_pauraPalette[0], _pauraPalette[1], ct * 2);
+      } else {
+        _pauraColor.lerpColors(_pauraPalette[1], _pauraPalette[2], (ct - 0.5) * 2);
+      }
+      mesh.setColorAt(i, _pauraColor);
+    }
+
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  });
+
+  return (
+    <instancedMesh
+      ref={meshRef}
+      args={[_pauraSparkGeo, _pauraSparkMat, PAURA_SPARK_COUNT]}
+    />
+  );
+}
 
 function ProjectileChargeAura({ projScale }: { projScale: number }) {
   const orbRadius = projScale * 3.0;
 
-  // Flat ref arrays — updated imperatively in useFrame
   const orbRefs = useRef<(THREE.Mesh | null)[]>(Array(PAURA_ORB_COUNT * PAURA_ORB_LAYERS).fill(null));
-  const litRefs = useRef<(THREE.Mesh | null)[]>(Array(PAURA_L_TOTAL).fill(null));
 
   const baseAngles = useMemo(
     () => Array.from({ length: PAURA_ORB_COUNT }, (_, i) => (i / PAURA_ORB_COUNT) * Math.PI * 2),
@@ -128,7 +235,6 @@ function ProjectileChargeAura({ projScale }: { projScale: number }) {
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
 
-    // ── Orbiting mini orbs ───────────────────────────────────────────────────
     for (let i = 0; i < PAURA_ORB_COUNT; i++) {
       const angle = baseAngles[i] + t * PAURA_ORB_SPEEDS[i];
       const ox    = Math.cos(angle) * orbRadius;
@@ -147,39 +253,6 @@ function ProjectileChargeAura({ projScale }: { projScale: number }) {
       if (core) {
         core.position.set(ox, oy, 0.02);
         core.scale.setScalar(projScale * 0.17 + Math.sin(t * 9.3 + phase) * projScale * 0.02);
-      }
-    }
-
-    // ── Lightning arcs ───────────────────────────────────────────────────────
-    for (let b = 0; b < PAURA_L_ARCS; b++) {
-      const baseA = (b / PAURA_L_ARCS) * Math.PI * 2;
-      const rotA  = baseA + t * 2.4; // faster rotation than player swarm
-
-      const flicker = Math.max(0, Math.sin(t * 63.7 + b * 11.3));
-      const alive   = Math.sin(t * 24.1 + b * 4.7) > -0.40;
-      const opacity = alive ? flicker * 0.85 : 0;
-
-      for (let s = 0; s < PAURA_L_SEGS; s++) {
-        const mesh = litRefs.current[b * PAURA_L_SEGS + s];
-        if (!mesh) continue;
-
-        const segT  = s / Math.max(1, PAURA_L_SEGS - 1);
-        const r     = orbRadius * (0.82 + segT * 0.34);
-        const perp  = Math.sin(t * 83.1 + b * 7.7 + s * 4.1) * 0.15;
-        const cx    = Math.cos(rotA) * r - Math.sin(rotA) * perp;
-        const cy    = Math.sin(rotA) * r + Math.cos(rotA) * perp;
-
-        mesh.position.set(cx, cy, 0.05);
-        mesh.rotation.z = rotA + Math.PI / 2;
-        // Scale proportional to projScale so lightning stays tight on small projectiles
-        mesh.scale.set(
-          projScale * 0.14,
-          projScale * 1.0 + Math.abs(perp) * 0.6,
-          projScale * 0.14,
-        );
-
-        (mesh.material as THREE.MeshBasicMaterial).opacity =
-          opacity * (s === 0 ? 1.0 : 0.55);
       }
     }
   });
@@ -209,19 +282,8 @@ function ProjectileChargeAura({ projScale }: { projScale: number }) {
         </group>
       ))}
 
-      {/* Lightning arc segments */}
-      {Array.from({ length: PAURA_L_TOTAL }, (_, i) => (
-        <mesh key={`paura-lit-${i}`}
-              ref={el => { litRefs.current[i] = el; }}
-              geometry={_geoBox}>
-          <meshBasicMaterial
-            color={i % 3 === 0 ? "#ffffff" : i % 3 === 1 ? "#aaffff" : "#ffff00"}
-            transparent opacity={0}
-            depthWrite={false}
-            blending={THREE.AdditiveBlending}
-          />
-        </mesh>
-      ))}
+      {/* Electric spark particles */}
+      <ProjectileChargeSparks projScale={projScale} />
     </>
   );
 }
