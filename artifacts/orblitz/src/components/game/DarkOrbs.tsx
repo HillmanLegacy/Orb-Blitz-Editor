@@ -805,10 +805,9 @@ export function DarkOrbs() {
           }
         }
         
-        // Fire orbs (circle boss-type or world-1 enemies) show a brief hurt
-        // flash before their destroy animation; all other orbs die immediately.
-        const isFireOrb = (orb.isBossOrb && orb.bossType === "circle") ||
-          (!orb.isBossOrb && gameMode === "arcade" && Math.floor(arcadeLevel) === 1);
+        // Fire orbs are identified by shape or bossType === "circle" — both
+        // route to MiniFireOrb visuals (World1EnemyMesh or BossOrbMesh circle).
+        const isFireOrb = orb.shape === "circle" || orb.bossType === "circle";
         updatedOrbs.push({
           ...orb,
           position: [x, y, z] as [number, number, number],
