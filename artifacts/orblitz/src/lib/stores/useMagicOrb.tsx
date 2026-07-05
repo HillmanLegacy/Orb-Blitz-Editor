@@ -1098,6 +1098,9 @@ export const useMagicOrb = create<MagicOrbState>()(
         particles: [],
         impactEffects: [],
         laserBeams: [],
+        isDamaged: false,
+        damageTimer: 0,
+        backgroundShake: 0,
       });
     },
     
@@ -1137,7 +1140,7 @@ export const useMagicOrb = create<MagicOrbState>()(
       if (newHealth <= 0) {
         get().triggerDeath();
       } else {
-        set({ health: newHealth, isDamaged: true, damageTimer: 0.5 });
+        set({ health: newHealth, isDamaged: true, damageTimer: 0.3 });
         get().triggerBackgroundShake();
         
         const getEquippedDefenses = (): [DefenseType, DefenseType] => {
@@ -1189,9 +1192,12 @@ export const useMagicOrb = create<MagicOrbState>()(
     },
     
     updateDamageTimer: (delta) => {
-      const { isDamaged, damageTimer } = get();
+      const { isDamaged, damageTimer, health } = get();
       if (!isDamaged) return;
-      
+
+      // At last hit point the damage effects persist — don't let the timer clear them
+      if (health === 1) return;
+
       const newTimer = damageTimer - delta;
       if (newTimer <= 0) {
         set({ isDamaged: false, damageTimer: 0 });
@@ -1214,7 +1220,12 @@ export const useMagicOrb = create<MagicOrbState>()(
     
     heal: () => {
       const { health, maxHealth } = get();
-      set({ health: Math.min(health + 1, maxHealth) });
+      const newHealth = Math.min(health + 1, maxHealth);
+      // Healing off the last hit point clears the persistent damage effects
+      const clearDamage = health === 1 && newHealth > 1
+        ? { isDamaged: false, damageTimer: 0, backgroundShake: 0 }
+        : {};
+      set({ health: newHealth, ...clearDamage });
     },
     
     activateShield: () => set({ hasShield: true }),
@@ -1565,10 +1576,14 @@ export const useMagicOrb = create<MagicOrbState>()(
     triggerBackgroundShake: () => set({ backgroundShake: 0.5 }),
     
     updateBackgroundEffects: (delta) => {
-      const { backgroundPulse, backgroundShake } = get();
+      const { backgroundPulse, backgroundShake, health, isDamaged } = get();
+      // At last hit point keep a baseline shake so the distortion/aberration persist,
+      // but only once a damage event has actually occurred (isDamaged gate prevents
+      // a fresh run that happens to start at 1 HP from shaking immediately)
+      const minShake = (health === 1 && isDamaged) ? 0.22 : 0;
       set({
         backgroundPulse: Math.max(0, backgroundPulse - delta * 2),
-        backgroundShake: Math.max(0, backgroundShake - delta * 2),
+        backgroundShake: Math.max(minShake, backgroundShake - delta * 2),
       });
     },
     
