@@ -283,7 +283,7 @@ function ShootingOrbs() {
       z: -14 - Math.random() * 9,
       vx: Math.cos(va) * speed * dir,
       vy: Math.sin(va) * speed,
-      size:  0.07 + Math.random() * 0.22,
+      size:  0.05 + Math.random() * 0.15,
       phase: Math.random() * Math.PI * 2,
       twink: 1.8 + Math.random() * 4.5,
     };
