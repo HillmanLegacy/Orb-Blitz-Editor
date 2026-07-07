@@ -4,6 +4,9 @@ import * as THREE from "three";
 import { useMagicOrb, MovementPattern } from "@/lib/stores/useMagicOrb";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 import { FireBoss } from "./FireBoss";
+import { StarBoss } from "./StarBoss";
+import { CrystalBoss } from "./CrystalBoss";
+import { ToxicBoss } from "./ToxicBoss";
 import { FireExplosionVFX } from "./FireExplosionVFX";
 import { BossShield } from "./BossShield";
 
@@ -1047,20 +1050,7 @@ export function Boss() {
     return (
       <group ref={meshRef} position={boss.position}>
         {boss.shieldActive && <BossShield bossType={bossType} />}
-
-        {renderBaseSphere(1.05, "#1a2a4a", "#2a4a8a", "#4488ff")}
-        {renderDecoration("rings", 1.05, "#6699ff")}
-        {renderEyes(2, 1.05, "#88ccff")}
-        {[0, 1, 2, 3, 4].map((i) => {
-          const angle = (i / 5) * Math.PI * 2 - Math.PI / 2 + time * 0.5;
-          const dist = bossSize * 1.05 * 0.95;
-          return (
-            <mesh key={i} position={[Math.cos(angle) * dist, Math.sin(angle) * dist, 0.02]} scale={0.35} rotation={[0, 0, angle]}>
-              <circleGeometry args={[1, 4]} />
-              <meshBasicMaterial color="#4488ff" />
-            </mesh>
-          );
-        })}
+        <StarBoss radius={1.44} healthPercent={healthPercent} />
       </group>
     );
   }
@@ -1089,21 +1079,7 @@ export function Boss() {
     return (
       <group ref={meshRef} position={boss.position}>
         {boss.shieldActive && <BossShield bossType={bossType} />}
-
-        {renderBaseSphere(1, "#1a3a2a", "#2a6a4a", "#44ff88")}
-        {renderDecoration("crown", 1, "#22aa44")}
-        {renderEyes(3, 1, "#88ffaa", "#002200")}
-        {renderMouth(3, 1, "#114422")}
-        {[0, 1, 2].map((i) => {
-          const angle = (i / 3) * Math.PI * 2 - Math.PI / 2;
-          const dist = bossSize * 0.85;
-          return (
-            <mesh key={i} position={[Math.cos(angle) * dist, Math.sin(angle) * dist, 0.01]} scale={0.3} rotation={[0, 0, angle + Math.PI / 6]}>
-              <circleGeometry args={[1, 3]} />
-              <meshBasicMaterial color="#33cc66" transparent opacity={0.7} />
-            </mesh>
-          );
-        })}
+        <CrystalBoss radius={1.44} healthPercent={healthPercent} />
       </group>
     );
   }
@@ -1112,15 +1088,7 @@ export function Boss() {
     return (
       <group ref={meshRef} position={boss.position}>
         {boss.shieldActive && <BossShield bossType={bossType} />}
-
-        {renderBaseSphere(1.05, "#4a1a2a", "#8a2a4a", "#ff4488")}
-        {renderEyes(1, 1.05, "#ffffff", "#440022")}
-        {renderMouth(2, 1.05, "#220011")}
-        <mesh scale={[bossSize * 1.1, bossSize * 0.5, 1]} position={[0, -0.4, 0.01]}>
-          <circleGeometry args={[1, 4]} />
-          <meshBasicMaterial color="#882244" transparent opacity={0.6} />
-        </mesh>
-        {renderDecoration("orbiting", 1.05, "#cc4488")}
+        <ToxicBoss radius={1.44} healthPercent={healthPercent} />
       </group>
     );
   }

@@ -6,6 +6,8 @@ import { useShop } from "@/lib/stores/useShop";
 import { DarkOrbModel } from "./DarkOrbModel";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 import { MiniFireOrb } from "./MiniFireOrb";
+import { MiniStarOrb } from "./MiniStarOrb";
+import { MiniCrystalOrb } from "./MiniCrystalOrb";
 import { addExplosionImpulse } from "./Background";
 
 const DISTORT_FIELD_RADIUS  = 5;
@@ -79,6 +81,26 @@ function BossOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
       <group position={orb.position} scale={orb.size * pulse}>
         <pointLight color="#ff6600" intensity={2} distance={5} decay={2} />
         <MiniFireOrb />
+        {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
+      </group>
+    );
+  }
+
+  // ── Star boss type: MiniStarOrb ───────────────────────────────────────────────
+  if (bossType === "star") {
+    return (
+      <group position={orb.position} scale={orb.size * pulse}>
+        <MiniStarOrb />
+        {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
+      </group>
+    );
+  }
+
+  // ── Crystal boss type: MiniCrystalOrb ────────────────────────────────────────
+  if (bossType === "triangle") {
+    return (
+      <group position={orb.position} scale={orb.size * pulse}>
+        <MiniCrystalOrb />
         {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
       </group>
     );
