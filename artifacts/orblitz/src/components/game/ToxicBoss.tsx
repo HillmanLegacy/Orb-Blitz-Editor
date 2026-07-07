@@ -234,30 +234,13 @@ export function ToxicBoss({ radius = 1.44, healthPercent = 1 }: ToxicBossProps) 
   const hurtTimerRef  = useRef(0);
   const prevHealthRef = useRef(healthPercent);
 
-  const { scene: modelScene } = useGLTF("/models/player_orb_boss.glb");
-  const { scene: texScene   } = useGLTF("/models/boss_orb_4_toxic_texture.glb");
+  // The texture GLB contains the orb mesh WITH UV coords + full PBR material baked in.
+  const { scene: modelScene } = useGLTF("/models/boss_orb_4_toxic_texture.glb");
 
   useEffect(() => {
     if (!groupRef.current) return;
 
-    let orbTexture: THREE.Texture | null = null;
-    texScene.traverse((child) => {
-      if (orbTexture) return;
-      if ((child as THREE.Mesh).isMesh) {
-        const mesh = child as THREE.Mesh;
-        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-        for (const m of mats) {
-          const tex = (m as any).map ?? (m as any).emissiveMap ?? (m as any).roughnessMap;
-          if (tex) {
-            orbTexture = tex;
-            (orbTexture as THREE.Texture).needsUpdate = true;
-            break;
-          }
-        }
-      }
-    });
-
-    const cloned    = modelScene.clone(true);
+    const cloned = modelScene.clone(true);
     materialsRef.current = [];
 
     const box     = new THREE.Box3().setFromObject(cloned);
@@ -273,16 +256,13 @@ export function ToxicBoss({ radius = 1.44, healthPercent = 1 }: ToxicBossProps) 
     cloned.traverse((child: THREE.Object3D) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
-        const mat  = new THREE.MeshStandardMaterial({
-          map:              orbTexture ?? undefined,
-          emissive:         new THREE.Color("#22aa08"),
-          emissiveIntensity:0.3,
-          roughness:        0.08,
-          metalness:        0.05,
-          color:            new THREE.Color("#aaffaa"),
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        mats.forEach((m) => {
+          const std = m as THREE.MeshStandardMaterial;
+          std.emissive          = new THREE.Color("#22aa08");
+          std.emissiveIntensity = 0.3;
+          materialsRef.current.push(std);
         });
-        mesh.material = mat;
-        materialsRef.current.push(mat);
       }
     });
 
@@ -292,10 +272,9 @@ export function ToxicBoss({ radius = 1.44, healthPercent = 1 }: ToxicBossProps) 
     groupRef.current.add(cloned);
 
     return () => {
-      materialsRef.current.forEach((m) => m.dispose());
       materialsRef.current = [];
     };
-  }, [modelScene, texScene, radius]);
+  }, [modelScene, radius]);
 
   useFrame((state, delta) => {
     if (healthPercent < prevHealthRef.current) hurtTimerRef.current = 0.15;
@@ -340,5 +319,4 @@ export function ToxicBoss({ radius = 1.44, healthPercent = 1 }: ToxicBossProps) 
   );
 }
 
-useGLTF.preload("/models/player_orb_boss.glb");
 useGLTF.preload("/models/boss_orb_4_toxic_texture.glb");
