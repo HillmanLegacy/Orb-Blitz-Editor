@@ -240,6 +240,20 @@ export function ToxicBoss({ radius = 1.44, healthPercent = 1 }: ToxicBossProps) 
   useEffect(() => {
     if (!groupRef.current) return;
 
+    // Extract baseColor texture — GLB baked with metallic=1/roughness=1 kills diffuse.
+    let orbTexture: THREE.Texture | null = null;
+    modelScene.traverse((child) => {
+      if (orbTexture) return;
+      if ((child as THREE.Mesh).isMesh) {
+        const m = (child as THREE.Mesh).material;
+        const mats = Array.isArray(m) ? m : [m];
+        for (const mat of mats) {
+          const tex = (mat as any).map;
+          if (tex) { orbTexture = tex; orbTexture!.needsUpdate = true; break; }
+        }
+      }
+    });
+
     const cloned = modelScene.clone(true);
     materialsRef.current = [];
 
@@ -256,13 +270,15 @@ export function ToxicBoss({ radius = 1.44, healthPercent = 1 }: ToxicBossProps) 
     cloned.traverse((child: THREE.Object3D) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
-        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-        mats.forEach((m) => {
-          const std = m as THREE.MeshStandardMaterial;
-          std.emissive          = new THREE.Color("#22aa08");
-          std.emissiveIntensity = 0.3;
-          materialsRef.current.push(std);
+        const mat  = new THREE.MeshStandardMaterial({
+          map:               orbTexture ?? undefined,
+          emissive:          new THREE.Color("#22aa08"),
+          emissiveIntensity: 0.3,
+          roughness:         0.45,
+          metalness:         0.2,
         });
+        mesh.material = mat;
+        materialsRef.current.push(mat);
       }
     });
 
@@ -272,6 +288,7 @@ export function ToxicBoss({ radius = 1.44, healthPercent = 1 }: ToxicBossProps) 
     groupRef.current.add(cloned);
 
     return () => {
+      materialsRef.current.forEach((m) => m.dispose());
       materialsRef.current = [];
     };
   }, [modelScene, radius]);

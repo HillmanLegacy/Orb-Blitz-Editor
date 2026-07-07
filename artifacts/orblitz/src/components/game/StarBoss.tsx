@@ -121,6 +121,22 @@ export function StarBoss({ radius = 1.44, healthPercent = 1 }: StarBossProps) {
   useEffect(() => {
     if (!groupRef.current) return;
 
+    // Extract baseColor texture — the baked metallic=1/roughness=1 on the GLB makes
+    // the texture invisible, so we pull the texture out and rebuild the material
+    // with renderer-friendly roughness/metalness values.
+    let orbTexture: THREE.Texture | null = null;
+    modelScene.traverse((child) => {
+      if (orbTexture) return;
+      if ((child as THREE.Mesh).isMesh) {
+        const m = (child as THREE.Mesh).material;
+        const mats = Array.isArray(m) ? m : [m];
+        for (const mat of mats) {
+          const tex = (mat as any).map;
+          if (tex) { orbTexture = tex; orbTexture!.needsUpdate = true; break; }
+        }
+      }
+    });
+
     const cloned = modelScene.clone(true);
     materialsRef.current = [];
 
@@ -135,18 +151,18 @@ export function StarBoss({ radius = 1.44, healthPercent = 1 }: StarBossProps) {
     box.getCenter(center);
     cloned.position.sub(center.multiplyScalar(normScale));
 
-    // Grab the GLTFLoader-created MeshStandardMaterials (already have the texture +
-    // UV-mapped geometry) and bolt on emissive so the hurt flash works.
     cloned.traverse((child: THREE.Object3D) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
-        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-        mats.forEach((m) => {
-          const std = m as THREE.MeshStandardMaterial;
-          std.emissive         = new THREE.Color("#ffcc44");
-          std.emissiveIntensity = 0.25;
-          materialsRef.current.push(std);
+        const mat  = new THREE.MeshStandardMaterial({
+          map:               orbTexture ?? undefined,
+          emissive:          new THREE.Color("#ffcc44"),
+          emissiveIntensity: 0.25,
+          roughness:         0.4,
+          metalness:         0.35,
         });
+        mesh.material = mat;
+        materialsRef.current.push(mat);
       }
     });
 
@@ -156,6 +172,7 @@ export function StarBoss({ radius = 1.44, healthPercent = 1 }: StarBossProps) {
     groupRef.current.add(cloned);
 
     return () => {
+      materialsRef.current.forEach((m) => m.dispose());
       materialsRef.current = [];
     };
   }, [modelScene, radius]);
