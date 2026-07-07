@@ -307,8 +307,11 @@ export function ToxicBoss({ radius = 1.44, healthPercent = 1 }: ToxicBossProps) 
 
   return (
     <group>
-      {/* Toxic green fill light */}
-      <pointLight color="#44ff22" intensity={3.2} distance={8} decay={2} />
+      {/* Multi-directional green fill lights for full-model coverage */}
+      <pointLight color="#44ff22" intensity={4}   distance={12} decay={2} position={[0, 0,  3]} />
+      <pointLight color="#44ff22" intensity={3.5} distance={12} decay={2} position={[0, 0, -3]} />
+      <pointLight color="#66ff44" intensity={3}   distance={12} decay={2} position={[3, 2,  0]} />
+      <pointLight color="#66ff44" intensity={3}   distance={12} decay={2} position={[-3, -2, 0]} />
       {/* Base model */}
       <group ref={groupRef} />
       {/* Drip surface shader overlay */}

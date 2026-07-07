@@ -174,8 +174,11 @@ export function CrystalBoss({ radius = 1.44, healthPercent = 1 }: CrystalBossPro
 
   return (
     <group>
-      {/* Cool cyan fill light */}
-      <pointLight color="#88ddff" intensity={3.0} distance={8} decay={2} />
+      {/* Multi-directional cyan fill lights for full-model coverage */}
+      <pointLight color="#88ddff" intensity={4}   distance={12} decay={2} position={[0, 0,  3]} />
+      <pointLight color="#88ddff" intensity={3.5} distance={12} decay={2} position={[0, 0, -3]} />
+      <pointLight color="#aaeeff" intensity={3}   distance={12} decay={2} position={[3, 2,  0]} />
+      <pointLight color="#aaeeff" intensity={3}   distance={12} decay={2} position={[-3, -2, 0]} />
       <group ref={groupRef} />
       <CrystalOverlay radius={radius} />
     </group>

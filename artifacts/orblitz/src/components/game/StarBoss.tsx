@@ -195,8 +195,11 @@ export function StarBoss({ radius = 1.44, healthPercent = 1 }: StarBossProps) {
 
   return (
     <group>
-      {/* Warm gold fill light */}
-      <pointLight color="#ffdd55" intensity={3.5} distance={8} decay={2} />
+      {/* Multi-directional gold fill lights for full-model coverage */}
+      <pointLight color="#ffdd55" intensity={4}   distance={12} decay={2} position={[0, 0,  3]} />
+      <pointLight color="#ffdd55" intensity={3.5} distance={12} decay={2} position={[0, 0, -3]} />
+      <pointLight color="#ffcc33" intensity={3}   distance={12} decay={2} position={[3, 2,  0]} />
+      <pointLight color="#ffcc33" intensity={3}   distance={12} decay={2} position={[-3, -2, 0]} />
       {/* Model group (populated via useEffect) */}
       <group ref={groupRef} />
       {/* Sparkle corona */}
