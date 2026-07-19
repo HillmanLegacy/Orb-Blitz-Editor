@@ -37,13 +37,13 @@ args = "API Server"
 name = "Orblitz Game"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pnpm --filter @workspace/orblitz run dev"
-waitForPort = 3000
-
 [workflows.workflow.metadata]
 outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=24865 pnpm --filter @workspace/orblitz run dev"
+waitForPort = 24865
 
 [[workflows.workflow]]
 name = "API Server"
