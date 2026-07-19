@@ -5,6 +5,7 @@ import { useMagicOrb, MovementPattern } from "@/lib/stores/useMagicOrb";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 import { FireBoss } from "./FireBoss";
 import { PlasmaBoss } from "./PlasmaBoss";
+import { DiamondBoss } from "./DiamondBoss";
 import { StarBoss } from "./StarBoss";
 import { CrystalBoss } from "./CrystalBoss";
 import { ToxicBoss } from "./ToxicBoss";
@@ -1071,26 +1072,7 @@ export function Boss() {
   if (bossType === "cloud") {
     return (
       <group ref={meshRef} position={boss.position}>
-
-
-        {renderBaseSphere(1.15, "#3a3a4a", "#5a5a6a", "#aaaacc")}
-        {renderEyes(4, 1.15, "#ccccff")}
-        {[-1, 0, 1].map((i) => (
-          <mesh key={i} position={[i * bossSize * 0.35, bossSize * 0.4 + Math.sin(time * 2 + i) * 0.15, -0.02]} scale={0.6 + Math.abs(i) * 0.1}>
-            <circleGeometry args={[1, 20]} />
-            <meshBasicMaterial color="#666688" transparent opacity={0.5} />
-          </mesh>
-        ))}
-        {[0, 1, 2, 3].map((i) => {
-          const x = (i - 1.5) * 0.4;
-          const drop = Math.sin(time * 4 + i * 2) * 0.3;
-          return (
-            <mesh key={i} position={[x, -bossSize * 0.6 - drop, 0.01]} scale={0.15}>
-              <circleGeometry args={[1, 8]} />
-              <meshBasicMaterial color="#aabbff" transparent opacity={0.6} />
-            </mesh>
-          );
-        })}
+        <DiamondBoss radius={1.44} healthPercent={healthPercent} />
       </group>
     );
   }

@@ -10,6 +10,7 @@ import { MiniStarOrb } from "./MiniStarOrb";
 import { MiniCrystalOrb } from "./MiniCrystalOrb";
 import { MiniToxicOrb } from "./MiniToxicOrb";
 import { MiniPlasmaOrb } from "./MiniPlasmaOrb";
+import { MiniDiamondOrb } from "./MiniDiamondOrb";
 import { addExplosionImpulse } from "./Background";
 
 const DISTORT_FIELD_RADIUS  = 5;
@@ -103,6 +104,16 @@ function BossOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
     return (
       <group position={orb.position} scale={orb.size * pulse}>
         <MiniCrystalOrb />
+        {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
+      </group>
+    );
+  }
+
+  // ── Diamond boss type: MiniDiamondOrb (level 6.9) ───────────────────────────
+  if (bossType === "cloud") {
+    return (
+      <group position={orb.position} scale={orb.size * pulse}>
+        <MiniDiamondOrb />
         {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
       </group>
     );
