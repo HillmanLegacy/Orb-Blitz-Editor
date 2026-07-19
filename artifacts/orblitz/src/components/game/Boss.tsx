@@ -76,6 +76,7 @@ export function Boss() {
   const localAttackTimerRef  = useRef<number | null>(null);
   // Frame counter used to throttle how often we push state to Zustand.
   const frameCountRef        = useRef(0);
+  const offScreenTimerRef    = useRef(2.5);
 
   // ── FireBoss (circle) strike-and-retreat state machine ──────────────────────
   const fireMovePhaseRef = useRef<'entering' | 'waiting' | 'exiting'>('entering');
@@ -620,6 +621,31 @@ export function Boss() {
       const attackResult = fireProjectiles([finalX, finalY, 0], localAttackTimerRef.current, attackBurstRef.current);
       localAttackTimerRef.current = attackResult.timer;
       attackBurstRef.current = attackResult.burst;
+
+      // ── Off-screen ambient spawns — come from any edge, home to player ──────
+      offScreenTimerRef.current -= delta;
+      if (offScreenTimerRef.current <= 0) {
+        const { spawnBossOrb } = useMagicOrb.getState();
+        // Pick a random screen edge (0=left,1=right,2=top,3=bottom)
+        const edge = Math.floor(Math.random() * 4);
+        const W = 16, H = 12; // spawn margin outside visible play area
+        let sx: number, sy: number;
+        if (edge === 0)      { sx = -W; sy = (Math.random() * 2 - 1) * H; }
+        else if (edge === 1) { sx =  W; sy = (Math.random() * 2 - 1) * H; }
+        else if (edge === 2) { sx = (Math.random() * 2 - 1) * W; sy =  H; }
+        else                 { sx = (Math.random() * 2 - 1) * W; sy = -H; }
+        const dx = playerX - sx;
+        const dy = playerY - sy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        spawnBossOrb(
+          [sx, sy, 0.5],
+          dist > 0 ? [dx / dist, dy / dist, 0] : [0, 1, 0],
+          "homing"
+        );
+        // Interval scales with boss projectile count so later bosses feel more intense
+        const baseInterval = 3.5 - config.projectileCount * 0.2;
+        offScreenTimerRef.current = Math.max(1.2, baseInterval) + Math.random() * 1.5;
+      }
 
       const newAngle = localAngle + delta * 0.5;
       localAngleRef.current = newAngle;

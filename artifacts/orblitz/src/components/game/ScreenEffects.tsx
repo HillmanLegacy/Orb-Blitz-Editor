@@ -62,18 +62,22 @@ export function ScreenEffects() {
       }
     }
 
-    // Damage vignette
+    // Damage vignette — hidden entirely during boss fights
     if (vignetteRef.current) {
       const mat = vignetteRef.current.material as THREE.MeshBasicMaterial;
-      const lowHealthRatio = Math.max(0, 0.5 - healthRatio) * 2;
-      const lowPulse    = lowHealthRatio * (0.2 + Math.sin(time * 4) * 0.08);
-      const atLastHP    = health === 1 && phase === "playing";
-      const damagePulse = (isDamaged || atLastHP) ? 0.3 : 0;
-      mat.opacity = 0.08 + damagePulse + lowPulse;
-      if (isDamaged || atLastHP || lowHealthRatio > 0.2) {
-        mat.color.setHSL(0, 0.9, 0.12);
+      if (boss) {
+        mat.opacity = 0;
       } else {
-        mat.color.setHSL(0.82, 0.6, 0.1);
+        const lowHealthRatio = Math.max(0, 0.5 - healthRatio) * 2;
+        const lowPulse    = lowHealthRatio * (0.2 + Math.sin(time * 4) * 0.08);
+        const atLastHP    = health === 1 && phase === "playing";
+        const damagePulse = (isDamaged || atLastHP) ? 0.3 : 0;
+        mat.opacity = 0.08 + damagePulse + lowPulse;
+        if (isDamaged || atLastHP || lowHealthRatio > 0.2) {
+          mat.color.setHSL(0, 0.9, 0.12);
+        } else {
+          mat.color.setHSL(0.82, 0.6, 0.1);
+        }
       }
     }
   });
