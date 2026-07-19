@@ -180,9 +180,9 @@ export function StartupAnimation({
         { id:"settings",  icon:<IconSettings />, label:"OPTS",  color:"#ffff00", shadow:"rgba(255,255,0,0.4)",   action: () => { btn("settings");  setMenuState("settings"); } },
       ];
       case "modes": return [
-        { id:"survival",  icon:<IconSurvive />,  label:"SURVIVE",  color:"#00ffff", shadow:"rgba(0,255,255,0.45)",  action: () => handleStartMode("survival")  },
-        { id:"chill",     icon:<IconChill />,    label:"CHILL",    color:"#aa00ff", shadow:"rgba(170,0,255,0.45)",  action: () => handleStartMode("chill")     },
         { id:"arcade",    icon:<IconArcade />,   label:"ARCADE",   color:"#ff00ff", shadow:"rgba(255,0,255,0.45)",  action: () => { btn("arcade"); setMenuState("worlds"); }  },
+        { id:"chill",     icon:<IconChill />,    label:"CHILL",    color:"#aa00ff", shadow:"rgba(170,0,255,0.45)",  action: () => handleStartMode("chill")     },
+        { id:"survival",  icon:<IconSurvive />,  label:"SURVIVAL", color:"#00ffff", shadow:"rgba(0,255,255,0.45)",  action: () => handleStartMode("survival")  },
         { id:"gauntlet",  icon:<IconGauntlet />, label:"GAUNTLET", color:"#ffff00", shadow:"rgba(255,255,0,0.4)",   action: () => handleStartMode("gauntlet")  },
         back("BACK", () => { btn("back"); setMenuState("root"); }),
       ];
