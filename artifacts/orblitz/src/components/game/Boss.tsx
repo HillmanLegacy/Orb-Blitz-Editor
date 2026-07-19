@@ -6,6 +6,7 @@ import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 import { FireBoss } from "./FireBoss";
 import { PlasmaBoss } from "./PlasmaBoss";
 import { DiamondBoss } from "./DiamondBoss";
+import { RainbowBoss } from "./RainbowBoss";
 import { StarBoss } from "./StarBoss";
 import { CrystalBoss } from "./CrystalBoss";
 import { ToxicBoss } from "./ToxicBoss";
@@ -1026,19 +1027,7 @@ export function Boss() {
   if (bossType === "arrow") {
     return (
       <group ref={meshRef} position={boss.position}>
-
-
-        {renderBaseSphere(0.95, "#4a2a1a", "#8a5a2a", "#ff8844")}
-        {renderDecoration("spikes", 0.95, "#ff6622")}
-        {renderEyes(4, 0.95, "#ffaa44")}
-        <mesh position={[0, bossSize * 0.65, 0.03]} rotation={[0, 0, 0]}>
-          <circleGeometry args={[0.5, 3]} />
-          <meshBasicMaterial color="#ff4400" />
-        </mesh>
-        <mesh position={[0, bossSize * 0.65, 0.04]} rotation={[0, 0, 0]} scale={0.6}>
-          <circleGeometry args={[0.5, 3]} />
-          <meshBasicMaterial color="#ffaa00" />
-        </mesh>
+        <RainbowBoss radius={1.44} healthPercent={healthPercent} />
       </group>
     );
   }

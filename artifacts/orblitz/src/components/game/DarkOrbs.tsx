@@ -11,6 +11,7 @@ import { MiniCrystalOrb } from "./MiniCrystalOrb";
 import { MiniToxicOrb } from "./MiniToxicOrb";
 import { MiniPlasmaOrb } from "./MiniPlasmaOrb";
 import { MiniDiamondOrb } from "./MiniDiamondOrb";
+import { MiniRainbowOrb } from "./MiniRainbowOrb";
 import { addExplosionImpulse } from "./Background";
 
 const DISTORT_FIELD_RADIUS  = 5;
@@ -104,6 +105,16 @@ function BossOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
     return (
       <group position={orb.position} scale={orb.size * pulse}>
         <MiniCrystalOrb />
+        {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
+      </group>
+    );
+  }
+
+  // ── Rainbow boss type: MiniRainbowOrb (level 7.9) ───────────────────────────
+  if (bossType === "arrow") {
+    return (
+      <group position={orb.position} scale={orb.size * pulse}>
+        <MiniRainbowOrb />
         {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
       </group>
     );
