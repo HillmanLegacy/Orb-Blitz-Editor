@@ -479,8 +479,12 @@ export function StartupAnimation({
             key={menuState}
             className="absolute left-0 right-0 z-20 flex flex-col"
             style={{
-              top: "calc(50% + clamp(80px, 11vw, 108px))",
-              bottom: "clamp(16px, 2.5vh, 32px)",
+              top: (menuState === "worlds" || menuState === "levels")
+                ? "calc(50% + clamp(56px, 7.5vw, 76px))"
+                : "calc(50% + clamp(80px, 11vw, 108px))",
+              bottom: (menuState === "worlds" || menuState === "levels")
+                ? "clamp(6px, 1vh, 12px)"
+                : "clamp(16px, 2.5vh, 32px)",
               padding: "0 clamp(10px, 3.5vw, 44px)",
             }}
             initial={{ opacity: 0, y: 12 }}
