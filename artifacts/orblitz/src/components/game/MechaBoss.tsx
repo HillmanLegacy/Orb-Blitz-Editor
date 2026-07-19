@@ -316,8 +316,8 @@ export function MechaBoss({ radius = 1.44, healthPercent = 1 }: MechaBossProps) 
         if (orbTexture) orbTexture.colorSpace = THREE.SRGBColorSpace;
         const mat  = new THREE.MeshStandardMaterial({
           map:               orbTexture ?? undefined,
-          emissive:          new THREE.Color("#224466"),
-          emissiveIntensity: 0.25,
+          emissive:          new THREE.Color("#000000"),
+          emissiveIntensity: 0,
           roughness:         0.45,
           metalness:         0.20,
         });
@@ -351,14 +351,14 @@ export function MechaBoss({ radius = 1.44, healthPercent = 1 }: MechaBossProps) 
     materialsRef.current.forEach((m) => {
       if (frac > 0) {
         m.emissive.setRGB(1, 0.1, 0.05);
-        m.emissiveIntensity = frac * osc * 3.0;
+        m.emissiveIntensity = frac * osc * 2.5;
       } else if (healthPercent < 0.3) {
         const anger = Math.abs(Math.sin(t * 14));
         m.emissive.setRGB(0.9, 0.1 + anger * 0.1, 0.05);
-        m.emissiveIntensity = 0.5 + anger * 0.6;
+        m.emissiveIntensity = 0.3 + anger * 0.4;
       } else {
-        m.emissive.setRGB(0.1, 0.45, 0.75);
-        m.emissiveIntensity = 0.15 + Math.sin(t * 1.8) * 0.05;
+        m.emissive.setRGB(0, 0, 0);
+        m.emissiveIntensity = 0;
       }
     });
   });
