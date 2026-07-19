@@ -1041,7 +1041,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     },
     
     spawnBossOrb: (position, direction, pattern = "direct") => {
-      const { arcadeLevel, boss } = get();
+      const { arcadeLevel, boss, darkOrbs } = get();
       const worldLevel = Math.floor(arcadeLevel);
       const worldShapes: Record<number, OrbShape> = {
         1: "circle", 2: "star", 3: "triangle", 4: "trapezoid", 5: "cube",
@@ -1057,6 +1057,16 @@ export const useMagicOrb = create<MagicOrbState>()(
       const speedScale = 1 + (worldLevel - 1) * 0.15;
       const baseSpeed = 2.5 * speedScale;
       const sizeScale = 0.5 + (worldLevel - 1) * 0.03;
+
+      // Prevent stacking: skip spawn if an existing boss orb is within minDist
+      const minDist = 1.2;
+      const tooClose = darkOrbs.some(o => {
+        if (!o.isBossOrb || o.destroying) return false;
+        const dx = o.position[0] - position[0];
+        const dy = o.position[1] - position[1];
+        return Math.sqrt(dx * dx + dy * dy) < minDist;
+      });
+      if (tooClose) return;
       
       const orb: DarkOrb = {
         id: `boss-orb-${Date.now()}-${Math.random()}`,
