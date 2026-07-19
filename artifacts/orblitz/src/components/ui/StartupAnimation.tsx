@@ -201,9 +201,9 @@ export function StartupAnimation({
   // ── Content panels ────────────────────────────────────────────────────────
   const renderContent = () => {
     if (menuState === "worlds") return (
-      <div>
-        <p className="text-white/40 text-[10px] uppercase tracking-widest mb-2 text-center">Select World</p>
-        <div className="grid grid-cols-3 gap-1.5">
+      <div className="flex flex-col h-full">
+        <p className="text-white/40 text-[10px] uppercase tracking-widest mb-2 text-center flex-none">Select World</p>
+        <div className="grid grid-cols-3 gap-1.5 flex-1" style={{ gridAutoRows: "1fr" }}>
           {Array.from({ length: 9 }, (_, i) => i + 1).map(w => {
             const unlocked = isWorldUnlocked(w);
             const wc = WORLD_COLORS[w - 1];
@@ -214,7 +214,6 @@ export function StartupAnimation({
                 disabled={!unlocked}
                 className="relative flex flex-col items-center justify-center rounded-xl font-black"
                 style={{
-                  height: "clamp(44px,7vh,64px)",
                   background: unlocked ? `linear-gradient(145deg, ${wc}22, ${wc}0a)` : "rgba(20,20,30,0.6)",
                   border: `1.5px solid ${unlocked ? wc + "66" : "#33355555"}`,
                   boxShadow: unlocked ? `0 0 12px ${wc}30` : "none",
@@ -244,11 +243,11 @@ export function StartupAnimation({
     if (menuState === "levels") {
       const wc = WORLD_COLORS[selectedWorld - 1];
       return (
-        <div>
-          <p className="text-center font-black mb-2" style={{ color: wc, fontSize: "clamp(0.65rem, 2vw, 0.85rem)", letterSpacing: "0.15em" }}>
+        <div className="flex flex-col h-full">
+          <p className="text-center font-black mb-2 flex-none" style={{ color: wc, fontSize: "clamp(0.65rem, 2vw, 0.85rem)", letterSpacing: "0.15em" }}>
             WORLD {selectedWorld}
           </p>
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-3 gap-1.5 flex-1" style={{ gridAutoRows: "1fr" }}>
             {Array.from({ length: 9 }, (_, i) => i + 1).map(sub => {
               const level = selectedWorld + sub / 10;
               const unlocked = isLevelUnlocked(level);
@@ -261,7 +260,6 @@ export function StartupAnimation({
                   disabled={!unlocked}
                   className="relative flex flex-col items-center justify-center rounded-xl font-bold"
                   style={{
-                    height: "clamp(44px,7vh,64px)",
                     background: unlocked ? `linear-gradient(145deg, ${bc}22, ${bc}0a)` : "rgba(20,20,30,0.6)",
                     border: `1.5px solid ${unlocked ? bc + "66" : "#333"}`,
                     boxShadow: unlocked ? `0 0 10px ${bc}28` : "none",
@@ -499,8 +497,8 @@ export function StartupAnimation({
             >
               {/* Scrollable content */}
               <div
-                className="flex-1 overflow-y-auto px-4 pt-4 pb-2 min-h-0"
-                style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(0,255,255,0.18) transparent" }}
+                className={`flex-1 px-4 pt-4 pb-2 min-h-0 ${(menuState === "worlds" || menuState === "levels") ? "overflow-hidden flex flex-col" : "overflow-y-auto"}`}
+                style={(menuState === "worlds" || menuState === "levels") ? {} : { scrollbarWidth: "thin", scrollbarColor: "rgba(0,255,255,0.18) transparent" }}
               >
                 {renderContent()}
               </div>
