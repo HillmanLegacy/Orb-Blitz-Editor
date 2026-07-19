@@ -113,7 +113,7 @@ function App() {
       {/* PauseMenu is gated by pauseMenuVisible: during a pauseSweep() it is hidden
           so the frozen game frame is visible during sweep-in, then shown at midpoint
           (still covered by the backdrop) ready to be revealed as orbs exit. */}
-      {phase === "paused" && pauseMenuVisible && <PauseMenu />}
+      {phase === "paused" && pauseMenuVisible && <PauseMenu onMainMenu={handleShowMainMenu} />}
 
       {phase === "gameOver" && (
         <GameOver onLevelSelect={handleShowLevelSelect} onMainMenu={handleShowMainMenu} />

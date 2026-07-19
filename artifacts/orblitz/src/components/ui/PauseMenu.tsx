@@ -102,7 +102,7 @@ function OrbButtonRow({ buttons, delayStart = 0 }: { buttons: BtnDef[]; delaySta
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export function PauseMenu() {
+export function PauseMenu({ onMainMenu }: { onMainMenu?: () => void }) {
   const { phase, resumeGame, startLoading, score } = useMagicOrb();
   const { openShop, openInventory, shopOpen, inventoryOpen } = useShop();
   const { isMuted, toggleMute, playMenuSelect } = useAudio();
@@ -127,7 +127,7 @@ export function PauseMenu() {
       color: soundColor, shadow: soundShadow,
       action: () => { sfx(); toggleMute(); },
     },
-    { id: "quit", icon: <IconQuit />, label: "QUIT", color: "#667788", shadow: "rgba(100,110,130,0.22)", action: () => { sfx(); useOrbTransition.getState().loadingSweep(() => startLoading("exiting_to_menu")); } },
+    { id: "quit", icon: <IconQuit />, label: "QUIT", color: "#667788", shadow: "rgba(100,110,130,0.22)", action: () => { sfx(); onMainMenu?.(); useOrbTransition.getState().loadingSweep(() => startLoading("exiting_to_menu")); } },
   ];
 
   return (
