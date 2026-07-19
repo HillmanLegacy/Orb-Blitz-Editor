@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { setMasterVolume } from "@/lib/audio/SynthSounds";
 import {
   playShootSound,
   playHitSound,
@@ -90,9 +91,11 @@ interface AudioState {
   synthGameMusic: SynthMusicNode | null;
   synthBossMusic: SynthMusicNode | null;
   isMuted: boolean;
+  volume: number;
   brightness: number;
   currentMusicType: "menu" | "game" | "boss" | null;
 
+  setVolume: (v: number) => void;
   setBrightness: (v: number) => void;
   setBackgroundMusic: (music: HTMLAudioElement) => void;
   setMenuMusic: (music: HTMLAudioElement) => void;
@@ -151,9 +154,16 @@ export const useAudio = create<AudioState>((set, get) => ({
   synthGameMusic: null,
   synthBossMusic: null,
   isMuted: false,
+  volume: (() => { try { const v = parseFloat(localStorage.getItem("orb_volume") ?? "1"); return isFinite(v) ? Math.min(1, Math.max(0, v)) : 1; } catch { return 1; } })(),
   brightness: (() => { try { const v = parseFloat(localStorage.getItem("orb_brightness") ?? "1"); return isFinite(v) ? Math.min(2, Math.max(0.2, v)) : 1; } catch { return 1; } })(),
   currentMusicType: null,
 
+  setVolume: (v: number) => {
+    const clamped = Math.min(1, Math.max(0, v));
+    set({ volume: clamped });
+    setMasterVolume(clamped);
+    try { localStorage.setItem("orb_volume", String(clamped)); } catch {}
+  },
   setBrightness: (v: number) => {
     const clamped = Math.min(2, Math.max(0.2, v));
     set({ brightness: clamped });

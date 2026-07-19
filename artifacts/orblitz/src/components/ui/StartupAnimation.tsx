@@ -117,7 +117,7 @@ export function StartupAnimation({
   const [highestLevel, setHighestLevel] = useState(1.1);
   const [pressedBtn, setPressedBtn]   = useState<string | null>(null);
 
-  const { playOrbWhoosh, playOrbConverge, playTitleReveal, startMenuMusic, playMenuSelect, isMuted, toggleMute, brightness, setBrightness } = useAudio();
+  const { playOrbWhoosh, playOrbConverge, playTitleReveal, startMenuMusic, playMenuSelect, isMuted, toggleMute, volume, setVolume, brightness, setBrightness } = useAudio();
   const { openShop, openInventory, activateDevMode, coins: shopStars, devMode } = useShop();
   const { setGameMode, startLoading } = useMagicOrb();
 
@@ -177,7 +177,7 @@ export function StartupAnimation({
         { id:"play",      icon:<IconPlay />,     label:"PLAY",  color:"#00ffff", shadow:"rgba(0,255,255,0.45)",  action: () => { btn("play");      setMenuState("modes");    } },
         { id:"shop",      icon:<IconShop />,     label:"SHOP",  color:"#ff00ff", shadow:"rgba(255,0,255,0.45)",  action: () => { btn("shop");      openShop();               } },
         { id:"inventory", icon:<IconGear />,     label:"GEAR",  color:"#aa00ff", shadow:"rgba(170,0,255,0.45)",  action: () => { btn("inventory"); openInventory();          } },
-        { id:"settings",  icon:<IconSettings />, label:"OPTS",  color:"#ffff00", shadow:"rgba(255,255,0,0.4)",   action: () => { btn("settings");  setMenuState("settings"); } },
+        { id:"settings",  icon:<IconSettings />, label:"OPTIONS",  color:"#ffff00", shadow:"rgba(255,255,0,0.4)",   action: () => { btn("settings");  setMenuState("settings"); } },
       ];
       case "modes": return [
         { id:"arcade",    icon:<IconArcade />,   label:"ARCADE",   color:"#ff00ff", shadow:"rgba(255,0,255,0.45)",  action: () => { btn("arcade"); setMenuState("worlds"); }  },
@@ -455,6 +455,7 @@ export function StartupAnimation({
             {menuState === "settings"
               ? <SettingsButtonRow
                   isMuted={isMuted} toggleMute={toggleMute}
+                  volume={volume} setVolume={setVolume}
                   brightness={brightness} setBrightness={setBrightness}
                   onBack={() => setMenuState("root")} btn={btn}
                 />
@@ -603,8 +604,9 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false }: Butt
 }
 
 // ─── Settings button row: sound toggle + brightness slider + back ─────────────
-function SettingsButtonRow({ isMuted, toggleMute, brightness, setBrightness, onBack, btn }: {
+function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness, setBrightness, onBack, btn }: {
   isMuted: boolean; toggleMute: () => void;
+  volume: number; setVolume: (v: number) => void;
   brightness: number; setBrightness: (v: number) => void;
   onBack: () => void; btn: (id: string) => void;
 }) {
@@ -614,6 +616,7 @@ function SettingsButtonRow({ isMuted, toggleMute, brightness, setBrightness, onB
   const sc = isMuted ? "#667788" : "#00ffff";
   const ss = isMuted ? "rgba(100,110,130,0.2)" : "rgba(0,255,255,0.45)";
   const bPct = Math.round(((brightness - 0.2) / 1.8) * 100);
+  const vPct = Math.round(volume * 100);
 
   const itemVariants = {
     hidden:  { opacity: 0, y: 16, scale: 0.86 },
@@ -646,7 +649,7 @@ function SettingsButtonRow({ isMuted, toggleMute, brightness, setBrightness, onB
 
   return (
     <>
-      <style>{`.orb-bslider{-webkit-appearance:none;appearance:none;outline:none;cursor:pointer;border-radius:2px}.orb-bslider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#ffff00;box-shadow:0 0 6px rgba(255,255,0,0.85)}.orb-bslider::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:50%;background:#ffff00;box-shadow:0 0 6px rgba(255,255,0,0.85)}`}</style>
+      <style>{`.orb-bslider{-webkit-appearance:none;appearance:none;outline:none;cursor:pointer;border-radius:2px}.orb-bslider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#ffff00;box-shadow:0 0 6px rgba(255,255,0,0.85)}.orb-bslider::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:50%;background:#ffff00;box-shadow:0 0 6px rgba(255,255,0,0.85)}.orb-vslider{-webkit-appearance:none;appearance:none;outline:none;cursor:pointer;border-radius:2px}.orb-vslider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#00ffff;box-shadow:0 0 6px rgba(0,255,255,0.85)}.orb-vslider::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:50%;background:#00ffff;box-shadow:0 0 6px rgba(0,255,255,0.85)}`}</style>
       <motion.div
         className="flex flex-row items-stretch justify-center w-full"
         style={{ gap: "clamp(6px,1.8vw,16px)" }}
@@ -656,22 +659,6 @@ function SettingsButtonRow({ isMuted, toggleMute, brightness, setBrightness, onB
           hidden:  { transition: { staggerChildren: 0.03,  staggerDirection: -1 } },
         }}
       >
-        {/* SOUND toggle */}
-        <motion.button
-          className="relative flex flex-col items-center justify-center overflow-hidden flex-1"
-          style={{ ...btnStyle(sc, ss), minWidth: 0, maxWidth: "clamp(52px,17vw,100px)" }}
-          variants={itemVariants} whileTap={{ scale: 0.9 }}
-          onClick={() => { btn("sound"); toggleMute(); }}
-        >
-          <TopLine color={sc} /><Scanlines />
-          <span style={{ fontSize: iconSz, lineHeight: 1, marginBottom: "clamp(2px,0.6vw,5px)", filter: `drop-shadow(0 0 5px ${sc}88)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {isMuted ? <IconSoundOff /> : <IconSound />}
-          </span>
-          <span style={{ fontSize: labelSz, fontWeight: 800, letterSpacing: "0.13em", lineHeight: 1, opacity: 0.88 }}>
-            {isMuted ? "MUTED" : "SOUND"}
-          </span>
-        </motion.button>
-
         {/* BRIGHTNESS slider */}
         <motion.div
           className="relative flex flex-col items-center justify-center overflow-hidden flex-[2]"
@@ -684,7 +671,7 @@ function SettingsButtonRow({ isMuted, toggleMute, brightness, setBrightness, onB
             <IconBrightness />
           </span>
           <span style={{ fontSize: labelSz, fontWeight: 800, letterSpacing: "0.13em", lineHeight: 1, opacity: 0.88, marginBottom: 5 }}>
-            BRIGHT
+            BRIGHTNESS
           </span>
           <input
             type="range" min={0.2} max={2.0} step={0.05}
@@ -701,6 +688,52 @@ function SettingsButtonRow({ isMuted, toggleMute, brightness, setBrightness, onB
             {bPct}%
           </span>
         </motion.div>
+
+        {/* VOLUME slider */}
+        <motion.div
+          className="relative flex flex-col items-center justify-center overflow-hidden flex-[2]"
+          style={{ ...btnStyle("#00ffff", "rgba(0,255,255,0.38)"), minWidth: 0, cursor: "default",
+            padding: "0 clamp(6px,1.5vw,14px)" }}
+          variants={itemVariants}
+        >
+          <TopLine color="#00ffff" /><Scanlines />
+          <span style={{ fontSize: iconSz, lineHeight: 1, marginBottom: 2, filter: "drop-shadow(0 0 5px #00ffff88)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {isMuted ? <IconSoundOff /> : <IconSound />}
+          </span>
+          <span style={{ fontSize: labelSz, fontWeight: 800, letterSpacing: "0.13em", lineHeight: 1, opacity: 0.88, marginBottom: 5 }}>
+            VOLUME
+          </span>
+          <input
+            type="range" min={0} max={1} step={0.01}
+            value={volume}
+            onChange={e => setVolume(Number(e.target.value))}
+            onClick={e => e.stopPropagation()}
+            className="orb-vslider"
+            style={{
+              width: "100%", height: 4,
+              background: `linear-gradient(90deg,#00ffff ${vPct}%,rgba(255,255,255,0.15) ${vPct}%)`,
+            }}
+          />
+          <span style={{ fontSize: "clamp(0.38rem,1vw,0.5rem)", opacity: 0.4, marginTop: 3, letterSpacing: "0.1em" }}>
+            {vPct}%
+          </span>
+        </motion.div>
+
+        {/* MUTE / UNMUTE */}
+        <motion.button
+          className="relative flex flex-col items-center justify-center overflow-hidden flex-1"
+          style={{ ...btnStyle(sc, ss), minWidth: 0, maxWidth: "clamp(52px,17vw,100px)" }}
+          variants={itemVariants} whileTap={{ scale: 0.9 }}
+          onClick={() => { btn("sound"); toggleMute(); }}
+        >
+          <TopLine color={sc} /><Scanlines />
+          <span style={{ fontSize: iconSz, lineHeight: 1, marginBottom: "clamp(2px,0.6vw,5px)", filter: `drop-shadow(0 0 5px ${sc}88)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {isMuted ? <IconSoundOff /> : <IconSound />}
+          </span>
+          <span style={{ fontSize: labelSz, fontWeight: 800, letterSpacing: "0.13em", lineHeight: 1, opacity: 0.88 }}>
+            {isMuted ? "UNMUTE" : "MUTE"}
+          </span>
+        </motion.button>
 
         {/* BACK */}
         <motion.button

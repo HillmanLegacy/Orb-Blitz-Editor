@@ -1778,3 +1778,8 @@ export function createBossMusicNode(targetVol = 0.18): SynthMusicNode {
 // ── Legacy aliases (kept for backward compat with useAudio.tsx) ───────────────
 
 export { _makeNoiseBuf as createNoiseBuffer };
+
+/** Set the master output volume (0–1). Safe to call before any audio is initialised. */
+export function setMasterVolume(v: number): void {
+  if (_masterGain) _masterGain.gain.value = Math.max(0, Math.min(1, v)) * 0.85;
+}
