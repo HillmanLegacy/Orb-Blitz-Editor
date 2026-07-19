@@ -117,8 +117,8 @@ const shimmerFrag = /* glsl */ `
     // Starburst overlay at surface center
     col += vec3(1.0, 0.98, 0.95) * star * 0.8 * (0.5 + flash * 0.5);
 
-    // Final fresnel rim — pure white edge
-    col += vec3(1.0) * pow(fresnel, 1.5) * 0.9;
+    // Subtle fresnel rim — soft cyan, not white
+    col += vec3(0.55, 0.80, 1.00) * pow(fresnel, 3.5) * 0.35;
 
     float alpha = 0.25 + fresnel * 0.45 + sparkle * 0.30 + star * 0.15;
     gl_FragColor = vec4(col, clamp(alpha, 0.0, 1.0));
