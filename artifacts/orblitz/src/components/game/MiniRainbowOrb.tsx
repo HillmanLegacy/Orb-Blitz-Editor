@@ -1,6 +1,6 @@
 /**
  * MiniRainbowOrb — projectile fired by the Rainbow Boss (level 7.9).
- * Same spectral aura shell + mini rotating rays, scaled to radius=1.
+ * Same spectral aura shell + rainbow light particles, scaled to radius=1.
  * Parent group controls final rendered size.
  */
 
@@ -78,63 +78,99 @@ const rainbowFrag = /* glsl */ `
   }
 `;
 
-// ── Mini rays ─────────────────────────────────────────────────────────────────
+// ── Mini rainbow particles ─────────────────────────────────────────────────────
 
-const RAY_COUNT = 7;
+const PARTICLE_COUNT = 36;
 
 function fract(x: number) { return x - Math.floor(x); }
 
-function MiniRainbowRays({ radius }: { radius: number }) {
-  const groupRef = useRef<THREE.Group>(null);
-  const raysRef  = useRef<THREE.Mesh[]>([]);
-  const mats     = useMemo(() =>
-    Array.from({ length: RAY_COUNT }, (_, i) =>
-      new THREE.MeshBasicMaterial({
-        transparent: true,
-        depthWrite:  false,
-        blending:    THREE.AdditiveBlending,
-        side:        THREE.DoubleSide,
-        color:       new THREE.Color().setHSL(i / RAY_COUNT, 1, 0.6),
-      })
-    ), []);
+interface Particle {
+  dir:         THREE.Vector3;
+  dist:        number;
+  speed:       number;
+  maxDist:     number;
+  life:        number;
+  maxLife:     number;
+  hueOffset:   number;
+  size:        number;
+  wobbleAxis:  THREE.Vector3;
+  wobbleSpeed: number;
+  wobbleAmt:   number;
+}
 
-  useFrame((state) => {
-    if (!groupRef.current) return;
+function makeParticle(index: number, total: number, radius: number): Particle {
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  const y      = 1 - (index / (total - 1)) * 2;
+  const r      = Math.sqrt(Math.max(0, 1 - y * y));
+  const theta  = golden * index;
+  const dir    = new THREE.Vector3(r * Math.cos(theta), y, r * Math.sin(theta)).normalize();
+  const maxLife = 0.8 + Math.random() * 1.2;
+  return {
+    dir,
+    dist:        radius * (0.95 + Math.random() * 0.1),
+    speed:       0.6 + Math.random() * 1.2,
+    maxDist:     radius + 0.5 + Math.random() * 0.8,
+    life:        Math.random() * maxLife,
+    maxLife,
+    hueOffset:   index / total,
+    size:        0.025 + Math.random() * 0.045,
+    wobbleAxis:  new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).normalize(),
+    wobbleSpeed: 2.0 + Math.random() * 3.0,
+    wobbleAmt:   0.04 + Math.random() * 0.08,
+  };
+}
+
+function MiniRainbowParticles({ radius }: { radius: number }) {
+  const meshRef   = useRef<THREE.InstancedMesh>(null);
+  const dummy     = useMemo(() => new THREE.Object3D(), []);
+  const colRef    = useRef(new THREE.Color());
+  const particles = useRef<Particle[]>(
+    Array.from({ length: PARTICLE_COUNT }, (_, i) => makeParticle(i, PARTICLE_COUNT, radius))
+  );
+
+  useFrame((state, delta) => {
+    if (!meshRef.current) return;
     const t = state.clock.getElapsedTime();
-    groupRef.current.rotation.z = t * 0.3;
-    groupRef.current.rotation.y = t * 0.18;
 
-    raysRef.current.forEach((ray, i) => {
-      if (!ray) return;
-      mats[i].color.setHSL(fract(i / RAY_COUNT + t * 0.12), 1.0, 0.65);
-      const pulse = 0.5 + 0.5 * Math.sin(t * 3.0 + (i / RAY_COUNT) * Math.PI * 2);
-      mats[i].opacity = 0.12 + pulse * 0.28;
+    particles.current.forEach((p, i) => {
+      p.life -= delta;
+      if (p.life <= 0) {
+        const fresh = makeParticle(i, PARTICLE_COUNT, radius);
+        fresh.life  = fresh.maxLife;
+        particles.current[i] = fresh;
+        return;
+      }
+
+      p.dist += p.speed * delta;
+
+      const lifeRatio = p.life / p.maxLife;
+      const fadeIn    = Math.min(1, (1 - lifeRatio) / 0.20);
+      const fadeOut   = Math.min(1, lifeRatio / 0.20);
+      const fade      = Math.min(fadeIn, fadeOut);
+
+      const wOff = p.wobbleAxis.clone()
+        .multiplyScalar(Math.sin(t * p.wobbleSpeed) * p.wobbleAmt * p.dist);
+      const pos  = p.dir.clone().multiplyScalar(p.dist).add(wOff);
+
+      const sz = p.size * fade * (0.8 + Math.sin(t * 3 + i) * 0.2);
+      dummy.position.copy(pos);
+      dummy.scale.setScalar(sz);
+      dummy.updateMatrix();
+      meshRef.current!.setMatrixAt(i, dummy.matrix);
+
+      colRef.current.setHSL(fract(p.hueOffset + t * 0.10), 1.0, 0.55 + fade * 0.35);
+      meshRef.current!.setColorAt(i, colRef.current);
     });
+
+    meshRef.current.instanceMatrix.needsUpdate = true;
+    if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
   });
 
   return (
-    <group ref={groupRef}>
-      {Array.from({ length: RAY_COUNT }, (_, i) => {
-        const angle  = (i / RAY_COUNT) * Math.PI * 2;
-        const rayLen = radius * 1.1 + (i % 3) * radius * 0.12;
-        const rayOff = radius * 0.9;
-        return (
-          <mesh
-            key={i}
-            ref={(el) => { if (el) raysRef.current[i] = el; }}
-            material={mats[i]}
-            position={[
-              Math.cos(angle) * (rayOff + rayLen * 0.5),
-              Math.sin(angle) * (rayOff + rayLen * 0.5),
-              0,
-            ]}
-            rotation={[0, 0, angle + Math.PI * 0.5]}
-          >
-            <planeGeometry args={[0.05, rayLen, 1, 1]} />
-          </mesh>
-        );
-      })}
-    </group>
+    <instancedMesh ref={meshRef} args={[undefined, undefined, PARTICLE_COUNT]}>
+      <sphereGeometry args={[1, 5, 5]} />
+      <meshBasicMaterial transparent depthWrite={false} blending={THREE.AdditiveBlending} />
+    </instancedMesh>
   );
 }
 
@@ -153,13 +189,12 @@ export function MiniRainbowOrb({ radius = 1 }: MiniRainbowOrbProps) {
   useFrame((state, delta) => {
     if (matRef.current) matRef.current.uniforms.uTime.value = state.clock.getElapsedTime();
     if (groupRef.current) groupRef.current.rotation.y += delta * 0.3;
-    // Hue-cycling fill light
     if (lightRef.current) lightRef.current.color.setHSL(fract(state.clock.getElapsedTime() * 0.15), 1.0, 0.6);
   });
 
   return (
     <group ref={groupRef}>
-      {/* Chromatic fill light */}
+      {/* Hue-cycling fill light */}
       <pointLight ref={lightRef} intensity={2.5} distance={5} decay={2} />
       {/* Spectral aura shell */}
       <mesh scale={radius * 1.08}>
@@ -186,8 +221,8 @@ export function MiniRainbowOrb({ radius = 1 }: MiniRainbowOrbProps) {
           metalness={0.20}
         />
       </mesh>
-      {/* Mini light rays */}
-      <MiniRainbowRays radius={radius} />
+      {/* Rainbow light particles */}
+      <MiniRainbowParticles radius={radius} />
     </group>
   );
 }

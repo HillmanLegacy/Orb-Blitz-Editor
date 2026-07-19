@@ -127,102 +127,135 @@ function RainbowAuraShell({ radius }: { radius: number }) {
   );
 }
 
-// ── Prismatic light rays ───────────────────────────────────────────────────────
-// Flat tapered planes radiating outward like light spokes from a prism,
-// each cycling through a different hue offset.
+function fract(x: number) { return x - Math.floor(x); }
 
-const RAY_COUNT = 12;
+// ── Rainbow light particles ────────────────────────────────────────────────────
+// Instanced glowing orbs that spawn on the boss surface, drift outward through
+// the full spectrum, then fade and respawn — like coloured light embers.
 
-function RainbowRays({ radius }: { radius: number }) {
-  const groupRef = useRef<THREE.Group>(null);
-  const raysRef  = useRef<THREE.Mesh[]>([]);
-  const mats     = useMemo(() =>
-    Array.from({ length: RAY_COUNT }, (_, i) =>
-      new THREE.MeshBasicMaterial({
-        transparent: true,
-        depthWrite:  false,
-        blending:    THREE.AdditiveBlending,
-        side:        THREE.DoubleSide,
-        color:       new THREE.Color().setHSL(i / RAY_COUNT, 1, 0.6),
-      })
-    ), []);
+const PARTICLE_COUNT = 90;
 
-  useFrame((state) => {
-    if (!groupRef.current) return;
+interface Particle {
+  dir:       THREE.Vector3; // fixed radial direction from centre
+  dist:      number;        // current distance from centre
+  speed:     number;        // outward speed
+  maxDist:   number;        // distance at which it fades out and resets
+  life:      number;        // 0–maxLife countdown
+  maxLife:   number;
+  hueOffset: number;        // 0–1 position in the rainbow, fixed per particle
+  size:      number;
+  // lateral wobble
+  wobbleAxis:  THREE.Vector3;
+  wobbleSpeed: number;
+  wobbleAmt:   number;
+}
+
+function makeParticle(index: number, total: number, radius: number): Particle {
+  // Spread evenly around the sphere using golden angle for uniform coverage
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  const y      = 1 - (index / (total - 1)) * 2;
+  const r      = Math.sqrt(1 - y * y);
+  const theta  = golden * index;
+  const dir    = new THREE.Vector3(r * Math.cos(theta), y, r * Math.sin(theta)).normalize();
+  const maxLife = 1.2 + Math.random() * 1.6;
+  return {
+    dir,
+    dist:        radius * (0.95 + Math.random() * 0.15), // near surface
+    speed:       0.5 + Math.random() * 1.0,
+    maxDist:     radius + 0.8 + Math.random() * 1.4,
+    life:        Math.random() * maxLife,                 // stagger start
+    maxLife,
+    hueOffset:   index / total,                          // evenly spaced hues
+    size:        0.04 + Math.random() * 0.08,
+    wobbleAxis:  new THREE.Vector3(
+      Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5
+    ).normalize(),
+    wobbleSpeed: 1.5 + Math.random() * 2.5,
+    wobbleAmt:   0.05 + Math.random() * 0.10,
+  };
+}
+
+function RainbowParticles({ radius }: { radius: number }) {
+  const meshRef  = useRef<THREE.InstancedMesh>(null);
+  const dummy    = useMemo(() => new THREE.Object3D(), []);
+  const colRef   = useRef(new THREE.Color());
+  const particles = useRef<Particle[]>(
+    Array.from({ length: PARTICLE_COUNT }, (_, i) => makeParticle(i, PARTICLE_COUNT, radius))
+  );
+
+  useFrame((state, delta) => {
+    if (!meshRef.current) return;
     const t = state.clock.getElapsedTime();
-    groupRef.current.rotation.z = t * 0.22;
-    groupRef.current.rotation.y = t * 0.14;
 
-    raysRef.current.forEach((ray, i) => {
-      if (!ray) return;
-      const mat = mats[i];
-      // Hue cycles slowly — each ray has an offset
-      mat.color.setHSL(fract(i / RAY_COUNT + t * 0.12), 1.0, 0.65);
-      // Pulse opacity in a wave pattern
-      const pulse = 0.5 + 0.5 * Math.sin(t * 2.5 + (i / RAY_COUNT) * Math.PI * 2);
-      mat.opacity = 0.15 + pulse * 0.30;
+    particles.current.forEach((p, i) => {
+      // Age
+      p.life -= delta;
+      if (p.life <= 0) {
+        // Respawn at surface
+        const fresh = makeParticle(i, PARTICLE_COUNT, radius);
+        fresh.life  = fresh.maxLife; // start fresh
+        particles.current[i] = fresh;
+        return;
+      }
+
+      // Move outward
+      p.dist += p.speed * delta;
+
+      // Fade: in over first 20%, out over last 20%
+      const lifeRatio = p.life / p.maxLife;
+      const fadeIn    = Math.min(1, (1 - lifeRatio) / 0.20);
+      const fadeOut   = Math.min(1, lifeRatio / 0.20);
+      const fade      = Math.min(fadeIn, fadeOut);
+
+      // Position: radial + wobble
+      const wAngle = t * p.wobbleSpeed;
+      const wOff   = p.wobbleAxis.clone()
+        .multiplyScalar(Math.sin(wAngle) * p.wobbleAmt * p.dist);
+      const pos = p.dir.clone().multiplyScalar(p.dist).add(wOff);
+
+      const sz = p.size * fade * (0.8 + Math.sin(t * 3 + i) * 0.2);
+      dummy.position.copy(pos);
+      dummy.scale.setScalar(sz);
+      dummy.updateMatrix();
+      meshRef.current!.setMatrixAt(i, dummy.matrix);
+
+      // Hue: fixed position in spectrum, slowly cycling + fade-driven brightness
+      const hue  = fract(p.hueOffset + t * 0.10);
+      const lum  = 0.55 + fade * 0.35;
+      colRef.current.setHSL(hue, 1.0, lum);
+      meshRef.current!.setColorAt(i, colRef.current);
     });
+
+    meshRef.current.instanceMatrix.needsUpdate = true;
+    if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
   });
 
   return (
-    <group ref={groupRef}>
-      {Array.from({ length: RAY_COUNT }, (_, i) => {
-        const angle   = (i / RAY_COUNT) * Math.PI * 2;
-        const rayLen  = radius * 1.2 + (i % 3) * radius * 0.15;
-        const rayOff  = radius * 1.0; // starts at surface
-        return (
-          <mesh
-            key={i}
-            ref={(el) => { if (el) raysRef.current[i] = el; }}
-            material={mats[i]}
-            position={[
-              Math.cos(angle) * (rayOff + rayLen * 0.5),
-              Math.sin(angle) * (rayOff + rayLen * 0.5),
-              0,
-            ]}
-            rotation={[0, 0, angle + Math.PI * 0.5]}
-          >
-            <planeGeometry args={[0.07 + (i % 4) * 0.015, rayLen, 1, 1]} />
-          </mesh>
-        );
-      })}
-    </group>
+    <instancedMesh ref={meshRef} args={[undefined, undefined, PARTICLE_COUNT]}>
+      <sphereGeometry args={[1, 6, 6]} />
+      <meshBasicMaterial
+        transparent
+        depthWrite={false}
+        blending={THREE.AdditiveBlending}
+      />
+    </instancedMesh>
   );
 }
 
-function fract(x: number) { return x - Math.floor(x); }
+// ── Two hue-cycling fill lights (replaces the six orbiting lights) ────────────
 
-// ── Orbiting chromatic point lights ───────────────────────────────────────────
-// Six lights on a ring, each a different pure hue, rotating around the boss
-// so all six spectrum colours illuminate the model surface in sequence.
-
-function RainbowLights({ radius }: { radius: number }) {
-  const lightsRef = useRef<THREE.PointLight[]>([]);
-  const HUE_COUNT = 6;
-
+function RainbowFillLights() {
+  const a = useRef<THREE.PointLight>(null);
+  const b = useRef<THREE.PointLight>(null);
   useFrame((state) => {
     const t = state.clock.getElapsedTime();
-    lightsRef.current.forEach((light, i) => {
-      if (!light) return;
-      const angle = t * 0.55 + (i / HUE_COUNT) * Math.PI * 2;
-      const r = radius * 1.5;
-      light.position.set(Math.cos(angle) * r, Math.sin(angle) * r * 0.5, Math.sin(angle * 0.7) * r * 0.4);
-      // Hue cycles — each light locked to a different spectrum band
-      light.color.setHSL(fract(i / HUE_COUNT + t * 0.08), 1.0, 0.6);
-    });
+    if (a.current) a.current.color.setHSL(fract(t * 0.10),       1.0, 0.6);
+    if (b.current) b.current.color.setHSL(fract(t * 0.10 + 0.5), 1.0, 0.6);
   });
-
   return (
     <>
-      {Array.from({ length: HUE_COUNT }, (_, i) => (
-        <pointLight
-          key={i}
-          ref={(el) => { if (el) lightsRef.current[i] = el; }}
-          intensity={3.5}
-          distance={10}
-          decay={2}
-        />
-      ))}
+      <pointLight ref={a} intensity={4} distance={12} decay={2} position={[0, 0,  3]} />
+      <pointLight ref={b} intensity={4} distance={12} decay={2} position={[0, 0, -3]} />
     </>
   );
 }
@@ -329,14 +362,14 @@ export function RainbowBoss({ radius = 1.44, healthPercent = 1 }: RainbowBossPro
 
   return (
     <group>
-      {/* Six chromatic orbiting lights */}
-      <RainbowLights radius={radius} />
+      {/* Hue-cycling fill lights */}
+      <RainbowFillLights />
       {/* Base model */}
       <group ref={groupRef} />
       {/* Spectral aura shell */}
       <RainbowAuraShell radius={radius} />
-      {/* Prismatic light rays */}
-      <RainbowRays radius={radius} />
+      {/* Rainbow light particles */}
+      <RainbowParticles radius={radius} />
     </group>
   );
 }
