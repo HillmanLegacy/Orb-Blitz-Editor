@@ -273,7 +273,7 @@ export interface MechaBossProps {
 
 export function MechaBoss({ radius = 1.44, healthPercent = 1 }: MechaBossProps) {
   const groupRef     = useRef<THREE.Group>(null);
-  const materialsRef = useRef<THREE.MeshStandardMaterial[]>([]);
+  const materialsRef = useRef<THREE.MeshBasicMaterial[]>([]);
   const hurtTimerRef  = useRef(0);
   const prevHealthRef = useRef(healthPercent);
 
@@ -314,12 +314,9 @@ export function MechaBoss({ radius = 1.44, healthPercent = 1 }: MechaBossProps) 
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         if (orbTexture) orbTexture.colorSpace = THREE.SRGBColorSpace;
-        const mat  = new THREE.MeshStandardMaterial({
-          map:               orbTexture ?? undefined,
-          emissive:          new THREE.Color("#000000"),
-          emissiveIntensity: 0,
-          roughness:         0.45,
-          metalness:         0.20,
+        const mat = new THREE.MeshBasicMaterial({
+          map:   orbTexture ?? undefined,
+          color: new THREE.Color("#ffffff"),
         });
         mesh.material = mat;
         materialsRef.current.push(mat);
@@ -350,15 +347,15 @@ export function MechaBoss({ radius = 1.44, healthPercent = 1 }: MechaBossProps) 
 
     materialsRef.current.forEach((m) => {
       if (frac > 0) {
-        m.emissive.setRGB(1, 0.1, 0.05);
-        m.emissiveIntensity = frac * osc * 2.5;
+        // Red hurt flash
+        const flash = frac * osc;
+        m.color.setRGB(1, 1 - flash * 0.9, 1 - flash * 0.9);
       } else if (healthPercent < 0.3) {
+        // Orange-red rage pulse
         const anger = Math.abs(Math.sin(t * 14));
-        m.emissive.setRGB(0.9, 0.1 + anger * 0.1, 0.05);
-        m.emissiveIntensity = 0.3 + anger * 0.4;
+        m.color.setRGB(1, 0.55 - anger * 0.35, 0.5 - anger * 0.4);
       } else {
-        m.emissive.setRGB(0, 0, 0);
-        m.emissiveIntensity = 0;
+        m.color.setRGB(1, 1, 1);
       }
     });
   });
