@@ -286,13 +286,13 @@ export function DiamondBoss({ radius = 1.44, healthPercent = 1 }: DiamondBossPro
     cloned.traverse((child: THREE.Object3D) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
+        if (orbTexture) orbTexture.colorSpace = THREE.SRGBColorSpace;
         const mat  = new THREE.MeshStandardMaterial({
           map:               orbTexture ?? undefined,
           emissive:          new THREE.Color("#aaddff"),
           emissiveIntensity: 0.25,
-          roughness:         0.05,
-          metalness:         0.9,
-          envMapIntensity:   1.5,
+          roughness:         0.45,
+          metalness:         0.20,
         });
         mesh.material = mat;
         materialsRef.current.push(mat);

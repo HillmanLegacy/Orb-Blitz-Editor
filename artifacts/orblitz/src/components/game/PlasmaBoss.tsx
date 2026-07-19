@@ -271,12 +271,13 @@ export function PlasmaBoss({ radius = 1.44, healthPercent = 1 }: PlasmaBossProps
     cloned.traverse((child: THREE.Object3D) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
+        if (orbTexture) orbTexture.colorSpace = THREE.SRGBColorSpace;
         const mat  = new THREE.MeshStandardMaterial({
           map:               orbTexture ?? undefined,
           emissive:          new THREE.Color("#2244cc"),
           emissiveIntensity: 0.35,
-          roughness:         0.35,
-          metalness:         0.55,
+          roughness:         0.45,
+          metalness:         0.20,
         });
         mesh.material = mat;
         materialsRef.current.push(mat);
