@@ -201,91 +201,83 @@ export function StartupAnimation({
   // ── Content panels ────────────────────────────────────────────────────────
   const renderContent = () => {
     if (menuState === "worlds") return (
-      <div className="flex flex-col h-full">
-        <p className="text-white/40 text-[10px] uppercase tracking-widest mb-2 text-center flex-none">Select World</p>
-        <div className="grid grid-cols-3 gap-1.5 flex-1" style={{ gridAutoRows: "1fr" }}>
-          {Array.from({ length: 9 }, (_, i) => i + 1).map(w => {
-            const unlocked = isWorldUnlocked(w);
-            const wc = WORLD_COLORS[w - 1];
-            const done = w + 0.9 <= highestLevel + 0.01;
-            return (
-              <motion.button key={w}
-                onClick={() => { if (unlocked) { btn(`w${w}`); setSelectedWorld(w); setMenuState("levels"); } }}
-                disabled={!unlocked}
-                className="relative flex flex-col items-center justify-center rounded-xl font-black"
-                style={{
-                  background: unlocked ? `linear-gradient(145deg, ${wc}22, ${wc}0a)` : "rgba(20,20,30,0.6)",
-                  border: `1.5px solid ${unlocked ? wc + "66" : "#33355555"}`,
-                  boxShadow: unlocked ? `0 0 12px ${wc}30` : "none",
-                  color: unlocked ? wc : "#445",
-                  cursor: unlocked ? "pointer" : "default",
-                  fontSize: "clamp(0.9rem, 3vw, 1.3rem)",
-                }}
-                whileHover={unlocked ? { scale: 1.06 } : {}}
-                whileTap={unlocked ? { scale: 0.92 } : {}}
-              >
-                {unlocked ? (
-                  <>
-                    <span>{w}</span>
-                    <span style={{ fontSize: "0.45em", opacity: 0.65, letterSpacing: "0.1em", marginTop: 2 }}>WORLD</span>
-                    {done && <div className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ background: wc }} />}
-                  </>
-                ) : (
-                  <span style={{ fontSize: "1.2em", opacity: 0.4 }}>🔒</span>
-                )}
-              </motion.button>
-            );
-          })}
-        </div>
-      </div>
+      <>
+        {Array.from({ length: 9 }, (_, i) => i + 1).map(w => {
+          const unlocked = isWorldUnlocked(w);
+          const wc = WORLD_COLORS[w - 1];
+          const done = w + 0.9 <= highestLevel + 0.01;
+          return (
+            <motion.button key={w}
+              onClick={() => { if (unlocked) { btn(`w${w}`); setSelectedWorld(w); setMenuState("levels"); } }}
+              disabled={!unlocked}
+              className="relative flex flex-col items-center justify-center rounded-2xl font-black"
+              style={{
+                background: unlocked ? `linear-gradient(145deg, ${wc}22, ${wc}0a)` : "rgba(20,20,30,0.6)",
+                border: `1.5px solid ${unlocked ? wc + "66" : "#33355555"}`,
+                boxShadow: unlocked ? `0 0 18px ${wc}30` : "none",
+                color: unlocked ? wc : "#445",
+                cursor: unlocked ? "pointer" : "default",
+                fontSize: "clamp(1rem, 3.5vw, 1.6rem)",
+              }}
+              whileHover={unlocked ? { scale: 1.05 } : {}}
+              whileTap={unlocked ? { scale: 0.93 } : {}}
+            >
+              {unlocked ? (
+                <>
+                  <span>{w}</span>
+                  <span style={{ fontSize: "0.4em", opacity: 0.65, letterSpacing: "0.12em", marginTop: 3 }}>WORLD</span>
+                  {done && <div className="absolute top-2 right-2 w-2 h-2 rounded-full" style={{ background: wc }} />}
+                </>
+              ) : (
+                <span style={{ fontSize: "1.2em", opacity: 0.4 }}>🔒</span>
+              )}
+            </motion.button>
+          );
+        })}
+      </>
     );
 
     if (menuState === "levels") {
       const wc = WORLD_COLORS[selectedWorld - 1];
       return (
-        <div className="flex flex-col h-full">
-          <p className="text-center font-black mb-2 flex-none" style={{ color: wc, fontSize: "clamp(0.65rem, 2vw, 0.85rem)", letterSpacing: "0.15em" }}>
-            WORLD {selectedWorld}
-          </p>
-          <div className="grid grid-cols-3 gap-1.5 flex-1" style={{ gridAutoRows: "1fr" }}>
-            {Array.from({ length: 9 }, (_, i) => i + 1).map(sub => {
-              const level = selectedWorld + sub / 10;
-              const unlocked = isLevelUnlocked(level);
-              const boss = isBossLevel(level);
-              const completed = level <= highestLevel;
-              const bc = boss ? "#ff4444" : wc;
-              return (
-                <motion.button key={sub}
-                  onClick={() => { if (unlocked) { btn(`l${level}`); useOrbTransition.getState().loadingSweep(() => { setGameMode("arcade"); startLoading("nextLevel", level); }); } }}
-                  disabled={!unlocked}
-                  className="relative flex flex-col items-center justify-center rounded-xl font-bold"
-                  style={{
-                    background: unlocked ? `linear-gradient(145deg, ${bc}22, ${bc}0a)` : "rgba(20,20,30,0.6)",
-                    border: `1.5px solid ${unlocked ? bc + "66" : "#333"}`,
-                    boxShadow: unlocked ? `0 0 10px ${bc}28` : "none",
-                    color: unlocked ? bc : "#445",
-                    cursor: unlocked ? "pointer" : "default",
-                    fontSize: "clamp(0.75rem, 2.5vw, 1rem)",
-                  }}
-                  whileHover={unlocked ? { scale: 1.07 } : {}}
-                  whileTap={unlocked ? { scale: 0.9 } : {}}
-                >
-                  {unlocked ? (
-                    <>
-                      <span>{selectedWorld}.{sub}</span>
-                      <span style={{ fontSize: "0.45em", opacity: 0.7, marginTop: 2, letterSpacing: "0.06em" }}>
-                        {boss ? "BOSS" : `${getOrbGoal(selectedWorld, sub)} orbs`}
-                      </span>
-                      {completed && <div className="absolute top-1 right-1 w-2 h-2 rounded-full" style={{ background: bc }} />}
-                    </>
-                  ) : (
-                    <span style={{ fontSize: "1.1em", opacity: 0.35 }}>🔒</span>
-                  )}
-                </motion.button>
-              );
-            })}
-          </div>
-        </div>
+        <>
+          {Array.from({ length: 9 }, (_, i) => i + 1).map(sub => {
+            const level = selectedWorld + sub / 10;
+            const unlocked = isLevelUnlocked(level);
+            const boss = isBossLevel(level);
+            const completed = level <= highestLevel;
+            const bc = boss ? "#ff4444" : wc;
+            return (
+              <motion.button key={sub}
+                onClick={() => { if (unlocked) { btn(`l${level}`); useOrbTransition.getState().loadingSweep(() => { setGameMode("arcade"); startLoading("nextLevel", level); }); } }}
+                disabled={!unlocked}
+                className="relative flex flex-col items-center justify-center rounded-2xl font-bold"
+                style={{
+                  background: unlocked ? `linear-gradient(145deg, ${bc}22, ${bc}0a)` : "rgba(20,20,30,0.6)",
+                  border: `1.5px solid ${unlocked ? bc + "66" : "#333"}`,
+                  boxShadow: unlocked ? `0 0 14px ${bc}28` : "none",
+                  color: unlocked ? bc : "#445",
+                  cursor: unlocked ? "pointer" : "default",
+                  fontSize: "clamp(0.85rem, 2.8vw, 1.2rem)",
+                }}
+                whileHover={unlocked ? { scale: 1.05 } : {}}
+                whileTap={unlocked ? { scale: 0.93 } : {}}
+              >
+                {unlocked ? (
+                  <>
+                    <span>{selectedWorld}.{sub}</span>
+                    <span style={{ fontSize: "0.42em", opacity: 0.7, marginTop: 3, letterSpacing: "0.08em" }}>
+                      {boss ? "BOSS" : `${getOrbGoal(selectedWorld, sub)} orbs`}
+                    </span>
+                    {completed && <div className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ background: bc }} />}
+                  </>
+                ) : (
+                  <span style={{ fontSize: "1.1em", opacity: 0.35 }}>🔒</span>
+                )}
+              </motion.button>
+            );
+          })}
+        </>
       );
     }
 
@@ -472,56 +464,46 @@ export function StartupAnimation({
         )}
       </AnimatePresence>
 
-      {/* ── CONTENT PANEL (guide / settings / worlds / levels) ──────────── */}
+      {/* ── FULL-SCREEN WORLDS / LEVELS POPUP ───────────────────────────── */}
       <AnimatePresence mode="wait">
         {showMenu && isContent && (
           <motion.div
             key={menuState}
-            className="absolute left-0 right-0 z-20 flex flex-col"
-            style={{
-              top: (menuState === "worlds" || menuState === "levels")
-                ? "calc(50% + clamp(56px, 7.5vw, 76px))"
-                : "calc(50% + clamp(80px, 11vw, 108px))",
-              bottom: (menuState === "worlds" || menuState === "levels")
-                ? "clamp(6px, 1vh, 12px)"
-                : "clamp(16px, 2.5vh, 32px)",
-              padding: "0 clamp(10px, 3.5vw, 44px)",
-            }}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.28 }}
+            className="fixed inset-0 z-[150] flex flex-col"
+            style={{ background: "rgba(4,4,18,0.97)", backdropFilter: "blur(24px)" }}
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{ duration: 0.22, ease: [0.22, 0.61, 0.36, 1] }}
           >
-            <div className="flex-1 min-h-0 rounded-2xl flex flex-col overflow-hidden"
-              style={{
-                background: "rgba(4,4,18,0.88)",
-                border: "1px solid rgba(0,255,255,0.13)",
-                backdropFilter: "blur(24px)",
-              }}
-            >
-              {/* Scrollable content */}
-              <div
-                className={`flex-1 px-4 pt-4 pb-2 min-h-0 ${(menuState === "worlds" || menuState === "levels") ? "overflow-hidden flex flex-col" : "overflow-y-auto"}`}
-                style={(menuState === "worlds" || menuState === "levels") ? {} : { scrollbarWidth: "thin", scrollbarColor: "rgba(0,255,255,0.18) transparent" }}
-              >
+            {/* Header */}
+            <div className="flex-none flex items-center justify-center" style={{ paddingTop: "clamp(28px, 5vh, 56px)", paddingBottom: "clamp(12px, 2vh, 24px)" }}>
+              <p className="font-black tracking-widest uppercase" style={{
+                color: menuState === "worlds" ? "#00ffff" : WORLD_COLORS[selectedWorld - 1],
+                fontSize: "clamp(0.85rem, 2.5vw, 1.1rem)",
+                letterSpacing: "0.22em",
+                textShadow: `0 0 18px ${menuState === "worlds" ? "rgba(0,255,255,0.5)" : `${WORLD_COLORS[selectedWorld - 1]}88`}`,
+              }}>
+                {menuState === "worlds" ? "Select World" : `World ${selectedWorld}`}
+              </p>
+            </div>
+
+            {/* Grid */}
+            <div className="flex-1 min-h-0 flex flex-col" style={{ padding: "0 clamp(16px, 4vw, 56px)" }}>
+              <div className="grid grid-cols-3 gap-2 h-full" style={{ gridAutoRows: "1fr" }}>
                 {renderContent()}
               </div>
-              {/* Navigation footer — slim back-link for grid states, compact buttons otherwise */}
-              <div className="flex-none border-t" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
-                {(menuState === "worlds" || menuState === "levels") ? (
-                  <button
-                    onClick={panelButtons[0]?.action}
-                    className="w-full py-2 text-center text-xs font-bold tracking-widest uppercase"
-                    style={{ color: "rgba(0,255,255,0.65)", letterSpacing: "0.18em" }}
-                  >
-                    ← {menuState === "levels" ? "WORLDS" : "BACK"}
-                  </button>
-                ) : (
-                  <div className="px-4 py-3">
-                    <ButtonRow buttons={panelButtons} pressedBtn={pressedBtn} setPressedBtn={setPressedBtn} compact />
-                  </div>
-                )}
-              </div>
+            </div>
+
+            {/* Back button */}
+            <div className="flex-none border-t text-center" style={{ borderColor: "rgba(255,255,255,0.07)", padding: "clamp(10px, 2vh, 20px) 0 clamp(16px, 3vh, 32px)" }}>
+              <button
+                onClick={panelButtons[0]?.action}
+                className="text-xs font-bold tracking-widest uppercase"
+                style={{ color: "rgba(0,255,255,0.65)", letterSpacing: "0.18em" }}
+              >
+                ← {menuState === "levels" ? "WORLDS" : "BACK"}
+              </button>
             </div>
           </motion.div>
         )}
