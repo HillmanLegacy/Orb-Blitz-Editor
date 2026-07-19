@@ -277,27 +277,24 @@ export function MechaBoss({ radius = 1.44, healthPercent = 1 }: MechaBossProps) 
   const hurtTimerRef  = useRef(0);
   const prevHealthRef = useRef(healthPercent);
 
-  const { scene: modelScene }   = useGLTF("/models/boss_orb_8_mecha.glb");
-  const { scene: textureScene } = useGLTF("/models/boss_orb_8_mecha_texture.glb");
+  const { scene: modelScene } = useGLTF("/models/boss_orb_8_mecha_texture.glb");
 
   useEffect(() => {
     if (!groupRef.current) return;
 
-    // Extract texture from the texture GLB
+    // Extract baked texture from the GLB (same pattern as DiamondBoss / PlasmaBoss)
     let orbTexture: THREE.Texture | null = null;
-    textureScene.traverse((child) => {
+    modelScene.traverse((child) => {
       if (orbTexture) return;
       if ((child as THREE.Mesh).isMesh) {
-        const mats = Array.isArray((child as THREE.Mesh).material)
-          ? ((child as THREE.Mesh).material as THREE.Material[])
-          : [(child as THREE.Mesh).material as THREE.Material];
-        for (const m of mats) {
-          const tex = (m as any).map ?? (m as any).emissiveMap;
-          if (tex) { orbTexture = tex; (orbTexture as THREE.Texture).needsUpdate = true; break; }
+        const m    = (child as THREE.Mesh).material;
+        const mats = Array.isArray(m) ? m : [m];
+        for (const mat of mats) {
+          const tex = (mat as any).map;
+          if (tex) { orbTexture = tex; orbTexture!.needsUpdate = true; break; }
         }
       }
     });
-    if (orbTexture) (orbTexture as THREE.Texture).colorSpace = THREE.SRGBColorSpace;
 
     const cloned = modelScene.clone(true);
     materialsRef.current = [];
@@ -316,6 +313,7 @@ export function MechaBoss({ radius = 1.44, healthPercent = 1 }: MechaBossProps) 
     cloned.traverse((child: THREE.Object3D) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
+        if (orbTexture) orbTexture.colorSpace = THREE.SRGBColorSpace;
         const mat  = new THREE.MeshStandardMaterial({
           map:               orbTexture ?? undefined,
           emissive:          new THREE.Color("#224466"),
@@ -336,7 +334,7 @@ export function MechaBoss({ radius = 1.44, healthPercent = 1 }: MechaBossProps) 
       materialsRef.current.forEach((m) => m.dispose());
       materialsRef.current = [];
     };
-  }, [modelScene, textureScene, radius]);
+  }, [modelScene, radius]);
 
   useFrame((state, delta) => {
     if (healthPercent < prevHealthRef.current) hurtTimerRef.current = 0.15;
@@ -384,5 +382,4 @@ export function MechaBoss({ radius = 1.44, healthPercent = 1 }: MechaBossProps) 
   );
 }
 
-useGLTF.preload("/models/boss_orb_8_mecha.glb");
 useGLTF.preload("/models/boss_orb_8_mecha_texture.glb");
