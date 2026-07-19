@@ -16,6 +16,18 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
 
+## Running on Replit
+
+Two workflows are configured:
+
+- **Orblitz Game** — Vite dev server for the 3D game, port 3000 (`pnpm --filter @workspace/orblitz run dev`)
+- **API Server** — Express API server, port 8080 (`PORT=8080 pnpm --filter @workspace/api-server run dev`). Health check at `/api/healthz`.
+
+The project uses Replit's built-in PostgreSQL database (`DATABASE_URL` is auto-injected). To push schema changes, run:
+```
+pnpm --filter @workspace/db push
+```
+
 ## Structure
 
 ```text
