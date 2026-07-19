@@ -12,6 +12,7 @@ import { MiniToxicOrb } from "./MiniToxicOrb";
 import { MiniPlasmaOrb } from "./MiniPlasmaOrb";
 import { MiniDiamondOrb } from "./MiniDiamondOrb";
 import { MiniRainbowOrb } from "./MiniRainbowOrb";
+import { MiniMechaOrb } from "./MiniMechaOrb";
 import { addExplosionImpulse } from "./Background";
 
 const DISTORT_FIELD_RADIUS  = 5;
@@ -135,6 +136,17 @@ function BossOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
     return (
       <group position={orb.position} scale={orb.size * pulse}>
         <MiniPlasmaOrb />
+        {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
+      </group>
+    );
+  }
+
+  // ── Mecha boss type: MiniMechaOrb (level 8.9) ───────────────────────────────
+  if (bossType === "tentacle") {
+    return (
+      <group position={orb.position} scale={orb.size * pulse}>
+        <pointLight color="#33aaff" intensity={1.8} distance={5} decay={2} />
+        <MiniMechaOrb />
         {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
       </group>
     );

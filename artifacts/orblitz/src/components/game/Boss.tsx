@@ -10,6 +10,7 @@ import { RainbowBoss } from "./RainbowBoss";
 import { StarBoss } from "./StarBoss";
 import { CrystalBoss } from "./CrystalBoss";
 import { ToxicBoss } from "./ToxicBoss";
+import { MechaBoss } from "./MechaBoss";
 import { FireExplosionVFX } from "./FireExplosionVFX";
 
 
@@ -1069,22 +1070,7 @@ export function Boss() {
   if (bossType === "tentacle") {
     return (
       <group ref={meshRef} position={boss.position}>
-
-
-        {renderBaseSphere(1.1, "#1a3a3a", "#2a6a6a", "#44ffcc")}
-        {renderDecoration("tentacles", 1.1, "#228888")}
-        {renderEyes(3, 1.1, "#88ffdd", "#003333")}
-        {renderMouth(1, 1.1, "#114444")}
-        {[0, 1, 2].map((i) => {
-          const x = (i - 1) * 0.6;
-          const wobble = Math.sin(time * 5 + i * 2) * 0.1;
-          return (
-            <mesh key={i} position={[x, 0.3 + wobble, 0.025]} scale={0.12}>
-              <circleGeometry args={[1, 8]} />
-              <meshBasicMaterial color="#66ffcc" />
-            </mesh>
-          );
-        })}
+        <MechaBoss radius={1.44} healthPercent={healthPercent} />
       </group>
     );
   }
