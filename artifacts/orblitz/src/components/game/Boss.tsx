@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { useMagicOrb, MovementPattern } from "@/lib/stores/useMagicOrb";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 import { FireBoss } from "./FireBoss";
+import { PlasmaBoss } from "./PlasmaBoss";
 import { StarBoss } from "./StarBoss";
 import { CrystalBoss } from "./CrystalBoss";
 import { ToxicBoss } from "./ToxicBoss";
@@ -1062,24 +1063,7 @@ export function Boss() {
   if (bossType === "cube") {
     return (
       <group ref={meshRef} position={boss.position}>
-
-
-        {renderBaseSphere(1.1, "#2a2a4a", "#4a4a8a", "#8888ff")}
-        {renderEyes(2, 1.1, "#aaaaff")}
-        {[0, 1, 2, 3].map((i) => {
-          const angle = (i / 4) * Math.PI * 2 + Math.PI / 4 + time * 0.3;
-          const dist = bossSize * 0.7;
-          return (
-            <mesh key={i} position={[Math.cos(angle) * dist, Math.sin(angle) * dist, 0.02]} scale={0.35} rotation={[0, 0, time + i]}>
-              <planeGeometry args={[1, 1]} />
-              <meshBasicMaterial color="#6666cc" />
-            </mesh>
-          );
-        })}
-        <mesh scale={bossSize * 0.5} position={[0, 0, 0.015]} rotation={[0, 0, time * 0.5]}>
-          <planeGeometry args={[1, 1]} />
-          <meshBasicMaterial color="#4444aa" transparent opacity={0.4} />
-        </mesh>
+        <PlasmaBoss radius={1.44} healthPercent={healthPercent} />
       </group>
     );
   }

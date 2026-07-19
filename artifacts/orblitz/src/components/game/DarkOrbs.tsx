@@ -9,6 +9,7 @@ import { MiniFireOrb } from "./MiniFireOrb";
 import { MiniStarOrb } from "./MiniStarOrb";
 import { MiniCrystalOrb } from "./MiniCrystalOrb";
 import { MiniToxicOrb } from "./MiniToxicOrb";
+import { MiniPlasmaOrb } from "./MiniPlasmaOrb";
 import { addExplosionImpulse } from "./Background";
 
 const DISTORT_FIELD_RADIUS  = 5;
@@ -102,6 +103,16 @@ function BossOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
     return (
       <group position={orb.position} scale={orb.size * pulse}>
         <MiniCrystalOrb />
+        {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
+      </group>
+    );
+  }
+
+  // ── Plasma boss type: MiniPlasmaOrb (level 5.9) ──────────────────────────────
+  if (bossType === "cube") {
+    return (
+      <group position={orb.position} scale={orb.size * pulse}>
+        <MiniPlasmaOrb />
         {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
       </group>
     );
