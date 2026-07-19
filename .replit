@@ -1,14 +1,13 @@
 modules = ["nodejs-20", "web", "bash"]
 
-[[ports]]
-localPort = 3000
-externalPort = 80
+[[artifacts]]
+id = "artifacts/orblitz"
 
-[[ports]]
-localPort = 8080
-externalPort = 8080
+[[artifacts]]
+id = "artifacts/api-server"
 
 [deployment]
+router = "application"
 deploymentTarget = "autoscale"
 
 [deployment.postBuild]
@@ -16,44 +15,7 @@ args = ["pnpm", "store", "prune"]
 env = { "CI" = "true" }
 
 [workflows]
-runButton = "Project"
-
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Orblitz Game"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "API Server"
-
-[[workflows.workflow]]
-name = "Orblitz Game"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pnpm --filter @workspace/orblitz run dev"
-waitForPort = 3000
-
-[workflows.workflow.metadata]
-outputType = "webview"
-
-[[workflows.workflow]]
-name = "API Server"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "PORT=8080 pnpm --filter @workspace/api-server run dev"
-waitForPort = 8080
-
-[workflows.workflow.metadata]
-outputType = "console"
+runButton = "Orblitz Game"
 
 [agent]
 stack = "PNPM_WORKSPACE"
@@ -65,3 +27,11 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
+
+[[ports]]
+localPort = 3000
+externalPort = 80
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
