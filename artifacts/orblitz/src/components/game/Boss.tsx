@@ -8,7 +8,7 @@ import { StarBoss } from "./StarBoss";
 import { CrystalBoss } from "./CrystalBoss";
 import { ToxicBoss } from "./ToxicBoss";
 import { FireExplosionVFX } from "./FireExplosionVFX";
-import { BossShield } from "./BossShield";
+
 
 const MIN_PLAYER_DISTANCE = 7;
 const HARD_COLLISION_RADIUS = 4;
@@ -197,36 +197,6 @@ export function Boss() {
     const bossType = boss.bossType || "circle";
     const config   = BOSS_CONFIGS[bossType] || BOSS_CONFIGS.circle;
 
-    // Shield — permanently disabled for the FireBoss (circle) which relies on
-    // fluid movement for survival rather than a passive damage-block.
-    let shieldActive  = false;
-    let shieldTimer   = 0;
-    let shieldCooldown = 0;
-
-    if (bossType !== "circle") {
-      shieldActive  = boss.shieldActive  || false;
-      shieldTimer   = boss.shieldTimer   || 0;
-      shieldCooldown = boss.shieldCooldown || 0;
-
-      if (shieldActive) {
-        shieldTimer -= delta;
-        if (shieldTimer <= 0) {
-          shieldActive   = false;
-          shieldTimer    = 0;
-          shieldCooldown = 10;
-        }
-      } else if (shieldCooldown > 0) {
-        shieldCooldown -= delta;
-        if (shieldCooldown <= 0) {
-          shieldActive  = true;
-          shieldTimer   = 5;
-          shieldCooldown = 0;
-        }
-      } else if (!shieldActive && shieldCooldown <= 0) {
-        shieldActive = true;
-        shieldTimer  = 5;
-      }
-    }
     const playerX = playerPosition[0];
     const playerY = playerPosition[1];
     
@@ -657,9 +627,6 @@ export function Boss() {
           position: [finalX, finalY, 0],
           angle: newAngle,
           attackTimer: attackResult.timer,
-          shieldActive,
-          shieldTimer,
-          shieldCooldown,
           bounceVelocity: newBounceVelocity,
         });
       }
@@ -714,7 +681,6 @@ export function Boss() {
   const pulse = 1 + Math.sin(time) * 0.06;
   const angryPulse = healthPercent < 0.3 ? 1 + Math.sin(time * 8) * 0.1 : 1;
   
-  // Shield is now rendered as <BossShield bossType={bossType} /> at each call-site
   
   
   const renderBaseSphere = (scale: number, primaryColor: string, secondaryColor: string, glowColor: string) => {
@@ -1049,7 +1015,7 @@ export function Boss() {
   if (bossType === "star") {
     return (
       <group ref={meshRef} position={boss.position}>
-        {boss.shieldActive && <BossShield bossType={bossType} />}
+
         <StarBoss radius={1.44} healthPercent={healthPercent} />
       </group>
     );
@@ -1058,7 +1024,7 @@ export function Boss() {
   if (bossType === "arrow") {
     return (
       <group ref={meshRef} position={boss.position}>
-        {boss.shieldActive && <BossShield bossType={bossType} />}
+
 
         {renderBaseSphere(0.95, "#4a2a1a", "#8a5a2a", "#ff8844")}
         {renderDecoration("spikes", 0.95, "#ff6622")}
@@ -1078,7 +1044,7 @@ export function Boss() {
   if (bossType === "triangle") {
     return (
       <group ref={meshRef} position={boss.position}>
-        {boss.shieldActive && <BossShield bossType={bossType} />}
+
         <CrystalBoss radius={1.44} healthPercent={healthPercent} />
       </group>
     );
@@ -1087,7 +1053,7 @@ export function Boss() {
   if (bossType === "trapezoid") {
     return (
       <group ref={meshRef} position={boss.position}>
-        {boss.shieldActive && <BossShield bossType={bossType} />}
+
         <ToxicBoss radius={1.44} healthPercent={healthPercent} />
       </group>
     );
@@ -1096,7 +1062,7 @@ export function Boss() {
   if (bossType === "cube") {
     return (
       <group ref={meshRef} position={boss.position}>
-        {boss.shieldActive && <BossShield bossType={bossType} />}
+
 
         {renderBaseSphere(1.1, "#2a2a4a", "#4a4a8a", "#8888ff")}
         {renderEyes(2, 1.1, "#aaaaff")}
@@ -1121,7 +1087,7 @@ export function Boss() {
   if (bossType === "cloud") {
     return (
       <group ref={meshRef} position={boss.position}>
-        {boss.shieldActive && <BossShield bossType={bossType} />}
+
 
         {renderBaseSphere(1.15, "#3a3a4a", "#5a5a6a", "#aaaacc")}
         {renderEyes(4, 1.15, "#ccccff")}
@@ -1148,7 +1114,7 @@ export function Boss() {
   if (bossType === "tentacle") {
     return (
       <group ref={meshRef} position={boss.position}>
-        {boss.shieldActive && <BossShield bossType={bossType} />}
+
 
         {renderBaseSphere(1.1, "#1a3a3a", "#2a6a6a", "#44ffcc")}
         {renderDecoration("tentacles", 1.1, "#228888")}
@@ -1171,7 +1137,7 @@ export function Boss() {
   if (bossType === "monster") {
     return (
       <group ref={meshRef} position={boss.position}>
-        {boss.shieldActive && <BossShield bossType={bossType} />}
+
 
         {renderBaseSphere(1.2, "#3a1a1a", "#6a2a2a", "#ff4444")}
         {renderDecoration("horns", 1.2, "#882222")}
@@ -1197,7 +1163,6 @@ export function Boss() {
   
   return (
     <group ref={meshRef} position={boss.position}>
-      {boss.shieldActive && <BossShield bossType={bossType} />}
       {renderBaseSphere(1, "#3a1a4a", "#6a2a8a", "#8844aa")}
       {renderEyes(1, 1, "#ffffff", "#220044")}
     </group>

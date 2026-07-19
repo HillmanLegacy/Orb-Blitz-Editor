@@ -115,8 +115,13 @@ export function CrystalBoss({ radius = 1.44, healthPercent = 1 }: CrystalBossPro
         const m = (child as THREE.Mesh).material;
         const mats = Array.isArray(m) ? m : [m];
         for (const mat of mats) {
-          const tex = (mat as any).map;
-          if (tex) { orbTexture = tex; orbTexture!.needsUpdate = true; break; }
+          const tex = (mat as any).map ?? (mat as any).emissiveMap ?? (mat as any).diffuseMap;
+          if (tex) {
+            orbTexture = tex;
+            orbTexture!.colorSpace = THREE.SRGBColorSpace;
+            orbTexture!.needsUpdate = true;
+            break;
+          }
         }
       }
     });
@@ -137,15 +142,12 @@ export function CrystalBoss({ radius = 1.44, healthPercent = 1 }: CrystalBossPro
     cloned.traverse((child: THREE.Object3D) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
-        const mat  = new THREE.MeshStandardMaterial({
-          map:               orbTexture ?? undefined,
-          emissive:          new THREE.Color("#88ccff"),
-          emissiveIntensity: 0.18,
-          roughness:         0.15,
-          metalness:         0.2,
+        const mat  = new THREE.MeshBasicMaterial({
+          map:   orbTexture ?? undefined,
+          color: new THREE.Color("#ffffff"),
         });
         mesh.material = mat;
-        materialsRef.current.push(mat);
+        materialsRef.current.push(mat as unknown as THREE.MeshStandardMaterial);
       }
     });
 
@@ -174,19 +176,18 @@ export function CrystalBoss({ radius = 1.44, healthPercent = 1 }: CrystalBossPro
     const frac = hurtTimerRef.current / 0.15;
     const osc  = Math.abs(Math.sin(t * 50));
 
-    materialsRef.current.forEach((m) => {
+    const mat = materialsRef.current[0] as unknown as THREE.MeshBasicMaterial;
+    if (mat) {
       if (frac > 0) {
-        m.emissive.setRGB(1, 0.1, 0.1);
-        m.emissiveIntensity = frac * osc * 2.5;
+        mat.color.setRGB(1, 0.3 + (1 - frac) * 0.7, 0.3 + (1 - frac) * 0.7);
       } else if (healthPercent < 0.3) {
         const anger = Math.abs(Math.sin(t * 14));
-        m.emissive.setRGB(0.6, 0.2 + anger * 0.5, 1.0);
-        m.emissiveIntensity = 0.3 + anger * 0.4;
+        mat.color.setRGB(0.8 + anger * 0.2, 0.4 + anger * 0.3, 1.0);
       } else {
-        m.emissive.set("#88ccff");
-        m.emissiveIntensity = 0.18 + Math.sin(t * 2.2) * 0.05;
+        const pulse = 0.9 + Math.sin(t * 2.2) * 0.1;
+        mat.color.setRGB(pulse, pulse, 1.0);
       }
-    });
+    }
   });
 
   return (
