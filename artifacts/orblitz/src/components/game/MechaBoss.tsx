@@ -317,9 +317,9 @@ export function MechaBoss({ radius = 1.44, healthPercent = 1 }: MechaBossProps) 
         const mat  = new THREE.MeshStandardMaterial({
           map:               orbTexture ?? undefined,
           emissive:          new THREE.Color("#224466"),
-          emissiveIntensity: 0.18,
-          roughness:         0.25,
-          metalness:         0.85,
+          emissiveIntensity: 0.25,
+          roughness:         0.45,
+          metalness:         0.20,
         });
         mesh.material = mat;
         materialsRef.current.push(mat);
