@@ -96,13 +96,6 @@ export function LevelComplete() {
             >
               BOSS DEFEATED!
             </motion.h1>
-            <motion.p
-              className="font-bold mt-1"
-              style={{ fontSize: "clamp(0.8rem,2.2vw,1.1rem)", color: "rgba(255,255,255,0.65)", letterSpacing: "0.06em" }}
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}
-            >
-              {colors.name} Complete
-            </motion.p>
           </>
         ) : (
           <>

@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
 import { useAudio } from "@/lib/stores/useAudio";
@@ -7,33 +7,22 @@ import { useOrbTransition } from "@/lib/stores/useOrbTransition";
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 const _svg = { viewBox: "0 0 24 24", fill: "none", width: "1em", height: "1em", style: { display: "block" } } as const;
-function IconNext()      { return <svg {..._svg}><path d="M5 12 H19 M13 6 L19 12 L13 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
-function IconGear()      { return <svg {..._svg}><rect x="3" y="3" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/><rect x="13" y="3" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/><rect x="3" y="13" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/><rect x="13" y="13" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.06" strokeDasharray="2 1.5"/></svg>; }
-function IconLevels()    { return <svg {..._svg}><rect x="3" y="4" width="18" height="3" rx="1.5" fill="currentColor" fillOpacity="0.85"/><rect x="3" y="10.5" width="13" height="3" rx="1.5" fill="currentColor" fillOpacity="0.55"/><rect x="3" y="17" width="8" height="3" rx="1.5" fill="currentColor" fillOpacity="0.3"/></svg>; }
-function IconHome()      { return <svg {..._svg}><path d="M3 11 L12 3 L21 11 V20 C21 20.55 20.55 21 20 21 H15 V15 H9 V21 H4 C3.45 21 3 20.55 3 20 V11 Z" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/></svg>; }
+function IconNext()   { return <svg {..._svg}><path d="M5 12 H19 M13 6 L19 12 L13 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
+function IconGear()   { return <svg {..._svg}><rect x="3" y="3" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/><rect x="13" y="3" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/><rect x="3" y="13" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/><rect x="13" y="13" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.06" strokeDasharray="2 1.5"/></svg>; }
+function IconLevels() { return <svg {..._svg}><rect x="3" y="4" width="18" height="3" rx="1.5" fill="currentColor" fillOpacity="0.85"/><rect x="3" y="10.5" width="13" height="3" rx="1.5" fill="currentColor" fillOpacity="0.55"/><rect x="3" y="17" width="8" height="3" rx="1.5" fill="currentColor" fillOpacity="0.3"/></svg>; }
+function IconHome()   { return <svg {..._svg}><path d="M3 11 L12 3 L21 11 V20 C21 20.55 20.55 21 20 21 H15 V15 H9 V21 H4 C3.45 21 3 20.55 3 20 V11 Z" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/></svg>; }
 
-// ─── Shared button primitives ─────────────────────────────────────────────────
+// ─── Menu-theme palette ───────────────────────────────────────────────────────
+const CYAN    = "#22d3ee";
+const PURPLE  = "#a78bfa";
+const PINK    = "#f472b6";
+const GOLD    = "#fbbf24";
+
 const ICON_SZ  = "clamp(1.2rem,3.2vw,1.8rem)";
 const LABEL_SZ = "clamp(0.48rem,1.25vw,0.68rem)";
 const BTN_H    = "clamp(64px,11vw,90px)";
 
-function TopLine({ color }: { color: string }) {
-  return (
-    <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{
-      height: 2, opacity: 0.55,
-      background: `linear-gradient(90deg,transparent 8%,${color}88 50%,transparent 92%)`,
-    }} />
-  );
-}
-function Scanlines() {
-  return (
-    <div className="absolute inset-0 pointer-events-none" style={{
-      backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 4px,rgba(255,255,255,0.012) 4px,rgba(255,255,255,0.012) 5px)",
-      borderRadius: "inherit",
-    }} />
-  );
-}
-
+// ─── Button primitives ────────────────────────────────────────────────────────
 interface BtnDef { id: string; icon: React.ReactNode; label: string; color: string; shadow: string; action: () => void; }
 
 function OrbBtn({ b, maxW, pressed, setPressed }: { b: BtnDef; maxW: string; pressed: boolean; setPressed: (v: boolean) => void }) {
@@ -64,8 +53,11 @@ function OrbBtn({ b, maxW, pressed, setPressed }: { b: BtnDef; maxW: string; pre
       onPointerLeave={() => setPressed(false)}
       onClick={b.action}
     >
-      <TopLine color={b.color} />
-      <Scanlines />
+      {/* Top accent line */}
+      <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{
+        height: 2, opacity: 0.55,
+        background: `linear-gradient(90deg,transparent 8%,${b.color}88 50%,transparent 92%)`,
+      }} />
       <span style={{ fontSize: ICON_SZ, lineHeight: 1, marginBottom: "clamp(2px,0.6vw,5px)", filter: `drop-shadow(0 0 5px ${b.color}88)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
         {b.icon}
       </span>
@@ -100,23 +92,13 @@ function OrbButtonRow({ buttons }: { buttons: BtnDef[] }) {
   );
 }
 
-// ─── World colour palette ─────────────────────────────────────────────────────
-const WORLD_COLORS: Record<number, { primary: string; secondary: string; name: string }> = {
-  1: { primary: "#00ffff", secondary: "#0088ff", name: "Sky Realm" },
-  2: { primary: "#ff00ff", secondary: "#8800ff", name: "Void Dimension" },
-  3: { primary: "#ffff00", secondary: "#ff8800", name: "Solar Expanse" },
-  4: { primary: "#00ff88", secondary: "#00aa44", name: "Forest Kingdom" },
-  5: { primary: "#ff4488", secondary: "#cc0044", name: "Crystal Caves" },
-  6: { primary: "#8888ff", secondary: "#4444cc", name: "Storm Peaks" },
-  7: { primary: "#ff8844", secondary: "#cc4400", name: "Lava Fields" },
-  8: { primary: "#44ffff", secondary: "#00cccc", name: "Ocean Depths" },
-  9: { primary: "#ffff88", secondary: "#cccc00", name: "Star Core" },
-};
-
 const getOrbGoal = (world: number, sub: number): number => {
   if (sub === 9) return 1;
   return (15 + (world - 1) * 10) + (sub - 1) * 5;
 };
+
+// ─── Floating orb data (static shape, no randomness in render) ────────────────
+interface FloatingOrb { left: string; top: string; size: number; color: string; xOffset: number; yOffset: number; duration: number; }
 
 // ─── Main component ───────────────────────────────────────────────────────────
 interface LevelTransitionProps {
@@ -139,20 +121,30 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
     }
   }, [phase, playLevelComplete, soundPlayed]);
 
+  const floatingOrbs = useMemo<FloatingOrb[]>(() => {
+    const colors = [CYAN, PURPLE, PINK, "#00ff88", "#ff8800"];
+    return Array.from({ length: 24 }, (_, i) => ({
+      left:     `${(i * 37 + 11) % 100}%`,
+      top:      `${(i * 53 + 7)  % 100}%`,
+      size:     40 + (i * 17) % 80,
+      color:    colors[i % colors.length],
+      xOffset:  ((i * 13) % 60) - 30,
+      yOffset:  ((i * 19) % 60) - 30,
+      duration: 3 + (i * 7) % 3,
+    }));
+  }, []);
+
   if (phase !== "levelComplete") return null;
 
-  const sfx = () => { try { playMenuSelect(); } catch {}; };
+  const sfx = () => { try { playMenuSelect(); } catch {} };
 
-  const currentLevel  = Math.floor(arcadeLevel);
-  const currentSub    = Math.round((arcadeLevel % 1) * 10);
-  const nextSub       = currentSub >= 9 ? 1 : currentSub + 1;
-  const nextWorld     = currentSub >= 9 ? currentLevel + 1 : currentLevel;
-  const isBoss        = currentSub === 9;
-  const colors        = WORLD_COLORS[currentLevel] || WORLD_COLORS[1];
-  const primary       = isBoss ? "#ffff00" : colors.primary;
-  const secondary     = isBoss ? "#ff8800" : colors.secondary;
-  const nextOrbGoal   = getOrbGoal(nextWorld, nextSub);
-  const isNextBoss    = nextSub === 9;
+  const currentLevel = Math.floor(arcadeLevel);
+  const currentSub   = Math.round((arcadeLevel % 1) * 10);
+  const nextSub      = currentSub >= 9 ? 1 : currentSub + 1;
+  const nextWorld    = currentSub >= 9 ? currentLevel + 1 : currentLevel;
+  const isBoss       = currentSub === 9;
+  const nextOrbGoal  = getOrbGoal(nextWorld, nextSub);
+  const isNextBoss   = nextSub === 9;
 
   const handleContinue = () => {
     sfx();
@@ -181,32 +173,84 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
   };
 
   const buttons: BtnDef[] = [
-    { id: "next",      icon: <IconNext />,   label: "NEXT",      color: primary,    shadow: `${primary}55`,              action: handleContinue  },
-    { id: "inventory", icon: <IconGear />,   label: "GEAR",      color: "#aa00ff",  shadow: "rgba(170,0,255,0.4)",        action: () => { sfx(); openInventory(); } },
+    { id: "next",      icon: <IconNext />,   label: "NEXT",   color: CYAN,              shadow: `${CYAN}55`,                   action: handleContinue },
+    { id: "inventory", icon: <IconGear />,   label: "GEAR",   color: PURPLE,            shadow: "rgba(167,139,250,0.4)",        action: () => { sfx(); openInventory(); } },
     ...(onLevelSelect
-      ? [{ id: "levels", icon: <IconLevels />, label: "LEVELS",  color: "#ff00ff",  shadow: "rgba(255,0,255,0.4)",        action: handleLevelSelect }]
+      ? [{ id: "levels", icon: <IconLevels />, label: "LEVELS", color: PINK,             shadow: "rgba(244,114,182,0.4)",        action: handleLevelSelect }]
       : []),
-    { id: "menu",      icon: <IconHome />,   label: "MENU",      color: "#667788",  shadow: "rgba(100,110,130,0.22)",     action: handleMainMenu  },
+    { id: "menu",      icon: <IconHome />,   label: "MENU",   color: "rgba(148,163,184,0.9)", shadow: "rgba(100,110,130,0.22)", action: handleMainMenu },
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-black pointer-events-auto select-none"
-      style={{ padding: "clamp(12px,3vh,28px) clamp(12px,4vw,32px)" }}>
+    <div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden pointer-events-auto select-none"
+      style={{ padding: "clamp(12px,3vh,28px) clamp(12px,4vw,32px)" }}
+    >
+      {/* Main menu background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-violet-900" />
 
-      {/* Radial world-colour glow */}
+      {/* Cyan grid pattern */}
       <motion.div
         className="absolute inset-0 pointer-events-none"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
         style={{
-          background: `radial-gradient(ellipse 75% 55% at 50% 50%, ${primary}18 0%, ${secondary}0a 55%, transparent 80%)`,
+          backgroundImage: `
+            linear-gradient(rgba(0,255,255,0.3) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0,255,255,0.3) 1px, transparent 1px)
+          `,
+          backgroundSize: "50px 50px",
         }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.07 }}
+        transition={{ delay: 0.3, duration: 0.8 }}
       />
 
-      {/* Scanlines */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,255,255,0.008) 3px,rgba(0,255,255,0.008) 4px)",
-      }} />
+      {/* Floating background orbs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {floatingOrbs.map((orb, i) => (
+          <motion.div
+            key={i}
+            className="absolute rounded-full"
+            style={{
+              width:  orb.size,
+              height: orb.size,
+              left:   orb.left,
+              top:    orb.top,
+              background: `radial-gradient(circle, ${orb.color}30, ${orb.color}10, transparent)`,
+            }}
+            animate={{
+              scale:   [0.8, 1.2, 0.8],
+              opacity: [0.2, 0.5, 0.2],
+              x:       [0, orb.xOffset, 0],
+              y:       [0, orb.yOffset, 0],
+            }}
+            transition={{ duration: orb.duration, repeat: Infinity, ease: "easeInOut", delay: i * 0.06 }}
+          />
+        ))}
+      </div>
+
+      {/* Decorative rings */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        {[
+          { size: 220, color: CYAN,   thickness: 1.5 },
+          { size: 340, color: PURPLE, thickness: 1   },
+          { size: 460, color: PINK,   thickness: 0.5 },
+        ].map((ring, i) => (
+          <motion.div
+            key={i}
+            className="absolute rounded-full border"
+            style={{ width: ring.size, height: ring.size, borderColor: ring.color, borderWidth: ring.thickness }}
+            initial={{ opacity: 0, scale: 0.6 }}
+            animate={{ opacity: [0, 0.25, 0.12], scale: 1, rotate: i % 2 === 0 ? 360 : -360 }}
+            transition={{ opacity: { delay: 0.2 + i * 0.1, duration: 0.8 }, scale: { delay: 0.2 + i * 0.1, duration: 0.8 }, rotate: { duration: 20 + i * 5, repeat: Infinity, ease: "linear" } }}
+          />
+        ))}
+      </div>
+
+      {/* Vignette */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: "radial-gradient(circle at center, transparent 30%, rgba(0,0,0,0.45) 100%)" }}
+      />
 
       {/* Glass card */}
       <motion.div
@@ -216,48 +260,50 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.45, ease: [0.22, 0.61, 0.36, 1] }}
       >
-
         {/* ── Title ── */}
         <div className="text-center">
           {isBoss ? (
-            <motion.h1
-              className="font-black tracking-widest text-transparent bg-clip-text"
-              style={{ fontSize: "clamp(1.8rem,7vw,3rem)", lineHeight: 1, backgroundImage: "linear-gradient(135deg,#ffff00 0%,#ff8800 55%,#ff4400 100%)" }}
-              animate={{ filter: [
-                "drop-shadow(0 0 12px rgba(255,200,0,0.6)) drop-shadow(0 0 24px rgba(255,100,0,0.3))",
-                "drop-shadow(0 0 22px rgba(255,220,0,0.85)) drop-shadow(0 0 44px rgba(255,150,0,0.5))",
-                "drop-shadow(0 0 12px rgba(255,200,0,0.6)) drop-shadow(0 0 24px rgba(255,100,0,0.3))",
-              ]}}
-              transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
-            >
-              BOSS DEFEATED!
-            </motion.h1>
+            <>
+              <motion.h1
+                className="font-black tracking-widest text-transparent bg-clip-text"
+                style={{
+                  fontSize: "clamp(1.8rem,7vw,3rem)", lineHeight: 1,
+                  backgroundImage: `linear-gradient(135deg,${GOLD} 0%,${PINK} 55%,${PURPLE} 100%)`,
+                }}
+                animate={{ filter: [
+                  `drop-shadow(0 0 12px ${GOLD}88) drop-shadow(0 0 24px ${PINK}44)`,
+                  `drop-shadow(0 0 22px ${GOLD}cc) drop-shadow(0 0 44px ${PINK}66)`,
+                  `drop-shadow(0 0 12px ${GOLD}88) drop-shadow(0 0 24px ${PINK}44)`,
+                ]}}
+                transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+              >
+                BOSS DEFEATED!
+              </motion.h1>
+            </>
           ) : (
             <motion.h1
               className="font-black tracking-widest text-transparent bg-clip-text"
-              style={{ fontSize: "clamp(1.5rem,5.5vw,2.4rem)", lineHeight: 1, backgroundImage: `linear-gradient(135deg,${primary} 0%,${secondary} 100%)` }}
+              style={{
+                fontSize: "clamp(1.5rem,5.5vw,2.4rem)", lineHeight: 1,
+                backgroundImage: `linear-gradient(135deg,${CYAN} 0%,${PURPLE} 50%,${PINK} 100%)`,
+              }}
               animate={{ filter: [
-                `drop-shadow(0 0 10px ${primary}88)`,
-                `drop-shadow(0 0 20px ${primary}cc)`,
-                `drop-shadow(0 0 10px ${primary}88)`,
+                `drop-shadow(0 0 10px ${CYAN}88)`,
+                `drop-shadow(0 0 20px ${PURPLE}cc)`,
+                `drop-shadow(0 0 10px ${PINK}88)`,
+                `drop-shadow(0 0 10px ${CYAN}88)`,
               ]}}
-              transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
             >
               LEVEL {currentLevel}.{currentSub} COMPLETE!
             </motion.h1>
           )}
 
-          {isBoss && (
-            <p className="font-bold mt-1" style={{ fontSize: "clamp(0.62rem,1.5vw,0.82rem)", color: "rgba(255,255,255,0.5)", letterSpacing: "0.1em" }}>
-              {colors.name} Complete
-            </p>
-          )}
-
           {/* Underline */}
           <div className="mt-2 mx-auto" style={{
             height: 1, width: "clamp(120px,50%,220px)",
-            background: `linear-gradient(90deg,transparent,${primary}55 40%,${secondary}55 60%,transparent)`,
-            opacity: 0.6,
+            background: `linear-gradient(90deg,transparent,${CYAN}55 30%,${PURPLE}66 50%,${PINK}55 70%,transparent)`,
+            opacity: 0.7,
           }} />
         </div>
 
@@ -268,9 +314,14 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.18, type: "spring", stiffness: 280, damping: 22 }}
         >
-          <span style={{ fontSize: "clamp(0.48rem,1.1vw,0.6rem)", color: "rgba(255,255,255,0.35)", letterSpacing: "0.22em", fontWeight: 700 }}>SCORE</span>
-          <div className="font-black text-transparent bg-clip-text"
-            style={{ fontSize: "clamp(2.2rem,8vw,3.6rem)", lineHeight: 1.05, backgroundImage: "linear-gradient(135deg,#00ffff 0%,#aa00ff 50%,#ff00ff 100%)" }}>
+          <span style={{ fontSize: "clamp(0.48rem,1.1vw,0.6rem)", color: "rgba(255,255,255,0.4)", letterSpacing: "0.22em", fontWeight: 700 }}>SCORE</span>
+          <div
+            className="font-black text-transparent bg-clip-text"
+            style={{
+              fontSize: "clamp(2.2rem,8vw,3.6rem)", lineHeight: 1.05,
+              backgroundImage: `linear-gradient(135deg,${CYAN} 0%,${PURPLE} 50%,${PINK} 100%)`,
+            }}
+          >
             {score}
           </div>
         </motion.div>
@@ -279,12 +330,16 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
         <AnimatePresence>
           <motion.div
             className="w-full rounded-2xl px-4 py-2.5 flex items-center justify-between"
-            style={{ background: "rgba(0,0,0,0.35)", border: `1px solid ${primary}22` }}
+            style={{
+              background: "rgba(15,10,40,0.55)",
+              border: `1px solid ${PURPLE}33`,
+              backdropFilter: "blur(12px)",
+            }}
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}
           >
             <div>
               <span style={{ fontSize: "clamp(0.44rem,1vw,0.56rem)", color: "rgba(255,255,255,0.32)", letterSpacing: "0.18em", fontWeight: 700 }}>NEXT</span>
-              <p className="font-black" style={{ fontSize: "clamp(0.75rem,1.8vw,1rem)", color: primary, letterSpacing: "0.06em" }}>
+              <p className="font-black" style={{ fontSize: "clamp(0.75rem,1.8vw,1rem)", color: CYAN, letterSpacing: "0.06em" }}>
                 {nextWorld}.{nextSub}
               </p>
             </div>
@@ -303,7 +358,6 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
         <motion.div className="w-full" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
           <OrbButtonRow buttons={buttons} />
         </motion.div>
-
       </motion.div>
     </div>
   );
