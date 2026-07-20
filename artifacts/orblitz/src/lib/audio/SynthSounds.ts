@@ -1199,7 +1199,7 @@ export function createGameplayMusicNode(targetVol = 0.2): SynthMusicNode {
     if (rev()) mgain.connect(rev()!);
 
     let running = true;
-    let active  = true;
+    let active  = false;
 
     const BPM  = 135;
     const STEP = 60 / BPM / 2; // eighth note ≈ 0.222 s
@@ -1387,7 +1387,7 @@ export function createMenuMusicNode(targetVol = 0.2): SynthMusicNode {
     if (rev()) mgain.connect(rev()!);
 
     let running = true;
-    let active  = true;
+    let active  = false;
 
     const BPM  = 128;
     const STEP = 60 / BPM / 2; // eighth note ≈ 0.234 s
@@ -1587,7 +1587,7 @@ export function createBossMusicNode(targetVol = 0.18): SynthMusicNode {
     if (rev()) mgain.connect(rev()!);
 
     let running   = true;
-    let active    = true;
+    let active    = false;
     let intensity = 0.5;
 
     const BPM  = 148;
