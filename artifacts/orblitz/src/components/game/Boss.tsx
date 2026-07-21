@@ -12,6 +12,8 @@ import { CrystalBoss } from "./CrystalBoss";
 import { ToxicBoss } from "./ToxicBoss";
 import { MechaBoss } from "./MechaBoss";
 import { FireExplosionVFX } from "./FireExplosionVFX";
+import { StarSupernovaVFX } from "./StarSupernovaVFX";
+import { StarBossTeleportVFX, StarTeleportVFXState } from "./StarBossTeleportVFX";
 
 
 const MIN_PLAYER_DISTANCE = 7;
@@ -85,6 +87,18 @@ export function Boss() {
   const fireWaitTimerRef = useRef(3.0);
   const fireInitRef      = useRef(false);
   const fireShotTimerRef = useRef(0); // countdown until next shot while moving
+
+  // ── StarBoss teleport state machine ─────────────────────────────────────────
+  const starTeleportPhaseRef    = useRef<'idle' | 'departing' | 'transiting' | 'arriving'>('idle');
+  const starTeleportTimerRef    = useRef(0);
+  const starTeleportCooldownRef = useRef(3 + Math.random() * 4); // 3–7 s initial
+  const starTeleportTargetRef   = useRef<[number, number]>([0, 0]);
+  const starTeleportVFXRef      = useRef<StarTeleportVFXState>({
+    departurePos:      [0, 0, 0],
+    departureProgress: 0,
+    arrivalPos:        [0, 0, 0],
+    arrivalProgress:   0,
+  });
   
   
   const keepDistanceFromPlayer = (
@@ -236,7 +250,9 @@ export function Boss() {
             angle = baseAngle;
             pattern = "direct";
           } else if (projectileCount <= 3) {
-            const spread = 0.3;
+            // Star boss (2 projectiles): wider spread so they never overlap.
+            // Other bosses with ≤3: standard tight spread.
+            const spread = bossType === "star" ? 1.2 : 0.3;
             angle = baseAngle + (i - (projectileCount - 1) / 2) * spread;
             pattern = "direct";
           } else if (projectileCount <= 5) {
@@ -287,20 +303,77 @@ export function Boss() {
         break;
       }
       case "teleport": {
-        phaseTimerRef.current -= delta;
-        if (phaseTimerRef.current <= 0 || threatened) {
-          const teleportAngle = Math.random() * Math.PI * 2;
-          const teleportDist = 5 + Math.random() * 4;
-          targetX = Math.cos(teleportAngle) * teleportDist;
-          targetY = Math.sin(teleportAngle) * teleportDist;
-          targetX = Math.max(-playAreaWidth, Math.min(playAreaWidth, targetX));
-          targetY = Math.max(-playAreaHeight + 2, Math.min(playAreaHeight, targetY));
-          lerpSpeed = 50;
-          phaseTimerRef.current = 1.5 + Math.random() * 2;
-        } else {
-          targetX = bossPosRef.current[0];
-          targetY = bossPosRef.current[1];
+        // ── Star Boss: HD VFX teleport with 3–7 s delay ──────────────────────
+        const tvfx   = starTeleportVFXRef.current;
+        const tPhase = starTeleportPhaseRef.current;
+
+        if (tPhase === 'idle') {
+          starTeleportCooldownRef.current -= delta;
+          if (starTeleportCooldownRef.current <= 0 || threatened) {
+            // Pick destination (player-relative, avoid overlapping MIN_PLAYER_DISTANCE)
+            let tx: number, ty: number;
+            let attempts = 0;
+            do {
+              const ang  = Math.random() * Math.PI * 2;
+              const dist = 5 + Math.random() * 4;
+              tx = Math.max(-playAreaWidth,  Math.min(playAreaWidth,  Math.cos(ang) * dist));
+              ty = Math.max(-playAreaHeight + 2, Math.min(playAreaHeight, Math.sin(ang) * dist));
+              attempts++;
+            } while (
+              Math.sqrt((tx - playerX) ** 2 + (ty - playerY) ** 2) < MIN_PLAYER_DISTANCE &&
+              attempts < 8
+            );
+            starTeleportTargetRef.current = [tx, ty];
+            // Kick off departure effect
+            tvfx.departurePos      = [...bossPosRef.current] as [number, number, number];
+            tvfx.departureProgress = 0.001;
+            starTeleportPhaseRef.current = 'departing';
+            starTeleportTimerRef.current = 0.42;
+          }
+          targetX   = bossPosRef.current[0];
+          targetY   = bossPosRef.current[1];
           lerpSpeed = 0.5;
+
+        } else if (tPhase === 'departing') {
+          starTeleportTimerRef.current -= delta;
+          tvfx.departureProgress = 1 - Math.max(0, starTeleportTimerRef.current) / 0.42;
+          targetX   = bossPosRef.current[0];
+          targetY   = bossPosRef.current[1];
+          lerpSpeed = 0.5;
+          if (starTeleportTimerRef.current <= 0) {
+            // Brief invisible transit
+            tvfx.departureProgress = 0;
+            starTeleportPhaseRef.current = 'transiting';
+            starTeleportTimerRef.current = 0.08;
+            // Snap position now so it's ready for arrival
+            const [atx, aty] = starTeleportTargetRef.current;
+            bossPosRef.current = [atx, aty, 0];
+          }
+
+        } else if (tPhase === 'transiting') {
+          starTeleportTimerRef.current -= delta;
+          targetX   = bossPosRef.current[0];
+          targetY   = bossPosRef.current[1];
+          lerpSpeed = 0.5;
+          if (starTeleportTimerRef.current <= 0) {
+            const [atx, aty] = starTeleportTargetRef.current;
+            tvfx.arrivalPos      = [atx, aty, 0];
+            tvfx.arrivalProgress = 0.001;
+            starTeleportPhaseRef.current = 'arriving';
+            starTeleportTimerRef.current = 0.42;
+          }
+
+        } else { // arriving
+          starTeleportTimerRef.current -= delta;
+          tvfx.arrivalProgress = 1 - Math.max(0, starTeleportTimerRef.current) / 0.42;
+          targetX   = bossPosRef.current[0];
+          targetY   = bossPosRef.current[1];
+          lerpSpeed = 0.5;
+          if (starTeleportTimerRef.current <= 0) {
+            tvfx.arrivalProgress = 0;
+            starTeleportPhaseRef.current = 'idle';
+            starTeleportCooldownRef.current = 3 + Math.random() * 4;
+          }
         }
         break;
       }
@@ -662,6 +735,11 @@ export function Boss() {
       }
 
       meshRef.current.position.set(finalX, finalY, 0);
+
+      // Star boss: hide mesh during brief invisible transit between teleport phases
+      if (bossType === "star") {
+        meshRef.current.visible = starTeleportPhaseRef.current !== 'transiting';
+      }
     }
   });
   
@@ -679,6 +757,15 @@ export function Boss() {
       return (
         <group position={[boss.position[0], boss.position[1], boss.position[2]]}>
           <FireExplosionVFX progress={progress} scale={3.5} />
+        </group>
+      );
+    }
+
+    // Star Boss: HD gold supernova
+    if (bossType === "star") {
+      return (
+        <group position={[boss.position[0], boss.position[1], boss.position[2]]}>
+          <StarSupernovaVFX progress={progress} scale={3.4} />
         </group>
       );
     }
@@ -1044,10 +1131,13 @@ export function Boss() {
   
   if (bossType === "star") {
     return (
-      <group ref={meshRef} position={boss.position}>
-
-        <StarBoss radius={1.44} healthPercent={healthPercent} />
-      </group>
+      <>
+        {/* Teleport VFX rendered at world positions — outside the mesh group */}
+        <StarBossTeleportVFX vfxRef={starTeleportVFXRef} scale={1.8} />
+        <group ref={meshRef} position={boss.position}>
+          <StarBoss radius={1.44} healthPercent={healthPercent} />
+        </group>
+      </>
     );
   }
   

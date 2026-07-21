@@ -683,15 +683,17 @@ export function DarkOrbs() {
       let [dx, dy, dz] = orb.direction;
       const phase = orb.patternPhase || 0;
 
-      // Lazy-float: ramp speed from 0.4× → 2× baseSpeed over 12 seconds.
+      // Lazy-float: ramp speed from lazyMinMult → lazyMaxMult over lazyRampTime seconds.
       let currentSpeed = orb.speed;
       let newAge = orb.age;
       if (orb.lazyFloat && orb.baseSpeed !== undefined) {
         newAge = (orb.age ?? 0) + delta;
-        const t = Math.min(newAge / 12, 1); // 0 → 1 over 12 s
-        // smooth-step for a gentle ramp
-        const smooth = t * t * (3 - 2 * t);
-        currentSpeed = orb.baseSpeed * (0.4 + 1.6 * smooth); // 0.4× → 2×
+        const minMult  = orb.lazyMinMult  ?? 0.4;
+        const maxMult  = orb.lazyMaxMult  ?? 2.0;
+        const rampTime = orb.lazyRampTime ?? 12;
+        const t        = Math.min(newAge / rampTime, 1);
+        const smooth   = t * t * (3 - 2 * t); // smooth-step
+        currentSpeed   = orb.baseSpeed * (minMult + (maxMult - minMult) * smooth);
       }
 
       const speed = orb.frozen ? currentSpeed * 0.1 : currentSpeed;
