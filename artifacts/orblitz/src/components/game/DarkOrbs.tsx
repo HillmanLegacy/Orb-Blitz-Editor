@@ -682,7 +682,19 @@ export function DarkOrbs() {
       let [x, y, z] = orb.position;
       let [dx, dy, dz] = orb.direction;
       const phase = orb.patternPhase || 0;
-      const speed = orb.frozen ? orb.speed * 0.1 : orb.speed;
+
+      // Lazy-float: ramp speed from 0.4× → 2× baseSpeed over 12 seconds.
+      let currentSpeed = orb.speed;
+      let newAge = orb.age;
+      if (orb.lazyFloat && orb.baseSpeed !== undefined) {
+        newAge = (orb.age ?? 0) + delta;
+        const t = Math.min(newAge / 12, 1); // 0 → 1 over 12 s
+        // smooth-step for a gentle ramp
+        const smooth = t * t * (3 - 2 * t);
+        currentSpeed = orb.baseSpeed * (0.4 + 1.6 * smooth); // 0.4× → 2×
+      }
+
+      const speed = orb.frozen ? currentSpeed * 0.1 : currentSpeed;
       
       const toPX = playerX - x;
       const toPY = playerY - y;
@@ -919,6 +931,7 @@ export function DarkOrbs() {
           position: [x, y, z],
           direction: [dx, dy, dz],
           frozen: inDistortField,
+          ...(orb.lazyFloat ? { speed: currentSpeed, age: newAge } : {}),
           ...(newHurtTimer > 0 ? { hurtTimer: newHurtTimer } : {}),
         });
       }

@@ -27,6 +27,12 @@ export interface DarkOrb {
   bossType?: BossType;
   bossDefeatColor?: BossType;
   hurtTimer?: number;
+  /** Base speed used as ramp reference for lazy-float boss orbs */
+  baseSpeed?: number;
+  /** Age in seconds; used to ramp lazy-float orb speed over time */
+  age?: number;
+  /** When true, speed ramps from 0.4× → 2× baseSpeed over ~12 s */
+  lazyFloat?: boolean;
 }
 
 export type BossType = "bird" | "star" | "arrow" | "triangle" | "trapezoid" | "cube" | "cloud" | "circle" | "tentacle" | "monster";
@@ -1068,11 +1074,18 @@ export const useMagicOrb = create<MagicOrbState>()(
       });
       if (tooClose) return;
       
+      // World 1 boss orbs float lazily toward the player, accelerating over time.
+      const isLazyFloat = worldLevel === 1;
+      const initialSpeed = isLazyFloat ? baseSpeed * 0.4 : baseSpeed;
+
       const orb: DarkOrb = {
         id: `boss-orb-${Date.now()}-${Math.random()}`,
         position: [position[0], position[1], 0.5] as [number, number, number],
         direction,
-        speed: baseSpeed,
+        speed: initialSpeed,
+        baseSpeed,
+        age: 0,
+        lazyFloat: isLazyFloat,
         size: sizeScale,
         seed: Math.random(),
         shape,
