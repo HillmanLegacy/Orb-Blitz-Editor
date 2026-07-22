@@ -328,7 +328,7 @@ export function Boss() {
             tvfx.departurePos      = [...bossPosRef.current] as [number, number, number];
             tvfx.departureProgress = 0.001;
             starTeleportPhaseRef.current = 'departing';
-            starTeleportTimerRef.current = 0.42;
+            starTeleportTimerRef.current = 0.55;
           }
           targetX   = bossPosRef.current[0];
           targetY   = bossPosRef.current[1];
@@ -336,7 +336,7 @@ export function Boss() {
 
         } else if (tPhase === 'departing') {
           starTeleportTimerRef.current -= delta;
-          tvfx.departureProgress = 1 - Math.max(0, starTeleportTimerRef.current) / 0.42;
+          tvfx.departureProgress = 1 - Math.max(0, starTeleportTimerRef.current) / 0.55;
           targetX   = bossPosRef.current[0];
           targetY   = bossPosRef.current[1];
           lerpSpeed = 0.5;
@@ -360,12 +360,12 @@ export function Boss() {
             tvfx.arrivalPos      = [atx, aty, 0];
             tvfx.arrivalProgress = 0.001;
             starTeleportPhaseRef.current = 'arriving';
-            starTeleportTimerRef.current = 0.42;
+            starTeleportTimerRef.current = 0.55;
           }
 
         } else { // arriving
           starTeleportTimerRef.current -= delta;
-          tvfx.arrivalProgress = 1 - Math.max(0, starTeleportTimerRef.current) / 0.42;
+          tvfx.arrivalProgress = 1 - Math.max(0, starTeleportTimerRef.current) / 0.55;
           targetX   = bossPosRef.current[0];
           targetY   = bossPosRef.current[1];
           lerpSpeed = 0.5;
