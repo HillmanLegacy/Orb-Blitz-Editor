@@ -761,20 +761,56 @@ export function Boss() {
         triBurstCooldownRef.current -= delta;
 
         if (triBurstCountRef.current > 0 && triBurstTimerRef.current <= 0) {
-          // Fire one shot from the active burst
+          // ── Three strategically distinct shots, fired one per 120 ms ──────────
+          // triBurstCountRef counts 3 → 2 → 1 so the first shot has count = 3.
+          //
+          //  Shot 1 (count=3): "homing"   — locks straight onto the player,
+          //                                 forces them to move immediately.
+          //  Shot 2 (count=2): "pendulum" — swings perpendicular to its travel
+          //                                 path, punishing the dodge committed
+          //                                 to dodge shot 1.
+          //  Shot 3 (count=1): "spiral"   — corkscrews in, cuts off the escape
+          //                                 lane that opened up after shots 1 & 2.
           const { addDarkOrb } = useMagicOrb.getState();
           const baseAngle = Math.atan2(playerY - finalY, playerX - finalX);
-          const angle     = baseAngle + (Math.random() - 0.5) * 0.18;
+          const shotIndex = 3 - triBurstCountRef.current; // 0, 1, 2
+
+          // Slightly different aim offset per shot so they don't stack perfectly
+          const aimJitter = shotIndex === 0 ? 0
+                          : shotIndex === 1 ? 0.22   // pendulum fired a bit left
+                          :                  -0.18;  // spiral fired a bit right
+          const angle = baseAngle + aimJitter + (Math.random() - 0.5) * 0.08;
+
+          const pattern: MovementPattern =
+            shotIndex === 0 ? "homing"   :   // straight tracker
+            shotIndex === 1 ? "pendulum" :   // swings across the dodge lane
+                              "spiral";      // corkscrews into the gap
+
+          // Phase offsets: pendulum and spiral start at different parts of their
+          // oscillation cycle so they don't look identical burst to burst.
+          const patternPhase =
+            shotIndex === 0 ? 0                        :
+            shotIndex === 1 ? Math.PI * 0.5            : // pendulum starts mid-swing
+                              Math.random() * Math.PI * 2;
+
+          // Shot 2 is slightly slower so the pendulum has time to build amplitude;
+          // shot 3 is slightly faster so the spiral arrives just as the player
+          // thinks they've found a safe spot.
+          const speed =
+            shotIndex === 0 ? 4.0 :
+            shotIndex === 1 ? 3.4 :
+                              4.6;
+
           addDarkOrb({
             id:           `tri-burst-${Date.now()}-${Math.random()}`,
             position:     [finalX, finalY, 0.5] as [number, number, number],
             direction:    [Math.cos(angle), Math.sin(angle), 0] as [number, number, number],
-            speed:        4.0,   // noticeably faster than star boss (≈2.87 at level 2)
+            speed,
             size:         0.56,
             seed:         Math.random(),
             shape:        "triangle",
-            pattern:      "direct",
-            patternPhase: 0,
+            pattern,
+            patternPhase,
             isBossOrb:    true,
             bossType:     "triangle",
           });
