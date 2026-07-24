@@ -134,6 +134,19 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
     }));
   }, []);
 
+  const sparkles = useMemo(() => {
+    const pal = ["#ffffff", CYAN, PINK, GOLD, PURPLE, "#00ff88"];
+    return Array.from({ length: 32 }, (_, i) => ({
+      left:        `${(i * 53 + 5)  % 100}%`,
+      top:         `${(i * 37 + 11) % 100}%`,
+      size:        2 + (i * 3) % 4,
+      color:       pal[i % pal.length],
+      delay:       0.5 + (i * 0.072) % 1.2,
+      duration:    1   + (i * 0.09)  % 1.5,
+      repeatDelay: (i * 0.28) % 2,
+    }));
+  }, []);
+
   if (phase !== "levelComplete") return null;
 
   const sfx = () => { try { playMenuSelect(); } catch {} };
@@ -231,17 +244,17 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
       {/* Decorative rings */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         {[
-          { size: 220, color: CYAN,   thickness: 1.5 },
-          { size: 340, color: PURPLE, thickness: 1   },
-          { size: 460, color: PINK,   thickness: 0.5 },
+          { size: 220, color: isBoss ? GOLD   : CYAN,   thickness: 1.5 },
+          { size: 340, color: isBoss ? PINK   : PURPLE, thickness: 1   },
+          { size: 460, color: isBoss ? PURPLE : PINK,   thickness: 0.5 },
         ].map((ring, i) => (
           <motion.div
             key={i}
             className="absolute rounded-full border"
             style={{ width: ring.size, height: ring.size, borderColor: ring.color, borderWidth: ring.thickness }}
-            initial={{ opacity: 0, scale: 0.6 }}
-            animate={{ opacity: [0, 0.25, 0.12], scale: 1, rotate: i % 2 === 0 ? 360 : -360 }}
-            transition={{ opacity: { delay: 0.2 + i * 0.1, duration: 0.8 }, scale: { delay: 0.2 + i * 0.1, duration: 0.8 }, rotate: { duration: 20 + i * 5, repeat: Infinity, ease: "linear" } }}
+            initial={{ opacity: 0, scale: 0.4 }}
+            animate={{ opacity: [0, 0.42, 0.18], scale: [0.4, 1.05, 1], rotate: i % 2 === 0 ? 360 : -360 }}
+            transition={{ opacity: { delay: 0.15 + i * 0.1, duration: 0.7 }, scale: { delay: 0.15 + i * 0.1, duration: 0.7, ease: "easeOut" }, rotate: { duration: 20 + i * 5, repeat: Infinity, ease: "linear" } }}
           />
         ))}
       </div>
@@ -252,14 +265,59 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
         style={{ background: "radial-gradient(circle at center, transparent 30%, rgba(0,0,0,0.45) 100%)" }}
       />
 
+      {/* Scanlines */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,255,255,0.006) 3px,rgba(0,255,255,0.006) 4px)",
+      }} />
+
+      {/* Sparkle particles */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {sparkles.map((s, i) => (
+          <motion.div
+            key={i}
+            className="absolute rounded-full"
+            style={{
+              left: s.left, top: s.top,
+              width: s.size, height: s.size,
+              backgroundColor: s.color,
+              boxShadow: `0 0 ${s.size * 2}px ${s.color}`,
+            }}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: [0, 1, 0], opacity: [0, 1, 0] }}
+            transition={{ delay: s.delay, duration: s.duration, repeat: Infinity, repeatDelay: s.repeatDelay }}
+          />
+        ))}
+      </div>
+
       {/* Glass card */}
       <motion.div
         className="relative z-10 w-full flex flex-col items-center gap-3"
-        style={{ maxWidth: "clamp(300px,90vw,440px)" }}
+        style={{
+          maxWidth: "clamp(300px,90vw,440px)",
+          padding: "clamp(20px,4vh,32px) clamp(18px,5vw,32px)",
+          borderRadius: "clamp(16px,2.5vw,24px)",
+          background: "rgba(6,3,22,0.86)",
+          border: `1.5px solid ${isBoss ? GOLD : PURPLE}28`,
+          boxShadow: `0 0 48px ${isBoss ? GOLD : PURPLE}18, 0 0 90px rgba(34,211,238,0.07), inset 0 1px 0 ${isBoss ? GOLD : CYAN}14`,
+          backdropFilter: "blur(24px)",
+        }}
         initial={{ opacity: 0, scale: 0.85, y: 24 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.45, ease: [0.22, 0.61, 0.36, 1] }}
       >
+        {/* Top accent line */}
+        <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{
+          height: 2, borderRadius: "inherit",
+          background: `linear-gradient(90deg,transparent 5%,${isBoss ? GOLD : CYAN}88 40%,${isBoss ? PINK : PURPLE}88 60%,transparent 95%)`,
+          opacity: 0.85,
+        }} />
+
+        {/* Card scanlines */}
+        <div className="absolute inset-0 pointer-events-none" style={{
+          backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 4px,rgba(255,255,255,0.012) 4px,rgba(255,255,255,0.012) 5px)",
+          borderRadius: "inherit",
+        }} />
+
         {/* ── Title ── */}
         <div className="text-center">
           {isBoss ? (
