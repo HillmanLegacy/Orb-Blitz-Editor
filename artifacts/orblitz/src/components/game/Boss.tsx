@@ -775,31 +775,41 @@ export function Boss() {
           const baseAngle = Math.atan2(playerY - finalY, playerX - finalX);
           const shotIndex = 3 - triBurstCountRef.current; // 0, 1, 2
 
-          // Fan the three shots out symmetrically: left / centre / right
-          // ~±28° spread so they diverge clearly but all still threaten the player.
-          const FAN = 0.50; // radians (~28°) between adjacent shots
-          const aimOffset = (shotIndex - 1) * FAN; // -0.50, 0, +0.50
+          // Shot layout:
+          //   shotIndex 0 → front shot — fired straight at the player
+          //   shotIndex 1 → left  flank — fired ~90° to the player's left,
+          //                  arcs inward with a wave oscillation
+          //   shotIndex 2 → right flank — fired ~90° to the player's right,
+          //                  arcs inward with a spiral corkscrew
+          //
+          // Because dx/dy is recomputed toward the player every frame in
+          // DarkOrbs.tsx, a large initial offset causes the orb to travel
+          // laterally first, then progressively curve toward the player —
+          // giving a genuine side approach without custom physics.
+
+          const FLANK = Math.PI * 0.48; // ~86°: nearly perpendicular
+          const aimOffset =
+            shotIndex === 0 ?  0       :   // straight ahead
+            shotIndex === 1 ? -FLANK   :   // hard left
+                               FLANK;      // hard right
           const angle = baseAngle + aimOffset + (Math.random() - 0.5) * 0.06;
 
           const pattern: MovementPattern =
-            shotIndex === 0 ? "homing"   :   // straight tracker
-            shotIndex === 1 ? "pendulum" :   // swings across the dodge lane
-                              "spiral";      // corkscrews into the gap
+            shotIndex === 0 ? "homing"  :  // front: locks straight onto player
+            shotIndex === 1 ? "wave"    :  // left flank: sine-wave arc inward
+                              "spiral";   // right flank: corkscrew arc inward
 
-          // Phase offsets: pendulum and spiral start at different parts of their
-          // oscillation cycle so they don't look identical burst to burst.
           const patternPhase =
-            shotIndex === 0 ? 0                        :
-            shotIndex === 1 ? Math.PI * 0.5            : // pendulum starts mid-swing
+            shotIndex === 0 ? 0                         :
+            shotIndex === 1 ? Math.random() * Math.PI * 2 :
                               Math.random() * Math.PI * 2;
 
-          // Shot 2 is slightly slower so the pendulum has time to build amplitude;
-          // shot 3 is slightly faster so the spiral arrives just as the player
-          // thinks they've found a safe spot.
+          // Flank shots travel farther to reach the player so need a speed boost;
+          // the front shot stays snappy.
           const speed =
-            shotIndex === 0 ? 4.0 :
-            shotIndex === 1 ? 3.4 :
-                              4.6;
+            shotIndex === 0 ? 3.8 :
+            shotIndex === 1 ? 4.8 :   // wave flank — faster to compensate detour
+                              4.6;    // spiral flank
 
           addDarkOrb({
             id:           `tri-burst-${Date.now()}-${Math.random()}`,
