@@ -775,11 +775,11 @@ export function Boss() {
           const baseAngle = Math.atan2(playerY - finalY, playerX - finalX);
           const shotIndex = 3 - triBurstCountRef.current; // 0, 1, 2
 
-          // Slightly different aim offset per shot so they don't stack perfectly
-          const aimJitter = shotIndex === 0 ? 0
-                          : shotIndex === 1 ? 0.22   // pendulum fired a bit left
-                          :                  -0.18;  // spiral fired a bit right
-          const angle = baseAngle + aimJitter + (Math.random() - 0.5) * 0.08;
+          // Fan the three shots out symmetrically: left / centre / right
+          // ~±28° spread so they diverge clearly but all still threaten the player.
+          const FAN = 0.50; // radians (~28°) between adjacent shots
+          const aimOffset = (shotIndex - 1) * FAN; // -0.50, 0, +0.50
+          const angle = baseAngle + aimOffset + (Math.random() - 0.5) * 0.06;
 
           const pattern: MovementPattern =
             shotIndex === 0 ? "homing"   :   // straight tracker
