@@ -79,18 +79,12 @@ export function GameLogic() {
     distortActive,
   } = useMagicOrb();
   
-  const { playShoot, startBossMusic, startGameMusic } = useAudio();
+  const { playShoot } = useAudio();
   
   const prevBossRef = useRef<typeof boss>(null);
-  
   useEffect(() => {
-    if (phase === "playing") {
-      if (boss !== null && prevBossRef.current === null) {
-        startBossMusic();
-      }
-    }
     prevBossRef.current = boss;
-  }, [boss, phase, startBossMusic]);
+  }, [boss]);
   
   const { equippedWeapon, equippedDefenses, equippedMagiOrb } = useShop();
   const hasRapidBlaster = equippedWeapon === "orbital_rapid_blaster";

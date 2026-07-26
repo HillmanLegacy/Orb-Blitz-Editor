@@ -117,7 +117,7 @@ export function StartupAnimation({
   const [highestLevel, setHighestLevel] = useState(1.1);
   const [pressedBtn, setPressedBtn]   = useState<string | null>(null);
 
-  const { playOrbWhoosh, playOrbConverge, playTitleReveal, startMenuMusic, playLevelSelect, isMuted, toggleMute, brightness, setBrightness } = useAudio();
+  const { playOrbWhoosh, playOrbConverge, playTitleReveal, playLevelSelect, isMuted, toggleMute, brightness, setBrightness } = useAudio();
   const { openShop, openInventory, activateDevMode, coins: shopStars, devMode } = useShop();
   const { setGameMode, startLoading } = useMagicOrb();
 
@@ -128,7 +128,6 @@ export function StartupAnimation({
 
   // Intro sequence
   useEffect(() => {
-    try { startMenuMusic(); } catch {}
     if (skipIntro) { onMenuReady?.(); return; }
     const t0 = setTimeout(() => { setAnimPhase("flying");   try { playOrbWhoosh();   } catch {} }, 150);
     const t1 = setTimeout(() => { setAnimPhase("converge"); try { playOrbConverge(); } catch {} }, 2700);

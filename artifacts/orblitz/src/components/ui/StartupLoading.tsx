@@ -15,8 +15,6 @@ export function StartupLoading({ onComplete }: Props) {
   const [fadingOut, setFadingOut] = useState(false);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
   const doneRef = useRef(false);
-  const { startMenuMusic } = useAudio();
-
   const ambientOrbs = useMemo(() => Array.from({ length: 18 }, (_, i) => {
     const angle = (i / 18) * Math.PI * 2;
     const r = 130 + (i % 3) * 55;
@@ -33,7 +31,6 @@ export function StartupLoading({ onComplete }: Props) {
   const tryStartAudio = () => {
     if (!audioUnlocked) {
       setAudioUnlocked(true);
-      try { startMenuMusic(); } catch {}
     }
   };
 

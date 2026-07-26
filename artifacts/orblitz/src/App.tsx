@@ -59,16 +59,6 @@ function App() {
 
     if (!musicFiredRef.current) {
       musicFiredRef.current = true;
-      const { loadingType } = useMagicOrb.getState();
-      const { stopMusic, startGameMusic, startMenuMusic } = useAudio.getState();
-      const goingIntoGame = loadingType === "entering" || loadingType === "nextLevel";
-      stopMusic();
-      const musicTimer = window.setTimeout(() => {
-        if (useMagicOrb.getState().phase !== "loading") return;
-        try { if (goingIntoGame) startGameMusic(); else startMenuMusic(); } catch {}
-      }, 1200);
-      // musicTimer fires before finishLoading (1 200 ms < 1 800 ms) — no need to cancel
-      void musicTimer;
     }
 
     const finishTimer = window.setTimeout(() => {
