@@ -222,10 +222,7 @@ function ProjectileChargeAura({ projScale }: { projScale: number }) {
 // ── Spiral Braid — 3 intertwined helical strands ─────────────────────────────
 
 const BRAID_COLORS = ["#ffaa00", "#44ddff", "#ff44cc"] as const;
-const BRAID_SEGS = 12;
-const BRAID_RADIUS = 0.20;
-const BRAID_SPACING = 0.19;
-const BRAID_TWIST = 1.9; // radians of phase shift per segment
+const BRAID_RADIUS = 0.22;
 
 function SpiralBraidMesh({ projectile, time }: { projectile: Projectile; time: number }) {
   const strandCount = Math.max(1, Math.min(3, projectile.hitCount ?? 3));
@@ -237,43 +234,25 @@ function SpiralBraidMesh({ projectile, time }: { projectile: Projectile; time: n
   const p1y = fwdLen > 1e-4 ?  dx / fwdLen : 1;
 
   const rotPhase = time * 7.5;
-
   const lightColor = strandCount === 3 ? "#ffaa44" : strandCount === 2 ? "#55ccff" : "#ff66cc";
 
   return (
     <group position={projectile.position}>
       <pointLight color={lightColor} intensity={2 + strandCount * 1.2} distance={5} decay={2} />
       {Array.from({ length: strandCount }, (_, s) => {
-        const basePhase = rotPhase + (s / 3) * Math.PI * 2;
+        const phase = rotPhase + (s / 3) * Math.PI * 2;
+        const ox = Math.cos(phase) * BRAID_RADIUS * p1x;
+        const oy = Math.cos(phase) * BRAID_RADIUS * p1y;
+        const oz = Math.sin(phase) * BRAID_RADIUS;
         return (
-          <group key={s}>
-            {Array.from({ length: BRAID_SEGS }, (_, j) => {
-              const t   = j / BRAID_SEGS;
-              const seg = basePhase - j * BRAID_TWIST;
-              const r   = BRAID_RADIUS * (1 - t * 0.45);
-              // Offset: cos component along perp1, sin component along Z
-              const ox = Math.cos(seg) * r * p1x;
-              const oy = Math.cos(seg) * r * p1y;
-              const oz = Math.sin(seg) * r;
-              const sc = 0.095 * (1 - t * 0.55);
-              return (
-                <mesh
-                  key={j}
-                  position={[ox - dx * j * BRAID_SPACING, oy - dy * j * BRAID_SPACING, oz]}
-                  scale={sc}
-                >
-                  <sphereGeometry args={[1, 5, 4]} />
-                  <meshBasicMaterial
-                    color={BRAID_COLORS[s]}
-                    transparent
-                    opacity={(1 - t) * 0.92}
-                    depthWrite={false}
-                    blending={THREE.AdditiveBlending}
-                  />
-                </mesh>
-              );
-            })}
-          </group>
+          <mesh key={s} position={[ox, oy, oz]} scale={0.10}>
+            <sphereGeometry args={[1, 8, 6]} />
+            <meshBasicMaterial
+              color={BRAID_COLORS[s]}
+              depthWrite={false}
+              blending={THREE.AdditiveBlending}
+            />
+          </mesh>
         );
       })}
     </group>
