@@ -38,6 +38,15 @@ import {
   playSparkleExplosionSound,
 } from "@/lib/audio/SynthSounds";
 
+// ── WAV sound effect player ───────────────────────────────────────────────────
+function playWav(path: string, volume = 0.6) {
+  try {
+    const a = new Audio(path);
+    a.volume = volume;
+    a.play().catch(() => {});
+  } catch {}
+}
+
 const FADE_DURATION = 1000;
 const TARGET_GAME_VOLUME = 0.24;
 const TARGET_MENU_VOLUME = 0.2;
@@ -110,6 +119,8 @@ interface AudioState {
   playBossHit: () => void;
   playCoin: () => void;
   playMenuSelect: () => void;
+  playLevelSelect: () => void;
+  playExitToMenu: () => void;
   playPlayerDamage: () => void;
   playOrbDefeat: () => void;
   playPause: () => void;
@@ -276,7 +287,13 @@ export const useAudio = create<AudioState>((set, get) => ({
     if (!get().isMuted) playCoinSound(0.18);
   },
   playMenuSelect: () => {
-    if (!get().isMuted) playMenuSelectSound(0.22);
+    if (!get().isMuted) playWav("/sounds/menu_select.wav", 0.65);
+  },
+  playLevelSelect: () => {
+    if (!get().isMuted) playWav("/sounds/level_select.wav", 0.65);
+  },
+  playExitToMenu: () => {
+    if (!get().isMuted) playWav("/sounds/exit_to_menu.wav", 0.65);
   },
   playPlayerDamage: () => {
     if (!get().isMuted) playPlayerDamageSound(0.45);
@@ -306,7 +323,7 @@ export const useAudio = create<AudioState>((set, get) => ({
     if (!get().isMuted) playIntroSound(0.35);
   },
   playTapToStart: () => {
-    if (!get().isMuted) playTapToStartSound(0.25);
+    if (!get().isMuted) playWav("/sounds/tap_to_start.wav", 0.65);
   },
   playOrbWhoosh: () => {
     if (!get().isMuted) playOrbWhooshSound(0.2);

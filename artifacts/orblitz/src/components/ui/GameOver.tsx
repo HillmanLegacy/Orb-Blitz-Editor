@@ -209,7 +209,7 @@ interface GameOverProps { onLevelSelect?: () => void; onMainMenu?: () => void; }
 
 export function GameOver({ onLevelSelect, onMainMenu }: GameOverProps) {
   const { score, highScore, startLoading, setPhase, gameTime, gameMode, arcadeLevel, phase, gauntletOrbsDestroyed } = useMagicOrb();
-  const { playGameOver, playMenuSelect } = useAudio();
+  const { playGameOver, playExitToMenu } = useAudio();
 
   const existingScores = loadScores();
   const minScore = existingScores.length > 0 ? Math.min(...existingScores.map(e => e.score)) : 0;
@@ -223,7 +223,7 @@ export function GameOver({ onLevelSelect, onMainMenu }: GameOverProps) {
     if (phase === "gameOver") { try { playGameOver(); } catch {} }
   }, [phase, playGameOver]);
 
-  const sfx = () => { try { playMenuSelect(); } catch {} };
+  const sfx = () => { try { playExitToMenu(); } catch {} };
 
   const handlePlayAgain = () => {
     sfx();

@@ -105,11 +105,11 @@ function OrbButtonRow({ buttons, delayStart = 0 }: { buttons: BtnDef[]; delaySta
 export function PauseMenu({ onMainMenu }: { onMainMenu?: () => void }) {
   const { phase, resumeGame, startLoading, score } = useMagicOrb();
   const { openShop, openInventory, shopOpen, inventoryOpen } = useShop();
-  const { isMuted, toggleMute, playMenuSelect } = useAudio();
+  const { isMuted, toggleMute, playLevelSelect, playExitToMenu } = useAudio();
 
   if (phase !== "paused" || shopOpen || inventoryOpen) return null;
 
-  const sfx = () => { try { playMenuSelect(); } catch {} };
+  const sfx = () => { try { playLevelSelect(); } catch {} };
 
   const topRow: BtnDef[] = [
     { id: "resume", icon: <IconResume />, label: "RESUME", color: "#00ffff", shadow: "rgba(0,255,255,0.45)",  action: () => { sfx(); useOrbTransition.getState().fastSweep(resumeGame); } },
@@ -127,7 +127,7 @@ export function PauseMenu({ onMainMenu }: { onMainMenu?: () => void }) {
       color: soundColor, shadow: soundShadow,
       action: () => { sfx(); toggleMute(); },
     },
-    { id: "quit", icon: <IconQuit />, label: "QUIT", color: "#667788", shadow: "rgba(100,110,130,0.22)", action: () => { sfx(); onMainMenu?.(); useOrbTransition.getState().loadingSweep(() => startLoading("exiting_to_menu")); } },
+    { id: "quit", icon: <IconQuit />, label: "QUIT", color: "#667788", shadow: "rgba(100,110,130,0.22)", action: () => { try { playExitToMenu(); } catch {} onMainMenu?.(); useOrbTransition.getState().loadingSweep(() => startLoading("exiting_to_menu")); } },
   ];
 
   return (

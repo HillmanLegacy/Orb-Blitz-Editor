@@ -127,7 +127,7 @@ interface LevelTransitionProps {
 export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionProps) {
   const { phase, arcadeLevel, startLoading, setPhase, score } = useMagicOrb();
   const { openInventory } = useShop();
-  const { playLevelComplete, playMenuSelect } = useAudio();
+  const { playLevelComplete, playLevelSelect } = useAudio();
   const [soundPlayed, setSoundPlayed] = useState(false);
 
   useEffect(() => {
@@ -141,7 +141,7 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
 
   if (phase !== "levelComplete") return null;
 
-  const sfx = () => { try { playMenuSelect(); } catch {}; };
+  const sfx = () => { try { playLevelSelect(); } catch {}; };
 
   const currentLevel  = Math.floor(arcadeLevel);
   const currentSub    = Math.round((arcadeLevel % 1) * 10);

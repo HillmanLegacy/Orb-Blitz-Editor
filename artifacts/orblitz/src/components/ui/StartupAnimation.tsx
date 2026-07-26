@@ -117,7 +117,7 @@ export function StartupAnimation({
   const [highestLevel, setHighestLevel] = useState(1.1);
   const [pressedBtn, setPressedBtn]   = useState<string | null>(null);
 
-  const { playOrbWhoosh, playOrbConverge, playTitleReveal, startMenuMusic, playMenuSelect, isMuted, toggleMute, brightness, setBrightness } = useAudio();
+  const { playOrbWhoosh, playOrbConverge, playTitleReveal, startMenuMusic, playLevelSelect, isMuted, toggleMute, brightness, setBrightness } = useAudio();
   const { openShop, openInventory, activateDevMode, coins: shopStars, devMode } = useShop();
   const { setGameMode, startLoading } = useMagicOrb();
 
@@ -153,7 +153,7 @@ export function StartupAnimation({
     } else { setDevProgress(letter === DEV_SEQUENCE[0] ? 1 : 0); }
   }, [devProgress, activateDevMode]);
 
-  const btn = useCallback((id: string) => { try { playMenuSelect(); } catch {} }, [playMenuSelect]);
+  const btn = useCallback((id: string) => { try { playLevelSelect(); } catch {} }, [playLevelSelect]);
 
   const handleStartMode = useCallback((mode: string) => {
     btn(mode);
