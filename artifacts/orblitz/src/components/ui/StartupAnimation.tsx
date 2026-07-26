@@ -117,7 +117,7 @@ export function StartupAnimation({
   const [highestLevel, setHighestLevel] = useState(1.1);
   const [pressedBtn, setPressedBtn]   = useState<string | null>(null);
 
-  const { playOrbWhoosh, playOrbConverge, playTitleReveal, playLevelSelect, isMuted, toggleMute, brightness, setBrightness } = useAudio();
+  const { playOrbWhoosh, playOrbConverge, playTitleReveal, playLevelSelect, playTapToStart, isMuted, toggleMute, brightness, setBrightness } = useAudio();
   const { openShop, openInventory, activateDevMode, coins: shopStars, devMode } = useShop();
   const { setGameMode, startLoading } = useMagicOrb();
 
@@ -138,8 +138,8 @@ export function StartupAnimation({
   }, []);
 
   const handleTap = useCallback(() => {
-    if (animPhase === "waiting") { setAnimPhase("menu"); onMenuReady?.(); }
-  }, [animPhase, onMenuReady]);
+    if (animPhase === "waiting") { try { playTapToStart(); } catch {} setAnimPhase("menu"); onMenuReady?.(); }
+  }, [animPhase, onMenuReady, playTapToStart]);
 
   const handleLetterClick = useCallback((letter: string, idx: number) => {
     const expected = DEV_SEQUENCE[devProgress];
