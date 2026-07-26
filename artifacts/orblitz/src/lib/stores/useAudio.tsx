@@ -282,13 +282,13 @@ export const useAudio = create<AudioState>((set, get) => ({
     if (!get().isMuted) playCoinSound(0.18);
   },
   playMenuSelect: () => {
-    if (!get().isMuted) playWav("/sounds/menu_select.wav", 0.3);
+    if (!get().isMuted) playWav("/sounds/menu_select.wav", 0.45);
   },
   playLevelSelect: () => {
-    if (!get().isMuted) playWav("/sounds/level_select.wav", 0.3);
+    if (!get().isMuted) playWav("/sounds/level_select.wav", 0.45);
   },
   playExitToMenu: () => {
-    if (!get().isMuted) playWav("/sounds/exit_to_menu.wav", 0.3);
+    if (!get().isMuted) playWav("/sounds/exit_to_menu.wav", 0.45);
   },
   playPlayerDamage: () => {
     if (!get().isMuted) playPlayerDamageSound(0.45);
@@ -318,7 +318,7 @@ export const useAudio = create<AudioState>((set, get) => ({
     if (!get().isMuted) playIntroSound(0.35);
   },
   playTapToStart: () => {
-    if (!get().isMuted) playWav("/sounds/tap_to_start.wav", 0.3);
+    if (!get().isMuted) playWav("/sounds/tap_to_start.wav", 0.45);
   },
   playOrbWhoosh: () => {
     if (!get().isMuted) playOrbWhooshSound(0.2);
