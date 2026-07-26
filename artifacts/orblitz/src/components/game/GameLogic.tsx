@@ -226,7 +226,7 @@ export function GameLogic() {
     if (hasRapidBlasterRef.current) {
       baseInterval = 1 / 6;
     } else if (hasSpiralBlasterRef.current) {
-      baseInterval = 3.0;
+      baseInterval = 0.5;
     } else if (hasOverchargedBlasterRef.current) {
       baseInterval = 0.8;
     } else if (hasScattershotRef.current) {
@@ -436,25 +436,20 @@ export function GameLogic() {
         return;
       }
       lastSpiralFire.current = now;
-      
-      const spiralVolleyId = `volley-${now}-spiral`;
-      for (let i = 0; i < 3; i++) {
-        const spiralAngle = (i / 3) * Math.PI * 2;
-        const projectile: Projectile = {
-          id: `proj-${projectileIdCounter++}`,
-          position: [...projectileOrigin] as [number, number, number],
-          direction: [Math.cos(spiralAngle), Math.sin(spiralAngle), 0],
-          isCharged: false,
-          size: 0.15,
-          type: "spiral",
-          hitCount: 1,
-          piercing: false,
-          spiralAngle,
-          volleyId: spiralVolleyId,
-          createdAt: now,
-        };
-        addProjectileRef.current(projectile);
-      }
+
+      // Single braid projectile — 3 intertwined strands, pierces up to 3 enemies
+      const projectile: Projectile = {
+        id: `proj-${projectileIdCounter++}`,
+        position: [...projectileOrigin] as [number, number, number],
+        direction: [targetDirX, targetDirY, targetDirZ],
+        isCharged: false,
+        size: 0.15,
+        type: "spiral",
+        hitCount: 3,
+        piercing: true,
+        noMissTracking: true,
+      };
+      addProjectileRef.current(projectile);
     } else if (hasOverchargedBlasterRef.current) {
       const now = Date.now();
       if (now - lastOverchargedFire.current < 500) {

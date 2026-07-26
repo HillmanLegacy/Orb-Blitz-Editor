@@ -219,6 +219,67 @@ function ProjectileChargeAura({ projScale }: { projScale: number }) {
   return <ProjectileChargeSparks projScale={projScale} />;
 }
 
+// ── Spiral Braid — 3 intertwined helical strands ─────────────────────────────
+
+const BRAID_COLORS = ["#ffaa00", "#44ddff", "#ff44cc"] as const;
+const BRAID_SEGS = 12;
+const BRAID_RADIUS = 0.20;
+const BRAID_SPACING = 0.19;
+const BRAID_TWIST = 1.9; // radians of phase shift per segment
+
+function SpiralBraidMesh({ projectile, time }: { projectile: Projectile; time: number }) {
+  const strandCount = Math.max(1, Math.min(3, projectile.hitCount ?? 3));
+  const [dx, dy] = projectile.direction;
+
+  // Perpendicular basis — perp1 in XY, perp2 = Z axis
+  const fwdLen = Math.sqrt(dx * dx + dy * dy);
+  const p1x = fwdLen > 1e-4 ? -dy / fwdLen : 0;
+  const p1y = fwdLen > 1e-4 ?  dx / fwdLen : 1;
+
+  const rotPhase = time * 7.5;
+
+  const lightColor = strandCount === 3 ? "#ffaa44" : strandCount === 2 ? "#55ccff" : "#ff66cc";
+
+  return (
+    <group position={projectile.position}>
+      <pointLight color={lightColor} intensity={2 + strandCount * 1.2} distance={5} decay={2} />
+      {Array.from({ length: strandCount }, (_, s) => {
+        const basePhase = rotPhase + (s / 3) * Math.PI * 2;
+        return (
+          <group key={s}>
+            {Array.from({ length: BRAID_SEGS }, (_, j) => {
+              const t   = j / BRAID_SEGS;
+              const seg = basePhase - j * BRAID_TWIST;
+              const r   = BRAID_RADIUS * (1 - t * 0.45);
+              // Offset: cos component along perp1, sin component along Z
+              const ox = Math.cos(seg) * r * p1x;
+              const oy = Math.cos(seg) * r * p1y;
+              const oz = Math.sin(seg) * r;
+              const sc = 0.095 * (1 - t * 0.55);
+              return (
+                <mesh
+                  key={j}
+                  position={[ox - dx * j * BRAID_SPACING, oy - dy * j * BRAID_SPACING, oz]}
+                  scale={sc}
+                >
+                  <sphereGeometry args={[1, 5, 4]} />
+                  <meshBasicMaterial
+                    color={BRAID_COLORS[s]}
+                    transparent
+                    opacity={(1 - t) * 0.92}
+                    depthWrite={false}
+                    blending={THREE.AdditiveBlending}
+                  />
+                </mesh>
+              );
+            })}
+          </group>
+        );
+      })}
+    </group>
+  );
+}
+
 function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: {
   projectile: Projectile;
   time: number;
@@ -227,6 +288,11 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: 
   skinColors: { core: string; glow: string; emissive: string; accent: string; particles: string[] };
   equippedSkin: string;
 }) {
+  // Spiral braid — rendered entirely separately
+  if (projectile.type === "spiral") {
+    return <SpiralBraidMesh projectile={projectile} time={time} />;
+  }
+
   const spawnTime     = useRef(time);
   const spawnProgress = Math.min(1, (time - spawnTime.current) * 6);
   const isCharged     = projectile.isCharged;
@@ -375,6 +441,9 @@ export function Projectiles() {
   const hitRadius = 1.2;
   const hitOrbsThisFrame = useRef<Set<string>>(new Set());
   const hitPowerUpsThisFrame = useRef<Set<string>>(new Set());
+  // Tracks which spiral projectiles have already pierced through the boss this
+  // pass so they don't register multiple hits while inside the hit radius.
+  const spiralBossHit = useRef<Set<string>>(new Set());
   const projectileOrbHits = useRef<Map<string, Set<string>>>(new Map());
   const volleyHits = useRef<Set<string>>(new Set());
   const volleyProjectileCounts = useRef<Map<string, number>>(new Map());
@@ -431,6 +500,7 @@ export function Projectiles() {
     const updatedProjectiles: Projectile[] = [];
     hitOrbsThisFrame.current.clear();
     hitPowerUpsThisFrame.current.clear();
+    spiralBossHit.current.clear();
     
     for (const orb of darkOrbs) {
       if (orb.destroying) {
@@ -491,7 +561,8 @@ export function Projectiles() {
       }
       
       let newSpiralAngle = proj.spiralAngle;
-      if (newSpiralAngle !== undefined) {
+      // Old-style spiralAngle steers direction only for non-braid projectiles.
+      if (newSpiralAngle !== undefined && proj.type !== "spiral") {
         const spiralSpeed = 3;
         newSpiralAngle = newSpiralAngle + delta * spiralSpeed;
         dx = Math.cos(newSpiralAngle);
@@ -501,33 +572,6 @@ export function Projectiles() {
       px += dx * projectileSpeed * delta;
       py += dy * projectileSpeed * delta;
       pz += dz * projectileSpeed * delta;
-      
-      if (proj.type === "spiral" && proj.createdAt) {
-        const age = (Date.now() - proj.createdAt) / 1000;
-        if (age > 3) {
-          addImpactEffect({
-            id: `impact-${impactIdCounter++}`,
-            position: [px, py, pz],
-            timer: 0.3,
-            maxTimer: 0.3,
-            seed: Math.random(),
-          });
-          if (proj.volleyId) {
-            const remaining = (volleyRemainingCounts.current.get(proj.volleyId) || 1) - 1;
-            volleyRemainingCounts.current.set(proj.volleyId, remaining);
-            if (remaining <= 0 && !volleyHits.current.has(proj.volleyId) && !proj.noMissTracking) {
-              registerMissedShot();
-            }
-            if (remaining <= 0) {
-              volleyHits.current.delete(proj.volleyId);
-              volleyRemainingCounts.current.delete(proj.volleyId);
-              volleyProjectileCounts.current.delete(proj.volleyId);
-            }
-          }
-          projectileOrbHits.current.delete(proj.id);
-          continue;
-        }
-      }
       
       const screenBoundary = 13;
       if (Math.abs(px) > screenBoundary || Math.abs(py) > screenBoundary) {
@@ -566,8 +610,17 @@ export function Projectiles() {
         const dist = Math.sqrt((px - bx) ** 2 + (py - by) ** 2 + ((bz || 0) - pz) ** 2);
         const bossHitRadius = 1.65;
         
-        if (dist < bossHitRadius) {
-          hitSomething = true;
+        if (dist < bossHitRadius && !spiralBossHit.current.has(proj.id)) {
+          const isSpiralPiercing = proj.type === "spiral" && proj.hitCount !== undefined && proj.hitCount > 1;
+
+          if (!isSpiralPiercing) {
+            hitSomething = true;
+          } else {
+            // Spiral braid loses one strand, keeps flying
+            proj.hitCount!--;
+            spiralBossHit.current.add(proj.id);
+          }
+
           const projHits = projectileOrbHits.current.get(proj.id) || new Set();
           projHits.add("boss");
           projectileOrbHits.current.set(proj.id, projHits);
@@ -583,19 +636,15 @@ export function Projectiles() {
           }
           
           // Place impact at the sphere surface point the projectile entered.
-          // Direction: from boss centre toward projectile; fall back to the
-          // projectile's own travel direction when they share the same position.
           {
             const bzSafe = bz || 0;
             let dx = px - bx, dy = py - by, dz = pz - bzSafe;
             let len = Math.sqrt(dx * dx + dy * dy + dz * dz);
             if (len < 1e-6) {
-              // Degenerate: use reversed travel direction so the flash
-              // appears on the face the shot came from.
               [dx, dy, dz] = proj.direction;
               len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
             }
-            const surfaceR = 1.44; // matches FireBoss rendered sphere radius
+            const surfaceR = 1.44;
             addImpactEffect({
               id: `impact-${impactIdCounter++}`,
               position: [
@@ -609,8 +658,6 @@ export function Projectiles() {
               isBossHit: true,
             });
           }
-          
-          
         }
       } else if (boss && boss.shieldActive) {
         const [bx, by, bz] = boss.position;
