@@ -258,117 +258,117 @@ export const useAudio = create<AudioState>((set, get) => ({
   },
   
   playHit: () => {
-    if (!get().isMuted) playHitSound(0.3);
+    if (!get().isMuted) playHitSound(0.35);
   },
   playSuccess: () => {
-    if (!get().isMuted) playPowerUpSound(0.4);
+    if (!get().isMuted) playPowerUpSound(0.35);
   },
   playShoot: () => {
-    if (!get().isMuted) playShootSound(0.2);
+    if (!get().isMuted) playShootSound(0.35);
   },
   playPowerUp: () => {
     if (!get().isMuted) playPowerUpSound(0.35);
   },
   playLevelComplete: () => {
-    if (!get().isMuted) playLevelCompleteSound(0.45);
+    if (!get().isMuted) playLevelCompleteSound(0.35);
   },
   playGameOver: () => {
-    if (!get().isMuted) playGameOverSound(0.4);
+    if (!get().isMuted) playGameOverSound(0.35);
   },
   playBossHit: () => {
     if (!get().isMuted) playBossHitSound(0.35);
   },
   playCoin: () => {
-    if (!get().isMuted) playCoinSound(0.18);
+    if (!get().isMuted) playCoinSound(0.35);
   },
   playMenuSelect: () => {
-    if (!get().isMuted) playWav("/sounds/menu_select.wav", 0.45);
+    if (!get().isMuted) playWav("/sounds/menu_select.wav", 0.52);
   },
   playLevelSelect: () => {
-    if (!get().isMuted) playWav("/sounds/level_select.wav", 0.45);
+    if (!get().isMuted) playWav("/sounds/level_select.wav", 0.52);
   },
   playExitToMenu: () => {
-    if (!get().isMuted) playWav("/sounds/exit_to_menu.wav", 0.45);
+    if (!get().isMuted) playWav("/sounds/exit_to_menu.wav", 0.52);
   },
   playPlayerDamage: () => {
-    if (!get().isMuted) playPlayerDamageSound(0.45);
+    if (!get().isMuted) playPlayerDamageSound(0.35);
   },
   playOrbDefeat: () => {
-    if (!get().isMuted) playOrbDestroySound(0.22);
+    if (!get().isMuted) playOrbDestroySound(0.35);
   },
   playPause: () => {
-    if (!get().isMuted) playPauseSound(0.25);
+    if (!get().isMuted) playPauseSound(0.35);
   },
   playBossAttack: () => {
-    if (!get().isMuted) playBossAttackSound(0.3);
+    if (!get().isMuted) playBossAttackSound(0.35);
   },
   playBossDefeat: () => {
-    if (!get().isMuted) playBossDefeatSound(0.5);
+    if (!get().isMuted) playBossDefeatSound(0.35);
   },
   playWeaponFire: () => {
-    if (!get().isMuted) playShootSound(0.22);
+    if (!get().isMuted) playShootSound(0.35);
   },
   playDefenseActivate: () => {
     if (!get().isMuted) playDefenseActivateSound(0.35);
   },
   playProjectileHit: () => {
-    if (!get().isMuted) playHitSound(0.28);
+    if (!get().isMuted) playHitSound(0.35);
   },
   playIntro: () => {
     if (!get().isMuted) playIntroSound(0.35);
   },
   playTapToStart: () => {
-    if (!get().isMuted) playWav("/sounds/tap_to_start.wav", 0.45);
+    if (!get().isMuted) playWav("/sounds/tap_to_start.wav", 0.52);
   },
   playOrbWhoosh: () => {
-    if (!get().isMuted) playOrbWhooshSound(0.2);
+    if (!get().isMuted) playOrbWhooshSound(0.35);
   },
   playOrbConverge: () => {
-    if (!get().isMuted) playOrbConvergeSound(0.3);
+    if (!get().isMuted) playOrbConvergeSound(0.35);
   },
   playRingExpand: () => {
-    if (!get().isMuted) playRingExpandSound(0.2);
+    if (!get().isMuted) playRingExpandSound(0.35);
   },
   playSparkle: () => {
-    if (!get().isMuted) playSparkleSound(0.15);
+    if (!get().isMuted) playSparkleSound(0.35);
   },
   playTitleReveal: () => {
-    if (!get().isMuted) playTitleRevealSound(0.3);
+    if (!get().isMuted) playTitleRevealSound(0.35);
   },
   playShieldActivate: () => {
-    if (!get().isMuted) playShieldActivateSound(0.3);
+    if (!get().isMuted) playShieldActivateSound(0.35);
   },
   playTeleport: () => {
     if (!get().isMuted) playTeleportSound(0.35);
   },
   playCombo: (count: number) => {
-    if (!get().isMuted) playComboSound(count, 0.25);
+    if (!get().isMuted) playComboSound(count, 0.35);
   },
   playCriticalHit: () => {
-    if (!get().isMuted) playCriticalHitSound(0.4);
+    if (!get().isMuted) playCriticalHitSound(0.35);
   },
   playNearMiss: () => {
-    if (!get().isMuted) playNearMissSound(0.2);
+    if (!get().isMuted) playNearMissSound(0.35);
   },
   playChargeUp: () => {
-    if (!get().isMuted) playChargeUpSound(0.25);
+    if (!get().isMuted) playChargeUpSound(0.35);
   },
   playEnergyBurst: () => {
     if (!get().isMuted) playEnergyBurstSound(0.35);
   },
   playWhooshBy: () => {
-    if (!get().isMuted) playWhooshBySound(0.15);
+    if (!get().isMuted) playWhooshBySound(0.35);
   },
   playPowerDown: () => {
-    if (!get().isMuted) playPowerDownSound(0.25);
+    if (!get().isMuted) playPowerDownSound(0.35);
   },
   playWarning: () => {
-    if (!get().isMuted) playWarningSound(0.3);
+    if (!get().isMuted) playWarningSound(0.35);
   },
   playHeal: () => {
-    if (!get().isMuted) playHealSound(0.3);
+    if (!get().isMuted) playHealSound(0.35);
   },
   playSparkleExplosion: () => {
-    if (!get().isMuted) playSparkleExplosionSound(0.45);
+    if (!get().isMuted) playSparkleExplosionSound(0.35);
   },
 }));
