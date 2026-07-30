@@ -4,10 +4,17 @@ import * as THREE from "three";
 import { useMagicOrb, MovementPattern } from "@/lib/stores/useMagicOrb";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 import { FireBoss } from "./FireBoss";
+import { PlasmaBoss } from "./PlasmaBoss";
+import { DiamondBoss } from "./DiamondBoss";
+import { RainbowBoss } from "./RainbowBoss";
 import { StarBoss } from "./StarBoss";
 import { CrystalBoss } from "./CrystalBoss";
 import { ToxicBoss } from "./ToxicBoss";
+import { MechaBoss } from "./MechaBoss";
 import { FireExplosionVFX } from "./FireExplosionVFX";
+import { StarSupernovaVFX } from "./StarSupernovaVFX";
+import { StarBossTeleportVFX, StarTeleportVFXState } from "./StarBossTeleportVFX";
+import { CrystalCrackExplosionVFX } from "./CrystalCrackExplosionVFX";
 
 
 const MIN_PLAYER_DISTANCE = 7;
@@ -72,6 +79,7 @@ export function Boss() {
   const localAttackTimerRef  = useRef<number | null>(null);
   // Frame counter used to throttle how often we push state to Zustand.
   const frameCountRef        = useRef(0);
+  const offScreenTimerRef    = useRef(2.5);
 
   // ── FireBoss (circle) strike-and-retreat state machine ──────────────────────
   const fireMovePhaseRef = useRef<'entering' | 'waiting' | 'exiting'>('entering');
@@ -80,8 +88,27 @@ export function Boss() {
   const fireWaitTimerRef = useRef(3.0);
   const fireInitRef      = useRef(false);
   const fireShotTimerRef = useRef(0); // countdown until next shot while moving
-  
-  
+
+  // ── StarBoss teleport state machine ─────────────────────────────────────────
+  const starTeleportPhaseRef    = useRef<'idle' | 'departing' | 'transiting' | 'arriving'>('idle');
+  const starTeleportTimerRef    = useRef(0);
+  const starTeleportCooldownRef = useRef(3 + Math.random() * 4); // 3–7 s initial
+  const starTeleportTargetRef   = useRef<[number, number]>([0, 0]);
+  const starTeleportVFXRef      = useRef<StarTeleportVFXState>({
+    departurePos:      [0, 0, 0],
+    departureProgress: 0,
+    arrivalPos:        [0, 0, 0],
+    arrivalProgress:   0,
+  });
+
+  // ── TriangleBoss (crystal) movement + burst-fire state ──────────────────────
+  const triPatternRef       = useRef(0);              // active movement pattern: 0 | 1 | 2
+  const triPatternTimerRef  = useRef(0);              // seconds until next pattern switch
+  const triSubAngleRef      = useRef(0);              // sub-motion angle accumulator
+  const triBurstCountRef    = useRef(0);              // projectiles left in current burst
+  const triBurstTimerRef    = useRef(0);              // seconds until next burst shot
+  const triBurstCooldownRef = useRef(1.5 + Math.random() * 2.0); // seconds until first burst
+
   const keepDistanceFromPlayer = (
     currentPos: [number, number, number],
     playerPos: [number, number, number],
@@ -168,6 +195,12 @@ export function Boss() {
         fireMovePhaseRef.current    = 'entering';
         fireInitRef.current         = false;
         fireShotTimerRef.current    = 0;
+        triPatternRef.current       = 0;
+        triPatternTimerRef.current  = 0;
+        triSubAngleRef.current      = 0;
+        triBurstCountRef.current    = 0;
+        triBurstTimerRef.current    = 0;
+        triBurstCooldownRef.current = 1.5 + Math.random() * 2.0;
         useMagicOrb.setState({ boss: null });
         if (gameMode === "survival") {
           useMagicOrb.setState({ survivalBossTimer: 0, survivalBossPending: false });
@@ -231,7 +264,9 @@ export function Boss() {
             angle = baseAngle;
             pattern = "direct";
           } else if (projectileCount <= 3) {
-            const spread = 0.3;
+            // Star boss (2 projectiles): wider spread so they never overlap.
+            // Other bosses with ≤3: standard tight spread.
+            const spread = bossType === "star" ? 1.2 : 0.3;
             angle = baseAngle + (i - (projectileCount - 1) / 2) * spread;
             pattern = "direct";
           } else if (projectileCount <= 5) {
@@ -282,43 +317,146 @@ export function Boss() {
         break;
       }
       case "teleport": {
-        phaseTimerRef.current -= delta;
-        if (phaseTimerRef.current <= 0 || threatened) {
-          const teleportAngle = Math.random() * Math.PI * 2;
-          const teleportDist = 5 + Math.random() * 4;
-          targetX = Math.cos(teleportAngle) * teleportDist;
-          targetY = Math.sin(teleportAngle) * teleportDist;
-          targetX = Math.max(-playAreaWidth, Math.min(playAreaWidth, targetX));
-          targetY = Math.max(-playAreaHeight + 2, Math.min(playAreaHeight, targetY));
-          lerpSpeed = 50;
-          phaseTimerRef.current = 1.5 + Math.random() * 2;
-        } else {
-          targetX = bossPosRef.current[0];
-          targetY = bossPosRef.current[1];
+        // ── Star Boss: HD VFX teleport with 3–7 s delay ──────────────────────
+        const tvfx   = starTeleportVFXRef.current;
+        const tPhase = starTeleportPhaseRef.current;
+
+        if (tPhase === 'idle') {
+          starTeleportCooldownRef.current -= delta;
+          if (starTeleportCooldownRef.current <= 0 || threatened) {
+            // Pick destination (player-relative, avoid overlapping MIN_PLAYER_DISTANCE)
+            let tx: number, ty: number;
+            let attempts = 0;
+            do {
+              const ang  = Math.random() * Math.PI * 2;
+              const dist = 5 + Math.random() * 4;
+              tx = Math.max(-playAreaWidth,  Math.min(playAreaWidth,  Math.cos(ang) * dist));
+              ty = Math.max(-playAreaHeight + 2, Math.min(playAreaHeight, Math.sin(ang) * dist));
+              attempts++;
+            } while (
+              Math.sqrt((tx - playerX) ** 2 + (ty - playerY) ** 2) < MIN_PLAYER_DISTANCE &&
+              attempts < 8
+            );
+            starTeleportTargetRef.current = [tx, ty];
+            // Kick off departure effect
+            tvfx.departurePos      = [...bossPosRef.current] as [number, number, number];
+            tvfx.departureProgress = 0.001;
+            starTeleportPhaseRef.current = 'departing';
+            starTeleportTimerRef.current = 0.55;
+          }
+          targetX   = bossPosRef.current[0];
+          targetY   = bossPosRef.current[1];
           lerpSpeed = 0.5;
+
+        } else if (tPhase === 'departing') {
+          starTeleportTimerRef.current -= delta;
+          tvfx.departureProgress = 1 - Math.max(0, starTeleportTimerRef.current) / 0.55;
+          targetX   = bossPosRef.current[0];
+          targetY   = bossPosRef.current[1];
+          lerpSpeed = 0.5;
+          if (starTeleportTimerRef.current <= 0) {
+            // Brief invisible transit
+            tvfx.departureProgress = 0;
+            starTeleportPhaseRef.current = 'transiting';
+            starTeleportTimerRef.current = 0.08;
+            // Snap position now so it's ready for arrival
+            const [atx, aty] = starTeleportTargetRef.current;
+            bossPosRef.current = [atx, aty, 0];
+          }
+
+        } else if (tPhase === 'transiting') {
+          starTeleportTimerRef.current -= delta;
+          targetX   = bossPosRef.current[0];
+          targetY   = bossPosRef.current[1];
+          lerpSpeed = 0.5;
+          if (starTeleportTimerRef.current <= 0) {
+            const [atx, aty] = starTeleportTargetRef.current;
+            tvfx.arrivalPos      = [atx, aty, 0];
+            tvfx.arrivalProgress = 0.001;
+            starTeleportPhaseRef.current = 'arriving';
+            starTeleportTimerRef.current = 0.55;
+          }
+
+        } else { // arriving
+          starTeleportTimerRef.current -= delta;
+          tvfx.arrivalProgress = 1 - Math.max(0, starTeleportTimerRef.current) / 0.55;
+          targetX   = bossPosRef.current[0];
+          targetY   = bossPosRef.current[1];
+          lerpSpeed = 0.5;
+          if (starTeleportTimerRef.current <= 0) {
+            tvfx.arrivalProgress = 0;
+            starTeleportPhaseRef.current = 'idle';
+            starTeleportCooldownRef.current = 3 + Math.random() * 4;
+          }
         }
         break;
       }
       case "dash": {
-        const dashPhase = Math.floor(time * 0.8) % 4;
-        const dashProgress = (time * 0.8) % 1;
-        const dashTargets = [
-          [playAreaWidth * 0.8, playAreaHeight * 0.5],
-          [-playAreaWidth * 0.8, playAreaHeight * 0.5],
-          [-playAreaWidth * 0.8, -playAreaHeight * 0.5],
-          [playAreaWidth * 0.8, -playAreaHeight * 0.5],
-        ];
-        const currentTarget = dashTargets[dashPhase];
-        const nextTarget = dashTargets[(dashPhase + 1) % 4];
-        if (dashProgress < 0.3) {
-          targetX = currentTarget[0];
-          targetY = currentTarget[1];
-          lerpSpeed = 1;
-        } else {
-          targetX = nextTarget[0];
-          targetY = nextTarget[1];
-          lerpSpeed = 12;
+        // ── TriangleBoss (crystal): 3 player-avoidant movement patterns ──────
+        // Patterns cycle every 8–13 s. All patterns compute targets on the far
+        // side of the arena from the player so trajectories never cross them.
+        const PW = playAreaWidth;
+        const PH = playAreaHeight;
+
+        triPatternTimerRef.current -= delta;
+        if (triPatternTimerRef.current <= 0) {
+          triPatternRef.current     = (triPatternRef.current + 1) % 3;
+          triPatternTimerRef.current = 8 + Math.random() * 5; // 8–13 s per pattern
+          triSubAngleRef.current    = 0;
         }
+        triSubAngleRef.current += delta;
+        const subT = triSubAngleRef.current;
+
+        // Opposition vector: unit direction pointing AWAY from the player
+        const oppX   = -playerX;
+        const oppY   = -playerY;
+        const oppLen = Math.sqrt(oppX * oppX + oppY * oppY);
+        const oppNX  = oppLen > 0.1 ? oppX / oppLen : 0;
+        const oppNY  = oppLen > 0.1 ? oppY / oppLen : 1;
+
+        const pat = triPatternRef.current;
+
+        if (pat === 0) {
+          // Pattern A – Opposition orbit: boss circles the anti-player point
+          const cx  = Math.max(-PW * 0.72, Math.min(PW * 0.72, oppNX * 5.5));
+          const cy  = Math.max(-PH * 0.72, Math.min(PH * 0.72, oppNY * 5.5));
+          const orR = 2.6 + Math.sin(subT * 0.45) * 1.5;
+          targetX   = cx + Math.cos(subT * 1.15) * orR;
+          targetY   = cy + Math.sin(subT * 1.50) * orR;
+          lerpSpeed = 2.8;
+
+        } else if (pat === 1) {
+          // Pattern B – Far-corner hover: seek the arena corner farthest from player
+          const corners: [number, number][] = [
+            [ PW * 0.82,  PH * 0.76],
+            [-PW * 0.82,  PH * 0.76],
+            [-PW * 0.82, -PH * 0.76],
+            [ PW * 0.82, -PH * 0.76],
+          ];
+          let bestCorner = corners[0];
+          let bestDist   = -Infinity;
+          for (const [cx, cy] of corners) {
+            const d = (cx - playerX) ** 2 + (cy - playerY) ** 2;
+            if (d > bestDist) { bestDist = d; bestCorner = [cx, cy]; }
+          }
+          // Slow drift once parked at the far corner
+          targetX   = bestCorner[0] + Math.sin(subT * 0.9) * 0.7;
+          targetY   = bestCorner[1] + Math.cos(subT * 0.7) * 0.7;
+          // Dash fast initially, then hover gently
+          lerpSpeed = subT < 1.8 ? 9 : 1.4;
+
+        } else {
+          // Pattern C – Avoidant figure-8: figure-8 centred on the far point
+          const cx  = Math.max(-PW * 0.60, Math.min(PW * 0.60, oppNX * 4.5));
+          const cy  = Math.max(-PH * 0.60, Math.min(PH * 0.60, oppNY * 4.5));
+          targetX   = cx + Math.sin(subT * 0.72) * 5.5;
+          targetY   = cy + Math.sin(subT * 1.44) * 3.2;
+          lerpSpeed = 3.6;
+        }
+
+        // Clamp to safe play area
+        targetX = Math.max(-PW * 0.90, Math.min(PW * 0.90, targetX));
+        targetY = Math.max(-PH * 0.84 + 2, Math.min(PH * 0.84, targetY));
         break;
       }
       case "perimeter": {
@@ -613,9 +751,123 @@ export function Boss() {
       bossPosRef.current = [finalX, finalY, 0];
 
       if (localAttackTimerRef.current === null) localAttackTimerRef.current = boss.attackTimer;
-      const attackResult = fireProjectiles([finalX, finalY, 0], localAttackTimerRef.current, attackBurstRef.current);
+
+      let attackResult: { timer: number; burst: number };
+
+      if (bossType === "triangle") {
+        // ── TriangleBoss burst fire: 3 shots back-to-back, random gap between bursts ──
+        // Projectiles are 25 % faster than the star boss (level 2 base ≈ 2.875 → here 4.0)
+        triBurstTimerRef.current    -= delta;
+        triBurstCooldownRef.current -= delta;
+
+        if (triBurstCountRef.current > 0 && triBurstTimerRef.current <= 0) {
+          // ── Three strategically distinct shots, fired one per 120 ms ──────────
+          // triBurstCountRef counts 3 → 2 → 1 so the first shot has count = 3.
+          //
+          //  Shot 1 (count=3): "homing"   — locks straight onto the player,
+          //                                 forces them to move immediately.
+          //  Shot 2 (count=2): "pendulum" — swings perpendicular to its travel
+          //                                 path, punishing the dodge committed
+          //                                 to dodge shot 1.
+          //  Shot 3 (count=1): "spiral"   — corkscrews in, cuts off the escape
+          //                                 lane that opened up after shots 1 & 2.
+          const { addDarkOrb } = useMagicOrb.getState();
+          const baseAngle = Math.atan2(playerY - finalY, playerX - finalX);
+          const shotIndex = 3 - triBurstCountRef.current; // 0, 1, 2
+
+          // Shot layout:
+          //   shotIndex 0 → front shot — fired straight at the player
+          //   shotIndex 1 → left  flank — fired ~90° to the player's left,
+          //                  arcs inward with a wave oscillation
+          //   shotIndex 2 → right flank — fired ~90° to the player's right,
+          //                  arcs inward with a spiral corkscrew
+          //
+          // Because dx/dy is recomputed toward the player every frame in
+          // DarkOrbs.tsx, a large initial offset causes the orb to travel
+          // laterally first, then progressively curve toward the player —
+          // giving a genuine side approach without custom physics.
+
+          const FLANK = Math.PI * 0.48; // ~86°: nearly perpendicular
+          const aimOffset =
+            shotIndex === 0 ?  0       :   // straight ahead
+            shotIndex === 1 ? -FLANK   :   // hard left
+                               FLANK;      // hard right
+          const angle = baseAngle + aimOffset + (Math.random() - 0.5) * 0.06;
+
+          const pattern: MovementPattern =
+            shotIndex === 0 ? "homing"  :  // front: locks straight onto player
+            shotIndex === 1 ? "wave"    :  // left flank: sine-wave arc inward
+                              "spiral";   // right flank: corkscrew arc inward
+
+          const patternPhase =
+            shotIndex === 0 ? 0                         :
+            shotIndex === 1 ? Math.random() * Math.PI * 2 :
+                              Math.random() * Math.PI * 2;
+
+          // Flank shots travel farther to reach the player so need a speed boost;
+          // the front shot stays snappy.
+          const speed =
+            shotIndex === 0 ? 3.8 :
+            shotIndex === 1 ? 4.8 :   // wave flank — faster to compensate detour
+                              4.6;    // spiral flank
+
+          addDarkOrb({
+            id:           `tri-burst-${Date.now()}-${Math.random()}`,
+            position:     [finalX, finalY, 0.5] as [number, number, number],
+            direction:    [Math.cos(angle), Math.sin(angle), 0] as [number, number, number],
+            speed,
+            size:         0.56,
+            seed:         Math.random(),
+            shape:        "triangle",
+            pattern,
+            patternPhase,
+            isBossOrb:    true,
+            bossType:     "triangle",
+          });
+          triBurstCountRef.current -= 1;
+          triBurstTimerRef.current  = 0.12; // 120 ms between burst shots
+        }
+
+        if (triBurstCountRef.current <= 0 && triBurstCooldownRef.current <= 0) {
+          // Start a fresh burst of 3
+          triBurstCountRef.current    = 3;
+          triBurstTimerRef.current    = 0;
+          triBurstCooldownRef.current = 1.8 + Math.random() * 2.5; // 1.8–4.3 s gap
+        }
+
+        // Suppress generic fireProjectiles for triangle boss
+        attackResult = { timer: localAttackTimerRef.current, burst: attackBurstRef.current };
+      } else {
+        attackResult = fireProjectiles([finalX, finalY, 0], localAttackTimerRef.current, attackBurstRef.current);
+      }
+
       localAttackTimerRef.current = attackResult.timer;
       attackBurstRef.current = attackResult.burst;
+
+      // ── Off-screen ambient spawns — come from any edge, home to player ──────
+      offScreenTimerRef.current -= delta;
+      if (offScreenTimerRef.current <= 0) {
+        const { spawnBossOrb } = useMagicOrb.getState();
+        // Pick a random screen edge (0=left,1=right,2=top,3=bottom)
+        const edge = Math.floor(Math.random() * 4);
+        const W = 16, H = 12; // spawn margin outside visible play area
+        let sx: number, sy: number;
+        if (edge === 0)      { sx = -W; sy = (Math.random() * 2 - 1) * H; }
+        else if (edge === 1) { sx =  W; sy = (Math.random() * 2 - 1) * H; }
+        else if (edge === 2) { sx = (Math.random() * 2 - 1) * W; sy =  H; }
+        else                 { sx = (Math.random() * 2 - 1) * W; sy = -H; }
+        const dx = playerX - sx;
+        const dy = playerY - sy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        spawnBossOrb(
+          [sx, sy, 0.5],
+          dist > 0 ? [dx / dist, dy / dist, 0] : [0, 1, 0],
+          "homing"
+        );
+        // Interval scales with boss projectile count so later bosses feel more intense
+        const baseInterval = 3.5 - config.projectileCount * 0.2;
+        offScreenTimerRef.current = Math.max(1.2, baseInterval) + Math.random() * 1.5;
+      }
 
       const newAngle = localAngle + delta * 0.5;
       localAngleRef.current = newAngle;
@@ -632,6 +884,11 @@ export function Boss() {
       }
 
       meshRef.current.position.set(finalX, finalY, 0);
+
+      // Star boss: hide mesh during brief invisible transit between teleport phases
+      if (bossType === "star") {
+        meshRef.current.visible = starTeleportPhaseRef.current !== 'transiting';
+      }
     }
   });
   
@@ -649,6 +906,24 @@ export function Boss() {
       return (
         <group position={[boss.position[0], boss.position[1], boss.position[2]]}>
           <FireExplosionVFX progress={progress} scale={3.5} />
+        </group>
+      );
+    }
+
+    // Star Boss: HD gold supernova
+    if (bossType === "star") {
+      return (
+        <group position={[boss.position[0], boss.position[1], boss.position[2]]}>
+          <StarSupernovaVFX progress={progress} scale={3.4} />
+        </group>
+      );
+    }
+
+    // Crystal Boss (triangle / level 3.9): rock-crack then explode with chunks
+    if (bossType === "triangle") {
+      return (
+        <group position={[boss.position[0], boss.position[1], boss.position[2]]}>
+          <CrystalCrackExplosionVFX progress={progress} scale={3.2} />
         </group>
       );
     }
@@ -1014,29 +1289,20 @@ export function Boss() {
   
   if (bossType === "star") {
     return (
-      <group ref={meshRef} position={boss.position}>
-
-        <StarBoss radius={1.44} healthPercent={healthPercent} />
-      </group>
+      <>
+        {/* Teleport VFX rendered at world positions — outside the mesh group */}
+        <StarBossTeleportVFX vfxRef={starTeleportVFXRef} scale={1.8} />
+        <group ref={meshRef} position={boss.position}>
+          <StarBoss radius={1.44} healthPercent={healthPercent} />
+        </group>
+      </>
     );
   }
   
   if (bossType === "arrow") {
     return (
       <group ref={meshRef} position={boss.position}>
-
-
-        {renderBaseSphere(0.95, "#4a2a1a", "#8a5a2a", "#ff8844")}
-        {renderDecoration("spikes", 0.95, "#ff6622")}
-        {renderEyes(4, 0.95, "#ffaa44")}
-        <mesh position={[0, bossSize * 0.65, 0.03]} rotation={[0, 0, 0]}>
-          <circleGeometry args={[0.5, 3]} />
-          <meshBasicMaterial color="#ff4400" />
-        </mesh>
-        <mesh position={[0, bossSize * 0.65, 0.04]} rotation={[0, 0, 0]} scale={0.6}>
-          <circleGeometry args={[0.5, 3]} />
-          <meshBasicMaterial color="#ffaa00" />
-        </mesh>
+        <RainbowBoss radius={1.44} healthPercent={healthPercent} />
       </group>
     );
   }
@@ -1062,24 +1328,7 @@ export function Boss() {
   if (bossType === "cube") {
     return (
       <group ref={meshRef} position={boss.position}>
-
-
-        {renderBaseSphere(1.1, "#2a2a4a", "#4a4a8a", "#8888ff")}
-        {renderEyes(2, 1.1, "#aaaaff")}
-        {[0, 1, 2, 3].map((i) => {
-          const angle = (i / 4) * Math.PI * 2 + Math.PI / 4 + time * 0.3;
-          const dist = bossSize * 0.7;
-          return (
-            <mesh key={i} position={[Math.cos(angle) * dist, Math.sin(angle) * dist, 0.02]} scale={0.35} rotation={[0, 0, time + i]}>
-              <planeGeometry args={[1, 1]} />
-              <meshBasicMaterial color="#6666cc" />
-            </mesh>
-          );
-        })}
-        <mesh scale={bossSize * 0.5} position={[0, 0, 0.015]} rotation={[0, 0, time * 0.5]}>
-          <planeGeometry args={[1, 1]} />
-          <meshBasicMaterial color="#4444aa" transparent opacity={0.4} />
-        </mesh>
+        <PlasmaBoss radius={1.44} healthPercent={healthPercent} />
       </group>
     );
   }
@@ -1087,26 +1336,7 @@ export function Boss() {
   if (bossType === "cloud") {
     return (
       <group ref={meshRef} position={boss.position}>
-
-
-        {renderBaseSphere(1.15, "#3a3a4a", "#5a5a6a", "#aaaacc")}
-        {renderEyes(4, 1.15, "#ccccff")}
-        {[-1, 0, 1].map((i) => (
-          <mesh key={i} position={[i * bossSize * 0.35, bossSize * 0.4 + Math.sin(time * 2 + i) * 0.15, -0.02]} scale={0.6 + Math.abs(i) * 0.1}>
-            <circleGeometry args={[1, 20]} />
-            <meshBasicMaterial color="#666688" transparent opacity={0.5} />
-          </mesh>
-        ))}
-        {[0, 1, 2, 3].map((i) => {
-          const x = (i - 1.5) * 0.4;
-          const drop = Math.sin(time * 4 + i * 2) * 0.3;
-          return (
-            <mesh key={i} position={[x, -bossSize * 0.6 - drop, 0.01]} scale={0.15}>
-              <circleGeometry args={[1, 8]} />
-              <meshBasicMaterial color="#aabbff" transparent opacity={0.6} />
-            </mesh>
-          );
-        })}
+        <DiamondBoss radius={1.44} healthPercent={healthPercent} />
       </group>
     );
   }
@@ -1114,22 +1344,7 @@ export function Boss() {
   if (bossType === "tentacle") {
     return (
       <group ref={meshRef} position={boss.position}>
-
-
-        {renderBaseSphere(1.1, "#1a3a3a", "#2a6a6a", "#44ffcc")}
-        {renderDecoration("tentacles", 1.1, "#228888")}
-        {renderEyes(3, 1.1, "#88ffdd", "#003333")}
-        {renderMouth(1, 1.1, "#114444")}
-        {[0, 1, 2].map((i) => {
-          const x = (i - 1) * 0.6;
-          const wobble = Math.sin(time * 5 + i * 2) * 0.1;
-          return (
-            <mesh key={i} position={[x, 0.3 + wobble, 0.025]} scale={0.12}>
-              <circleGeometry args={[1, 8]} />
-              <meshBasicMaterial color="#66ffcc" />
-            </mesh>
-          );
-        })}
+        <MechaBoss radius={1.44} healthPercent={healthPercent} />
       </group>
     );
   }

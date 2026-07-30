@@ -8,6 +8,11 @@ import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 import { MiniFireOrb } from "./MiniFireOrb";
 import { MiniStarOrb } from "./MiniStarOrb";
 import { MiniCrystalOrb } from "./MiniCrystalOrb";
+import { MiniToxicOrb } from "./MiniToxicOrb";
+import { MiniPlasmaOrb } from "./MiniPlasmaOrb";
+import { MiniDiamondOrb } from "./MiniDiamondOrb";
+import { MiniRainbowOrb } from "./MiniRainbowOrb";
+import { MiniMechaOrb } from "./MiniMechaOrb";
 import { addExplosionImpulse } from "./Background";
 
 const DISTORT_FIELD_RADIUS  = 5;
@@ -101,6 +106,57 @@ function BossOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
     return (
       <group position={orb.position} scale={orb.size * pulse}>
         <MiniCrystalOrb />
+        {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
+      </group>
+    );
+  }
+
+  // ── Rainbow boss type: MiniRainbowOrb (level 7.9) ───────────────────────────
+  if (bossType === "arrow") {
+    return (
+      <group position={orb.position} scale={orb.size * pulse}>
+        <MiniRainbowOrb />
+        {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
+      </group>
+    );
+  }
+
+  // ── Diamond boss type: MiniDiamondOrb (level 6.9) ───────────────────────────
+  if (bossType === "cloud") {
+    return (
+      <group position={orb.position} scale={orb.size * pulse}>
+        <MiniDiamondOrb />
+        {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
+      </group>
+    );
+  }
+
+  // ── Plasma boss type: MiniPlasmaOrb (level 5.9) ──────────────────────────────
+  if (bossType === "cube") {
+    return (
+      <group position={orb.position} scale={orb.size * pulse}>
+        <MiniPlasmaOrb />
+        {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
+      </group>
+    );
+  }
+
+  // ── Mecha boss type: MiniMechaOrb (level 8.9) ───────────────────────────────
+  if (bossType === "tentacle") {
+    return (
+      <group position={orb.position} scale={orb.size * pulse}>
+        <pointLight color="#33aaff" intensity={1.8} distance={5} decay={2} />
+        <MiniMechaOrb />
+        {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
+      </group>
+    );
+  }
+
+  // ── Toxic boss type: MiniToxicOrb (level 4.9) ────────────────────────────────
+  if (bossType === "trapezoid") {
+    return (
+      <group position={orb.position} scale={orb.size * pulse}>
+        <MiniToxicOrb />
         {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
       </group>
     );
@@ -626,7 +682,21 @@ export function DarkOrbs() {
       let [x, y, z] = orb.position;
       let [dx, dy, dz] = orb.direction;
       const phase = orb.patternPhase || 0;
-      const speed = orb.frozen ? orb.speed * 0.1 : orb.speed;
+
+      // Lazy-float: ramp speed from lazyMinMult → lazyMaxMult over lazyRampTime seconds.
+      let currentSpeed = orb.speed;
+      let newAge = orb.age;
+      if (orb.lazyFloat && orb.baseSpeed !== undefined) {
+        newAge = (orb.age ?? 0) + delta;
+        const minMult  = orb.lazyMinMult  ?? 0.4;
+        const maxMult  = orb.lazyMaxMult  ?? 2.0;
+        const rampTime = orb.lazyRampTime ?? 12;
+        const t        = Math.min(newAge / rampTime, 1);
+        const smooth   = t * t * (3 - 2 * t); // smooth-step
+        currentSpeed   = orb.baseSpeed * (minMult + (maxMult - minMult) * smooth);
+      }
+
+      const speed = orb.frozen ? currentSpeed * 0.1 : currentSpeed;
       
       const toPX = playerX - x;
       const toPY = playerY - y;
@@ -863,6 +933,7 @@ export function DarkOrbs() {
           position: [x, y, z],
           direction: [dx, dy, dz],
           frozen: inDistortField,
+          ...(orb.lazyFloat ? { speed: currentSpeed, age: newAge } : {}),
           ...(newHurtTimer > 0 ? { hurtTimer: newHurtTimer } : {}),
         });
       }

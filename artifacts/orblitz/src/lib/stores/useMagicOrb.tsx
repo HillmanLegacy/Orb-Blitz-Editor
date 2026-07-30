@@ -27,6 +27,18 @@ export interface DarkOrb {
   bossType?: BossType;
   bossDefeatColor?: BossType;
   hurtTimer?: number;
+  /** Base speed used as ramp reference for lazy-float boss orbs */
+  baseSpeed?: number;
+  /** Age in seconds; used to ramp lazy-float orb speed over time */
+  age?: number;
+  /** When true, speed ramps from lazyMinMult → lazyMaxMult over lazyRampTime seconds */
+  lazyFloat?: boolean;
+  /** Speed multiplier at spawn (default 0.4) */
+  lazyMinMult?: number;
+  /** Speed multiplier cap (default 2.0) */
+  lazyMaxMult?: number;
+  /** Ramp duration in seconds (default 12) */
+  lazyRampTime?: number;
 }
 
 export type BossType = "bird" | "star" | "arrow" | "triangle" | "trapezoid" | "cube" | "cloud" | "circle" | "tentacle" | "monster";
@@ -1041,7 +1053,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     },
     
     spawnBossOrb: (position, direction, pattern = "direct") => {
-      const { arcadeLevel, boss } = get();
+      const { arcadeLevel, boss, darkOrbs } = get();
       const worldLevel = Math.floor(arcadeLevel);
       const worldShapes: Record<number, OrbShape> = {
         1: "circle", 2: "star", 3: "triangle", 4: "trapezoid", 5: "cube",
@@ -1057,12 +1069,36 @@ export const useMagicOrb = create<MagicOrbState>()(
       const speedScale = 1 + (worldLevel - 1) * 0.15;
       const baseSpeed = 2.5 * speedScale;
       const sizeScale = 0.5 + (worldLevel - 1) * 0.03;
+
+      // Prevent stacking: skip spawn if an existing boss orb is within minDist
+      const minDist = 1.2;
+      const tooClose = darkOrbs.some(o => {
+        if (!o.isBossOrb || o.destroying) return false;
+        const dx = o.position[0] - position[0];
+        const dy = o.position[1] - position[1];
+        return Math.sqrt(dx * dx + dy * dy) < minDist;
+      });
+      if (tooClose) return;
       
+      // World 1 & 2 boss orbs float lazily toward the player, accelerating over time.
+      // World 2 starts slightly faster and reaches a higher cap.
+      const isLazyFloat   = worldLevel <= 2;
+      const lazyMinMult   = worldLevel === 1 ? 0.4  : 0.6;  // init multiplier
+      const lazyMaxMult   = worldLevel === 1 ? 2.0  : 2.2;  // speed cap
+      const lazyRampTime  = worldLevel === 1 ? 12   : 10;   // ramp duration (s)
+      const initialSpeed  = isLazyFloat ? baseSpeed * lazyMinMult : baseSpeed;
+
       const orb: DarkOrb = {
         id: `boss-orb-${Date.now()}-${Math.random()}`,
         position: [position[0], position[1], 0.5] as [number, number, number],
         direction,
-        speed: baseSpeed,
+        speed: initialSpeed,
+        baseSpeed,
+        age: 0,
+        lazyFloat: isLazyFloat,
+        lazyMinMult,
+        lazyMaxMult,
+        lazyRampTime,
         size: sizeScale,
         seed: Math.random(),
         shape,

@@ -1199,7 +1199,7 @@ export function createGameplayMusicNode(targetVol = 0.2): SynthMusicNode {
     if (rev()) mgain.connect(rev()!);
 
     let running = true;
-    let active  = true;
+    let active  = false;
 
     const BPM  = 135;
     const STEP = 60 / BPM / 2; // eighth note ≈ 0.222 s
@@ -1387,7 +1387,7 @@ export function createMenuMusicNode(targetVol = 0.2): SynthMusicNode {
     if (rev()) mgain.connect(rev()!);
 
     let running = true;
-    let active  = true;
+    let active  = false;
 
     const BPM  = 128;
     const STEP = 60 / BPM / 2; // eighth note ≈ 0.234 s
@@ -1587,7 +1587,7 @@ export function createBossMusicNode(targetVol = 0.18): SynthMusicNode {
     if (rev()) mgain.connect(rev()!);
 
     let running   = true;
-    let active    = true;
+    let active    = false;
     let intensity = 0.5;
 
     const BPM  = 148;
@@ -1778,3 +1778,8 @@ export function createBossMusicNode(targetVol = 0.18): SynthMusicNode {
 // ── Legacy aliases (kept for backward compat with useAudio.tsx) ───────────────
 
 export { _makeNoiseBuf as createNoiseBuffer };
+
+/** Set the master output volume (0–1). Safe to call before any audio is initialised. */
+export function setMasterVolume(v: number): void {
+  if (_masterGain) _masterGain.gain.value = Math.max(0, Math.min(1, v)) * 0.85;
+}
