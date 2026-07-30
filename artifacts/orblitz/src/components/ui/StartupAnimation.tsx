@@ -117,7 +117,7 @@ export function StartupAnimation({
   const [highestLevel, setHighestLevel] = useState(1.1);
   const [pressedBtn, setPressedBtn]   = useState<string | null>(null);
 
-  const { playOrbWhoosh, playOrbConverge, playTitleReveal, playLevelSelect, playTapToStart, isMuted, toggleMute, brightness, setBrightness } = useAudio();
+  const { playOrbWhoosh, playOrbConverge, playTitleReveal, playLevelSelect, playTapToStart, isMuted, toggleMute, volume, setVolume, brightness, setBrightness, startMenuBgm, stopMenuBgm } = useAudio();
   const { openShop, openInventory, activateDevMode, coins: shopStars, devMode } = useShop();
   const { setGameMode, startLoading } = useMagicOrb();
 
@@ -128,12 +128,12 @@ export function StartupAnimation({
 
   // Intro sequence
   useEffect(() => {
-    if (skipIntro) { onMenuReady?.(); return; }
+    if (skipIntro) { onMenuReady?.(); try { startMenuBgm(); } catch {} return; }
     const t0 = setTimeout(() => { setAnimPhase("flying");   try { playOrbWhoosh();   } catch {} }, 150);
     const t1 = setTimeout(() => { setAnimPhase("converge"); try { playOrbConverge(); } catch {} }, 2700);
     const t2 = setTimeout(() => { setAnimPhase("flash"); },                                        3250);
     const t3 = setTimeout(() => { setAnimPhase("title");    try { playTitleReveal(); } catch {} }, 3600);
-    const t4 = setTimeout(() => { setAnimPhase("waiting"); },                                      5100);
+    const t4 = setTimeout(() => { setAnimPhase("waiting"); try { startMenuBgm(); } catch {} },     5100);
     return () => [t0,t1,t2,t3,t4].forEach(clearTimeout);
   }, []);
 
@@ -156,11 +156,12 @@ export function StartupAnimation({
 
   const handleStartMode = useCallback((mode: string) => {
     btn(mode);
+    try { stopMenuBgm(); } catch {}
     useOrbTransition.getState().loadingSweep(() => {
       setGameMode(mode as any);
       startLoading("entering");
     });
-  }, [btn, setGameMode, startLoading]);
+  }, [btn, setGameMode, startLoading, stopMenuBgm]);
 
   const isLevelUnlocked = (level: number) => devMode || level <= highestLevel + 0.01;
   const isBossLevel     = (level: number) => Math.round((level % 1) * 10) === 9;
@@ -248,7 +249,7 @@ export function StartupAnimation({
             const bc = boss ? "#ff4444" : wc;
             return (
               <motion.button key={sub}
-                onClick={() => { if (unlocked) { btn(`l${level}`); useOrbTransition.getState().loadingSweep(() => { setGameMode("arcade"); startLoading("nextLevel", level); }); } }}
+                onClick={() => { if (unlocked) { btn(`l${level}`); try { stopMenuBgm(); } catch {} useOrbTransition.getState().loadingSweep(() => { setGameMode("arcade"); startLoading("nextLevel", level); }); } }}
                 disabled={!unlocked}
                 className="relative flex flex-col items-center justify-center rounded-2xl font-bold"
                 style={{

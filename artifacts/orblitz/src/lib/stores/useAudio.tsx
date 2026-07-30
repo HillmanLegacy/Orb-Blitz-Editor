@@ -49,6 +49,34 @@ const TARGET_MENU_VOLUME = 0.2;
 
 let gameMusicFadeInterval: number | null = null;
 let menuMusicFadeInterval: number | null = null;
+let menuBgmFadeInterval: number | null = null;
+
+const fadeMenuBgm = (
+  audio: HTMLAudioElement,
+  from: number,
+  to: number,
+  duration: number,
+  onComplete?: () => void,
+) => {
+  if (menuBgmFadeInterval) { clearInterval(menuBgmFadeInterval); menuBgmFadeInterval = null; }
+  const steps = 40;
+  const stepDuration = duration / steps;
+  let step = 0;
+  audio.volume = Math.max(0, Math.min(1, from));
+  menuBgmFadeInterval = window.setInterval(() => {
+    step++;
+    const t = step / steps;
+    const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // ease-in-out quad
+    audio.volume = Math.max(0, Math.min(1, from + (to - from) * eased));
+    if (step >= steps) {
+      clearInterval(menuBgmFadeInterval!);
+      menuBgmFadeInterval = null;
+      audio.volume = Math.max(0, Math.min(1, to));
+      if (to === 0) { audio.pause(); audio.currentTime = 0; }
+      onComplete?.();
+    }
+  }, stepDuration);
+};
 
 const fadeAudio = (
   audio: HTMLAudioElement,
@@ -151,6 +179,10 @@ interface AudioState {
   startGameMusic: () => void;
   startBossMusic: () => void;
   stopMusic: () => void;
+
+  menuBgm: HTMLAudioElement | null;
+  startMenuBgm: () => void;
+  stopMenuBgm: () => void;
 }
 
 export const useAudio = create<AudioState>((set, get) => ({
@@ -159,6 +191,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   synthMenuMusic: null,
   synthGameMusic: null,
   synthBossMusic: null,
+  menuBgm: null,
   isMuted: false,
   volume: (() => { try { const v = parseFloat(localStorage.getItem("orb_volume") ?? "1"); return isFinite(v) ? Math.min(1, Math.max(0, v)) : 1; } catch { return 1; } })(),
   brightness: (() => { try { const v = parseFloat(localStorage.getItem("orb_brightness") ?? "1"); return isFinite(v) ? Math.min(2, Math.max(0.2, v)) : 1; } catch { return 1; } })(),
@@ -265,6 +298,30 @@ export const useAudio = create<AudioState>((set, get) => ({
     synthGameMusic?.fadeOut();
     synthBossMusic?.fadeOut();
     set({ currentMusicType: null });
+  },
+
+  startMenuBgm: () => {
+    const { isMuted, volume } = get();
+    if (isMuted) return;
+    let audio = get().menuBgm;
+    if (!audio) {
+      audio = new Audio("/audio/chipper_doodle.mp3");
+      audio.loop = true;
+      audio.volume = 0;
+      set({ menuBgm: audio });
+    }
+    // Reset and play from start each time the menu is entered
+    audio.currentTime = 0;
+    audio.volume = 0;
+    audio.play().catch(() => {});
+    const targetVol = Math.min(1, 0.65 * volume);
+    fadeMenuBgm(audio, 0, targetVol, 1800);
+  },
+
+  stopMenuBgm: () => {
+    const audio = get().menuBgm;
+    if (!audio || audio.paused) return;
+    fadeMenuBgm(audio, audio.volume, 0, 900);
   },
   
   playHit: () => {
