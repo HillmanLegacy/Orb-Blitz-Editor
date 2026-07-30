@@ -102,6 +102,7 @@ export interface Projectile {
   volleyId?: string;
   createdAt?: number;
   noMissTracking?: boolean;
+  speed?: number;
 }
 
 export interface PowerUp {
@@ -233,7 +234,7 @@ interface MagicOrbState {
   incrementOrbsDestroyed: () => void;
   
   updateBoss: (boss: Boss | null) => void;
-  damageBoss: () => boolean;
+  damageBoss: (damage?: number) => boolean;
   spawnBossOrb: (position: [number, number, number], direction: [number, number, number], pattern?: MovementPattern) => void;
   endGame: () => void;
   returnToMenu: () => void;
@@ -1023,13 +1024,13 @@ export const useMagicOrb = create<MagicOrbState>()(
     
     updateBoss: (boss) => set({ boss }),
     
-    damageBoss: () => {
+    damageBoss: (damage?: number) => {
       const { boss, gameMode, hasChargeBeam, arcadeTotalOrbs, darkOrbs, arcadeLevel } = get();
       if (!boss || boss.destroying) return false;
       if (boss.bossType === "star" && !boss.visible) return false;
       
-      const damage = hasChargeBeam ? 2 : 1;
-      const newHealth = boss.health - damage;
+      const actualDamage = damage ?? (hasChargeBeam ? 2 : 1);
+      const newHealth = boss.health - actualDamage;
       if (newHealth <= 0) {
         const isBossLevel = Math.floor(arcadeLevel * 10) % 10 === 9;
         const defeatedOrbs = isBossLevel ? darkOrbs.map(o => ({

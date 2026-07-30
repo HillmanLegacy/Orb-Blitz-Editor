@@ -446,7 +446,7 @@ export function GameLogic() {
       addProjectileRef.current(projectile);
     } else if (hasOverchargedBlasterRef.current) {
       const now = Date.now();
-      if (now - lastOverchargedFire.current < 500) {
+      if (now - lastOverchargedFire.current < 1500) {
         return;
       }
       lastOverchargedFire.current = now;
@@ -456,10 +456,10 @@ export function GameLogic() {
         position: [...projectileOrigin] as [number, number, number],
         direction: [targetDirX, targetDirY, targetDirZ],
         isCharged: true,
-        size: 0.4,
+        size: 1.0,
         type: "overcharged",
-        hitCount: 3,
         piercing: true,
+        speed: 5.0,
         volleyId: `volley-${now}-overcharged`,
       };
       addProjectileRef.current(projectile);

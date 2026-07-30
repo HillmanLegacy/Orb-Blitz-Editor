@@ -548,9 +548,10 @@ export function Projectiles() {
         dy = Math.sin(newSpiralAngle);
       }
       
-      px += dx * projectileSpeed * delta;
-      py += dy * projectileSpeed * delta;
-      pz += dz * projectileSpeed * delta;
+      const effSpeed = proj.speed ?? projectileSpeed;
+      px += dx * effSpeed * delta;
+      py += dy * effSpeed * delta;
+      pz += dz * effSpeed * delta;
       
       const screenBoundary = 13;
       if (Math.abs(px) > screenBoundary || Math.abs(py) > screenBoundary) {
@@ -590,9 +591,13 @@ export function Projectiles() {
         const bossHitRadius = 1.65;
         
         if (dist < bossHitRadius && !spiralBossHit.current.has(proj.id)) {
+          const isOvercharged = proj.type === "overcharged";
           const isSpiralPiercing = proj.type === "spiral" && proj.hitCount !== undefined && proj.hitCount > 1;
 
-          if (!isSpiralPiercing) {
+          if (isOvercharged) {
+            // Overcharged passes through the boss — track so it only hits once per pass
+            spiralBossHit.current.add(proj.id);
+          } else if (!isSpiralPiercing) {
             hitSomething = true;
           } else {
             // Spiral braid loses one strand, keeps flying
@@ -606,7 +611,7 @@ export function Projectiles() {
           if (proj.volleyId) {
             volleyHits.current.add(proj.volleyId);
           }
-          const bossKilled = damageBoss();
+          const bossKilled = damageBoss(isOvercharged ? 5 : undefined);
           addScore(25);
           playHit();
           
@@ -692,7 +697,12 @@ export function Projectiles() {
             volleyHits.current.add(proj.volleyId);
           }
           
-          if (proj.piercing && proj.hitCount && proj.hitCount > 1) {
+          if (proj.type === "overcharged") {
+            // Unlimited pierce — destroy orb, keep flying
+            const projHits = projectileOrbHits.current.get(proj.id) || new Set();
+            projHits.add(orb.id);
+            projectileOrbHits.current.set(proj.id, projHits);
+          } else if (proj.piercing && proj.hitCount && proj.hitCount > 1) {
             proj.hitCount--;
             const projHits = projectileOrbHits.current.get(proj.id) || new Set();
             projHits.add(orb.id);
