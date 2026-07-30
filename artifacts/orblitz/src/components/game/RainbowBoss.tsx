@@ -129,58 +129,66 @@ function RainbowAuraShell({ radius }: { radius: number }) {
 
 function fract(x: number) { return x - Math.floor(x); }
 
-// ── Rainbow light particles ────────────────────────────────────────────────────
-// Instanced glowing orbs that spawn on the boss surface, drift outward through
-// the full spectrum, then fade and respawn — like coloured light embers.
+// ── Rainbow swirl particles ────────────────────────────────────────────────────
+// Each particle orbits the boss in a tilted circular plane, creating a dense
+// chromatic swirl cloud. Orbit axes are spread across 3-D so the swirl wraps
+// the boss from every angle.
 
-const PARTICLE_COUNT = 90;
+const PARTICLE_COUNT = 120;
 
-interface Particle {
-  dir:       THREE.Vector3; // fixed radial direction from centre
-  dist:      number;        // current distance from centre
-  speed:     number;        // outward speed
-  maxDist:   number;        // distance at which it fades out and resets
-  life:      number;        // 0–maxLife countdown
-  maxLife:   number;
-  hueOffset: number;        // 0–1 position in the rainbow, fixed per particle
+// Reusable scratch vectors — allocated once, reused every frame.
+const _u   = new THREE.Vector3();
+const _v   = new THREE.Vector3();
+const _pos = new THREE.Vector3();
+const _up  = new THREE.Vector3(0, 1, 0);
+const _alt = new THREE.Vector3(1, 0, 0);
+
+interface SwirlParticle {
+  axis:      THREE.Vector3; // orbit axis (normalised)
+  u:         THREE.Vector3; // orbit plane tangent 1
+  v:         THREE.Vector3; // orbit plane tangent 2
+  angle:     number;        // current angle on orbit (radians)
+  speed:     number;        // rad / s  (sign gives CW / CCW)
+  orbitR:    number;        // orbit radius
+  hueOffset: number;        // 0–1 base hue
   size:      number;
-  // lateral wobble
-  wobbleAxis:  THREE.Vector3;
-  wobbleSpeed: number;
-  wobbleAmt:   number;
 }
 
-function makeParticle(index: number, total: number, radius: number): Particle {
-  // Spread evenly around the sphere using golden angle for uniform coverage
+function makeSwirlParticle(index: number, total: number, radius: number): SwirlParticle {
+  // Distribute orbit axes evenly using golden angle on a sphere
   const golden = Math.PI * (3 - Math.sqrt(5));
   const y      = 1 - (index / (total - 1)) * 2;
-  const r      = Math.sqrt(1 - y * y);
+  const r      = Math.sqrt(Math.max(0, 1 - y * y));
   const theta  = golden * index;
-  const dir    = new THREE.Vector3(r * Math.cos(theta), y, r * Math.sin(theta)).normalize();
-  const maxLife = 1.2 + Math.random() * 1.6;
+  const axis   = new THREE.Vector3(r * Math.cos(theta), y, r * Math.sin(theta)).normalize();
+
+  // Build two orthogonal vectors in the orbit plane
+  const ref = Math.abs(axis.dot(_up)) < 0.9 ? _up : _alt;
+  const u   = new THREE.Vector3().crossVectors(ref, axis).normalize();
+  const v   = new THREE.Vector3().crossVectors(axis, u).normalize();
+
+  // Orbit radius: tightly clustered just outside the boss surface
+  const orbitR = radius * (1.05 + Math.random() * 0.65);
+
+  // Alternate CW / CCW for a tangled-swirl look
+  const speed = (0.8 + Math.random() * 1.6) * (index % 2 === 0 ? 1 : -1);
+
   return {
-    dir,
-    dist:        radius * (0.95 + Math.random() * 0.15), // near surface
-    speed:       0.5 + Math.random() * 1.0,
-    maxDist:     radius + 0.8 + Math.random() * 1.4,
-    life:        Math.random() * maxLife,                 // stagger start
-    maxLife,
-    hueOffset:   index / total,                          // evenly spaced hues
-    size:        0.04 + Math.random() * 0.08,
-    wobbleAxis:  new THREE.Vector3(
-      Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5
-    ).normalize(),
-    wobbleSpeed: 1.5 + Math.random() * 2.5,
-    wobbleAmt:   0.05 + Math.random() * 0.10,
+    axis, u, v,
+    angle:     Math.random() * Math.PI * 2,
+    speed,
+    orbitR,
+    hueOffset: index / total,
+    size:      0.05 + Math.random() * 0.09,
   };
 }
 
 function RainbowParticles({ radius }: { radius: number }) {
-  const meshRef  = useRef<THREE.InstancedMesh>(null);
-  const dummy    = useMemo(() => new THREE.Object3D(), []);
-  const colRef   = useRef(new THREE.Color());
-  const particles = useRef<Particle[]>(
-    Array.from({ length: PARTICLE_COUNT }, (_, i) => makeParticle(i, PARTICLE_COUNT, radius))
+  const meshRef   = useRef<THREE.InstancedMesh>(null);
+  const dummy     = useMemo(() => new THREE.Object3D(), []);
+  const colRef    = useRef(new THREE.Color());
+  const particles = useRef<SwirlParticle[]>(
+    Array.from({ length: PARTICLE_COUNT }, (_, i) => makeSwirlParticle(i, PARTICLE_COUNT, radius))
   );
 
   useFrame((state, delta) => {
@@ -188,41 +196,24 @@ function RainbowParticles({ radius }: { radius: number }) {
     const t = state.clock.getElapsedTime();
 
     particles.current.forEach((p, i) => {
-      // Age
-      p.life -= delta;
-      if (p.life <= 0) {
-        // Respawn at surface
-        const fresh = makeParticle(i, PARTICLE_COUNT, radius);
-        fresh.life  = fresh.maxLife; // start fresh
-        particles.current[i] = fresh;
-        return;
-      }
+      // Advance orbit angle
+      p.angle += p.speed * delta;
 
-      // Move outward
-      p.dist += p.speed * delta;
+      // World position on the orbit circle
+      _u.copy(p.u).multiplyScalar(Math.cos(p.angle) * p.orbitR);
+      _v.copy(p.v).multiplyScalar(Math.sin(p.angle) * p.orbitR);
+      _pos.addVectors(_u, _v);
 
-      // Fade: in over first 20%, out over last 20%
-      const lifeRatio = p.life / p.maxLife;
-      const fadeIn    = Math.min(1, (1 - lifeRatio) / 0.20);
-      const fadeOut   = Math.min(1, lifeRatio / 0.20);
-      const fade      = Math.min(fadeIn, fadeOut);
-
-      // Position: radial + wobble
-      const wAngle = t * p.wobbleSpeed;
-      const wOff   = p.wobbleAxis.clone()
-        .multiplyScalar(Math.sin(wAngle) * p.wobbleAmt * p.dist);
-      const pos = p.dir.clone().multiplyScalar(p.dist).add(wOff);
-
-      const sz = p.size * fade * (0.8 + Math.sin(t * 3 + i) * 0.2);
-      dummy.position.copy(pos);
+      // Gentle size pulse
+      const sz = p.size * (0.75 + Math.sin(t * 2.5 + i) * 0.25);
+      dummy.position.copy(_pos);
       dummy.scale.setScalar(sz);
       dummy.updateMatrix();
       meshRef.current!.setMatrixAt(i, dummy.matrix);
 
-      // Hue: fixed position in spectrum, slowly cycling + fade-driven brightness
-      const hue  = fract(p.hueOffset + t * 0.10);
-      const lum  = 0.55 + fade * 0.35;
-      colRef.current.setHSL(hue, 1.0, lum);
+      // Hue cycles slowly around the spectrum
+      const hue = fract(p.hueOffset + t * 0.12);
+      colRef.current.setHSL(hue, 1.0, 0.65);
       meshRef.current!.setColorAt(i, colRef.current);
     });
 
