@@ -310,7 +310,9 @@ export const useAudio = create<AudioState>((set, get) => ({
       audio.volume = 0;
       set({ menuBgm: audio });
     }
-    // Reset and play from start each time the menu is entered
+    // Already playing — don't restart or re-fade
+    if (!audio.paused) return;
+    // Reset and play from start each time the menu is freshly entered
     audio.currentTime = 0;
     audio.volume = 0;
     audio.play().catch(() => {});
