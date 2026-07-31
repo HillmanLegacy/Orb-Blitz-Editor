@@ -512,13 +512,21 @@ function HealAura({ scale, healAnimTimer }: { scale: number; healAnimTimer: numb
 // ── Charge Gather Aura — energy streams inward → crescendos into ChargeBeamAura
 const _GATHER_DUR  = 1.4;
 const _GATHER_N    = 24;
-const _gatherGeo   = new THREE.SphereGeometry(1, 5, 4);
-const _gatherDummy = new THREE.Object3D();
-const _gatherColor = new THREE.Color();
-const _gatherPal   = [
-  new THREE.Color("#aa00ff"),
-  new THREE.Color("#ff00ff"),
-  new THREE.Color("#ffffff"),
+const _gatherGeo       = new THREE.SphereGeometry(1, 5, 4);
+const _gatherDummy     = new THREE.Object3D();
+const _gatherColor     = new THREE.Color();
+const _gatherColorB    = new THREE.Color();
+// Start palette: matches the yellow charge-beam power-up icon
+const _gatherPalStart  = [
+  new THREE.Color("#ffdd00"), // bright yellow
+  new THREE.Color("#ffaa00"), // amber-gold
+  new THREE.Color("#ffffff"), // white flash
+];
+// End palette: the ChargeBeamAura violet/magenta so the transition is seamless
+const _gatherPalEnd    = [
+  new THREE.Color("#bb00ff"), // deep violet
+  new THREE.Color("#ff44ff"), // hot magenta
+  new THREE.Color("#ffffff"), // white flash
 ];
 
 interface _GatherParticle { orbitSpeed: number; phase: number; axisX: number; axisY: number; size: number; colorT: number }
@@ -550,9 +558,9 @@ function ChargeGatherAura({ scale, chargeGatherTimer }: { scale: number; chargeG
     const maxRadius = scale * 2.8;
     const curRadius = maxRadius * (1 - ease);
 
-    // Alpha: ramp up fast, hold, then fade as particles converge
+    // Alpha: ramp up fast, hold, then fade as particles fully converge
     const rampUp   = Math.min(1, progress / 0.18);
-    const rampDown = progress > 0.75 ? Math.max(0, 1 - (progress - 0.75) / 0.25) : 1;
+    const rampDown = progress > 0.82 ? Math.max(0, 1 - (progress - 0.82) / 0.18) : 1;
     mat.opacity    = rampUp * rampDown * 0.92;
 
     const im = meshRef.current;
@@ -571,18 +579,28 @@ function ChargeGatherAura({ scale, chargeGatherTimer }: { scale: number; chargeG
       _gatherDummy.updateMatrix();
       im.setMatrixAt(i, _gatherDummy.matrix);
 
-      const ct = ((p.colorT + t * 0.12) % 1 + 1) % 1;
-      if (ct < 0.5) _gatherColor.lerpColors(_gatherPal[0], _gatherPal[1], ct * 2);
-      else           _gatherColor.lerpColors(_gatherPal[1], _gatherPal[2], (ct - 0.5) * 2);
+      // Color-shift: yellow at progress=0 → violet at progress=1 for a seamless
+      // blend into the ChargeBeamAura that fades in at the end of the gather.
+      const ct         = ((p.colorT + t * 0.12) % 1 + 1) % 1;
+      const colorShift = Math.max(0, (progress - 0.35) / 0.65); // 0 until 35%, 1 at 100%
+      if (ct < 0.5) {
+        _gatherColor.lerpColors(_gatherPalStart[0], _gatherPalStart[1], ct * 2);
+        _gatherColorB.lerpColors(_gatherPalEnd[0],  _gatherPalEnd[1],   ct * 2);
+      } else {
+        _gatherColor.lerpColors(_gatherPalStart[1], _gatherPalStart[2], (ct - 0.5) * 2);
+        _gatherColorB.lerpColors(_gatherPalEnd[1],  _gatherPalEnd[2],   (ct - 0.5) * 2);
+      }
+      _gatherColor.lerp(_gatherColorB, colorShift);
       im.setColorAt(i, _gatherColor);
     }
     im.instanceMatrix.needsUpdate = true;
     if (im.instanceColor) im.instanceColor.needsUpdate = true;
   });
 
-  // Fade in the ChargeBeamAura during the final 30% of the gather
+  // Fade in the ChargeBeamAura during the final 45% of the gather so the
+  // violet aura is already partially visible when yellow→violet shift completes.
   const progress = Math.max(0, 1 - chargeGatherTimer / _GATHER_DUR);
-  const auraFade = Math.max(0, (progress - 0.70) / 0.30);
+  const auraFade = Math.max(0, (progress - 0.55) / 0.45);
 
   return (
     <group>
