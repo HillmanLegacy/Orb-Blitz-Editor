@@ -362,6 +362,10 @@ interface MagicOrbState {
   /** Incremented each time the scattershot fires; carries fire direction */
   scatterFireSignal: { count: number; dirX: number; dirY: number };
   triggerScatterFire: (dirX: number, dirY: number) => void;
+
+  /** Incremented each time the homing blaster fires; carries fire direction */
+  homingFireSignal: { count: number; dirX: number; dirY: number };
+  triggerHomingFire: (dirX: number, dirY: number) => void;
   
   // Magi-Orb actions
   activateMagiOrb2: () => void;
@@ -539,6 +543,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     rapidBlasterFireSignal: { count: 0, dirX: 0, dirY: 0 },
     spiralBlasterFireSignal: { count: 0, dirX: 0, dirY: 0 },
     scatterFireSignal: { count: 0, dirX: 0, dirY: 0 },
+    homingFireSignal:  { count: 0, dirX: 0, dirY: 0 },
     
     setPhase: (phase) => set({ phase }),
     setGameMode: (mode) => set({ gameMode: mode }),
@@ -1650,6 +1655,9 @@ export const useMagicOrb = create<MagicOrbState>()(
     })),
     triggerScatterFire: (dirX, dirY) => set(s => ({
       scatterFireSignal: { count: s.scatterFireSignal.count + 1, dirX, dirY },
+    })),
+    triggerHomingFire: (dirX, dirY) => set(s => ({
+      homingFireSignal: { count: s.homingFireSignal.count + 1, dirX, dirY },
     })),
     
     updateBackgroundEffects: (delta) => {

@@ -557,6 +557,176 @@ function RapidBlasterProjectileMesh({
   );
 }
 
+// ── Orbital Homing Blaster — swirling trail + lock-on ring flash ──────────────
+const _HM_TRAIL_N  = 20;
+const _HM_TRAIL_HW = 0.068;
+const _HM_HEAD_C   = new THREE.Color("#44ffee");
+const _HM_TAIL_C   = new THREE.Color("#0066ff");
+
+const _hmCoreGeo = new THREE.SphereGeometry(1, 8, 6);
+const _hmCoreMat = new THREE.MeshBasicMaterial({
+  color: "#aaffff", transparent: true, opacity: 0.95,
+  depthWrite: false, blending: THREE.AdditiveBlending,
+});
+
+// Lock-on ring: 270° arc torus
+const _hmRingGeo  = new THREE.TorusGeometry(1, 0.09, 6, 32, Math.PI * 1.5);
+const _hmRingGeo2 = new THREE.TorusGeometry(1, 0.05, 5, 24, Math.PI * 1.5);
+
+function HomingLockRing({
+  position, dirX, dirY,
+}: {
+  position: [number, number, number]; dirX: number; dirY: number;
+}) {
+  const ring1Ref = useRef<THREE.Mesh>(null);
+  const ring2Ref = useRef<THREE.Mesh>(null);
+  const timerRef = useRef(0);
+  const DUR = 0.30;
+  const angle = Math.atan2(dirY, dirX);
+
+  useFrame((_, delta) => {
+    timerRef.current = Math.min(timerRef.current + delta, DUR);
+    const t  = timerRef.current / DUR;
+    const t2 = easeOutQuad(t);
+    const scl = 0.5 + t2 * 1.8;
+    const op  = (1 - t) * 0.85;
+    if (ring1Ref.current) {
+      ring1Ref.current.scale.setScalar(scl);
+      ring1Ref.current.rotation.z = angle + t * Math.PI * 0.5;
+      (ring1Ref.current.material as THREE.MeshBasicMaterial).opacity = op;
+    }
+    if (ring2Ref.current) {
+      ring2Ref.current.scale.setScalar(scl * 0.65);
+      ring2Ref.current.rotation.z = angle - t * Math.PI * 0.5;
+      (ring2Ref.current.material as THREE.MeshBasicMaterial).opacity = op * 0.55;
+    }
+  });
+
+  return (
+    <group position={position}>
+      <mesh ref={ring1Ref} geometry={_hmRingGeo}>
+        <meshBasicMaterial color="#44ffee" transparent opacity={0}
+          depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+      <mesh ref={ring2Ref} geometry={_hmRingGeo2}>
+        <meshBasicMaterial color="#ffffff" transparent opacity={0}
+          depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+    </group>
+  );
+}
+
+function HomingProjectileMesh({ projectile }: { projectile: Projectile }) {
+  const bornRef     = useRef<number | null>(null);
+  const flashRef    = useRef<THREE.Mesh>(null);
+  const flashMatRef = useRef(new THREE.MeshBasicMaterial({
+    color: "#88ffff", transparent: true, opacity: 0,
+    depthWrite: false, blending: THREE.AdditiveBlending,
+  }));
+
+  const ribbonGeo = useMemo(() => {
+    const geo  = new THREE.BufferGeometry();
+    const N    = _HM_TRAIL_N;
+    const pArr = new Float32Array(N * 2 * 3);
+    const cArr = new Float32Array(N * 2 * 4);
+    const idx: number[] = [];
+    for (let i = 0; i < N - 1; i++) {
+      const b = i * 2; idx.push(b, b+2, b+1, b+1, b+2, b+3);
+    }
+    geo.setIndex(idx);
+    geo.setAttribute("position", new THREE.BufferAttribute(pArr, 3));
+    geo.setAttribute("color",    new THREE.BufferAttribute(cArr, 4));
+    geo.setDrawRange(0, 0);
+    return geo;
+  }, []);
+
+  const ribbonMat = useMemo(() => new THREE.MeshBasicMaterial({
+    vertexColors: true, transparent: true,
+    depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  }), []);
+
+  useEffect(() => () => {
+    ribbonGeo.dispose(); ribbonMat.dispose(); flashMatRef.current.dispose();
+  }, [ribbonGeo, ribbonMat]);
+
+  const posHistRef = useRef(new Float32Array(_HM_TRAIL_N * 3));
+  const histLenRef = useRef(0);
+  const projRef    = useRef(projectile);
+  projRef.current  = projectile;
+
+  useFrame(({ clock }) => {
+    const proj   = projRef.current;
+    const [wx, wy, wz] = proj.position;
+    if (bornRef.current === null) bornRef.current = clock.getElapsedTime();
+    const age = clock.getElapsedTime() - bornRef.current;
+
+    // Birth flash (0.08 s)
+    if (flashRef.current) {
+      const FLASH_DUR = 0.08;
+      const op = age < FLASH_DUR ? (1 - age / FLASH_DUR) * 0.88 : 0;
+      flashMatRef.current.opacity = op;
+      flashRef.current.scale.setScalar(0.34 + (1 - (op / 0.88)) * 0.12);
+    }
+
+    // Swirling ribbon — stores position history, adds sine wiggle perpendicular to travel
+    const N   = _HM_TRAIL_N;
+    const len = Math.min(histLenRef.current + 1, N);
+    histLenRef.current = len;
+    const hist = posHistRef.current;
+    for (let i = len - 1; i > 0; i--) {
+      hist[i*3] = hist[(i-1)*3]; hist[i*3+1] = hist[(i-1)*3+1]; hist[i*3+2] = hist[(i-1)*3+2];
+    }
+    hist[0] = wx; hist[1] = wy; hist[2] = wz;
+    if (len < 2) return;
+
+    const [fdx, fdy] = proj.direction;
+    const fl  = Math.sqrt(fdx*fdx + fdy*fdy) || 1;
+    const px_ = -fdy / fl, py_ = fdx / fl; // perpendicular
+
+    const pAttr = ribbonGeo.getAttribute("position") as THREE.BufferAttribute;
+    const cAttr = ribbonGeo.getAttribute("color")    as THREE.BufferAttribute;
+    const pA    = pAttr.array as Float32Array;
+    const cA    = cAttr.array as Float32Array;
+
+    for (let i = 0; i < len; i++) {
+      const t    = i / (len - 1);
+      // Swirl: sine wave that oscillates as projectile curves — dynamic flex effect
+      const swirl = Math.sin(age * 8 - t * Math.PI * 2.5) * 0.09 * (1 - t);
+      const hw    = _HM_TRAIL_HW * (1 - t * 0.80);
+      const rx    = hist[i*3]   - wx + px_ * swirl;
+      const ry    = hist[i*3+1] - wy + py_ * swirl;
+      const rz    = hist[i*3+2] - wz;
+      const vi    = i * 6;
+      pA[vi]   = rx + px_*hw; pA[vi+1] = ry + py_*hw; pA[vi+2] = rz;
+      pA[vi+3] = rx - px_*hw; pA[vi+4] = ry - py_*hw; pA[vi+5] = rz;
+      // Cyan → deep blue gradient from head to tail
+      const tc    = t < 0.5 ? _HM_HEAD_C.clone().lerp(_HM_TAIL_C, t * 2) : _HM_TAIL_C;
+      const alpha = (1 - t) * 0.88;
+      const ci    = i * 8;
+      cA[ci]   = tc.r; cA[ci+1] = tc.g; cA[ci+2] = tc.b; cA[ci+3] = alpha;
+      cA[ci+4] = tc.r; cA[ci+5] = tc.g; cA[ci+6] = tc.b; cA[ci+7] = alpha;
+    }
+    pAttr.needsUpdate = true; cAttr.needsUpdate = true;
+    ribbonGeo.setDrawRange(0, (len - 1) * 6);
+    ribbonGeo.computeBoundingSphere();
+  });
+
+  const projScale = 0.13;
+  return (
+    <group position={projectile.position}>
+      <pointLight color="#22eedd" intensity={5} distance={4} decay={2} />
+      <mesh ref={flashRef} geometry={_hmCoreGeo} material={flashMatRef.current} scale={0.34} />
+      <mesh geometry={ribbonGeo} material={ribbonMat} />
+      <mesh geometry={_hmCoreGeo} material={_hmCoreMat} scale={projScale} />
+      <mesh scale={projScale * 2.4}>
+        <sphereGeometry args={[1, 6, 4]} />
+        <meshBasicMaterial color="#00ccff" transparent opacity={0.20}
+          depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+    </group>
+  );
+}
+
 // ── Orbital Scattershot — plasma bolt + ribbon trail + muzzle arc ─────────────
 const _SC_TRAIL_N  = 14;
 const _SC_TRAIL_HW = 0.072; // wider than rapid-blaster
@@ -1128,6 +1298,13 @@ export function Projectiles() {
   const swTimeoutsRef    = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const ocExpTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
+  // ── Homing lock-on ring flashes ───────────────────────────────────────────
+  const knownHomingIds = useRef<Set<string>>(new Set());
+  const [homingLockRings, setHomingLockRings] = useState<Array<{
+    id: string; pos: [number,number,number]; dirX: number; dirY: number;
+  }>>([]);
+  const hmRingTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
   // ── Scattershot muzzle arc flashes ────────────────────────────────────────
   const knownScatterVolleys = useRef<Set<string>>(new Set());
   const [scatterArcs, setScatterArcs] = useState<Array<{
@@ -1181,6 +1358,18 @@ export function Projectiles() {
           setShockwaves(prev => prev.filter(s => s.id !== swId));
           swTimeoutsRef.current.delete(swId);
         }, 680));
+      }
+      // Detect newly spawned homing projectiles → lock-on ring flash
+      if (proj.type === "homing" && !knownHomingIds.current.has(proj.id)) {
+        knownHomingIds.current.add(proj.id);
+        const ringId  = `hring-${proj.id}`;
+        const ringPos = [...proj.position] as [number, number, number];
+        const [hdx, hdy] = proj.direction;
+        setHomingLockRings(prev => [...prev, { id: ringId, pos: ringPos, dirX: hdx, dirY: hdy }]);
+        hmRingTimeoutsRef.current.set(ringId, setTimeout(() => {
+          setHomingLockRings(prev => prev.filter(r => r.id !== ringId));
+          hmRingTimeoutsRef.current.delete(ringId);
+        }, 350));
       }
       // Detect newly spawned scattershot volleys → muzzle arc (one arc per volley)
       if (proj.type === "scattershot" && proj.volleyId &&
@@ -1263,20 +1452,22 @@ export function Projectiles() {
           if (len > 0.1) {
             const tdx = targetDirX / len;
             const tdy = targetDirY / len;
-            // Only steer toward targets within a ~65° forward cone (dot > cos65° ≈ 0.42).
-            // Targets outside the cone fly past without correction — shot can miss.
+            // Steer within a ~90° forward cone — targets directly behind are ignored.
             const dot = dx * tdx + dy * tdy;
-            if (dot > 0.42) {
-              // Gentle turn: 0.055 per frame at 60fps — curves noticeably but won't
-              // snap onto targets crossing perpendicular to the shot.
-              const homingStrength = 0.055;
-              dx = dx * (1 - homingStrength) + tdx * homingStrength;
-              dy = dy * (1 - homingStrength) + tdy * homingStrength;
-              const newLen = Math.sqrt(dx * dx + dy * dy);
-              if (newLen > 0.01) {
-                dx /= newLen;
-                dy /= newLen;
-              }
+            if (dot > 0.0) {
+              // RotateTowards: clamp angular change to 45°/sec so shots curve naturally
+              // and can miss targets that move perpendicular or very fast.
+              const MAX_TURN_RAD = (45 * Math.PI / 180) * delta;
+              const curAngle = Math.atan2(dy, dx);
+              const tgtAngle = Math.atan2(tdy, tdx);
+              let dAngle = tgtAngle - curAngle;
+              // Wrap to [-π, π]
+              if (dAngle >  Math.PI) dAngle -= 2 * Math.PI;
+              if (dAngle < -Math.PI) dAngle += 2 * Math.PI;
+              const turn = Math.sign(dAngle) * Math.min(Math.abs(dAngle), MAX_TURN_RAD);
+              const newAngle = curAngle + turn;
+              dx = Math.cos(newAngle);
+              dy = Math.sin(newAngle);
             }
           }
         }
@@ -1675,6 +1866,11 @@ export function Projectiles() {
             projectile={proj}
             skinColors={skinColors}
           />
+        ) : proj.type === "homing" ? (
+          <HomingProjectileMesh
+            key={proj.id}
+            projectile={proj}
+          />
         ) : proj.type === "scattershot" ? (
           <ScattershotProjectileMesh
             key={proj.id}
@@ -1706,6 +1902,9 @@ export function Projectiles() {
       ))}
       {scatterArcs.map(arc => (
         <ScatterMuzzleArc key={arc.id} position={arc.pos} dirX={arc.dirX} dirY={arc.dirY} />
+      ))}
+      {homingLockRings.map(ring => (
+        <HomingLockRing key={ring.id} position={ring.pos} dirX={ring.dirX} dirY={ring.dirY} />
       ))}
       {impactEffects.map((effect) => (
         <ImpactEffectMesh key={effect.id} effect={effect} time={clockRef.current} skinColors={skinColors} />

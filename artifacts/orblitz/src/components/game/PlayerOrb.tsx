@@ -565,6 +565,12 @@ export function PlayerOrb() {
   const scRecoilVelRef        = useRef([0, 0]);
   const scRecoilOffsetRef     = useRef([0, 0]);
   const prevScSignalCountRef  = useRef(0);
+
+  // ── Homing blaster fire: forward punch squash + moderate recoil ───────────
+  const hmSquashTimerRef      = useRef(0);          // counts down from 0.10 s
+  const hmRecoilVelRef        = useRef([0, 0]);
+  const hmRecoilOffsetRef     = useRef([0, 0]);
+  const prevHmSignalCountRef  = useRef(0);
   
   const { health, maxHealth, hasShield, hasChargeBeam, isDamaged, isDying, deathTimer, playerPosition, magiOrb2Active } = useMagicOrb();
   const { equippedSkin, equippedRing, equippedTrail } = useShop();
@@ -695,6 +701,30 @@ export function PlayerOrb() {
       }
     }
 
+    // ── Homing blaster fire signal → forward punch squash + moderate recoil ───
+    const hmSig = useMagicOrb.getState().homingFireSignal;
+    if (hmSig.count !== prevHmSignalCountRef.current) {
+      prevHmSignalCountRef.current = hmSig.count;
+      hmSquashTimerRef.current = 0.10;
+      const HM_RECOIL = 0.65;
+      hmRecoilVelRef.current[0] = -hmSig.dirX * HM_RECOIL;
+      hmRecoilVelRef.current[1] = -hmSig.dirY * HM_RECOIL;
+    }
+    // Higher damping (10) — recovers fully within 333 ms between shots
+    const hmDamp = Math.exp(-10 * delta);
+    hmRecoilOffsetRef.current[0] = (hmRecoilOffsetRef.current[0] + hmRecoilVelRef.current[0] * delta) * hmDamp;
+    hmRecoilOffsetRef.current[1] = (hmRecoilOffsetRef.current[1] + hmRecoilVelRef.current[1] * delta) * hmDamp;
+    hmRecoilVelRef.current[0] *= hmDamp;
+    hmRecoilVelRef.current[1] *= hmDamp;
+    // Forward-punch stretch: X:0.8, Y:1.2 for 0.10 s — orb elongates along fire axis
+    if (hmSquashTimerRef.current > 0) {
+      hmSquashTimerRef.current = Math.max(0, hmSquashTimerRef.current - delta);
+      if (squashTimerRef.current <= 0 && rbSquashTimerRef.current <= 0 &&
+          sbSquashTimerRef.current <= 0 && scSquashTimerRef.current <= 0) {
+        sqX = 0.8; sqY = 1.2;
+      }
+    }
+
     // ── Scattershot fire signal → wide squash + heavy shotgun recoil ──────────
     const scSig = useMagicOrb.getState().scatterFireSignal;
     if (scSig.count !== prevScSignalCountRef.current) {
@@ -718,8 +748,8 @@ export function PlayerOrb() {
     }
 
     // Combined recoil offset from all weapons
-    const totalRecoilX = recoilOffsetRef.current[0] + rbRecoilOffsetRef.current[0] + sbRecoilOffsetRef.current[0] + scRecoilOffsetRef.current[0];
-    const totalRecoilY = recoilOffsetRef.current[1] + rbRecoilOffsetRef.current[1] + sbRecoilOffsetRef.current[1] + scRecoilOffsetRef.current[1];
+    const totalRecoilX = recoilOffsetRef.current[0] + rbRecoilOffsetRef.current[0] + sbRecoilOffsetRef.current[0] + scRecoilOffsetRef.current[0] + hmRecoilOffsetRef.current[0];
+    const totalRecoilY = recoilOffsetRef.current[1] + rbRecoilOffsetRef.current[1] + sbRecoilOffsetRef.current[1] + scRecoilOffsetRef.current[1] + hmRecoilOffsetRef.current[1];
 
     if (groupRef.current && !isDying) {
       groupRef.current.rotation.z = gentleWobble;

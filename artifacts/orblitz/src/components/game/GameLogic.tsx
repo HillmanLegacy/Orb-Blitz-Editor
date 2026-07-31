@@ -159,6 +159,7 @@ export function GameLogic() {
   const triggerRapidBlasterFireRef  = useRef(useMagicOrb.getState().triggerRapidBlasterFire);
   const triggerSpiralBlasterFireRef = useRef(useMagicOrb.getState().triggerSpiralBlasterFire);
   const triggerScatterFireRef       = useRef(useMagicOrb.getState().triggerScatterFire);
+  const triggerHomingFireRef        = useRef(useMagicOrb.getState().triggerHomingFire);
   const lastRestorationTick = useRef(0);
   const lastMagiOrb6Teleport = useRef(0);
   const lastMagiOrb8Fire = useRef(0);
@@ -527,10 +528,15 @@ export function GameLogic() {
         return;
       }
       lastHomingFire.current = now;
-      
+
+      const _hm_offset = 0.75;
       const projectile: Projectile = {
         id: `proj-${projectileIdCounter++}`,
-        position: [...projectileOrigin] as [number, number, number],
+        position: [
+          projectileOrigin[0] + targetDirX * _hm_offset,
+          projectileOrigin[1] + targetDirY * _hm_offset,
+          projectileOrigin[2],
+        ] as [number, number, number],
         direction: [targetDirX, targetDirY, targetDirZ],
         isCharged: hasChargeBeamRef.current,
         size: 0.15,
@@ -539,6 +545,8 @@ export function GameLogic() {
         homing: true,
       };
       addProjectileRef.current(projectile);
+      useMagicOrb.getState().triggerBackgroundShake();
+      triggerHomingFireRef.current(targetDirX, targetDirY);
     } else {
       const projectile: Projectile = {
         id: `proj-${projectileIdCounter++}`,
