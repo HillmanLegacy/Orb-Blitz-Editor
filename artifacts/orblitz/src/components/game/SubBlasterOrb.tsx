@@ -54,9 +54,9 @@ const _tetherMat = new THREE.MeshBasicMaterial({
 // ── Component ────────────────────────────────────────────────────────────────
 export function SubBlasterOrb() {
   const { equippedSkin, equippedWeapon } = useShop();
-  if (equippedWeapon !== "sub_blaster") return null;
+  const isActive = equippedWeapon === "sub_blaster";
 
-  // Orbit state
+  // Orbit state — all hooks must come before any conditional return
   const orbitAngleRef   = useRef(Math.PI / 4);
   const orbPosRef       = useRef<[number, number]>([0, 0]);
 
@@ -110,6 +110,11 @@ export function SubBlasterOrb() {
   }, [droneCoreMat, droneGlowMat]);
 
   useFrame(({ clock }, delta) => {
+    if (!isActive) {
+      if (groupRef.current) groupRef.current.visible = false;
+      return;
+    }
+
     const state = useMagicOrb.getState();
     const { playerPosition, darkOrbs, boss, phase, isDying } = state;
 
@@ -276,6 +281,8 @@ export function SubBlasterOrb() {
     const tetherOp = 0.30 + Math.sin(time * 6) * 0.12;
     _tetherMat.opacity = tetherOp;
   });
+
+  if (!isActive) return null;
 
   return (
     <>
