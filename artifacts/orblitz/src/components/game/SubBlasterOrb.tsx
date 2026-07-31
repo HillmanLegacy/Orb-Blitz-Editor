@@ -297,9 +297,6 @@ export function SubBlasterOrb() {
         {/* Core sphere */}
         <mesh ref={coreRef} geometry={_droneCoreGeo} material={droneCoreMat} />
 
-        {/* Outer glow halo */}
-        <mesh ref={glowRef} geometry={_droneGlowGeo} material={droneGlowMat} scale={2.2} />
-
         {/* Muzzle flash — born at the "front" of the orb (local +X) */}
         <mesh
           ref={flashRef}
