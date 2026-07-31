@@ -219,45 +219,7 @@ function ProjectileChargeAura({ projScale }: { projScale: number }) {
   return <ProjectileChargeSparks projScale={projScale} />;
 }
 
-// ── Spiral Braid — 3 intertwined helical strands ─────────────────────────────
-
-const BRAID_COLORS = ["#ffaa00", "#44ddff", "#ff44cc"] as const;
-const BRAID_RADIUS = 0.22;
-
-function SpiralBraidMesh({ projectile, time }: { projectile: Projectile; time: number }) {
-  const strandCount = Math.max(1, Math.min(3, projectile.hitCount ?? 3));
-  const [dx, dy] = projectile.direction;
-
-  // Perpendicular basis — perp1 in XY, perp2 = Z axis
-  const fwdLen = Math.sqrt(dx * dx + dy * dy);
-  const p1x = fwdLen > 1e-4 ? -dy / fwdLen : 0;
-  const p1y = fwdLen > 1e-4 ?  dx / fwdLen : 1;
-
-  const rotPhase = time * 7.5;
-  const lightColor = strandCount === 3 ? "#ffaa44" : strandCount === 2 ? "#55ccff" : "#ff66cc";
-
-  return (
-    <group position={projectile.position}>
-      <pointLight color={lightColor} intensity={2 + strandCount * 1.2} distance={5} decay={2} />
-      {Array.from({ length: strandCount }, (_, s) => {
-        const phase = rotPhase + (s / 3) * Math.PI * 2;
-        const ox = Math.cos(phase) * BRAID_RADIUS * p1x;
-        const oy = Math.cos(phase) * BRAID_RADIUS * p1y;
-        const oz = Math.sin(phase) * BRAID_RADIUS;
-        return (
-          <mesh key={s} position={[ox, oy, oz]} scale={0.10}>
-            <sphereGeometry args={[1, 8, 6]} />
-            <meshBasicMaterial
-              color={BRAID_COLORS[s]}
-              depthWrite={false}
-              blending={THREE.AdditiveBlending}
-            />
-          </mesh>
-        );
-      })}
-    </group>
-  );
-}
+// SpiralBraidMesh removed — replaced by the full OrbitalSpiralBlaster SpiralBundleMesh below
 
 function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: {
   projectile: Projectile;
@@ -267,11 +229,6 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: 
   skinColors: { core: string; glow: string; emissive: string; accent: string; particles: string[] };
   equippedSkin: string;
 }) {
-  // Spiral braid — rendered entirely separately
-  if (projectile.type === "spiral") {
-    return <SpiralBraidMesh projectile={projectile} time={time} />;
-  }
-
   const spawnTime     = useRef(time);
   const spawnProgress = Math.min(1, (time - spawnTime.current) * 6);
   const isCharged     = projectile.isCharged;
@@ -337,6 +294,36 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: 
 // ── EaseOutQuad for projectile spawn grow-in ──────────────────────────────────
 function easeOutQuad(t: number): number { return 1 - (1 - t) * (1 - t); }
 
+// ── Overcharged Blaster timed-explosion constants ─────────────────────────────
+const OC_TRAVEL_TIME   = 1.5;   // seconds before detonation
+const OC_EXPLODE_RADIUS = 4.8;  // AOE radius in world units
+
+// ── Orbital Spiral Blaster constants ─────────────────────────────────────────
+const SPIRAL_ORBIT_R     = 0.65;
+const SPIRAL_ORBIT_SPEED = 7.0;
+const SPIRAL_SUB_SCALE   = 0.54; // 0.75 × player base scale 0.72
+const SPIRAL_TRAIL_N     = 14;
+const SPIRAL_TRAIL_HW    = 0.062;
+const SPIRAL_COLORS_HEX  = ["#00ffff", "#ff00ff", "#ffdd00"] as const;
+const SPIRAL_GLOW_HEX    = ["#004488", "#440044", "#443300"] as const;
+const _SPIRAL_TRAIL_C    = SPIRAL_COLORS_HEX.map(h => new THREE.Color(h));
+
+/** World position of spiral sub-sphere idx relative to parent projectile center */
+function _getSpiralSubPos(
+  cx: number, cy: number, cz: number,
+  fdx: number, fdy: number,
+  phase: number, idx: number,
+): [number, number, number] {
+  const fl = Math.sqrt(fdx * fdx + fdy * fdy) || 1;
+  const ux = -fdy / fl, uy = fdx / fl;
+  const a  = phase + (idx / 3) * Math.PI * 2;
+  return [
+    cx + ux * Math.cos(a) * SPIRAL_ORBIT_R,
+    cy + uy * Math.cos(a) * SPIRAL_ORBIT_R,
+    cz + Math.sin(a) * SPIRAL_ORBIT_R,
+  ];
+}
+
 // ── Expanding energy shockwave ring spawned at overcharged fire point ─────────
 const _swRingGeo = new THREE.TorusGeometry(1, 0.09, 6, 48);
 
@@ -363,6 +350,54 @@ function OcShockwaveRing({ position }: { position: [number, number, number] }) {
         blending={THREE.AdditiveBlending}
       />
     </mesh>
+  );
+}
+
+// ── Overcharged AOE explosion burst — spawned at detonation point ──────────────
+const _ocExpRingGeo  = new THREE.TorusGeometry(1, 0.14, 8, 64);
+const _ocExpRingGeo2 = new THREE.TorusGeometry(1, 0.08, 6, 48);
+const _ocExpSphGeo   = new THREE.SphereGeometry(1, 12, 8);
+
+function OcExplosionBurst({ position }: { position: [number, number, number] }) {
+  const ring1Ref = useRef<THREE.Mesh>(null);
+  const ring2Ref = useRef<THREE.Mesh>(null);
+  const sphRef   = useRef<THREE.Mesh>(null);
+  const timerRef = useRef(0);
+  const DUR      = 0.75;
+
+  useFrame((_, delta) => {
+    timerRef.current = Math.min(timerRef.current + delta, DUR);
+    const t  = timerRef.current / DUR;
+    const t2 = easeOutQuad(t);
+
+    if (ring1Ref.current) {
+      ring1Ref.current.scale.setScalar(t2 * OC_EXPLODE_RADIUS * 0.95);
+      (ring1Ref.current.material as THREE.MeshBasicMaterial).opacity = (1 - t) * 0.9;
+    }
+    if (ring2Ref.current) {
+      const t3 = Math.max(0, t - 0.08);
+      ring2Ref.current.scale.setScalar(easeOutQuad(t3 / 0.92) * OC_EXPLODE_RADIUS * 0.58);
+      (ring2Ref.current.material as THREE.MeshBasicMaterial).opacity = (1 - t) * 0.65;
+    }
+    if (sphRef.current) {
+      sphRef.current.scale.setScalar(t2 * OC_EXPLODE_RADIUS * 0.25);
+      (sphRef.current.material as THREE.MeshBasicMaterial).opacity = (1 - t * t) * 0.55;
+    }
+  });
+
+  return (
+    <group position={position}>
+      <pointLight color="#55ccff" intensity={30 * 1} distance={12} decay={2} />
+      <mesh ref={ring1Ref} geometry={_ocExpRingGeo}>
+        <meshBasicMaterial color="#88ddff" transparent opacity={0} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+      <mesh ref={ring2Ref} geometry={_ocExpRingGeo2} rotation={[Math.PI / 2, 0, 0]}>
+        <meshBasicMaterial color="#ffffff" transparent opacity={0} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+      <mesh ref={sphRef} geometry={_ocExpSphGeo}>
+        <meshBasicMaterial color="#aaeeff" transparent opacity={0} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+    </group>
   );
 }
 
@@ -533,12 +568,15 @@ const _RIBBON_N  = 16;
 const _RIBBON_HW = 0.22; // half-width at head
 
 function OverchargedProjectileMesh({
-  projectile, time, spawnScale,
+  projectile, time, spawnScale, travelTimer,
 }: {
-  projectile: Projectile; time: number; spawnScale: number;
+  projectile: Projectile; time: number; spawnScale: number; travelTimer?: number;
 }) {
-  const pulse     = 0.5 + 0.5 * Math.sin(time * 4.5);
-  const coreScale = 1.247 + pulse * 0.1505;
+  // Charge-up urgency in the last 0.5 s before detonation
+  const chargeT  = travelTimer !== undefined ? Math.max(0, (travelTimer - (OC_TRAVEL_TIME - 0.5)) / 0.5) : 0;
+  const pulseHz  = 4.5 + chargeT * 18;           // 4.5 → 22.5 Hz as detonation nears
+  const pulse     = 0.5 + 0.5 * Math.sin(time * pulseHz);
+  const coreScale = 1.247 + pulse * (0.1505 + chargeT * 0.35);
   const r1 = time * 2.1;
   const r2 = time * 1.6 + 1.05;
 
@@ -643,72 +681,176 @@ function OverchargedProjectileMesh({
   );
 }
 
-// Colours for each strand slot (cyan, magenta, gold)
-const STRAND_COLORS = ["#00ffff", "#ff00ff", "#ffdd00"] as const;
-const STRAND_GLOW   = ["#004488", "#440044", "#443300"] as const;
+// ── Orbital Spiral Blaster mesh — 3 orbiting player-orb sub-spheres ──────────
 
-// Geometry shared across all instances
-const _strandGeo = new THREE.SphereGeometry(0.09, 8, 6);
-const _strandMats = STRAND_COLORS.map((c) =>
-  new THREE.MeshBasicMaterial({
-    color: c,
-    transparent: true,
-    opacity: 0.92,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-  })
-);
+function SpiralBundleMesh({
+  projectile,
+  skinColors,
+}: {
+  projectile: Projectile;
+  skinColors: { core: string; glow: string };
+}) {
+  const projRef   = useRef(projectile);
+  projRef.current = projectile;
 
-function SpiralBundleMesh({ projectile, time }: { projectile: Projectile; time: number }) {
-  const strandCount = Math.max(1, Math.min(3, projectile.hitCount ?? 3));
-  const [dx, dy] = projectile.direction;
+  // 3 ribbon trail geometries (one per sub-sphere, helix formed by helical paths)
+  const ribbonGeos = useMemo(() =>
+    Array.from({ length: 3 }, () => {
+      const geo  = new THREE.BufferGeometry();
+      const N    = SPIRAL_TRAIL_N;
+      const pArr = new Float32Array(N * 2 * 3);
+      const cArr = new Float32Array(N * 2 * 4);
+      const idx: number[] = [];
+      for (let i = 0; i < N - 1; i++) { const b = i * 2; idx.push(b, b+2, b+1, b+1, b+2, b+3); }
+      geo.setIndex(idx);
+      geo.setAttribute("position", new THREE.BufferAttribute(pArr, 3));
+      geo.setAttribute("color",    new THREE.BufferAttribute(cArr, 4));
+      geo.setDrawRange(0, 0);
+      return geo;
+    }), []);
 
-  // Orbit radius pulses slightly for a living feel
-  const orbitR    = 0.22 + Math.sin(time * 6.0) * 0.03;
-  const rotSpeed  = 5.5; // rad/s
+  const ribbonMat = useMemo(() => new THREE.MeshBasicMaterial({
+    vertexColors: true, transparent: true, depthWrite: false,
+    blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  }), []);
 
-  // Two axes perpendicular to the travel direction
-  // perp1: rotate 90° in XY plane; perp2: Z axis
-  const len = Math.sqrt(dx * dx + dy * dy) || 1;
-  const ux  = -dy / len;
-  const uy  =  dx / len;
+  useEffect(() => () => {
+    ribbonGeos.forEach(g => g.dispose());
+    ribbonMat.dispose();
+  }, [ribbonGeos, ribbonMat]);
 
-  const strands: Array<[number, number, number]> = [];
-  for (let i = 0; i < strandCount; i++) {
-    const phase = (i / strandCount) * Math.PI * 2;
-    const a     = time * rotSpeed + phase;
-    const cosA  = Math.cos(a);
-    const sinA  = Math.sin(a);
-    strands.push([
-      ux * cosA * orbitR,
-      uy * cosA * orbitR,
-      sinA * orbitR,
-    ]);
-  }
+  // Per-sub-sphere position histories for ribbon trails
+  const posHists  = useRef<Float32Array[]>(Array.from({ length: 3 }, () => new Float32Array(SPIRAL_TRAIL_N * 3)));
+  const histLens  = useRef([0, 0, 0]);
+
+  // Death-flash state: remaining time per sub-sphere
+  const deathFlashT   = useRef<[number, number, number]>([-1, -1, -1]);
+  const prevAliveRef  = useRef([true, true, true]);
+
+  // Refs for sub-sphere groups and flash meshes
+  const subGrpRefs   = [useRef<THREE.Group>(null), useRef<THREE.Group>(null), useRef<THREE.Group>(null)];
+  const flashRefs    = [useRef<THREE.Mesh>(null),  useRef<THREE.Mesh>(null),  useRef<THREE.Mesh>(null)];
+
+  useFrame((_, delta) => {
+    const proj = projRef.current;
+    const [cx, cy, cz] = proj.position;
+    const [fdx, fdy]   = proj.direction;
+    const phase        = proj.spiralAngle ?? 0;
+    const alive        = proj.subSphereAlive ?? [true, true, true];
+
+    // Detect newly-dead sub-spheres → start flash timer
+    for (let si = 0; si < 3; si++) {
+      if (prevAliveRef.current[si] && !alive[si]) deathFlashT.current[si] = 0.12;
+      prevAliveRef.current[si] = alive[si];
+    }
+
+    const fl   = Math.sqrt(fdx * fdx + fdy * fdy) || 1;
+    const px_  = -fdy / fl, py_ = fdx / fl; // ribbon width perp
+
+    for (let si = 0; si < 3; si++) {
+      const [spx, spy, spz] = _getSpiralSubPos(cx, cy, cz, fdx, fdy, phase, si);
+
+      // Position sub-sphere group (relative to parent at proj center)
+      const grp = subGrpRefs[si].current;
+      if (grp) { grp.position.set(spx - cx, spy - cy, spz - cz); grp.visible = alive[si]; }
+
+      // Death flash
+      const flash = flashRefs[si].current;
+      if (flash) {
+        const ft = deathFlashT.current[si];
+        if (ft > 0) {
+          deathFlashT.current[si] = Math.max(0, ft - delta);
+          const prog = deathFlashT.current[si] / 0.12;
+          (flash.material as THREE.MeshBasicMaterial).opacity = prog * 0.95;
+          flash.scale.setScalar(SPIRAL_SUB_SCALE * (1 + (1 - prog) * 4.5));
+          flash.visible = true;
+          flash.position.set(spx - cx, spy - cy, spz - cz);
+        } else {
+          flash.visible = false;
+        }
+      }
+
+      // Ribbon trail — keep updating while alive, fade out gracefully after death
+      if (!alive[si] && histLens.current[si] === 0) continue;
+
+      const N   = SPIRAL_TRAIL_N;
+      const len = Math.min(histLens.current[si] + (alive[si] ? 1 : 0), N);
+      histLens.current[si] = len;
+      const hist = posHists.current[si];
+
+      if (alive[si]) {
+        for (let k = Math.min(len - 1, N - 1); k > 0; k--) {
+          hist[k*3] = hist[(k-1)*3]; hist[k*3+1] = hist[(k-1)*3+1]; hist[k*3+2] = hist[(k-1)*3+2];
+        }
+        hist[0] = spx; hist[1] = spy; hist[2] = spz;
+      }
+
+      if (len < 2) continue;
+
+      const geo   = ribbonGeos[si];
+      const pAttr = geo.getAttribute("position") as THREE.BufferAttribute;
+      const cAttr = geo.getAttribute("color")    as THREE.BufferAttribute;
+      const pA    = pAttr.array as Float32Array;
+      const cA    = cAttr.array as Float32Array;
+      const tc    = _SPIRAL_TRAIL_C[si];
+      const fade  = alive[si] ? 1.0 : Math.max(0, deathFlashT.current[si] / 0.12);
+
+      for (let k = 0; k < len; k++) {
+        const t  = k / (len - 1);
+        const hw = SPIRAL_TRAIL_HW * (1 - t * 0.8);
+        const rx = hist[k*3]   - cx, ry = hist[k*3+1] - cy, rz = hist[k*3+2] - cz;
+        const vi = k * 6;
+        pA[vi]   = rx + px_*hw; pA[vi+1] = ry + py_*hw; pA[vi+2] = rz;
+        pA[vi+3] = rx - px_*hw; pA[vi+4] = ry - py_*hw; pA[vi+5] = rz;
+        const alpha = (1 - t) * 0.78 * fade;
+        const ci = k * 8;
+        cA[ci]   = tc.r; cA[ci+1] = tc.g; cA[ci+2] = tc.b; cA[ci+3] = alpha;
+        cA[ci+4] = tc.r; cA[ci+5] = tc.g; cA[ci+6] = tc.b; cA[ci+7] = alpha;
+      }
+      pAttr.needsUpdate = true; cAttr.needsUpdate = true;
+      geo.setDrawRange(0, (len - 1) * 6);
+      geo.computeBoundingSphere();
+    }
+  });
 
   return (
     <group position={projectile.position}>
-      {/* Shared point light — colour shifts cyan→magenta as strands are lost */}
-      <pointLight
-        color={strandCount === 3 ? "#00ffff" : strandCount === 2 ? "#cc44ff" : "#ffdd00"}
-        intensity={3.5 + Math.sin(time * 8) * 0.5}
-        distance={5}
-        decay={2}
-      />
-      {strands.map((offset, i) => (
-        <group key={i} position={offset}>
-          <mesh geometry={_strandGeo} material={_strandMats[i]} />
-          {/* Inner glow — slightly larger, dimmer sphere */}
-          <mesh scale={2.2}>
-            <sphereGeometry args={[0.09, 6, 4]} />
-            <meshBasicMaterial
-              color={STRAND_GLOW[i]}
-              transparent
-              opacity={0.25}
-              depthWrite={false}
-              blending={THREE.AdditiveBlending}
+      {/* Central point light */}
+      <pointLight color="#aaddff" intensity={3.5} distance={7} decay={2} />
+
+      {/* Helix ribbon trails */}
+      {ribbonGeos.map((geo, i) => (
+        <mesh key={`ribbon-${i}`} geometry={geo} material={ribbonMat} />
+      ))}
+
+      {/* Per-sub-sphere death flash spheres */}
+      {[0, 1, 2].map(si => (
+        <mesh key={`flash-${si}`} ref={flashRefs[si]} visible={false}>
+          <sphereGeometry args={[1, 8, 6]} />
+          <meshBasicMaterial
+            color={SPIRAL_COLORS_HEX[si]}
+            transparent opacity={0}
+            depthWrite={false} blending={THREE.AdditiveBlending}
+          />
+        </mesh>
+      ))}
+
+      {/* 3 orbiting sub-sphere orbs — player model scaled to 75% */}
+      {[0, 1, 2].map(si => (
+        <group key={`sub-${si}`} ref={subGrpRefs[si]}>
+          <pointLight color={SPIRAL_COLORS_HEX[si]} intensity={3.2} distance={4} decay={2} />
+          <Suspense fallback={null}>
+            <PlayerModel
+              scale={SPIRAL_SUB_SCALE}
+              rotationSpeedX={1.2 + si * 0.4}
+              rotationSpeedY={2.0 + si * 0.35}
             />
-          </mesh>
+          </Suspense>
+          <PlayerGlow
+            scale={SPIRAL_SUB_SCALE}
+            coreColor={SPIRAL_COLORS_HEX[si]}
+            glowColor={SPIRAL_GLOW_HEX[si]}
+          />
         </group>
       ))}
     </group>
@@ -811,8 +953,10 @@ export function Projectiles() {
 
   // ── Overcharged shockwave rings ───────────────────────────────────────────
   const knownOcIds   = useRef<Set<string>>(new Set());
-  const [shockwaves, setShockwaves] = useState<Array<{ id: string; pos: [number,number,number] }>>([]);
-  const swTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const [shockwaves,   setShockwaves]   = useState<Array<{ id: string; pos: [number,number,number] }>>([]);
+  const [ocExplosions, setOcExplosions] = useState<Array<{ id: string; pos: [number,number,number] }>>([]);
+  const swTimeoutsRef    = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const ocExpTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   
   const skinColors = useMemo(() => getSkinColors(equippedSkin, 3), [equippedSkin]);
   const projectileColor = skinColors.projectile;
@@ -940,12 +1084,15 @@ export function Projectiles() {
       }
       
       let newSpiralAngle = proj.spiralAngle;
-      // Old-style spiralAngle steers direction only for non-braid projectiles.
+      // Old-style spiralAngle steers direction only for non-spiral types.
       if (newSpiralAngle !== undefined && proj.type !== "spiral") {
         const spiralSpeed = 3;
         newSpiralAngle = newSpiralAngle + delta * spiralSpeed;
         dx = Math.cos(newSpiralAngle);
         dy = Math.sin(newSpiralAngle);
+      } else if (proj.type === "spiral") {
+        // Advance orbit phase for sub-sphere positioning (not steering)
+        newSpiralAngle = (proj.spiralAngle ?? 0) + delta * SPIRAL_ORBIT_SPEED;
       }
       
       const effSpeed = proj.speed ?? projectileSpeed;
@@ -960,6 +1107,73 @@ export function Projectiles() {
         newSpawnScaleTimer = newSpawnScaleTimer + delta;
         const eoqT  = Math.min(1, newSpawnScaleTimer / 0.15);
         newSpawnScale = 0.05 + 0.95 * easeOutQuad(eoqT);
+      }
+
+      // ── Overcharged Blaster: timed AOE explosion after OC_TRAVEL_TIME ─────────
+      let newTravelTimer = proj.travelTimer;
+      if (proj.type === "overcharged" && newTravelTimer !== undefined) {
+        newTravelTimer = newTravelTimer + delta;
+        if (newTravelTimer >= OC_TRAVEL_TIME) {
+          hitSomething = true;  // remove projectile after this frame
+
+          // Trigger explosion VFX ring
+          const expId  = `ocexp-${proj.id}`;
+          const expPos = [px, py, pz] as [number, number, number];
+          setOcExplosions(prev => [...prev, { id: expId, pos: expPos }]);
+          ocExpTimeoutsRef.current.set(expId, setTimeout(() => {
+            setOcExplosions(prev => prev.filter(e => e.id !== expId));
+            ocExpTimeoutsRef.current.delete(expId);
+          }, 800));
+
+          // Camera shake
+          useMagicOrb.getState().triggerBackgroundShake();
+          playSparkleExplosion();
+
+          // ── AOE: boss ──────────────────────────────────────────────────────
+          if (boss && !boss.destroying) {
+            const [bx, by, bz] = boss.position;
+            const bDist = Math.sqrt((px-bx)**2+(py-by)**2+((bz||0)-pz)**2);
+            if (bDist < OC_EXPLODE_RADIUS + 1.65) {
+              const bossKilled = damageBoss(8);
+              addScore(25); playHit();
+              if (bossKilled) playSparkleExplosion();
+              addImpactEffect({ id: `impact-${impactIdCounter++}`, position: [bx, by, bz||0], timer: 0.55, maxTimer: 0.55, seed: Math.random(), isBossHit: true });
+            }
+          }
+
+          // ── AOE: dark orbs ─────────────────────────────────────────────────
+          for (const orb of darkOrbs) {
+            if (orb.destroying) continue;
+            const [ox, oy, oz] = orb.position;
+            if (Math.abs(ox) > 13 || Math.abs(oy) > 13) continue;
+            const oDist = Math.sqrt((px-ox)**2+(py-oy)**2+(pz-oz)**2);
+            if (oDist < OC_EXPLODE_RADIUS) {
+              markOrbDestroying(orb.id);
+              addScore(10); incrementGauntletOrbs(); addCoins(5);
+              if (gameMode === "arcade") incrementOrbsDestroyed();
+              addImpactEffect({ id: `impact-${impactIdCounter++}`, position: [ox, oy, oz], timer: 0.4, maxTimer: 0.4, seed: Math.random() });
+            }
+          }
+
+          // ── AOE: power-ups ─────────────────────────────────────────────────
+          for (const powerUp of powerUps) {
+            if (powerUp.collected) continue;
+            const [pux, puy, puz] = powerUp.position;
+            const puDist = Math.sqrt((px-pux)**2+(py-puy)**2+(pz-puz)**2);
+            if (puDist < OC_EXPLODE_RADIUS) {
+              hitPowerUpsThisFrame.current.add(powerUp.id);
+              removePowerUp(powerUp.id);
+              playSuccess();
+              if (powerUp.type === "shield")       { activateShield();       addParticles(createPowerUpParticles([pux,puy,puz],["#00ffff","#00ff00"])); }
+              else if (powerUp.type === "chargeBeam") { activateChargeBeam(); addParticles(createPowerUpParticles([pux,puy,puz],["#ffff00","#ff6600"])); }
+              else if (powerUp.type === "healing")    { heal();               addParticles(createPowerUpParticles([pux,puy,puz],["#00ff88","#ffffff"])); }
+              else if (powerUp.type === "doubleCoins") { activateDoubleCoins(); addParticles(createPowerUpParticles([pux,puy,puz],["#ffd700","#ffaa00"])); }
+              else if (powerUp.type === "rapidFire")  { activateRapidFire();  addParticles(createPowerUpParticles([pux,puy,puz],["#ff4400","#ff0000"])); }
+              addScore(25);
+            }
+          }
+          if (proj.volleyId) volleyHits.current.add(proj.volleyId);
+        }
       }
       
       const screenBoundary = 13;
@@ -993,7 +1207,63 @@ export function Projectiles() {
       }
       
       let hitSomething = false;
-      
+
+      // ── Orbital Spiral Blaster: per-sub-sphere collision (boss + orbs) ────
+      if (proj.type === "spiral") {
+        const _subAlive = proj.subSphereAlive ?? [true, true, true];
+        const [_fdx, _fdy] = proj.direction;
+        const _phase = proj.spiralAngle ?? 0;
+
+        if (boss && !boss.destroying && !boss.shieldActive) {
+          const [bx, by, bz] = boss.position;
+          for (let si = 0; si < 3; si++) {
+            if (!_subAlive[si]) continue;
+            const _sk = `${proj.id}-b${si}`;
+            if (spiralBossHit.current.has(_sk)) continue;
+            const [_spx, _spy, _spz] = _getSpiralSubPos(px, py, pz, _fdx, _fdy, _phase, si);
+            if (Math.sqrt((_spx-bx)**2+(_spy-by)**2+(_spz-(bz||0))**2) < 2.15) {
+              spiralBossHit.current.add(_sk);
+              _subAlive[si] = false;
+              proj.hitCount = Math.max(0, (proj.hitCount ?? 3) - 1);
+              const _ph = projectileOrbHits.current.get(proj.id) || new Set<string>();
+              _ph.add("boss"); projectileOrbHits.current.set(proj.id, _ph);
+              const _bk = damageBoss();
+              addScore(25); playHit();
+              if (_bk) playSparkleExplosion();
+              addImpactEffect({ id: `impact-${impactIdCounter++}`, position: [_spx, _spy, _spz], timer: 0.45, maxTimer: 0.45, seed: Math.random(), isBossHit: true });
+            }
+          }
+        }
+
+        for (const orb of darkOrbs) {
+          if (hitOrbsThisFrame.current.has(orb.id) || orb.destroying) continue;
+          const [ox, oy, oz] = orb.position;
+          if (Math.abs(ox) > 12 || Math.abs(oy) > 12) continue;
+          const _ph = projectileOrbHits.current.get(proj.id) || new Set<string>();
+          if (_ph.has(orb.id)) continue;
+          for (let si = 0; si < 3; si++) {
+            if (!_subAlive[si]) continue;
+            const [_spx, _spy, _spz] = _getSpiralSubPos(px, py, pz, _fdx, _fdy, _phase, si);
+            if (Math.sqrt((_spx-ox)**2+(_spy-oy)**2+(_spz-oz)**2) < hitRadius + (orb.isBossOrb ? 0.6 : 0) + 0.38) {
+              _subAlive[si] = false;
+              proj.hitCount = Math.max(0, (proj.hitCount ?? 3) - 1);
+              hitOrbsThisFrame.current.add(orb.id);
+              markOrbDestroying(orb.id);
+              addScore(10); incrementGauntletOrbs(); addCoins(5); playHit();
+              if (gameMode === "arcade") incrementOrbsDestroyed();
+              addImpactEffect({ id: `impact-${impactIdCounter++}`, position: [_spx, _spy, _spz], timer: 0.4, maxTimer: 0.4, seed: Math.random() });
+              _ph.add(orb.id); projectileOrbHits.current.set(proj.id, _ph);
+              break;
+            }
+          }
+        }
+
+        proj.subSphereAlive = _subAlive;
+        if (!_subAlive.some(Boolean)) hitSomething = true;
+      }
+
+      // Overcharged explodes on timer — skip all contact collision while traveling
+      if (!hitSomething && proj.type !== "spiral" && proj.type !== "overcharged") {
       if (boss && !boss.destroying && !boss.shieldActive) {
         const [bx, by, bz] = boss.position;
         const dist = Math.sqrt((px - bx) ** 2 + (py - by) ** 2 + ((bz || 0) - pz) ** 2);
@@ -1127,8 +1397,11 @@ export function Projectiles() {
           }
         }
       }
+      }  // end if (!hitSomething && proj.type !== "spiral")
       
       for (const powerUp of powerUps) {
+        // Overcharged collects power-ups in the AOE explosion, not on contact
+        if (proj.type === "overcharged") break;
         if (hitPowerUpsThisFrame.current.has(powerUp.id) || powerUp.collected) continue;
         
         const [pux, puy, puz] = powerUp.position;
@@ -1176,6 +1449,8 @@ export function Projectiles() {
           spiralAngle: newSpiralAngle,
           spawnScale: newSpawnScale,
           spawnScaleTimer: newSpawnScaleTimer,
+          subSphereAlive: proj.subSphereAlive,
+          travelTimer: newTravelTimer,
         });
       } else {
         projectileOrbHits.current.delete(proj.id);
@@ -1202,12 +1477,13 @@ export function Projectiles() {
             projectile={proj}
             time={clockRef.current}
             spawnScale={proj.spawnScale ?? 1}
+            travelTimer={proj.travelTimer}
           />
         ) : proj.type === "spiral" ? (
           <SpiralBundleMesh
             key={proj.id}
             projectile={proj}
-            time={clockRef.current}
+            skinColors={skinColors}
           />
         ) : proj.type === "rapidblaster" ? (
           <RapidBlasterProjectileMesh
@@ -1229,6 +1505,9 @@ export function Projectiles() {
       )}
       {shockwaves.map(sw => (
         <OcShockwaveRing key={sw.id} position={sw.pos} />
+      ))}
+      {ocExplosions.map(ex => (
+        <OcExplosionBurst key={ex.id} position={ex.pos} />
       ))}
       {impactEffects.map((effect) => (
         <ImpactEffectMesh key={effect.id} effect={effect} time={clockRef.current} skinColors={skinColors} />

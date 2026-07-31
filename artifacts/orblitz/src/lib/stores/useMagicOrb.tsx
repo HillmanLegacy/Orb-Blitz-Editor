@@ -107,6 +107,10 @@ export interface Projectile {
   spawnScale?: number;
   /** Seconds elapsed since spawn, used to drive spawnScale */
   spawnScaleTimer?: number;
+  /** Per-sub-sphere alive flags for the Orbital Spiral Blaster [s0, s1, s2] */
+  subSphereAlive?: boolean[];
+  /** Seconds elapsed since spawn — used by Overcharged Blaster to trigger timed AOE explosion */
+  travelTimer?: number;
 }
 
 export interface PowerUp {
@@ -350,6 +354,10 @@ interface MagicOrbState {
   /** Incremented each time the rapid blaster fires; carries fire direction */
   rapidBlasterFireSignal: { count: number; dirX: number; dirY: number };
   triggerRapidBlasterFire: (dirX: number, dirY: number) => void;
+
+  /** Incremented each time the spiral blaster fires; carries fire direction */
+  spiralBlasterFireSignal: { count: number; dirX: number; dirY: number };
+  triggerSpiralBlasterFire: (dirX: number, dirY: number) => void;
   
   // Magi-Orb actions
   activateMagiOrb2: () => void;
@@ -525,6 +533,7 @@ export const useMagicOrb = create<MagicOrbState>()(
 
     overchargedFireSignal: { count: 0, dirX: 0, dirY: 0 },
     rapidBlasterFireSignal: { count: 0, dirX: 0, dirY: 0 },
+    spiralBlasterFireSignal: { count: 0, dirX: 0, dirY: 0 },
     
     setPhase: (phase) => set({ phase }),
     setGameMode: (mode) => set({ gameMode: mode }),
@@ -1630,6 +1639,9 @@ export const useMagicOrb = create<MagicOrbState>()(
     })),
     triggerRapidBlasterFire: (dirX, dirY) => set(s => ({
       rapidBlasterFireSignal: { count: s.rapidBlasterFireSignal.count + 1, dirX, dirY },
+    })),
+    triggerSpiralBlasterFire: (dirX, dirY) => set(s => ({
+      spiralBlasterFireSignal: { count: s.spiralBlasterFireSignal.count + 1, dirX, dirY },
     })),
     
     updateBackgroundEffects: (delta) => {

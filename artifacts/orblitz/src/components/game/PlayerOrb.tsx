@@ -553,6 +553,12 @@ export function PlayerOrb() {
   const rbRecoilVelRef        = useRef([0, 0]);
   const rbRecoilOffsetRef     = useRef([0, 0]);
   const prevRbSignalCountRef  = useRef(0);
+
+  // ── Spiral blaster fire: pull-back + snap squash + recoil ─────────────────
+  const sbSquashTimerRef      = useRef(0);          // counts down from 0.06 s
+  const sbRecoilVelRef        = useRef([0, 0]);
+  const sbRecoilOffsetRef     = useRef([0, 0]);
+  const prevSbSignalCountRef  = useRef(0);
   
   const { health, maxHealth, hasShield, hasChargeBeam, isDamaged, isDying, deathTimer, playerPosition, magiOrb2Active } = useMagicOrb();
   const { equippedSkin, equippedRing, equippedTrail } = useShop();
@@ -660,9 +666,32 @@ export function PlayerOrb() {
       }
     }
 
-    // Combined recoil offset from both weapons
-    const totalRecoilX = recoilOffsetRef.current[0] + rbRecoilOffsetRef.current[0];
-    const totalRecoilY = recoilOffsetRef.current[1] + rbRecoilOffsetRef.current[1];
+    // ── Spiral blaster fire signal → pull-back snap squash + recoil ──────────
+    const sbSig = useMagicOrb.getState().spiralBlasterFireSignal;
+    if (sbSig.count !== prevSbSignalCountRef.current) {
+      prevSbSignalCountRef.current = sbSig.count;
+      sbSquashTimerRef.current = 0.06;
+      const SB_RECOIL = 0.80;
+      sbRecoilVelRef.current[0] = -sbSig.dirX * SB_RECOIL;
+      sbRecoilVelRef.current[1] = -sbSig.dirY * SB_RECOIL;
+    }
+    // Moderate spring-back (damping 7)
+    const sbDamp = Math.exp(-7 * delta);
+    sbRecoilOffsetRef.current[0] = (sbRecoilOffsetRef.current[0] + sbRecoilVelRef.current[0] * delta) * sbDamp;
+    sbRecoilOffsetRef.current[1] = (sbRecoilOffsetRef.current[1] + sbRecoilVelRef.current[1] * delta) * sbDamp;
+    sbRecoilVelRef.current[0] *= sbDamp;
+    sbRecoilVelRef.current[1] *= sbDamp;
+    // Pull-back snap: X:1.2, Y:0.8 for 0.06 s — wide horizontal push inward
+    if (sbSquashTimerRef.current > 0) {
+      sbSquashTimerRef.current = Math.max(0, sbSquashTimerRef.current - delta);
+      if (squashTimerRef.current <= 0 && rbSquashTimerRef.current <= 0) {
+        sqX = 1.2; sqY = 0.8;
+      }
+    }
+
+    // Combined recoil offset from all weapons
+    const totalRecoilX = recoilOffsetRef.current[0] + rbRecoilOffsetRef.current[0] + sbRecoilOffsetRef.current[0];
+    const totalRecoilY = recoilOffsetRef.current[1] + rbRecoilOffsetRef.current[1] + sbRecoilOffsetRef.current[1];
 
     if (groupRef.current && !isDying) {
       groupRef.current.rotation.z = gentleWobble;

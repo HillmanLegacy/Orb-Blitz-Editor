@@ -156,7 +156,8 @@ export function GameLogic() {
   const lastScattershotFire = useRef(0);
   const lastOverchargedFire = useRef(0);
   const lastHomingFire = useRef(0);
-  const triggerRapidBlasterFireRef = useRef(useMagicOrb.getState().triggerRapidBlasterFire);
+  const triggerRapidBlasterFireRef  = useRef(useMagicOrb.getState().triggerRapidBlasterFire);
+  const triggerSpiralBlasterFireRef = useRef(useMagicOrb.getState().triggerSpiralBlasterFire);
   const lastRestorationTick = useRef(0);
   const lastMagiOrb6Teleport = useRef(0);
   const lastMagiOrb8Fire = useRef(0);
@@ -460,7 +461,7 @@ export function GameLogic() {
       }
       lastSpiralFire.current = now;
 
-      // Single braid projectile — 3 intertwined strands, pierces up to 3 enemies
+      // Orbital Spiral Blaster — 3 individually-hittable sub-spheres orbiting a central path
       const projectile: Projectile = {
         id: `proj-${projectileIdCounter++}`,
         position: [...projectileOrigin] as [number, number, number],
@@ -471,8 +472,12 @@ export function GameLogic() {
         hitCount: 3,
         piercing: true,
         noMissTracking: true,
+        spiralAngle: 0,
+        subSphereAlive: [true, true, true],
       };
       addProjectileRef.current(projectile);
+      useMagicOrb.getState().triggerBackgroundShake();
+      triggerSpiralBlasterFireRef.current(targetDirX, targetDirY);
     } else if (hasOverchargedBlasterRef.current) {
       const now = Date.now();
       if (now - lastOverchargedFire.current < 1500) {
@@ -497,6 +502,7 @@ export function GameLogic() {
         speed: 5.0,
         spawnScale: 0.05,
         spawnScaleTimer: 0,
+        travelTimer: 0,
         volleyId: `volley-${now}-overcharged`,
       };
       addProjectileRef.current(projectile);
