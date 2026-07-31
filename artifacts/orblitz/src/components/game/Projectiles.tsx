@@ -353,50 +353,238 @@ function OcShockwaveRing({ position }: { position: [number, number, number] }) {
   );
 }
 
-// ── Overcharged AOE explosion burst — spawned at detonation point ──────────────
-const _ocExpRingGeo  = new THREE.TorusGeometry(1, 0.14, 8, 64);
-const _ocExpRingGeo2 = new THREE.TorusGeometry(1, 0.08, 6, 48);
-const _ocExpSphGeo   = new THREE.SphereGeometry(1, 12, 8);
+// ── AAA Blue Plasma Explosion — multi-layer instanced effect ─────────────────
+const OC_PLASMA_N = 30;
+const OC_SPARK_N  = 65;
+const OC_SMOKE_N  = 14;
 
-function OcExplosionBurst({ position }: { position: [number, number, number] }) {
-  const ring1Ref = useRef<THREE.Mesh>(null);
-  const ring2Ref = useRef<THREE.Mesh>(null);
-  const sphRef   = useRef<THREE.Mesh>(null);
-  const timerRef = useRef(0);
-  const DUR      = 0.75;
+const _ocCoreGeo   = new THREE.SphereGeometry(1, 10, 6);
+const _ocPlasmaGeo = new THREE.SphereGeometry(1, 5, 4);
+const _ocSparkGeo  = new THREE.SphereGeometry(1, 4, 3);
+const _ocSmokeGeo  = new THREE.PlaneGeometry(1, 1);
+const _ocRing1Geo  = new THREE.TorusGeometry(1, 0.10, 6, 64);
+const _ocRing2Geo  = new THREE.TorusGeometry(1, 0.055, 5, 48);
+
+// Reusable scratch objects (single-threaded, safe)
+const _ocM4  = new THREE.Matrix4();
+const _ocV3  = new THREE.Vector3();
+const _ocSc3 = new THREE.Vector3();
+const _ocQ0  = new THREE.Quaternion();  // identity
+const _ocCol = new THREE.Color();
+
+// Plasma color ramp: white-cyan → electric blue → cobalt → deep purple → fade-to-dark
+function _plasmaRamp(t: number, out: THREE.Color) {
+  if      (t < 0.20) out.setHSL(0.54, 1.0, 0.95 - t * 0.50);
+  else if (t < 0.50) out.setHSL(0.60, 1.0, 0.75 - (t - 0.20) * 1.00);
+  else if (t < 0.78) out.setHSL(0.65, 1.0, 0.45 - (t - 0.50) * 0.80);
+  else               out.setHSL(0.72, 0.90, 0.12 - (t - 0.78) * 0.55);
+  // additive blending: darken = transparent, encode fade in luminance
+  out.multiplyScalar(Math.max(1 - t * t, 0));
+}
+
+type _OcPart = {
+  vx: number; vy: number; vz: number;
+  size: number;
+  pFreq: number; pAmp: number; pPhase: number;
+  maxLife: number; life: number;
+};
+type _OcSmoke = _OcPart & { delay: number };
+
+function OcPlasmaExplosion({ position }: { position: [number, number, number] }) {
+  const coreRef   = useRef<THREE.Mesh>(null);
+  const ring1Ref  = useRef<THREE.Mesh>(null);
+  const ring2Ref  = useRef<THREE.Mesh>(null);
+  const lightRef  = useRef<THREE.PointLight>(null);
+  const plasmaRef = useRef<THREE.InstancedMesh>(null);
+  const sparkRef  = useRef<THREE.InstancedMesh>(null);
+  const smokeRef  = useRef<THREE.InstancedMesh>(null);
+  const elapsed   = useRef(0);
+
+  const plasma = useRef<_OcPart[]>([]);
+  const sparks  = useRef<_OcPart[]>([]);
+  const smoke   = useRef<_OcSmoke[]>([]);
+
+  // Per-instance materials (created once on mount, disposed on unmount)
+  const [plasmaMat] = useState(() => new THREE.MeshBasicMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  }));
+  const [sparkMat] = useState(() => new THREE.MeshBasicMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  }));
+  const [smokeMat] = useState(() => new THREE.MeshBasicMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  }));
+
+  // Initialize particle banks once
+  useMemo(() => {
+    plasma.current = Array.from({ length: OC_PLASMA_N }, () => {
+      const a = Math.random() * Math.PI * 2;
+      const s = 2.0 + Math.random() * 6.0;
+      return {
+        vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+        vz: (Math.random() - 0.5) * 1.2,
+        size: 0.10 + Math.random() * 0.30,
+        pFreq: 5 + Math.random() * 7, pAmp: 0.04 + Math.random() * 0.10,
+        pPhase: Math.random() * Math.PI * 2,
+        maxLife: 0.28 + Math.random() * 0.35, life: 0,
+      };
+    });
+    sparks.current = Array.from({ length: OC_SPARK_N }, () => {
+      const a = Math.random() * Math.PI * 2;
+      const s = 5.0 + Math.random() * 12.0;
+      return {
+        vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+        vz: (Math.random() - 0.5) * 2.5,
+        size: 0.014 + Math.random() * 0.044,
+        pFreq: 0, pAmp: 0, pPhase: 0,
+        maxLife: 0.14 + Math.random() * 0.56, life: 0,
+      };
+    });
+    smoke.current = Array.from({ length: OC_SMOKE_N }, () => {
+      const a = Math.random() * Math.PI * 2;
+      const s = 0.3 + Math.random() * 1.5;
+      return {
+        vx: Math.cos(a) * s, vy: Math.sin(a) * s, vz: 0,
+        size: 0.6 + Math.random() * 1.5,
+        pFreq: 0, pAmp: 0, pPhase: 0,
+        maxLife: 1.2 + Math.random() * 0.8, life: 0,
+        delay: 0.22 + Math.random() * 0.35,
+      };
+    });
+  }, []);
+
+  useEffect(() => () => {
+    plasmaMat.dispose(); sparkMat.dispose(); smokeMat.dispose();
+  }, [plasmaMat, sparkMat, smokeMat]);
 
   useFrame((_, delta) => {
-    timerRef.current = Math.min(timerRef.current + delta, DUR);
-    const t  = timerRef.current / DUR;
-    const t2 = easeOutQuad(t);
+    elapsed.current += delta;
+    const T = elapsed.current;
 
+    // ── 1. Core flash sphere (0–0.13 s) ──────────────────────────────────────
+    if (coreRef.current) {
+      const tc = Math.min(T / 0.13, 1);
+      coreRef.current.scale.setScalar(easeOutQuad(tc) * OC_EXPLODE_RADIUS * 0.28);
+      (coreRef.current.material as THREE.MeshBasicMaterial).opacity = (1 - tc) * 0.98;
+    }
+
+    // ── 2. Shockwave rings ────────────────────────────────────────────────────
     if (ring1Ref.current) {
-      ring1Ref.current.scale.setScalar(t2 * OC_EXPLODE_RADIUS * 0.95);
-      (ring1Ref.current.material as THREE.MeshBasicMaterial).opacity = (1 - t) * 0.9;
+      const tr = Math.min(T / 0.55, 1);
+      ring1Ref.current.scale.setScalar(easeOutQuad(tr) * OC_EXPLODE_RADIUS * 1.08);
+      (ring1Ref.current.material as THREE.MeshBasicMaterial).opacity = (1 - tr) * 0.88;
     }
     if (ring2Ref.current) {
-      const t3 = Math.max(0, t - 0.08);
-      ring2Ref.current.scale.setScalar(easeOutQuad(t3 / 0.92) * OC_EXPLODE_RADIUS * 0.58);
-      (ring2Ref.current.material as THREE.MeshBasicMaterial).opacity = (1 - t) * 0.65;
+      const tr2 = Math.min(Math.max(T - 0.04, 0) / 0.50, 1);
+      ring2Ref.current.scale.setScalar(easeOutQuad(tr2) * OC_EXPLODE_RADIUS * 0.65);
+      (ring2Ref.current.material as THREE.MeshBasicMaterial).opacity = (1 - tr2) * 0.55;
     }
-    if (sphRef.current) {
-      sphRef.current.scale.setScalar(t2 * OC_EXPLODE_RADIUS * 0.25);
-      (sphRef.current.material as THREE.MeshBasicMaterial).opacity = (1 - t * t) * 0.55;
+
+    // ── 3. Point light: fast spike → slow decay ───────────────────────────────
+    if (lightRef.current) {
+      const li = T < 0.04
+        ? (T / 0.04) * 82
+        : 82 * Math.pow(Math.max(1 - (T - 0.04) / 0.38, 0), 2);
+      lightRef.current.intensity = li;
+    }
+
+    // ── 4. Plasma blobs ───────────────────────────────────────────────────────
+    if (plasmaRef.current) {
+      const im = plasmaRef.current;
+      for (let i = 0; i < OC_PLASMA_N; i++) {
+        const p = plasma.current[i];
+        p.life += delta;
+        const t = p.life / p.maxLife;
+        if (t >= 1) { _ocM4.makeScale(0, 0, 0); im.setMatrixAt(i, _ocM4); continue; }
+        // noise-driven turbulence
+        const tx = p.pAmp * Math.sin(p.pFreq * T + p.pPhase);
+        const ty = p.pAmp * Math.cos(p.pFreq * T + p.pPhase + 1.3);
+        _ocV3.set(p.vx * p.life + tx, p.vy * p.life + ty, p.vz * p.life);
+        const sz = Math.max(p.size * (1 + easeOutQuad(t) * 1.5) * (1 - t * t), 0.0001);
+        _ocSc3.setScalar(sz);
+        _ocM4.compose(_ocV3, _ocQ0, _ocSc3);
+        im.setMatrixAt(i, _ocM4);
+        _plasmaRamp(t, _ocCol);
+        im.setColorAt(i, _ocCol);
+      }
+      im.instanceMatrix.needsUpdate = true;
+      if (im.instanceColor) im.instanceColor.needsUpdate = true;
+    }
+
+    // ── 5. High-velocity spark/ember burst with gravity ───────────────────────
+    if (sparkRef.current) {
+      const im = sparkRef.current;
+      for (let i = 0; i < OC_SPARK_N; i++) {
+        const p = sparks.current[i];
+        p.life += delta;
+        const t = p.life / p.maxLife;
+        if (t >= 1) { _ocM4.makeScale(0, 0, 0); im.setMatrixAt(i, _ocM4); continue; }
+        const grav = 3.0 * p.life * p.life;  // arcs downward
+        _ocV3.set(p.vx * p.life, p.vy * p.life - grav, p.vz * p.life);
+        const sz = Math.max(p.size * (1 - t * t), 0.0001);
+        _ocSc3.setScalar(sz);
+        _ocM4.compose(_ocV3, _ocQ0, _ocSc3);
+        im.setMatrixAt(i, _ocM4);
+        // cyan → blue → deep blue, brightness encodes fade
+        const hue = 0.54 + Math.min(t, 1) * 0.12;
+        const lum = Math.max((0.82 - t * 0.68) * (1 - t * t), 0);
+        _ocCol.setHSL(hue, 1.0, lum);
+        im.setColorAt(i, _ocCol);
+      }
+      im.instanceMatrix.needsUpdate = true;
+      if (im.instanceColor) im.instanceColor.needsUpdate = true;
+    }
+
+    // ── 6. Ionized smoke cloud (dark violet / charcoal, delayed) ─────────────
+    if (smokeRef.current) {
+      const im = smokeRef.current;
+      for (let i = 0; i < OC_SMOKE_N; i++) {
+        const p = smoke.current[i];
+        const age = T - p.delay;
+        if (age <= 0) { _ocM4.makeScale(0, 0, 0); im.setMatrixAt(i, _ocM4); continue; }
+        const t = Math.min(age / p.maxLife, 1);
+        _ocV3.set(p.vx * age, p.vy * age, 0.02);
+        const sz = Math.max(p.size * easeOutQuad(Math.min(t * 3, 1)) * (0.5 + t * 0.5), 0.0001);
+        _ocSc3.setScalar(sz);
+        _ocM4.compose(_ocV3, _ocQ0, _ocSc3);
+        im.setMatrixAt(i, _ocM4);
+        // dark violet / deep blue; fade out via additive darkening
+        const hSmoke = i % 2 === 0 ? 0.73 : 0.61;
+        const lum = Math.max((1 - t) * 0.22, 0);
+        _ocCol.setHSL(hSmoke, 0.65, lum);
+        im.setColorAt(i, _ocCol);
+      }
+      im.instanceMatrix.needsUpdate = true;
+      if (im.instanceColor) im.instanceColor.needsUpdate = true;
     }
   });
 
   return (
     <group position={position}>
-      <pointLight color="#55ccff" intensity={30 * 1} distance={12} decay={2} />
-      <mesh ref={ring1Ref} geometry={_ocExpRingGeo}>
-        <meshBasicMaterial color="#88ddff" transparent opacity={0} depthWrite={false} blending={THREE.AdditiveBlending} />
-      </mesh>
-      <mesh ref={ring2Ref} geometry={_ocExpRingGeo2} rotation={[Math.PI / 2, 0, 0]}>
+      {/* Searing point light — spikes to 82 intensity, decays over 0.4 s */}
+      <pointLight ref={lightRef} color="#aaf0ff" intensity={0} distance={20} decay={2} />
+
+      {/* Core flash sphere — white, expands and fades in 0.13 s */}
+      <mesh ref={coreRef} geometry={_ocCoreGeo} scale={0}>
         <meshBasicMaterial color="#ffffff" transparent opacity={0} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
-      <mesh ref={sphRef} geometry={_ocExpSphGeo}>
-        <meshBasicMaterial color="#aaeeff" transparent opacity={0} depthWrite={false} blending={THREE.AdditiveBlending} />
+
+      {/* Shockwave rings */}
+      <mesh ref={ring1Ref} geometry={_ocRing1Geo} scale={0}>
+        <meshBasicMaterial color="#55ddff" transparent opacity={0} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
+      <mesh ref={ring2Ref} geometry={_ocRing2Geo} scale={0}>
+        <meshBasicMaterial color="#ffffff" transparent opacity={0} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+
+      {/* Plasma blobs — 30 instanced, turbulent burst */}
+      <instancedMesh ref={plasmaRef} args={[_ocPlasmaGeo, plasmaMat, OC_PLASMA_N]} frustumCulled={false} />
+
+      {/* Electric sparks — 65 instanced, high-velocity arc downward */}
+      <instancedMesh ref={sparkRef} args={[_ocSparkGeo, sparkMat, OC_SPARK_N]} frustumCulled={false} />
+
+      {/* Ionized smoke — 14 instanced, delayed dark violet cloud */}
+      <instancedMesh ref={smokeRef} args={[_ocSmokeGeo, smokeMat, OC_SMOKE_N]} frustumCulled={false} />
     </group>
   );
 }
@@ -1643,7 +1831,7 @@ export function Projectiles() {
           ocExpTimeoutsRef.current.set(expId, setTimeout(() => {
             setOcExplosions(prev => prev.filter(e => e.id !== expId));
             ocExpTimeoutsRef.current.delete(expId);
-          }, 800));
+          }, 2600)); // extended to cover 2 s ionized smoke layer
 
           useMagicOrb.getState().triggerBackgroundShake();
           playSparkleExplosion();

@@ -1,0 +1,34 @@
+Please refactor the current "overcharged blaster projectile" impact/explosion effect and replace it with a AAA-quality 3D blue plasma/energy particle explosion. 
+
+### Objective
+Upgrade the current projectile explosion into a high-fidelity, multi-layered blue energy blast that triggers immediately upon impact.
+
+### Implementation Details
+
+1. Core Blast & Flash (Frame 0 - 5)
+   - Spawn an intense, near-instantaneous light source (searing cyan/white) with dynamic light casting that temporarily illuminates surrounding geometry in bright blue tones.
+   - Expand a intense central core mesh/particle sphere (cyan-white core with a deep blue outer ring) that rapidly scales up and fades out within ~0.15 seconds.
+
+2. Plasma Fireball & Energy Bloom (Frame 2 - 30)
+   - Spawn a burst of volumetric energy/plasma particles.
+   - Use dynamic color transitions starting at searing white-cyan, shifting to electric blue, cobalt, and deep purple-blue, before dissolving into dark ionized ash/smoke.
+   - Implement dynamic scaling and noise-driven turbulence to give the plasma a chaotic, crackling look.
+
+3. Ionized Smoke / Arc Cloud (Frame 10 - 120)
+   - Emit dark violet and charcoal smoke particles with lingering electric blue highlights or faint residual sparks inside the cloud.
+   - Smoke expands and slowly dissipates using alpha fading over 1.5–2.0 seconds.
+
+4. Energy Arcs, Shrapnel & Electric Sparks (High-Velocity Particles)
+   - Eject 60–100 high-velocity electric blue ember/spark particles and fine lightning arcs outward along the impact surface normal.
+   - Apply physics/gravity to debris so particles arc downward, leaving short trail renderers or fading out on impact.
+   - Include charred, high-contrast mesh fragments that rotate violently in 3D space with subtle blue rim lighting.
+
+5. Distortion Shockwave & Post-Effects
+   - Deploy an expanding ring/sphere refractive particle shader that creates an energy distortion/refraction haze in the air.
+   - Trigger a brief, sharp camera shake impulse scaled by distance to the blast.
+
+6. Integration & Performance
+   - Hook this effect directly into the blue blaster projectile's collision/impact callback where the old explosion was triggered.
+   - Clean up old explosion code and use particle object pooling and light pooling to ensure high performance.
+
+Please review the engine setup in the project (e.g., Three.js, Babylon.js, WebGL) and output clean, modular code implementing this blue plasma explosion.
