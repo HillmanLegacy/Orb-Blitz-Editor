@@ -1261,13 +1261,22 @@ export function Projectiles() {
           const targetDirY = closestTarget.position[1] - py;
           const len = Math.sqrt(targetDirX * targetDirX + targetDirY * targetDirY);
           if (len > 0.1) {
-            const homingStrength = 0.15;
-            dx = dx * (1 - homingStrength) + (targetDirX / len) * homingStrength;
-            dy = dy * (1 - homingStrength) + (targetDirY / len) * homingStrength;
-            const newLen = Math.sqrt(dx * dx + dy * dy);
-            if (newLen > 0.01) {
-              dx /= newLen;
-              dy /= newLen;
+            const tdx = targetDirX / len;
+            const tdy = targetDirY / len;
+            // Only steer toward targets within a ~65° forward cone (dot > cos65° ≈ 0.42).
+            // Targets outside the cone fly past without correction — shot can miss.
+            const dot = dx * tdx + dy * tdy;
+            if (dot > 0.42) {
+              // Gentle turn: 0.055 per frame at 60fps — curves noticeably but won't
+              // snap onto targets crossing perpendicular to the shot.
+              const homingStrength = 0.055;
+              dx = dx * (1 - homingStrength) + tdx * homingStrength;
+              dy = dy * (1 - homingStrength) + tdy * homingStrength;
+              const newLen = Math.sqrt(dx * dx + dy * dy);
+              if (newLen > 0.01) {
+                dx /= newLen;
+                dy /= newLen;
+              }
             }
           }
         }
