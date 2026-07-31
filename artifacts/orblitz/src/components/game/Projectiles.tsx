@@ -2188,7 +2188,7 @@ export function Projectiles() {
         <OcShockwaveRing key={sw.id} position={sw.pos} />
       ))}
       {ocExplosions.map(ex => (
-        <OcExplosionBurst key={ex.id} position={ex.pos} />
+        <OcPlasmaExplosion key={ex.id} position={ex.pos} />
       ))}
       {scatterArcs.map(arc => (
         <ScatterMuzzleArc key={arc.id} position={arc.pos} dirX={arc.dirX} dirY={arc.dirY} />
