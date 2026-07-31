@@ -1109,73 +1109,9 @@ export function Projectiles() {
         newSpawnScale = 0.05 + 0.95 * easeOutQuad(eoqT);
       }
 
-      // ── Overcharged Blaster: timed AOE explosion after OC_TRAVEL_TIME ─────────
+      // travelTimer is advanced after hitSomething is declared (see below)
       let newTravelTimer = proj.travelTimer;
-      if (proj.type === "overcharged" && newTravelTimer !== undefined) {
-        newTravelTimer = newTravelTimer + delta;
-        if (newTravelTimer >= OC_TRAVEL_TIME) {
-          hitSomething = true;  // remove projectile after this frame
 
-          // Trigger explosion VFX ring
-          const expId  = `ocexp-${proj.id}`;
-          const expPos = [px, py, pz] as [number, number, number];
-          setOcExplosions(prev => [...prev, { id: expId, pos: expPos }]);
-          ocExpTimeoutsRef.current.set(expId, setTimeout(() => {
-            setOcExplosions(prev => prev.filter(e => e.id !== expId));
-            ocExpTimeoutsRef.current.delete(expId);
-          }, 800));
-
-          // Camera shake
-          useMagicOrb.getState().triggerBackgroundShake();
-          playSparkleExplosion();
-
-          // ── AOE: boss ──────────────────────────────────────────────────────
-          if (boss && !boss.destroying) {
-            const [bx, by, bz] = boss.position;
-            const bDist = Math.sqrt((px-bx)**2+(py-by)**2+((bz||0)-pz)**2);
-            if (bDist < OC_EXPLODE_RADIUS + 1.65) {
-              const bossKilled = damageBoss(8);
-              addScore(25); playHit();
-              if (bossKilled) playSparkleExplosion();
-              addImpactEffect({ id: `impact-${impactIdCounter++}`, position: [bx, by, bz||0], timer: 0.55, maxTimer: 0.55, seed: Math.random(), isBossHit: true });
-            }
-          }
-
-          // ── AOE: dark orbs ─────────────────────────────────────────────────
-          for (const orb of darkOrbs) {
-            if (orb.destroying) continue;
-            const [ox, oy, oz] = orb.position;
-            if (Math.abs(ox) > 13 || Math.abs(oy) > 13) continue;
-            const oDist = Math.sqrt((px-ox)**2+(py-oy)**2+(pz-oz)**2);
-            if (oDist < OC_EXPLODE_RADIUS) {
-              markOrbDestroying(orb.id);
-              addScore(10); incrementGauntletOrbs(); addCoins(5);
-              if (gameMode === "arcade") incrementOrbsDestroyed();
-              addImpactEffect({ id: `impact-${impactIdCounter++}`, position: [ox, oy, oz], timer: 0.4, maxTimer: 0.4, seed: Math.random() });
-            }
-          }
-
-          // ── AOE: power-ups ─────────────────────────────────────────────────
-          for (const powerUp of powerUps) {
-            if (powerUp.collected) continue;
-            const [pux, puy, puz] = powerUp.position;
-            const puDist = Math.sqrt((px-pux)**2+(py-puy)**2+(pz-puz)**2);
-            if (puDist < OC_EXPLODE_RADIUS) {
-              hitPowerUpsThisFrame.current.add(powerUp.id);
-              removePowerUp(powerUp.id);
-              playSuccess();
-              if (powerUp.type === "shield")       { activateShield();       addParticles(createPowerUpParticles([pux,puy,puz],["#00ffff","#00ff00"])); }
-              else if (powerUp.type === "chargeBeam") { activateChargeBeam(); addParticles(createPowerUpParticles([pux,puy,puz],["#ffff00","#ff6600"])); }
-              else if (powerUp.type === "healing")    { heal();               addParticles(createPowerUpParticles([pux,puy,puz],["#00ff88","#ffffff"])); }
-              else if (powerUp.type === "doubleCoins") { activateDoubleCoins(); addParticles(createPowerUpParticles([pux,puy,puz],["#ffd700","#ffaa00"])); }
-              else if (powerUp.type === "rapidFire")  { activateRapidFire();  addParticles(createPowerUpParticles([pux,puy,puz],["#ff4400","#ff0000"])); }
-              addScore(25);
-            }
-          }
-          if (proj.volleyId) volleyHits.current.add(proj.volleyId);
-        }
-      }
-      
       const screenBoundary = 13;
       if (Math.abs(px) > screenBoundary || Math.abs(py) > screenBoundary) {
         const projHasHit = projectileOrbHits.current.has(proj.id) && projectileOrbHits.current.get(proj.id)!.size > 0;
@@ -1207,6 +1143,64 @@ export function Projectiles() {
       }
       
       let hitSomething = false;
+
+      // ── Overcharged Blaster: timed AOE explosion after OC_TRAVEL_TIME ────────
+      if (proj.type === "overcharged" && newTravelTimer !== undefined) {
+        newTravelTimer = newTravelTimer + delta;
+        if (newTravelTimer >= OC_TRAVEL_TIME) {
+          hitSomething = true;
+
+          const expId  = `ocexp-${proj.id}`;
+          const expPos = [px, py, pz] as [number, number, number];
+          setOcExplosions(prev => [...prev, { id: expId, pos: expPos }]);
+          ocExpTimeoutsRef.current.set(expId, setTimeout(() => {
+            setOcExplosions(prev => prev.filter(e => e.id !== expId));
+            ocExpTimeoutsRef.current.delete(expId);
+          }, 800));
+
+          useMagicOrb.getState().triggerBackgroundShake();
+          playSparkleExplosion();
+
+          if (boss && !boss.destroying) {
+            const [bx, by, bz] = boss.position;
+            if (Math.sqrt((px-bx)**2+(py-by)**2+((bz||0)-pz)**2) < OC_EXPLODE_RADIUS + 1.65) {
+              const bossKilled = damageBoss(8);
+              addScore(25); playHit();
+              if (bossKilled) playSparkleExplosion();
+              addImpactEffect({ id: `impact-${impactIdCounter++}`, position: [bx, by, bz||0], timer: 0.55, maxTimer: 0.55, seed: Math.random(), isBossHit: true });
+            }
+          }
+
+          for (const orb of darkOrbs) {
+            if (orb.destroying) continue;
+            const [ox, oy, oz] = orb.position;
+            if (Math.abs(ox) > 13 || Math.abs(oy) > 13) continue;
+            if (Math.sqrt((px-ox)**2+(py-oy)**2+(pz-oz)**2) < OC_EXPLODE_RADIUS) {
+              markOrbDestroying(orb.id);
+              addScore(10); incrementGauntletOrbs(); addCoins(5);
+              if (gameMode === "arcade") incrementOrbsDestroyed();
+              addImpactEffect({ id: `impact-${impactIdCounter++}`, position: [ox, oy, oz], timer: 0.4, maxTimer: 0.4, seed: Math.random() });
+            }
+          }
+
+          for (const powerUp of powerUps) {
+            if (powerUp.collected) continue;
+            const [pux, puy, puz] = powerUp.position;
+            if (Math.sqrt((px-pux)**2+(py-puy)**2+(pz-puz)**2) < OC_EXPLODE_RADIUS) {
+              hitPowerUpsThisFrame.current.add(powerUp.id);
+              removePowerUp(powerUp.id);
+              playSuccess();
+              if (powerUp.type === "shield")          { activateShield();      addParticles(createPowerUpParticles([pux,puy,puz],["#00ffff","#00ff00"])); }
+              else if (powerUp.type === "chargeBeam") { activateChargeBeam();  addParticles(createPowerUpParticles([pux,puy,puz],["#ffff00","#ff6600"])); }
+              else if (powerUp.type === "healing")    { heal();                addParticles(createPowerUpParticles([pux,puy,puz],["#00ff88","#ffffff"])); }
+              else if (powerUp.type === "doubleCoins"){ activateDoubleCoins(); addParticles(createPowerUpParticles([pux,puy,puz],["#ffd700","#ffaa00"])); }
+              else if (powerUp.type === "rapidFire")  { activateRapidFire();   addParticles(createPowerUpParticles([pux,puy,puz],["#ff4400","#ff0000"])); }
+              addScore(25);
+            }
+          }
+          if (proj.volleyId) volleyHits.current.add(proj.volleyId);
+        }
+      }
 
       // ── Orbital Spiral Blaster: per-sub-sphere collision (boss + orbs) ────
       if (proj.type === "spiral") {
