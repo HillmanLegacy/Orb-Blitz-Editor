@@ -278,6 +278,7 @@ interface MagicOrbState {
   
   addPowerUp: (powerUp: PowerUp) => void;
   removePowerUp: (id: string) => void;
+  hurtPowerUp: (id: string) => void;
   markPowerUpCollected: (id: string) => void;
   updatePowerUps: (powerUps: PowerUp[]) => void;
   
@@ -1622,6 +1623,13 @@ export const useMagicOrb = create<MagicOrbState>()(
     
     removePowerUp: (id) => set((state) => ({ 
       powerUps: state.powerUps.filter((p) => p.id !== id) 
+    })),
+    hurtPowerUp: (id) => set((state) => ({
+      powerUps: state.powerUps.map((p) =>
+        p.id === id && !p.hurtTimer && !p.destroying
+          ? { ...p, hurtTimer: 0.10 }
+          : p
+      ),
     })),
     
     markPowerUpCollected: (id) => set((state) => ({

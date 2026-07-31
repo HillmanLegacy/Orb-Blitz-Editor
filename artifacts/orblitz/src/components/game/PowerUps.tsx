@@ -4,9 +4,8 @@ import * as THREE from "three";
 import { useMagicOrb, PowerUp, PowerUpType } from "@/lib/stores/useMagicOrb";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const HIT_RADIUS    = 0.52;  // collision sphere for projectile→power-up
-const HURT_DUR      = 0.10;  // white-flash duration after being shot
-const DESTROY_DUR   = 0.72;  // teleport-out VFX duration before activation
+const HURT_DUR    = 0.10;  // white-flash duration after being shot
+const DESTROY_DUR = 0.72;  // teleport-out VFX duration before activation
 
 // ── Teleport-out VFX ─────────────────────────────────────────────────────────
 // 28 color-matched particles burst outward then arc toward the player at [0,0,0]
@@ -387,11 +386,9 @@ export function PowerUps() {
     clockRef.current = state.clock.getElapsedTime();
     if (phase !== "playing") return;
 
-    const store       = useMagicOrb.getState();
-    const current     = store.powerUps;
+    const current = useMagicOrb.getState().powerUps;
     if (current.length === 0) return;
 
-    const projectiles = store.projectiles;
     const updated: PowerUp[] = [];
 
     for (const pu of current) {
@@ -407,25 +404,18 @@ export function PowerUps() {
       if (pu.destroying) {
         const newTimer = (pu.destroyTimer ?? DESTROY_DUR) - delta;
         if (newTimer <= 0) {
-          // Activate the power-up now that the VFX has played out
           activatePowerUp(pu.type);
-          continue; // remove from array
+          continue; // activated — remove from array
         }
         updated.push({ ...pu, destroyTimer: newTimer });
         continue;
       }
 
-      // ── Hurt flash countdown ─────────────────────────────────────────────
+      // ── Hurt flash countdown → transition to destroying ──────────────────
       if (pu.hurtTimer && pu.hurtTimer > 0) {
         const newHurt = pu.hurtTimer - delta;
         if (newHurt <= 0) {
-          // Transition to destroying
-          updated.push({
-            ...pu,
-            hurtTimer:    0,
-            destroying:   true,
-            destroyTimer: DESTROY_DUR,
-          });
+          updated.push({ ...pu, hurtTimer: 0, destroying: true, destroyTimer: DESTROY_DUR });
         } else {
           updated.push({ ...pu, hurtTimer: newHurt });
         }
@@ -440,26 +430,7 @@ export function PowerUps() {
       z += vz * delta;
 
       if (Math.abs(x) > 15 || Math.abs(y) > 10) continue;
-
-      // ── Projectile hit detection ─────────────────────────────────────────
-      let hit = false;
-      for (const proj of projectiles) {
-        const dx = proj.position[0] - x;
-        const dy = proj.position[1] - y;
-        const dz = proj.position[2] - z;
-        if (dx*dx + dy*dy + dz*dz < HIT_RADIUS * HIT_RADIUS) {
-          // Remove the projectile that hit
-          store.removeProjectile(proj.id);
-          hit = true;
-          break;
-        }
-      }
-
-      if (hit) {
-        updated.push({ ...pu, position: [x, y, z], hurtTimer: HURT_DUR });
-      } else {
-        updated.push({ ...pu, position: [x, y, z] });
-      }
+      updated.push({ ...pu, position: [x, y, z] });
     }
 
     updatePowerUps(updated);

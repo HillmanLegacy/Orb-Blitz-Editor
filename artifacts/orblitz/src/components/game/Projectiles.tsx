@@ -1525,6 +1525,7 @@ export function Projectiles() {
     powerUps,
     markPowerUpCollected,
     removePowerUp,
+    hurtPowerUp,
     activateShield,
     activateChargeBeam,
     heal,
@@ -1842,18 +1843,12 @@ export function Projectiles() {
           }
 
           for (const powerUp of powerUps) {
-            if (powerUp.collected) continue;
+            if (powerUp.collected || powerUp.destroying || powerUp.hurtTimer) continue;
             const [pux, puy, puz] = powerUp.position;
             if (Math.sqrt((px-pux)**2+(py-puy)**2+(pz-puz)**2) < OC_EXPLODE_RADIUS) {
               hitPowerUpsThisFrame.current.add(powerUp.id);
-              removePowerUp(powerUp.id);
+              hurtPowerUp(powerUp.id);
               playSuccess();
-              if (powerUp.type === "shield")          { activateShield();      addParticles(createPowerUpParticles([pux,puy,puz],["#00ffff","#00ff00"])); }
-              else if (powerUp.type === "chargeBeam") { activateChargeBeam();  addParticles(createPowerUpParticles([pux,puy,puz],["#ffff00","#ff6600"])); }
-              else if (powerUp.type === "healing")    { heal();                addParticles(createPowerUpParticles([pux,puy,puz],["#00ff88","#ffffff"])); }
-              else if (powerUp.type === "doubleCoins"){ activateDoubleCoins(); addParticles(createPowerUpParticles([pux,puy,puz],["#ffd700","#ffaa00"])); }
-              else if (powerUp.type === "rapidFire")  { activateRapidFire();   addParticles(createPowerUpParticles([pux,puy,puz],["#ff4400","#ff0000"])); }
-              addScore(25);
             }
           }
           if (proj.volleyId) volleyHits.current.add(proj.volleyId);
@@ -2051,40 +2046,17 @@ export function Projectiles() {
       }  // end if (!hitSomething && proj.type !== "spiral")
       
       for (const powerUp of powerUps) {
-        if (hitPowerUpsThisFrame.current.has(powerUp.id) || powerUp.collected) continue;
+        if (hitPowerUpsThisFrame.current.has(powerUp.id) || powerUp.collected || powerUp.destroying || powerUp.hurtTimer) continue;
         
         const [pux, puy, puz] = powerUp.position;
-        const dx2 = (px - pux) ** 2;
-        const dy2 = (py - puy) ** 2;
-        const dist = Math.sqrt(dx2 + dy2);
+        const dist = Math.sqrt((px - pux) ** 2 + (py - puy) ** 2);
         
         if (dist < 1.5) {
           hitPowerUpsThisFrame.current.add(powerUp.id);
-          removePowerUp(powerUp.id);
+          hurtPowerUp(powerUp.id);
           hitSomething = true;
-          if (proj.volleyId) {
-            volleyHits.current.add(proj.volleyId);
-          }
+          if (proj.volleyId) volleyHits.current.add(proj.volleyId);
           playSuccess();
-          
-          if (powerUp.type === "shield") {
-            activateShield();
-            addParticles(createPowerUpParticles([pux, puy, puz], ["#00ffff", "#00ff00"]));
-          } else if (powerUp.type === "chargeBeam") {
-            activateChargeBeam();
-            addParticles(createPowerUpParticles([pux, puy, puz], ["#ffff00", "#ff6600"]));
-          } else if (powerUp.type === "healing") {
-            heal();
-            addParticles(createPowerUpParticles([pux, puy, puz], ["#00ff88", "#ffffff"]));
-          } else if (powerUp.type === "doubleCoins") {
-            activateDoubleCoins();
-            addParticles(createPowerUpParticles([pux, puy, puz], ["#ffd700", "#ffaa00"]));
-          } else if (powerUp.type === "rapidFire") {
-            activateRapidFire();
-            addParticles(createPowerUpParticles([pux, puy, puz], ["#ff4400", "#ff0000"]));
-          }
-          
-          addScore(25);
           break;
         }
       }
