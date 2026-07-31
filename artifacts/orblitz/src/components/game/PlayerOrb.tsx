@@ -393,6 +393,67 @@ export function PlayerGlow({
   );
 }
 
+// ── Shield Form Particles — tiny cyan particles at sphere surface that bridge the VFX → shield gap
+const SHIELD_FORM_DUR = 0.5;
+const _SFP_N    = 80;
+const _sfpDummy = new THREE.Object3D();
+const _sfpColor = new THREE.Color();
+const _sfpPal   = [
+  new THREE.Color("#00ddff"), // cyan — matches ShieldFormVFX
+  new THREE.Color("#0099ff"), // ice-blue
+  new THREE.Color("#ffffff"), // white
+];
+const _sfpGeo   = new THREE.SphereGeometry(1, 4, 3);
+
+function ShieldFormParticles({ scale }: { scale: number }) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+
+  const particles = useMemo(() => {
+    const r = scale * 2.5;
+    return Array.from({ length: _SFP_N }, () => {
+      const phi = Math.acos(2 * Math.random() - 1);
+      const th  = Math.random() * Math.PI * 2;
+      const nx  = Math.sin(phi) * Math.cos(th);
+      const ny  = Math.cos(phi);
+      const nz  = Math.sin(phi) * Math.sin(th);
+      return { x: nx * r, y: ny * r, z: nz * r, size: 0.011 + Math.random() * 0.014, colorT: Math.random() };
+    });
+  }, [scale]);
+
+  const [mat] = useState(() => new THREE.MeshBasicMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  }));
+  useEffect(() => () => mat.dispose(), [mat]);
+
+  // Seed positions + colors once on mount (they never move)
+  useEffect(() => {
+    const im = meshRef.current;
+    if (!im) return;
+    for (let i = 0; i < _SFP_N; i++) {
+      const p = particles[i];
+      _sfpDummy.position.set(p.x, p.y, p.z);
+      _sfpDummy.scale.setScalar(p.size);
+      _sfpDummy.updateMatrix();
+      im.setMatrixAt(i, _sfpDummy.matrix);
+      const ct = p.colorT;
+      if (ct < 0.5) _sfpColor.lerpColors(_sfpPal[0], _sfpPal[1], ct * 2);
+      else           _sfpColor.lerpColors(_sfpPal[1], _sfpPal[2], (ct - 0.5) * 2);
+      im.setColorAt(i, _sfpColor);
+    }
+    im.instanceMatrix.needsUpdate = true;
+    if (im.instanceColor) im.instanceColor.needsUpdate = true;
+  }, [particles]);
+
+  // Only update opacity each frame — positions are static
+  useFrame(() => {
+    if (!meshRef.current) return;
+    const ft    = useMagicOrb.getState().shieldFormTimer;
+    mat.opacity = Math.max(0, ft / SHIELD_FORM_DUR) * 0.9;
+  });
+
+  return <instancedMesh ref={meshRef} args={[_sfpGeo, mat, _SFP_N]} frustumCulled={false} />;
+}
+
 // ── Shield Disintegration — particles burst outward from shield surface, shrink + fade
 const _SD_N              = 100;
 const _SHIELD_DISINT_DUR = 0.55;
@@ -480,27 +541,40 @@ function ShieldDisintegration({ scale }: { scale: number }) {
   );
 }
 
-function ShieldEffect({ scale }: { scale: number }) {
+function ShieldEffect({ scale, formProgress = 1 }: { scale: number; formProgress?: number }) {
   const groupRef = useRef<THREE.Group>(null);
+  const innerRef = useRef<THREE.Mesh>(null);
+  const wireRef  = useRef<THREE.Mesh>(null);
+  const sphRef   = useRef<THREE.Mesh>(null);
+
   useFrame((state) => {
     if (!groupRef.current) return;
-    const t = state.clock.getElapsedTime();
+    const t  = state.clock.getElapsedTime();
+    const fp = Math.max(0, Math.min(formProgress, 1));
     groupRef.current.rotation.y = t * 0.9;
     groupRef.current.rotation.x = t * 0.55;
+    // Fade in all three meshes as formProgress goes 0→1
+    if (innerRef.current)
+      (innerRef.current.material as THREE.MeshBasicMaterial).opacity = 0.4 * fp;
+    if (wireRef.current)
+      (wireRef.current.material as THREE.MeshBasicMaterial).opacity = 0.25 * fp;
+    if (sphRef.current)
+      (sphRef.current.material as THREE.MeshBasicMaterial).opacity = 0.05 * fp;
   });
+
   return (
     <group ref={groupRef}>
-      <mesh>
+      <mesh ref={innerRef}>
         <icosahedronGeometry args={[scale * 2.5, 1]} />
-        <meshBasicMaterial color="#001a1a" side={THREE.BackSide} transparent opacity={0.4} depthWrite={false} />
+        <meshBasicMaterial color="#001a1a" side={THREE.BackSide} transparent opacity={0} depthWrite={false} />
       </mesh>
-      <mesh>
+      <mesh ref={wireRef}>
         <icosahedronGeometry args={[scale * 2.5, 1]} />
-        <meshBasicMaterial color="#00ffff" wireframe transparent opacity={0.25} depthWrite={false} />
+        <meshBasicMaterial color="#00ffff" wireframe transparent opacity={0} depthWrite={false} />
       </mesh>
-      <mesh>
+      <mesh ref={sphRef}>
         <sphereGeometry args={[scale * 2.5, 12, 10]} />
-        <meshBasicMaterial color="#00aaff" transparent opacity={0.05} depthWrite={false} />
+        <meshBasicMaterial color="#00aaff" transparent opacity={0} depthWrite={false} />
       </mesh>
     </group>
   );
@@ -811,7 +885,7 @@ export function PlayerOrb() {
   const hmRecoilOffsetRef     = useRef([0, 0]);
   const prevHmSignalCountRef  = useRef(0);
   
-  const { health, maxHealth, hasShield, shieldDisintTimer, hasChargeBeam, isDamaged, isDying, deathTimer, playerPosition, magiOrb2Active, healAnimTimer, chargeGatherTimer } = useMagicOrb();
+  const { health, maxHealth, hasShield, shieldDisintTimer, shieldFormTimer, hasChargeBeam, isDamaged, isDying, deathTimer, playerPosition, magiOrb2Active, healAnimTimer, chargeGatherTimer } = useMagicOrb();
   const { equippedSkin, equippedRing, equippedTrail } = useShop();
   
   const healthRatio = health / maxHealth;
@@ -1128,12 +1202,7 @@ export function PlayerOrb() {
       }
     });
     
-    if (shieldRef.current && hasShield) {
-      shieldRef.current.rotation.y = time * 3.5;
-      shieldRef.current.rotation.x = time * 2.5;
-      const mat = shieldRef.current.material as THREE.MeshBasicMaterial;
-      mat.opacity = 0.45 + Math.sin(time * 12) * 0.2;
-    }
+    // ShieldEffect animates its own meshes via internal refs — no external manipulation needed
   });
   
   const glowColor = hasChargeBeam ? "#ffcc00" : (isDamaged ? "#ff0000" : skinColors.glow);
@@ -1218,8 +1287,16 @@ export function PlayerOrb() {
       </mesh>
 
 
-      {/* Shield power-up — rotating 3D wireframe icosahedron */}
-      {hasShield && <ShieldEffect scale={scale} />}
+      {/* Shield power-up — wireframe icosahedron that fades in as form particles fade out */}
+      {hasShield && (
+        <>
+          {shieldFormTimer > 0 && <ShieldFormParticles scale={scale} />}
+          <ShieldEffect
+            scale={scale}
+            formProgress={shieldFormTimer > 0 ? 1 - shieldFormTimer / SHIELD_FORM_DUR : 1}
+          />
+        </>
+      )}
 
       {/* Shield disintegration — particles burst from shield surface when consumed */}
       {shieldDisintTimer > 0 && <ShieldDisintegration scale={scale} />}

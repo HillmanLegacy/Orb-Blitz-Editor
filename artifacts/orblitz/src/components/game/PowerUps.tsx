@@ -176,7 +176,7 @@ function ShieldFormVFX({ startPos }: { startPos: [number, number, number] }) {
 
     // Stay fully opaque until the very last 8% — particles are AT the shield surface
     const gProgress = Math.min(1, age / DESTROY_DUR);
-    mat.opacity      = gProgress > 0.92 ? Math.max(0, 1 - (gProgress - 0.92) / 0.08) : 0.95;
+    mat.opacity      = gProgress > 0.97 ? Math.max(0, 1 - (gProgress - 0.97) / 0.03) : 0.95;
 
     for (let i = 0; i < _SFX_N; i++) {
       const p  = particles[i];
