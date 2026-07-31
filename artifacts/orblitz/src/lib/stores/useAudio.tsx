@@ -34,6 +34,77 @@ import {
   playSparkleExplosionSound,
 } from "@/lib/audio/SynthSounds";
 
+// ── Arcade BGM shuffle playlist ──────────────────────────────────────────────
+const ARCADE_TRACKS = [
+  "/audio/arcade/track_01.mp3",
+  "/audio/arcade/track_02.mp3",
+  "/audio/arcade/track_03.mp3",
+  "/audio/arcade/track_04.mp3",
+  "/audio/arcade/track_05.mp3",
+  "/audio/arcade/track_06.mp3",
+  "/audio/arcade/track_07.mp3",
+  "/audio/arcade/track_08.mp3",
+  "/audio/arcade/track_09.mp3",
+  "/audio/arcade/track_10.mp3",
+  "/audio/arcade/track_11.mp3",
+  "/audio/arcade/track_12.mp3",
+  "/audio/arcade/track_13.mp3",
+  "/audio/arcade/track_14.mp3",
+];
+
+let _arcadeEl: HTMLAudioElement | null = null;
+let _arcadeActive = false;
+let _arcadeShuffled: string[] = [];
+let _arcadeIdx = 0;
+let _arcadeFadeTimer: number | null = null;
+
+function _shuffleArcade(): string[] {
+  const a = [...ARCADE_TRACKS];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function _fadeArcade(from: number, to: number, ms: number, onDone?: () => void) {
+  if (_arcadeFadeTimer) { clearInterval(_arcadeFadeTimer); _arcadeFadeTimer = null; }
+  if (!_arcadeEl) { onDone?.(); return; }
+  const el = _arcadeEl;
+  const steps = 40;
+  const step_ms = ms / steps;
+  let s = 0;
+  el.volume = Math.max(0, Math.min(1, from));
+  _arcadeFadeTimer = window.setInterval(() => {
+    s++;
+    const t = s / steps;
+    const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    el.volume = Math.max(0, Math.min(1, from + (to - from) * e));
+    if (s >= steps) {
+      clearInterval(_arcadeFadeTimer!);
+      _arcadeFadeTimer = null;
+      el.volume = Math.max(0, Math.min(1, to));
+      if (to === 0) el.pause();
+      onDone?.();
+    }
+  }, step_ms);
+}
+
+function _playNextArcadeTrack(targetVol: number) {
+  if (!_arcadeActive) return;
+  if (_arcadeIdx >= _arcadeShuffled.length) {
+    _arcadeShuffled = _shuffleArcade();
+    _arcadeIdx = 0;
+  }
+  const src = _arcadeShuffled[_arcadeIdx++];
+  if (_arcadeEl) { _arcadeEl.onended = null; _arcadeEl.pause(); }
+  _arcadeEl = new Audio(src);
+  _arcadeEl.volume = 0;
+  _arcadeEl.onended = () => _playNextArcadeTrack(targetVol);
+  _arcadeEl.play().catch(() => {});
+  _fadeArcade(0, Math.min(1, targetVol), 1800);
+}
+
 // ── WAV sound effect player ───────────────────────────────────────────────────
 function playWav(path: string, volume = 0.6) {
   try {
@@ -183,6 +254,9 @@ interface AudioState {
   menuBgm: HTMLAudioElement | null;
   startMenuBgm: () => void;
   stopMenuBgm: () => void;
+
+  startArcadeBgm: () => void;
+  stopArcadeBgm: () => void;
 }
 
 export const useAudio = create<AudioState>((set, get) => ({
@@ -202,6 +276,10 @@ export const useAudio = create<AudioState>((set, get) => ({
     set({ volume: clamped });
     setMasterVolume(clamped);
     try { localStorage.setItem("orb_volume", String(clamped)); } catch {}
+    // Keep arcade BGM in sync with master volume
+    if (_arcadeEl && !_arcadeEl.paused) {
+      _arcadeEl.volume = Math.min(1, 0.65 * clamped);
+    }
   },
   setBrightness: (v: number) => {
     const clamped = Math.min(2, Math.max(0.2, v));
@@ -239,7 +317,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   },
   
   toggleMute: () => {
-    const { isMuted, synthMenuMusic, synthGameMusic, synthBossMusic, currentMusicType } = get();
+    const { isMuted, synthMenuMusic, synthGameMusic, synthBossMusic, currentMusicType, volume } = get();
     const newMutedState = !isMuted;
     set({ isMuted: newMutedState });
     
@@ -247,6 +325,10 @@ export const useAudio = create<AudioState>((set, get) => ({
       synthMenuMusic?.fadeOut();
       synthGameMusic?.fadeOut();
       synthBossMusic?.fadeOut();
+      // Fade out arcade BGM without stopping the playlist advance flag
+      if (_arcadeEl && !_arcadeEl.paused) {
+        _fadeArcade(_arcadeEl.volume, 0, 800);
+      }
     } else {
       if (currentMusicType === "menu") {
         get().initSynthMenuMusic()?.fadeIn();
@@ -254,6 +336,13 @@ export const useAudio = create<AudioState>((set, get) => ({
         get().initSynthGameMusic()?.fadeIn();
       } else if (currentMusicType === "boss") {
         get().initSynthBossMusic()?.fadeIn();
+      }
+      // Resume arcade BGM if the playlist is still active
+      if (_arcadeActive && _arcadeEl) {
+        _arcadeEl.play().catch(() => {});
+        _fadeArcade(0, Math.min(1, 0.65 * volume), 800);
+      } else if (_arcadeActive) {
+        _playNextArcadeTrack(0.65 * volume);
       }
     }
   },
@@ -324,6 +413,26 @@ export const useAudio = create<AudioState>((set, get) => ({
     const audio = get().menuBgm;
     if (!audio || audio.paused) return;
     fadeMenuBgm(audio, audio.volume, 0, 900);
+  },
+
+  startArcadeBgm: () => {
+    const { isMuted, volume } = get();
+    if (_arcadeActive) return;          // already running, don't restart
+    if (isMuted) return;
+    _arcadeActive = true;
+    _arcadeShuffled = _shuffleArcade();
+    _arcadeIdx = 0;
+    _playNextArcadeTrack(0.65 * volume);
+  },
+
+  stopArcadeBgm: () => {
+    if (!_arcadeActive && !_arcadeEl) return;
+    _arcadeActive = false;
+    if (_arcadeEl) {
+      _arcadeEl.onended = null;         // prevent next-track advance after fade
+      const el = _arcadeEl;
+      _fadeArcade(el.volume, 0, 1200, () => { _arcadeEl = null; });
+    }
   },
   
   playHit: () => {
