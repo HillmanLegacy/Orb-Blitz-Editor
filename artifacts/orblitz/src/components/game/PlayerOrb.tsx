@@ -580,93 +580,214 @@ function ShieldEffect({ scale, formProgress = 1 }: { scale: number; formProgress
   );
 }
 
-// ── Heal Aura — 3D orbiting particle cloud (green), blooms from player center ──
-// Particles start at near-zero radius (matching where teleport VFX just converged)
-// and expand outward to their orbit radii — visually the teleport particles become
-// this sustained cloud.
-const _HEAL_DUR    = 1.5;
-const _HEAL_N      = 22;
-const _healGeo     = new THREE.SphereGeometry(1, 5, 4);
-const _healDummy   = new THREE.Object3D();
-const _healColor   = new THREE.Color();
-const _healPal     = [
-  new THREE.Color("#00ff77"), // bright green  — matches health icon primary
-  new THREE.Color("#33ffaa"), // mint-green    — matches health icon secondary
-  new THREE.Color("#aaffd4"), // pale seafoam  — white-tinted highlight
+// ── Heal Aura — AAA multi-phase 3D health recovery effect ────────────────────
+// Phase 1 (0.0–0.85s): 100 emerald/gold particles spiral inward via vortex math
+// Phase 2 (0.5–0.9s):  Warm gold point-light flash (absorption / core bloom)
+// Phase 3 (0.8–1.5s):  Expanding pulse sphere + 25 gold dust sparks drift upward
+const _HEAL_DUR      = 1.5;
+const _HEAL_GATHER_N = 100;
+const _HEAL_DUST_N   = 25;
+const _healGatherGeo = new THREE.SphereGeometry(1, 5, 4);
+const _healDustGeo   = new THREE.SphereGeometry(1, 4, 3);
+const _healPulseGeo  = new THREE.SphereGeometry(1, 24, 16);
+const _healDummy     = new THREE.Object3D();
+const _healColor     = new THREE.Color();
+const _healPal       = [
+  new THREE.Color("#00FF88"), // Vibrant Emerald
+  new THREE.Color("#FFD700"), // Warm Gold
+  new THREE.Color("#00F5D4"), // Soft Cyan-Green
 ];
 
-interface _HealWisp {
-  orbitSpeed: number; phase: number;
-  axisX: number; axisY: number;
-  targetRadius: number; size: number; colorT: number;
+interface _HealGatherP {
+  sx: number; sy: number; sz: number;
+  vax: number; vay: number; vaz: number; // vortex axis (perp to spawn dir)
+  omega: number; spawnR: number;
+  delay: number; size: number; colorT: number;
+}
+interface _HealDustP {
+  x: number; y: number; z: number;
+  vx: number; vy: number; vz: number;
+  size: number; colorT: number; delay: number;
 }
 
 function HealAura({ scale, healAnimTimer }: { scale: number; healAnimTimer: number }) {
-  const wispRef = useRef<THREE.InstancedMesh>(null);
+  const gatherRef = useRef<THREE.InstancedMesh>(null);
+  const dustRef   = useRef<THREE.InstancedMesh>(null);
+  const pulseRef  = useRef<THREE.Mesh>(null);
+  const lightRef  = useRef<THREE.PointLight>(null);
 
-  // Fixed random layout so particles always orbit in stable 3D planes
-  const wisps = useMemo<_HealWisp[]>(() =>
-    Array.from({ length: _HEAL_N }, () => ({
-      orbitSpeed:   (3.5 + Math.random() * 4.0) * (Math.random() < 0.5 ? 1 : -1),
-      phase:        Math.random() * Math.PI * 2,
-      axisX:        Math.random() * Math.PI,
-      axisY:        Math.random() * Math.PI * 2,
-      targetRadius: scale * (0.9 + Math.random() * 0.9),
-      size:         0.016 + Math.random() * 0.022,
-      colorT:       Math.random(),
-    }))
-  , [scale]);
+  const { gatherPs, dustPs } = useMemo(() => {
+    // Gather particles — spawn on sphere, spiral inward via vortex displacement
+    const gPs: _HealGatherP[] = Array.from({ length: _HEAL_GATHER_N }, () => {
+      const phi   = Math.acos(2 * Math.random() - 1);
+      const theta = Math.random() * Math.PI * 2;
+      const nx = Math.sin(phi) * Math.cos(theta);
+      const ny = Math.cos(phi);
+      const nz = Math.sin(phi) * Math.sin(theta);
+      const r  = scale * (2.0 + Math.random() * 2.0);
+      // Vortex axis: cross(spawnDir, up), falling back to cross(spawnDir, right)
+      let vax: number, vay: number, vaz: number;
+      if (Math.abs(ny) < 0.9) {
+        const len = Math.sqrt(nz * nz + nx * nx) || 1;
+        vax = nz / len; vay = 0; vaz = -nx / len;
+      } else {
+        const len = Math.sqrt(nz * nz + ny * ny) || 1;
+        vax = 0; vay = nz / len; vaz = -ny / len;
+      }
+      return {
+        sx: nx * r, sy: ny * r, sz: nz * r,
+        vax, vay, vaz,
+        omega: Math.random() < 0.5 ? 1 : -1,
+        spawnR: r,
+        delay:  Math.random() * 0.28,
+        size:   0.018 + Math.random() * 0.022,
+        colorT: Math.random(),
+      };
+    });
 
-  const [mat] = useState(() => new THREE.MeshBasicMaterial({
+    // Dust sparks — spawn near orb center, drift upward after impact
+    const dPs: _HealDustP[] = Array.from({ length: _HEAL_DUST_N }, () => {
+      const angle = Math.random() * Math.PI * 2;
+      const rad   = Math.random() * scale * 0.5;
+      return {
+        x:  Math.cos(angle) * rad,
+        y:  (Math.random() - 0.2) * scale * 0.4,
+        z:  Math.sin(angle) * rad,
+        vx: (Math.random() - 0.5) * 0.7,
+        vy: 0.9 + Math.random() * 0.9,
+        vz: (Math.random() - 0.5) * 0.7,
+        size:   0.010 + Math.random() * 0.012,
+        colorT: Math.random(),
+        delay:  Math.random() * 0.18,
+      };
+    });
+    return { gatherPs: gPs, dustPs: dPs };
+  }, [scale]);
+
+  const [gatherMat] = useState(() => new THREE.MeshBasicMaterial({
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
   }));
-  useEffect(() => () => mat.dispose(), [mat]);
+  const [dustMat] = useState(() => new THREE.MeshBasicMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  }));
+  const [pulseMat] = useState(() => new THREE.MeshBasicMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    color: new THREE.Color("#00FF88"),
+  }));
+  useEffect(() => () => { gatherMat.dispose(); dustMat.dispose(); pulseMat.dispose(); },
+    [gatherMat, dustMat, pulseMat]);
 
-  useFrame(({ clock }) => {
-    if (!wispRef.current) return;
-    const t   = clock.getElapsedTime();
-    const age = _HEAL_DUR - healAnimTimer;                    // 0 → 1.5 s
+  // Start pulse sphere invisible until phase 3
+  useEffect(() => { if (pulseRef.current) pulseRef.current.scale.setScalar(0.001); }, []);
 
-    // Bloom: particles expand from center to orbit radius over first 0.25 s
-    const bloom    = Math.min(1, age / 0.25);
-    const bloomEase = 1 - Math.pow(1 - bloom, 2);            // ease-out
+  useFrame(() => {
+    const age = _HEAL_DUR - healAnimTimer; // 0 → 1.5 s
 
-    // Global alpha: quick fade-in, hold, fade out over last 0.4 s
-    const fadeIn   = Math.min(1, age / 0.12);
-    const fadeOut  = healAnimTimer > 0 ? Math.min(1, healAnimTimer / 0.4) : 0;
-    mat.opacity    = fadeIn * fadeOut * 0.92;
+    // ── Phase 1: Vortex gather ─────────────────────────────────────────────
+    const gm = gatherRef.current;
+    if (gm) {
+      gatherMat.opacity =
+        Math.min(1, age / 0.10) * Math.max(0, 1 - Math.max(0, age - 0.72) / 0.18);
 
-    const im = wispRef.current;
-    for (let i = 0; i < _HEAL_N; i++) {
-      const w      = wisps[i];
-      const r      = w.targetRadius * bloomEase;
-      const theta  = t * w.orbitSpeed + w.phase;
-      const cx     = Math.cos(w.axisX), sx = Math.sin(w.axisX);
-      const cy     = Math.cos(w.axisY), sy = Math.sin(w.axisY);
-      const cosT   = Math.cos(theta),   sinT = Math.sin(theta);
-
-      _healDummy.position.set(
-        r * (cosT * cy - sinT * sx * sy),
-        r * (cosT * sy + sinT * sx * cy),
-        r * (sinT * cx),
-      );
-      _healDummy.scale.setScalar(w.size * (0.55 + 0.45 * Math.sin(t * 8 + i)));
-      _healDummy.updateMatrix();
-      im.setMatrixAt(i, _healDummy.matrix);
-
-      const ct = ((w.colorT + t * 0.11) % 1 + 1) % 1;
-      if (ct < 0.5) _healColor.lerpColors(_healPal[0], _healPal[1], ct * 2);
-      else           _healColor.lerpColors(_healPal[1], _healPal[2], (ct - 0.5) * 2);
-      im.setColorAt(i, _healColor);
+      for (let i = 0; i < _HEAL_GATHER_N; i++) {
+        const p  = gatherPs[i];
+        const pt = Math.max(0, Math.min((age - p.delay) / 0.65, 1));
+        if (pt <= 0) {
+          _healDummy.scale.setScalar(0); _healDummy.updateMatrix();
+          gm.setMatrixAt(i, _healDummy.matrix); continue;
+        }
+        // Strong ease-in: particles accelerate hard into core at end
+        const easeT     = 1 - Math.pow(1 - pt, 2.5);
+        // Vortex tangential displacement peaks at pt≈0.42 (sin peak), zero at 0 and 1
+        const vortexMag = p.spawnR * 0.5 * Math.sin(pt * Math.PI * 0.95) * p.omega;
+        _healDummy.position.set(
+          p.sx * (1 - easeT) + p.vax * vortexMag,
+          p.sy * (1 - easeT) + p.vay * vortexMag,
+          p.sz * (1 - easeT) + p.vaz * vortexMag,
+        );
+        // Swell mid-journey; shrink and vanish at impact
+        const swellT       = Math.sin(Math.min(pt, 0.85) / 0.85 * Math.PI);
+        const impactShrink = pt > 0.85 ? Math.max(0, 1 - (pt - 0.85) / 0.15) : 1;
+        _healDummy.scale.setScalar(p.size * (1 + 0.5 * swellT) * impactShrink);
+        _healDummy.updateMatrix();
+        gm.setMatrixAt(i, _healDummy.matrix);
+        // Color: Emerald → Gold → Cyan-Green as particle spirals inward
+        if (pt < 0.5) _healColor.lerpColors(_healPal[0], _healPal[1], pt * 2);
+        else           _healColor.lerpColors(_healPal[1], _healPal[2], (pt - 0.5) * 2);
+        gm.setColorAt(i, _healColor);
+      }
+      gm.instanceMatrix.needsUpdate = true;
+      if (gm.instanceColor) gm.instanceColor.needsUpdate = true;
     }
-    im.instanceMatrix.needsUpdate = true;
-    if (im.instanceColor) im.instanceColor.needsUpdate = true;
+
+    // ── Phase 2: Absorption point-light flash ─────────────────────────────
+    if (lightRef.current) {
+      const lt = Math.max(0, 1 - Math.abs(age - 0.72) / 0.22);
+      lightRef.current.intensity = lt * lt * 10;
+    }
+
+    // ── Phase 3a: Expanding pulse sphere ──────────────────────────────────
+    const pm = pulseRef.current;
+    if (pm) {
+      if (age > 0.78) {
+        const pt   = Math.min(1, (age - 0.78) / 0.50);
+        const eOut = 1 - Math.pow(1 - pt, 1.5);
+        pm.scale.setScalar(scale * 0.15 + scale * 4.8 * eOut);
+        pulseMat.opacity = (1 - pt) * 0.40;
+      } else {
+        pm.scale.setScalar(0.001);
+        pulseMat.opacity = 0;
+      }
+    }
+
+    // ── Phase 3b: Upward-drifting gold dust sparks ────────────────────────
+    const dm = dustRef.current;
+    if (dm) {
+      if (age > 0.78) {
+        const dustAge = age - 0.78;
+        for (let i = 0; i < _HEAL_DUST_N; i++) {
+          const p   = dustPs[i];
+          const dpt = Math.max(0, Math.min((dustAge - p.delay) / 1.0, 1));
+          if (dpt <= 0) {
+            _healDummy.scale.setScalar(0); _healDummy.updateMatrix();
+            dm.setMatrixAt(i, _healDummy.matrix); continue;
+          }
+          const eOut = 1 - Math.pow(1 - dpt, 1.3);
+          _healDummy.position.set(
+            p.x + p.vx * eOut,
+            p.y + p.vy * eOut,
+            p.z + p.vz * eOut,
+          );
+          _healDummy.scale.setScalar(Math.max(0, p.size * (1 - dpt * 0.85)));
+          _healDummy.updateMatrix();
+          dm.setMatrixAt(i, _healDummy.matrix);
+          // Gold → Cyan-Green → Emerald cycling
+          if (dpt < 0.5) _healColor.lerpColors(_healPal[1], _healPal[2], dpt * 2);
+          else            _healColor.lerpColors(_healPal[2], _healPal[0], (dpt - 0.5) * 2);
+          dm.setColorAt(i, _healColor);
+        }
+        dustMat.opacity = Math.max(0, 1 - Math.max(0, dustAge - 0.15) / 0.85) * 0.88;
+      } else {
+        for (let i = 0; i < _HEAL_DUST_N; i++) {
+          _healDummy.scale.setScalar(0); _healDummy.updateMatrix();
+          dm.setMatrixAt(i, _healDummy.matrix);
+        }
+        dustMat.opacity = 0;
+      }
+      dm.instanceMatrix.needsUpdate = true;
+      if (dm.instanceColor) dm.instanceColor.needsUpdate = true;
+    }
   });
 
   return (
     <group>
-      <pointLight color="#00ff77" intensity={2.5} distance={5} decay={2} />
-      <instancedMesh ref={wispRef} args={[_healGeo, mat, _HEAL_N]} frustumCulled={false} />
+      <pointLight ref={lightRef} color="#FFD700" intensity={0} distance={scale * 5} decay={2} />
+      <instancedMesh ref={gatherRef} args={[_healGatherGeo, gatherMat, _HEAL_GATHER_N]} frustumCulled={false} />
+      <instancedMesh ref={dustRef}   args={[_healDustGeo,   dustMat,   _HEAL_DUST_N]}   frustumCulled={false} />
+      <mesh ref={pulseRef}>
+        <primitive object={_healPulseGeo} />
+        <primitive object={pulseMat} />
+      </mesh>
     </group>
   );
 }
