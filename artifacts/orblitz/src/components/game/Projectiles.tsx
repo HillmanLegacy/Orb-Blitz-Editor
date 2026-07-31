@@ -1457,7 +1457,7 @@ export function Projectiles() {
             if (dot > 0.0) {
               // RotateTowards: clamp angular change to 45°/sec so shots curve naturally
               // and can miss targets that move perpendicular or very fast.
-              const MAX_TURN_RAD = (45 * Math.PI / 180) * delta;
+              const MAX_TURN_RAD = (120 * Math.PI / 180) * delta;
               const curAngle = Math.atan2(dy, dx);
               const tgtAngle = Math.atan2(tdy, tdx);
               let dAngle = tgtAngle - curAngle;
