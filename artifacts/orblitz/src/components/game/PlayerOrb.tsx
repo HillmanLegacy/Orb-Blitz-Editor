@@ -547,6 +547,12 @@ export function PlayerOrb() {
   const recoilVelRef          = useRef([0, 0]);     // velocity (world units/s)
   const recoilOffsetRef       = useRef([0, 0]);     // current offset applied to position
   const prevOcSignalCountRef  = useRef(0);
+
+  // ── Rapid blaster fire: micro squash + recoil ─────────────────────────────
+  const rbSquashTimerRef      = useRef(0);          // counts down from 0.04 s
+  const rbRecoilVelRef        = useRef([0, 0]);
+  const rbRecoilOffsetRef     = useRef([0, 0]);
+  const prevRbSignalCountRef  = useRef(0);
   
   const { health, maxHealth, hasShield, hasChargeBeam, isDamaged, isDying, deathTimer, playerPosition, magiOrb2Active } = useMagicOrb();
   const { equippedSkin, equippedRing, equippedTrail } = useShop();
@@ -616,7 +622,7 @@ export function PlayerOrb() {
       recoilVelRef.current[0] = -ocSig.dirX * RECOIL;
       recoilVelRef.current[1] = -ocSig.dirY * RECOIL;
     }
-    // Advance & damp recoil (exponential spring-back)
+    // Advance & damp OC recoil (exponential spring-back)
     const damp = Math.exp(-8 * delta);
     recoilOffsetRef.current[0] = (recoilOffsetRef.current[0] + recoilVelRef.current[0] * delta) * damp;
     recoilOffsetRef.current[1] = (recoilOffsetRef.current[1] + recoilVelRef.current[1] * delta) * damp;
@@ -629,10 +635,39 @@ export function PlayerOrb() {
       sqX = 0.7; sqY = 1.3;
     }
 
+    // ── Rapid blaster fire signal → micro squash + recoil ─────────────────
+    const rbSig = useMagicOrb.getState().rapidBlasterFireSignal;
+    if (rbSig.count !== prevRbSignalCountRef.current) {
+      prevRbSignalCountRef.current = rbSig.count;
+      rbSquashTimerRef.current = 0.04;
+      const RB_RECOIL = 0.40;
+      // Impulse: add to existing velocity so rapid shots accumulate a steady push
+      rbRecoilVelRef.current[0] += -rbSig.dirX * RB_RECOIL;
+      rbRecoilVelRef.current[1] += -rbSig.dirY * RB_RECOIL;
+    }
+    // Moderate damping (6) — decays quickly between shots but accumulates while held
+    const rbDamp = Math.exp(-6 * delta);
+    rbRecoilOffsetRef.current[0] = (rbRecoilOffsetRef.current[0] + rbRecoilVelRef.current[0] * delta) * rbDamp;
+    rbRecoilOffsetRef.current[1] = (rbRecoilOffsetRef.current[1] + rbRecoilVelRef.current[1] * delta) * rbDamp;
+    rbRecoilVelRef.current[0] *= rbDamp;
+    rbRecoilVelRef.current[1] *= rbDamp;
+    // Micro squash: (0.85, 1.15) for 0.04 s — lighter than OC
+    if (rbSquashTimerRef.current > 0) {
+      rbSquashTimerRef.current = Math.max(0, rbSquashTimerRef.current - delta);
+      // Only apply if OC squash is not already active (OC takes precedence)
+      if (squashTimerRef.current <= 0) {
+        sqX = 0.85; sqY = 1.15;
+      }
+    }
+
+    // Combined recoil offset from both weapons
+    const totalRecoilX = recoilOffsetRef.current[0] + rbRecoilOffsetRef.current[0];
+    const totalRecoilY = recoilOffsetRef.current[1] + rbRecoilOffsetRef.current[1];
+
     if (groupRef.current && !isDying) {
       groupRef.current.rotation.z = gentleWobble;
-      groupRef.current.position.x = playerPosition[0] + recoilOffsetRef.current[0];
-      groupRef.current.position.y = playerPosition[1] + floatY + recoilOffsetRef.current[1];
+      groupRef.current.position.x = playerPosition[0] + totalRecoilX;
+      groupRef.current.position.y = playerPosition[1] + floatY + totalRecoilY;
       groupRef.current.scale.set(sqX, sqY, 1);
     }
     

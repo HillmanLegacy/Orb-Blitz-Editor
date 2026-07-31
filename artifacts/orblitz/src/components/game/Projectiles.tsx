@@ -366,6 +366,162 @@ function OcShockwaveRing({ position }: { position: [number, number, number] }) {
   );
 }
 
+// ── Rapid Blaster projectile mesh — narrow ribbon trail + muzzle flash ────────
+const _RB_TRAIL_N  = 12;
+const _RB_TRAIL_HW = 0.045; // narrow ribbon half-width
+
+const _rbCoreGeo = new THREE.SphereGeometry(1, 8, 6);
+const _rbCoreMat = new THREE.MeshBasicMaterial({
+  color: "#ffffff",
+  transparent: true,
+  opacity: 0.95,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+});
+const _rbFlashGeo = new THREE.SphereGeometry(1, 8, 6);
+const _rbFlashMat = new THREE.MeshBasicMaterial({
+  color: "#fffbe8",
+  transparent: true,
+  opacity: 0,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+});
+
+function RapidBlasterProjectileMesh({
+  projectile,
+  skinColors,
+}: {
+  projectile: Projectile;
+  skinColors: { core: string; glow: string };
+}) {
+  const bornRef   = useRef<number | null>(null);
+  const flashRef  = useRef<THREE.Mesh>(null);
+
+  // ── Narrow ribbon trail geometry ────────────────────────────────────────────
+  const ribbonGeo = useMemo(() => {
+    const geo  = new THREE.BufferGeometry();
+    const N    = _RB_TRAIL_N;
+    const pArr = new Float32Array(N * 2 * 3);
+    const cArr = new Float32Array(N * 2 * 4);
+    const idx: number[] = [];
+    for (let i = 0; i < N - 1; i++) {
+      const b = i * 2;
+      idx.push(b, b+2, b+1, b+1, b+2, b+3);
+    }
+    geo.setIndex(idx);
+    geo.setAttribute("position", new THREE.BufferAttribute(pArr, 3));
+    geo.setAttribute("color",    new THREE.BufferAttribute(cArr, 4));
+    geo.setDrawRange(0, 0);
+    return geo;
+  }, []);
+
+  const ribbonMat = useMemo(() => new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+  }), []);
+
+  useEffect(() => () => { ribbonGeo.dispose(); ribbonMat.dispose(); }, [ribbonGeo, ribbonMat]);
+
+  const posHistRef = useRef(new Float32Array(_RB_TRAIL_N * 3));
+  const histLenRef = useRef(0);
+  const projRef    = useRef(projectile);
+  projRef.current  = projectile;
+
+  useFrame(({ clock }) => {
+    const proj = projRef.current;
+    const [wx, wy, wz] = proj.position;
+
+    // Record born time once on first frame
+    if (bornRef.current === null) bornRef.current = clock.getElapsedTime();
+
+    // ── Muzzle flash — bright sphere at projectile head, fades in 0.05 s ──
+    if (flashRef.current) {
+      const age = clock.getElapsedTime() - bornRef.current!;
+      const FLASH_DUR = 0.05;
+      const flashAlpha = age < FLASH_DUR ? (1 - age / FLASH_DUR) * 0.85 : 0;
+      (flashRef.current.material as THREE.MeshBasicMaterial).opacity = flashAlpha;
+      flashRef.current.scale.setScalar(0.28 + (1 - flashAlpha) * 0.12);
+    }
+
+    // ── Position history (most-recent at index 0) ──────────────────────────
+    const N   = _RB_TRAIL_N;
+    const len = Math.min(histLenRef.current + 1, N);
+    histLenRef.current = len;
+    const hist = posHistRef.current;
+    for (let i = len - 1; i > 0; i--) {
+      hist[i*3] = hist[(i-1)*3]; hist[i*3+1] = hist[(i-1)*3+1]; hist[i*3+2] = hist[(i-1)*3+2];
+    }
+    hist[0] = wx; hist[1] = wy; hist[2] = wz;
+    if (len < 2) return;
+
+    // Perpendicular to fire direction (ribbon width axis)
+    const [fdx, fdy] = proj.direction;
+    const fl  = Math.sqrt(fdx*fdx + fdy*fdy) || 1;
+    const px_ = -fdy / fl, py_ = fdx / fl;
+
+    const pAttr = ribbonGeo.getAttribute("position") as THREE.BufferAttribute;
+    const cAttr = ribbonGeo.getAttribute("color")    as THREE.BufferAttribute;
+    const pA    = pAttr.array as Float32Array;
+    const cA    = cAttr.array as Float32Array;
+
+    // Parse skin accent colour for ribbon tint
+    const gc = new THREE.Color(skinColors.glow);
+
+    for (let i = 0; i < len; i++) {
+      const t  = i / (len - 1);
+      const hw = _RB_TRAIL_HW * (1 - t * 0.85);
+      const rx = hist[i*3]   - wx;
+      const ry = hist[i*3+1] - wy;
+      const rz = hist[i*3+2] - wz;
+      const vi = i * 6;
+      pA[vi]   = rx + px_*hw; pA[vi+1] = ry + py_*hw; pA[vi+2] = rz;
+      pA[vi+3] = rx - px_*hw; pA[vi+4] = ry - py_*hw; pA[vi+5] = rz;
+      // Fade: head is bright white, tail tapers to skin glow colour
+      const alpha = (1 - t) * 0.72;
+      const lerpT = t;
+      const ci = i * 8;
+      cA[ci]   = 1 - lerpT * (1 - gc.r); cA[ci+1] = 1 - lerpT * (1 - gc.g); cA[ci+2] = 1 - lerpT * (1 - gc.b); cA[ci+3] = alpha;
+      cA[ci+4] = cA[ci]; cA[ci+5] = cA[ci+1]; cA[ci+6] = cA[ci+2]; cA[ci+7] = alpha;
+    }
+    pAttr.needsUpdate = true;
+    cAttr.needsUpdate = true;
+    ribbonGeo.setDrawRange(0, (len - 1) * 6);
+    ribbonGeo.computeBoundingSphere();
+  });
+
+  const projScale = 0.11; // small fast round
+
+  return (
+    <group position={projectile.position}>
+      {/* Point light — tight, matches skin colour */}
+      <pointLight color={skinColors.glow} intensity={3.5} distance={3} decay={2} />
+
+      {/* Muzzle flash sphere — born-time driven */}
+      <mesh ref={flashRef} geometry={_rbFlashGeo} material={_rbFlashMat.clone()} scale={0.28} />
+
+      {/* Narrow trailing ribbon — rendered at world origin, offsets in geometry */}
+      <mesh geometry={ribbonGeo} material={ribbonMat} position={[0, 0, 0]} />
+
+      {/* Bright projectile core at 100% scale */}
+      <mesh geometry={_rbCoreGeo} material={_rbCoreMat} scale={projScale} />
+      {/* Glow halo */}
+      <mesh scale={projScale * 2.0}>
+        <sphereGeometry args={[1, 8, 6]} />
+        <meshBasicMaterial
+          color={skinColors.glow}
+          transparent
+          opacity={0.18}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </mesh>
+    </group>
+  );
+}
+
 // ── Overcharged Blaster visual ────────────────────────────────────────────────
 const _ocCoreGeo  = new THREE.SphereGeometry(1, 20, 14);
 const _ocRingGeo  = new THREE.TorusGeometry(1, 0.055, 7, 48);
@@ -1052,6 +1208,12 @@ export function Projectiles() {
             key={proj.id}
             projectile={proj}
             time={clockRef.current}
+          />
+        ) : proj.type === "rapidblaster" ? (
+          <RapidBlasterProjectileMesh
+            key={proj.id}
+            projectile={proj}
+            skinColors={skinColors}
           />
         ) : (
           <ProjectileMesh

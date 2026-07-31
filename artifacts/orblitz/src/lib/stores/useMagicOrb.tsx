@@ -86,7 +86,7 @@ export interface Boss {
   bounceVelocity?: [number, number];
 }
 
-export type ProjectileType = "normal" | "scattershot" | "spiral" | "overcharged" | "homing" | "subblaster";
+export type ProjectileType = "normal" | "scattershot" | "spiral" | "overcharged" | "homing" | "subblaster" | "rapidblaster";
 
 export interface Projectile {
   id: string;
@@ -346,6 +346,10 @@ interface MagicOrbState {
   /** Incremented each time the overcharged blaster fires; carries fire direction */
   overchargedFireSignal: { count: number; dirX: number; dirY: number };
   triggerOverchargedFire: (dirX: number, dirY: number) => void;
+
+  /** Incremented each time the rapid blaster fires; carries fire direction */
+  rapidBlasterFireSignal: { count: number; dirX: number; dirY: number };
+  triggerRapidBlasterFire: (dirX: number, dirY: number) => void;
   
   // Magi-Orb actions
   activateMagiOrb2: () => void;
@@ -520,6 +524,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     magiOrb9Timer: 0,
 
     overchargedFireSignal: { count: 0, dirX: 0, dirY: 0 },
+    rapidBlasterFireSignal: { count: 0, dirX: 0, dirY: 0 },
     
     setPhase: (phase) => set({ phase }),
     setGameMode: (mode) => set({ gameMode: mode }),
@@ -1622,6 +1627,9 @@ export const useMagicOrb = create<MagicOrbState>()(
     triggerBackgroundShake: () => set({ backgroundShake: 0.5 }),
     triggerOverchargedFire: (dirX, dirY) => set(s => ({
       overchargedFireSignal: { count: s.overchargedFireSignal.count + 1, dirX, dirY },
+    })),
+    triggerRapidBlasterFire: (dirX, dirY) => set(s => ({
+      rapidBlasterFireSignal: { count: s.rapidBlasterFireSignal.count + 1, dirX, dirY },
     })),
     
     updateBackgroundEffects: (delta) => {

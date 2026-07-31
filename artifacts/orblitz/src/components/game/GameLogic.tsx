@@ -156,6 +156,7 @@ export function GameLogic() {
   const lastScattershotFire = useRef(0);
   const lastOverchargedFire = useRef(0);
   const lastHomingFire = useRef(0);
+  const triggerRapidBlasterFireRef = useRef(useMagicOrb.getState().triggerRapidBlasterFire);
   const lastRestorationTick = useRef(0);
   const lastMagiOrb6Teleport = useRef(0);
   const lastMagiOrb8Fire = useRef(0);
@@ -395,7 +396,35 @@ export function GameLogic() {
       }
     }
     
-    if (hasScattershotRef.current) {
+    if (hasRapidBlasterRef.current) {
+      // Spawn at front perimeter of the player orb
+      const _rb_offset = 0.75;
+      // Apply ±2° directional spread for kinetic spray feel
+      const spreadAngle = (Math.random() - 0.5) * (4 * Math.PI / 180);
+      const cosS = Math.cos(spreadAngle), sinS = Math.sin(spreadAngle);
+      const spreadDirX = targetDirX * cosS - targetDirY * sinS;
+      const spreadDirY = targetDirX * sinS + targetDirY * cosS;
+      const lenS = Math.sqrt(spreadDirX * spreadDirX + spreadDirY * spreadDirY) || 1;
+      const sdx = spreadDirX / lenS, sdy = spreadDirY / lenS;
+
+      const projectile: Projectile = {
+        id: `proj-${projectileIdCounter++}`,
+        position: [
+          projectileOrigin[0] + sdx * _rb_offset,
+          projectileOrigin[1] + sdy * _rb_offset,
+          projectileOrigin[2],
+        ] as [number, number, number],
+        direction: [sdx, sdy, 0],
+        isCharged: hasChargeBeamRef.current,
+        size: 0.10,
+        type: "rapidblaster",
+        hitCount: 1,
+        speed: 22.0,
+      };
+      addProjectileRef.current(projectile);
+      useMagicOrb.getState().triggerBackgroundShake();
+      triggerRapidBlasterFireRef.current(targetDirX, targetDirY);
+    } else if (hasScattershotRef.current) {
       const now = Date.now();
       if (now - lastScattershotFire.current < 500) {
         return;
