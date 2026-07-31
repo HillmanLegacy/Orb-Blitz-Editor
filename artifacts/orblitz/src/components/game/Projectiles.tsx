@@ -1183,9 +1183,9 @@ function ScattershotProjectileMesh({ projectile }: { projectile: Projectile }) {
 }
 
 // ── Overcharged Blaster visual ────────────────────────────────────────────────
-const _ocCoreGeo  = new THREE.SphereGeometry(1, 20, 14);
-const _ocRingGeo  = new THREE.TorusGeometry(1, 0.055, 7, 48);
-const _ocCoreMat  = new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending });
+const _ocProjCoreGeo = new THREE.SphereGeometry(1, 20, 14);
+const _ocRingGeo     = new THREE.TorusGeometry(1, 0.055, 7, 48);
+const _ocProjCoreMat = new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending });
 const _ocRingMat  = new THREE.MeshBasicMaterial({ color: "#33aaff", transparent: true, opacity: 0.75, depthWrite: false, blending: THREE.AdditiveBlending });
 const _ocRing2Mat = new THREE.MeshBasicMaterial({ color: "#aaccff", transparent: true, opacity: 0.50, depthWrite: false, blending: THREE.AdditiveBlending });
 
@@ -1294,7 +1294,7 @@ function OverchargedProjectileMesh({
       <group scale={spawnScale}>
         <pointLight color="#55aaff" intensity={10 + pulse * 6} distance={9} decay={2} />
         <pointLight color="#ffffff" intensity={4}              distance={3} decay={2} />
-        <mesh geometry={_ocCoreGeo} material={_ocCoreMat} scale={coreScale} />
+        <mesh geometry={_ocProjCoreGeo} material={_ocProjCoreMat} scale={coreScale} />
         <group rotation={[r1, 0, r2 * 0.6]}>
           <mesh geometry={_ocRingGeo} material={_ocRingMat}  scale={1.72} />
         </group>
