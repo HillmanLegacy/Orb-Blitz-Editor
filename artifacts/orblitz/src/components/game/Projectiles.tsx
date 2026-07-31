@@ -778,12 +778,16 @@ function RapidBlasterProjectileMesh({
     ribbonGeo.computeBoundingSphere();
   });
 
-  const projScale = 0.11; // small fast round
+  const isCharged = projectile.isCharged;
+  const projScale = isCharged ? 0.165 : 0.11; // 1.5× when charge beam active
 
   return (
     <group position={projectile.position}>
       {/* Point light — tight, matches skin colour */}
-      <pointLight color={skinColors.glow} intensity={3.5} distance={3} decay={2} />
+      <pointLight color={skinColors.glow}
+        intensity={isCharged ? 5.5 : 3.5}
+        distance={isCharged ? 4.5 : 3}
+        decay={2} />
 
       {/* Muzzle flash sphere — born-time driven */}
       <mesh ref={flashRef} geometry={_rbFlashGeo} material={_rbFlashMat.clone()} scale={0.28} />
@@ -804,6 +808,7 @@ function RapidBlasterProjectileMesh({
           blending={THREE.AdditiveBlending}
         />
       </mesh>
+      {isCharged && <ProjectileChargeAura projScale={projScale} />}
     </group>
   );
 }
@@ -962,10 +967,15 @@ function HomingProjectileMesh({ projectile }: { projectile: Projectile }) {
     ribbonGeo.computeBoundingSphere();
   });
 
-  const projScale = 0.13;
+  const isCharged = projectile.isCharged;
+  const projScale = isCharged ? 0.195 : 0.13; // 1.5× when charge beam active
+
   return (
     <group position={projectile.position}>
-      <pointLight color="#22eedd" intensity={5} distance={4} decay={2} />
+      <pointLight color="#22eedd"
+        intensity={isCharged ? 7.5 : 5}
+        distance={isCharged ? 6 : 4}
+        decay={2} />
       <mesh ref={flashRef} geometry={_hmCoreGeo} material={flashMatRef.current} scale={0.34} />
       <mesh geometry={ribbonGeo} material={ribbonMat} />
       <mesh geometry={_hmCoreGeo} material={_hmCoreMat} scale={projScale} />
@@ -974,6 +984,7 @@ function HomingProjectileMesh({ projectile }: { projectile: Projectile }) {
         <meshBasicMaterial color="#00ccff" transparent opacity={0.20}
           depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
+      {isCharged && <ProjectileChargeAura projScale={projScale} />}
     </group>
   );
 }
@@ -1132,10 +1143,15 @@ function ScattershotProjectileMesh({ projectile }: { projectile: Projectile }) {
     ribbonGeo.computeBoundingSphere();
   });
 
-  const projScale = 0.13;
+  const isCharged = projectile.isCharged;
+  const projScale = isCharged ? 0.195 : 0.13; // 1.5× when charge beam active
+
   return (
     <group position={projectile.position}>
-      <pointLight color="#ff9900" intensity={5} distance={4} decay={2} />
+      <pointLight color="#ff9900"
+        intensity={isCharged ? 7.5 : 5}
+        distance={isCharged ? 6 : 4}
+        decay={2} />
       <mesh ref={flashRef} geometry={_scFlashGeo} material={flashMatRef.current} scale={0.32} />
       <mesh geometry={ribbonGeo} material={ribbonMat} />
       <mesh geometry={_scCoreGeo} material={_scCoreMat} scale={projScale} />
@@ -1144,6 +1160,7 @@ function ScattershotProjectileMesh({ projectile }: { projectile: Projectile }) {
         <meshBasicMaterial color="#ff8800" transparent opacity={0.22}
           depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
+      {isCharged && <ProjectileChargeAura projScale={projScale} />}
     </group>
   );
 }

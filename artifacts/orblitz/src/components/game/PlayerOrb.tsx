@@ -1,4 +1,4 @@
-import { useRef, useMemo, memo, Suspense, useEffect } from "react";
+import { useRef, useMemo, memo, Suspense, useEffect, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
