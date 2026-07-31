@@ -786,7 +786,7 @@ export function DarkOrbs() {
         }
       }
       
-      if (Math.abs(x) > 18 || Math.abs(y) > 12) {
+      if (Math.abs(x) > 28 || Math.abs(y) > 18) {
         continue;
       }
       

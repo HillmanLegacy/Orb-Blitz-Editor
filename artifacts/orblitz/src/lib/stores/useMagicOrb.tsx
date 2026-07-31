@@ -1280,7 +1280,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     },
     
     teleportPlayer: (position: [number, number, number]) => {
-      const maxDist = 6;
+      const maxDist = 11;
       const dist = Math.sqrt(position[0] * position[0] + position[1] * position[1]);
       let clampedPos: [number, number, number] = position;
       if (dist > maxDist) {

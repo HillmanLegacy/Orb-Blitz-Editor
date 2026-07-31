@@ -240,7 +240,7 @@ export function GameLogic() {
   
   const spawnDarkOrb = useCallback(() => {
     const angle = Math.random() * Math.PI * 2;
-    const distance = 12 + Math.random() * 3;
+    const distance = 18 + Math.random() * 4;
     
     const x = Math.cos(angle) * distance;
     const y = Math.sin(angle) * distance;
@@ -307,8 +307,8 @@ export function GameLogic() {
     const isTop = Math.random() > 0.5;
     const fromLeft = Math.random() > 0.5;
     
-    const y = isTop ? 5 : -5;
-    const x = fromLeft ? -12 : 12;
+    const y = isTop ? 9 : -9;
+    const x = fromLeft ? -18 : 18;
     const z = 0;
     
     const speed = 1.5 + Math.random() * 0.5;
