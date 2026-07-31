@@ -161,6 +161,7 @@ interface MagicOrbState {
   defeatedBosses: number[];
   survivalBossTimer: number;
   survivalBossPending: boolean;
+  bossDefeating: boolean;  // true from boss death until completeLevel(); blocks orb spawning
   
   health: number;
   maxHealth: number;
@@ -449,6 +450,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     defeatedBosses: getStoredDefeatedBosses(),
     survivalBossTimer: 0,
     survivalBossPending: false,
+    bossDefeating: false,
     
     health: 3,
     maxHealth: 3,
@@ -949,7 +951,8 @@ export const useMagicOrb = create<MagicOrbState>()(
             localStorage.setItem("orblitz_arcade_progress", JSON.stringify({ highestLevel: 1.1 }));
           } catch {}
           set({ 
-            phase: "arcadeComplete", 
+            phase: "arcadeComplete",
+            bossDefeating: false,
             completedLevel: completedLevelValue,
             hasShield: false,
             chargeBeamTimer: 0,
@@ -1006,7 +1009,8 @@ export const useMagicOrb = create<MagicOrbState>()(
       } catch {}
       
       set({ 
-        phase: "levelComplete", 
+        phase: "levelComplete",
+        bossDefeating: false,
         completedLevel: completedLevelValue,
         hasShield: false,
         chargeBeamTimer: 0,
@@ -1066,18 +1070,19 @@ export const useMagicOrb = create<MagicOrbState>()(
       const actualDamage = damage ?? (hasChargeBeam ? 2 : 1);
       const newHealth = boss.health - actualDamage;
       if (newHealth <= 0) {
-        const isBossLevel = Math.floor(arcadeLevel * 10) % 10 === 9;
-        const defeatedOrbs = isBossLevel ? darkOrbs.map(o => ({
+        // Explode ALL on-screen orbs when boss is defeated
+        const defeatedOrbs = darkOrbs.map(o => ({
           ...o,
           destroying: true,
           destroyTimer: 0.6,
           bossDefeatColor: boss.bossType,
-        })) : darkOrbs;
+        }));
         
         set({ 
           boss: { ...boss, destroying: true, destroyTimer: 3.5, health: 0 },
           arcadeTotalOrbs: gameMode === "arcade" ? arcadeTotalOrbs + 1 : arcadeTotalOrbs,
           darkOrbs: defeatedOrbs,
+          bossDefeating: true,
         });
         get().addBossDefeatStars();
         return true;

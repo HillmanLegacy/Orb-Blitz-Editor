@@ -81,7 +81,10 @@ export function Boss() {
   // Frame counter used to throttle how often we push state to Zustand.
   const frameCountRef        = useRef(0);
   const offScreenTimerRef    = useRef(2.5);
-  const sfxPlayedRef         = useRef(false); // gates completeLevel behind boss_explosion.wav
+  // Destroy-sequence coordination refs
+  const destroyInitRef  = useRef(false); // true once SFX fires (frame 0 of destroy)
+  const sfxDoneRef      = useRef(false); // true when boss_explosion.wav onended fires
+  const timerDoneRef    = useRef(false); // true when 3.5 s destroyTimer expires
 
   // ── FireBoss (circle) strike-and-retreat state machine ──────────────────────
   const fireMovePhaseRef = useRef<'entering' | 'waiting' | 'exiting'>('entering');
@@ -185,14 +188,35 @@ export function Boss() {
     const time = state.clock.getElapsedTime();
     
     if (boss.destroying) {
-      // Reset SFX gate at the start of each fresh destroy sequence
-      if ((boss.destroyTimer ?? 0) >= 3.4) sfxPlayedRef.current = false;
+      // ── Frame 0 of destroy: play SFX the instant the visual explosion begins ──
+      if (!destroyInitRef.current) {
+        destroyInitRef.current = true;
+        sfxDoneRef.current     = false;
+        timerDoneRef.current   = false;
 
+        const { isMuted } = useAudio.getState();
+        if (!isMuted) {
+          const audio = new Audio('/sounds/boss_explosion.wav');
+          audio.volume = 0.85;
+          const onSfxDone = () => {
+            sfxDoneRef.current = true;
+            // If the 3.5 s timer already expired, complete the level now
+            if (timerDoneRef.current) useMagicOrb.getState().completeLevel();
+          };
+          audio.onended = onSfxDone;
+          audio.onerror = onSfxDone;   // fail-safe
+          audio.play().catch(onSfxDone); // fail-safe (autoplay blocked)
+        } else {
+          sfxDoneRef.current = true;   // muted → treat as instantly done
+        }
+      }
+
+      // ── Count down the 3.5 s visual explosion timer ───────────────────────
       const newTimer = (boss.destroyTimer || 0) - delta;
       if (newTimer > 0) {
         useMagicOrb.getState().updateBoss({ ...boss, destroyTimer: newTimer });
-      } else if (!sfxPlayedRef.current) {
-        sfxPlayedRef.current = true;
+      } else if (!timerDoneRef.current) {
+        timerDoneRef.current = true;
 
         // Reset per-boss local accumulators so they re-initialise on next spawn.
         bossPosRef.current          = [0, 0, 0];
@@ -211,24 +235,21 @@ export function Boss() {
         useMagicOrb.setState({ boss: null });
 
         if (gameMode === "survival") {
-          useMagicOrb.setState({ survivalBossTimer: 0, survivalBossPending: false });
+          useMagicOrb.setState({ survivalBossTimer: 0, survivalBossPending: false, bossDefeating: false });
         } else {
-          // Play the boss explosion SFX; advance to level complete only after it finishes
-          const completeLevel = () => useMagicOrb.getState().completeLevel();
-          const { isMuted } = useAudio.getState();
-          if (!isMuted) {
-            const audio = new Audio('/sounds/boss_explosion.wav');
-            audio.volume = 0.85;
-            audio.onended = completeLevel;
-            audio.onerror = completeLevel; // fail-safe: still advance on error
-            audio.play().catch(completeLevel); // fail-safe: still advance if blocked
-          } else {
-            completeLevel();
+          // Advance to level complete only after BOTH timer and SFX are done
+          if (sfxDoneRef.current) {
+            useMagicOrb.getState().completeLevel();
           }
+          // else: onSfxDone callback above will fire completeLevel() when audio ends
         }
       }
       return;
     }
+
+    // Boss is alive (not destroying) — reset refs so next destroy sequence is fresh
+    destroyInitRef.current = false;
+    timerDoneRef.current   = false;
     
     if (phase !== "playing") return;
     if (!meshRef.current) return;

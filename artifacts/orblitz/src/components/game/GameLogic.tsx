@@ -778,8 +778,9 @@ export function GameLogic() {
     const gauntletSpawnRate = Math.max(0.4, 2.5 - (gameTime * 0.02) - (gauntletOrbsDestroyed * 0.01));
     const effectiveSpawnRate = gameMode === "chill" ? spawnRate * 0.4 : (gameMode === "gauntlet" ? gauntletSpawnRate : arcadeSpawnRate);
     const isBossLevel = boss !== null;
+    const { bossDefeating } = useMagicOrb.getState();
     
-    if (lastOrbSpawn.current >= effectiveSpawnRate && !isDying && !isBossLevel && !survivalBossPending) {
+    if (lastOrbSpawn.current >= effectiveSpawnRate && !isDying && !isBossLevel && !bossDefeating && !survivalBossPending) {
       lastOrbSpawn.current = 0;
       spawnDarkOrb();
       
