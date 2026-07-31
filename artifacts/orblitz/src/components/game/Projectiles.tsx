@@ -1,4 +1,4 @@
-import { useRef, useMemo, memo, Suspense } from "react";
+import { useRef, useMemo, memo, Suspense, useState, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb, Projectile, Particle, ImpactEffect } from "@/lib/stores/useMagicOrb";
@@ -334,6 +334,38 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: 
   );
 }
 
+// ── EaseOutQuad for projectile spawn grow-in ──────────────────────────────────
+function easeOutQuad(t: number): number { return 1 - (1 - t) * (1 - t); }
+
+// ── Expanding energy shockwave ring spawned at overcharged fire point ─────────
+const _swRingGeo = new THREE.TorusGeometry(1, 0.09, 6, 48);
+
+function OcShockwaveRing({ position }: { position: [number, number, number] }) {
+  const meshRef  = useRef<THREE.Mesh>(null);
+  const timerRef = useRef(0);
+  const DUR      = 0.55;
+
+  useFrame((_, delta) => {
+    if (!meshRef.current) return;
+    timerRef.current = Math.min(timerRef.current + delta, DUR);
+    const t = timerRef.current / DUR;
+    meshRef.current.scale.setScalar(t * 5.0);
+    (meshRef.current.material as THREE.MeshBasicMaterial).opacity = (1 - t) * 0.85;
+  });
+
+  return (
+    <mesh ref={meshRef} geometry={_swRingGeo} position={position}>
+      <meshBasicMaterial
+        color="#55aaff"
+        transparent
+        opacity={0}
+        depthWrite={false}
+        blending={THREE.AdditiveBlending}
+      />
+    </mesh>
+  );
+}
+
 // ── Overcharged Blaster visual ────────────────────────────────────────────────
 const _ocCoreGeo  = new THREE.SphereGeometry(1, 20, 14);
 const _ocRingGeo  = new THREE.TorusGeometry(1, 0.055, 7, 48);
@@ -341,27 +373,115 @@ const _ocCoreMat  = new THREE.MeshBasicMaterial({ color: "#ffffff", transparent:
 const _ocRingMat  = new THREE.MeshBasicMaterial({ color: "#33aaff", transparent: true, opacity: 0.75, depthWrite: false, blending: THREE.AdditiveBlending });
 const _ocRing2Mat = new THREE.MeshBasicMaterial({ color: "#aaccff", transparent: true, opacity: 0.50, depthWrite: false, blending: THREE.AdditiveBlending });
 
-function OverchargedProjectileMesh({ projectile, time }: { projectile: Projectile; time: number }) {
+const _RIBBON_N  = 16;
+const _RIBBON_HW = 0.22; // half-width at head
+
+function OverchargedProjectileMesh({
+  projectile, time, spawnScale,
+}: {
+  projectile: Projectile; time: number; spawnScale: number;
+}) {
   const pulse     = 0.5 + 0.5 * Math.sin(time * 4.5);
   const coreScale = 1.247 + pulse * 0.1505;
-  // Two torus rings rotating on independent axes
   const r1 = time * 2.1;
   const r2 = time * 1.6 + 1.05;
 
+  // ── Trailing ribbon geometry ─────────────────────────────────────────────────
+  const ribbonGeo = useMemo(() => {
+    const geo   = new THREE.BufferGeometry();
+    const N     = _RIBBON_N;
+    const pArr  = new Float32Array(N * 2 * 3);
+    const cArr  = new Float32Array(N * 2 * 4);
+    const idx: number[] = [];
+    for (let i = 0; i < N - 1; i++) {
+      const b = i * 2;
+      idx.push(b, b+2, b+1, b+1, b+2, b+3);
+    }
+    geo.setIndex(idx);
+    geo.setAttribute("position", new THREE.BufferAttribute(pArr, 3));
+    geo.setAttribute("color",    new THREE.BufferAttribute(cArr, 4));
+    geo.setDrawRange(0, 0);
+    return geo;
+  }, []);
+
+  const ribbonMat = useMemo(() => new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+  }), []);
+
+  useEffect(() => () => { ribbonGeo.dispose(); ribbonMat.dispose(); }, [ribbonGeo, ribbonMat]);
+
+  const posHistRef = useRef(new Float32Array(_RIBBON_N * 3));
+  const histLenRef = useRef(0);
+
+  // Capture latest prop values in refs so the useFrame closure is never stale
+  const projRef      = useRef(projectile);
+  const spawnScaleRef = useRef(spawnScale);
+  projRef.current      = projectile;
+  spawnScaleRef.current = spawnScale;
+
+  useFrame(() => {
+    const proj = projRef.current;
+    const ss   = spawnScaleRef.current;
+    const [wx, wy, wz] = proj.position;
+
+    // Push position into history (most-recent at index 0)
+    const N   = _RIBBON_N;
+    const len = Math.min(histLenRef.current + 1, N);
+    histLenRef.current = len;
+    const hist = posHistRef.current;
+    for (let i = len - 1; i > 0; i--) {
+      hist[i*3] = hist[(i-1)*3]; hist[i*3+1] = hist[(i-1)*3+1]; hist[i*3+2] = hist[(i-1)*3+2];
+    }
+    hist[0] = wx; hist[1] = wy; hist[2] = wz;
+    if (len < 2) return;
+
+    // Perpendicular to fire direction (for ribbon width)
+    const [fdx, fdy] = proj.direction;
+    const fl = Math.sqrt(fdx*fdx + fdy*fdy) || 1;
+    const px_ = -fdy / fl, py_ = fdx / fl;
+
+    const pAttr = ribbonGeo.getAttribute("position") as THREE.BufferAttribute;
+    const cAttr = ribbonGeo.getAttribute("color")    as THREE.BufferAttribute;
+    const pA    = pAttr.array as Float32Array;
+    const cA    = cAttr.array as Float32Array;
+
+    for (let i = 0; i < len; i++) {
+      const t  = i / (len - 1);
+      const hw = _RIBBON_HW * (1 - t) * ss;
+      const rx = hist[i*3] - wx, ry = hist[i*3+1] - wy, rz = hist[i*3+2] - wz;
+      const vi = i * 6;
+      pA[vi]   = rx + px_*hw; pA[vi+1] = ry + py_*hw; pA[vi+2] = rz;
+      pA[vi+3] = rx - px_*hw; pA[vi+4] = ry - py_*hw; pA[vi+5] = rz;
+      const alpha = (1 - t) * 0.65 * Math.min(ss * 2, 1);
+      const ci = i * 8;
+      cA[ci]   = 0.2; cA[ci+1] = 0.55; cA[ci+2] = 1.0; cA[ci+3] = alpha;
+      cA[ci+4] = 0.2; cA[ci+5] = 0.55; cA[ci+6] = 1.0; cA[ci+7] = alpha;
+    }
+    pAttr.needsUpdate = true;
+    cAttr.needsUpdate = true;
+    ribbonGeo.setDrawRange(0, (len - 1) * 6);
+    ribbonGeo.computeBoundingSphere();
+  });
+
   return (
     <group position={projectile.position}>
-      {/* Strong blue-white point light that pulses */}
-      <pointLight color="#55aaff" intensity={10 + pulse * 6} distance={9} decay={2} />
-      <pointLight color="#ffffff" intensity={4}              distance={3} decay={2} />
-      {/* Core white sphere */}
-      <mesh geometry={_ocCoreGeo} material={_ocCoreMat} scale={coreScale} />
-      {/* Torus ring 1 — tilted on XZ */}
-      <group rotation={[r1, 0, r2 * 0.6]}>
-        <mesh geometry={_ocRingGeo} material={_ocRingMat}  scale={1.72} />
-      </group>
-      {/* Torus ring 2 — tilted on YZ */}
-      <group rotation={[r2 * 0.5, r1 * 0.8, 0]}>
-        <mesh geometry={_ocRingGeo} material={_ocRing2Mat} scale={1.55} />
+      {/* Trailing ribbon rendered behind the spawn-scale group */}
+      <mesh geometry={ribbonGeo} material={ribbonMat} />
+      {/* Scale-in group: everything below grows from 0.05 → 1.0 on spawn */}
+      <group scale={spawnScale}>
+        <pointLight color="#55aaff" intensity={10 + pulse * 6} distance={9} decay={2} />
+        <pointLight color="#ffffff" intensity={4}              distance={3} decay={2} />
+        <mesh geometry={_ocCoreGeo} material={_ocCoreMat} scale={coreScale} />
+        <group rotation={[r1, 0, r2 * 0.6]}>
+          <mesh geometry={_ocRingGeo} material={_ocRingMat}  scale={1.72} />
+        </group>
+        <group rotation={[r2 * 0.5, r1 * 0.8, 0]}>
+          <mesh geometry={_ocRingGeo} material={_ocRing2Mat} scale={1.55} />
+        </group>
       </group>
     </group>
   );
@@ -532,6 +652,11 @@ export function Projectiles() {
   const volleyHits = useRef<Set<string>>(new Set());
   const volleyProjectileCounts = useRef<Map<string, number>>(new Map());
   const volleyRemainingCounts = useRef<Map<string, number>>(new Map());
+
+  // ── Overcharged shockwave rings ───────────────────────────────────────────
+  const knownOcIds   = useRef<Set<string>>(new Set());
+  const [shockwaves, setShockwaves] = useState<Array<{ id: string; pos: [number,number,number] }>>([]);
+  const swTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   
   const skinColors = useMemo(() => getSkinColors(equippedSkin, 3), [equippedSkin]);
   const projectileColor = skinColors.projectile;
@@ -567,7 +692,21 @@ export function Projectiles() {
     } = useMagicOrb.getState();
     
     if (phase !== "playing") return;
-    
+
+    // Detect newly spawned overcharged projectiles → shockwave ring
+    for (const proj of projectiles) {
+      if (proj.type === "overcharged" && !knownOcIds.current.has(proj.id)) {
+        knownOcIds.current.add(proj.id);
+        const swId  = `sw-${proj.id}`;
+        const swPos = [...proj.position] as [number, number, number];
+        setShockwaves(prev => [...prev, { id: swId, pos: swPos }]);
+        swTimeoutsRef.current.set(swId, setTimeout(() => {
+          setShockwaves(prev => prev.filter(s => s.id !== swId));
+          swTimeoutsRef.current.delete(swId);
+        }, 680));
+      }
+    }
+
     if (impactEffects.length > 0) {
       // Single-pass loop avoids the two intermediate array allocations that
       // map+filter creates every frame when impact effects are active.
@@ -657,6 +796,15 @@ export function Projectiles() {
       px += dx * effSpeed * delta;
       py += dy * effSpeed * delta;
       pz += dz * effSpeed * delta;
+
+      // Grow-in scale for overcharged (EaseOutQuad over 0.15 s)
+      let newSpawnScale    = proj.spawnScale;
+      let newSpawnScaleTimer = proj.spawnScaleTimer;
+      if (proj.type === "overcharged" && newSpawnScaleTimer !== undefined && newSpawnScaleTimer < 0.15) {
+        newSpawnScaleTimer = newSpawnScaleTimer + delta;
+        const eoqT  = Math.min(1, newSpawnScaleTimer / 0.15);
+        newSpawnScale = 0.05 + 0.95 * easeOutQuad(eoqT);
+      }
       
       const screenBoundary = 13;
       if (Math.abs(px) > screenBoundary || Math.abs(py) > screenBoundary) {
@@ -695,7 +843,8 @@ export function Projectiles() {
         const dist = Math.sqrt((px - bx) ** 2 + (py - by) ** 2 + ((bz || 0) - pz) ** 2);
         const bossHitRadius = 1.65;
         
-        if (dist < bossHitRadius && !spiralBossHit.current.has(proj.id)) {
+        if (dist < bossHitRadius && !spiralBossHit.current.has(proj.id) &&
+            (proj.type !== "overcharged" || (proj.spawnScale ?? 1) >= 0.8)) {
           const isOvercharged = proj.type === "overcharged";
           const isSpiralPiercing = proj.type === "spiral" && proj.hitCount !== undefined && proj.hitCount > 1;
 
@@ -780,7 +929,8 @@ export function Projectiles() {
           ? hitRadius * (proj.size ?? 1) * 2.8
           : (proj.isCharged ? hitRadius * 1.8 : hitRadius) + bossOrbHitBonus;
         
-        if (dist < effectiveRadius) {
+        if (dist < effectiveRadius &&
+            (proj.type !== "overcharged" || (proj.spawnScale ?? 1) >= 0.8)) {
           hitOrbsThisFrame.current.add(orb.id);
           markOrbDestroying(orb.id);
           addScore(10);
@@ -868,6 +1018,8 @@ export function Projectiles() {
           direction: [dx, dy, dz],
           hitCount: proj.hitCount,
           spiralAngle: newSpiralAngle,
+          spawnScale: newSpawnScale,
+          spawnScaleTimer: newSpawnScaleTimer,
         });
       } else {
         projectileOrbHits.current.delete(proj.id);
@@ -893,6 +1045,7 @@ export function Projectiles() {
             key={proj.id}
             projectile={proj}
             time={clockRef.current}
+            spawnScale={proj.spawnScale ?? 1}
           />
         ) : proj.type === "spiral" ? (
           <SpiralBundleMesh
@@ -912,6 +1065,9 @@ export function Projectiles() {
           />
         )
       )}
+      {shockwaves.map(sw => (
+        <OcShockwaveRing key={sw.id} position={sw.pos} />
+      ))}
       {impactEffects.map((effect) => (
         <ImpactEffectMesh key={effect.id} effect={effect} time={clockRef.current} skinColors={skinColors} />
       ))}

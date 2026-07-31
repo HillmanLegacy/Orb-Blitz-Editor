@@ -103,6 +103,10 @@ export interface Projectile {
   createdAt?: number;
   noMissTracking?: boolean;
   speed?: number;
+  /** Grow-in scale for overcharged projectile (0.05 → 1.0 over 0.15 s) */
+  spawnScale?: number;
+  /** Seconds elapsed since spawn, used to drive spawnScale */
+  spawnScaleTimer?: number;
 }
 
 export interface PowerUp {
@@ -338,6 +342,10 @@ interface MagicOrbState {
   magiOrb8Position: [number, number, number] | null; // Allied orb position
   magiOrb8HP: number;
   magiOrb9Timer: number; // Spawn frequency reset timer
+
+  /** Incremented each time the overcharged blaster fires; carries fire direction */
+  overchargedFireSignal: { count: number; dirX: number; dirY: number };
+  triggerOverchargedFire: (dirX: number, dirY: number) => void;
   
   // Magi-Orb actions
   activateMagiOrb2: () => void;
@@ -510,6 +518,8 @@ export const useMagicOrb = create<MagicOrbState>()(
     magiOrb8Position: null as [number, number, number] | null,
     magiOrb8HP: 3,
     magiOrb9Timer: 0,
+
+    overchargedFireSignal: { count: 0, dirX: 0, dirY: 0 },
     
     setPhase: (phase) => set({ phase }),
     setGameMode: (mode) => set({ gameMode: mode }),
@@ -1610,6 +1620,9 @@ export const useMagicOrb = create<MagicOrbState>()(
     
     triggerBackgroundPulse: () => set({ backgroundPulse: 1 }),
     triggerBackgroundShake: () => set({ backgroundShake: 0.5 }),
+    triggerOverchargedFire: (dirX, dirY) => set(s => ({
+      overchargedFireSignal: { count: s.overchargedFireSignal.count + 1, dirX, dirY },
+    })),
     
     updateBackgroundEffects: (delta) => {
       const { backgroundPulse, backgroundShake, health, phase } = get();

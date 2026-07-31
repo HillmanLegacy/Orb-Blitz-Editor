@@ -1,4 +1,4 @@
-import { useRef, useMemo, memo, Suspense } from "react";
+import { useRef, useMemo, memo, Suspense, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
@@ -541,6 +541,12 @@ export function PlayerOrb() {
   const groupRef = useRef<THREE.Group>(null);
   const particleRefs = useRef<THREE.Mesh[]>([]);
   const rayRefs = useRef<THREE.Mesh[]>([]);
+
+  // ── Overcharged fire: squash/stretch + recoil ─────────────────────────────
+  const squashTimerRef        = useRef(0);          // counts down from 0.08 s
+  const recoilVelRef          = useRef([0, 0]);     // velocity (world units/s)
+  const recoilOffsetRef       = useRef([0, 0]);     // current offset applied to position
+  const prevOcSignalCountRef  = useRef(0);
   
   const { health, maxHealth, hasShield, hasChargeBeam, isDamaged, isDying, deathTimer, playerPosition, magiOrb2Active } = useMagicOrb();
   const { equippedSkin, equippedRing, equippedTrail } = useShop();
@@ -591,7 +597,7 @@ export function PlayerOrb() {
   }, []);
   
   
-  useFrame((state) => {
+  useFrame((state, delta) => {
     const time = state.clock.getElapsedTime();
     const pulseSpeed = hasChargeBeam ? 10 : 5;
     const pulseAmount = hasChargeBeam ? 0.08 : 0.04;
@@ -600,10 +606,34 @@ export function PlayerOrb() {
     const breatheScale = 1 + Math.sin(time * 1.5) * 0.02;
     const gentleWobble = Math.sin(time * 2.5) * 0.015;
     const floatY = Math.sin(time * 1.2) * 0.03;
-    
+
+    // ── Overcharged fire signal → squash + recoil ─────────────────────────
+    const ocSig = useMagicOrb.getState().overchargedFireSignal;
+    if (ocSig.count !== prevOcSignalCountRef.current) {
+      prevOcSignalCountRef.current = ocSig.count;
+      squashTimerRef.current = 0.08;
+      const RECOIL = 2.2;
+      recoilVelRef.current[0] = -ocSig.dirX * RECOIL;
+      recoilVelRef.current[1] = -ocSig.dirY * RECOIL;
+    }
+    // Advance & damp recoil (exponential spring-back)
+    const damp = Math.exp(-8 * delta);
+    recoilOffsetRef.current[0] = (recoilOffsetRef.current[0] + recoilVelRef.current[0] * delta) * damp;
+    recoilOffsetRef.current[1] = (recoilOffsetRef.current[1] + recoilVelRef.current[1] * delta) * damp;
+    recoilVelRef.current[0] *= damp;
+    recoilVelRef.current[1] *= damp;
+    // Squash scale (0.7 × 1.3 for 0.08 s, then snap back)
+    let sqX = 1, sqY = 1;
+    if (squashTimerRef.current > 0) {
+      squashTimerRef.current = Math.max(0, squashTimerRef.current - delta);
+      sqX = 0.7; sqY = 1.3;
+    }
+
     if (groupRef.current && !isDying) {
       groupRef.current.rotation.z = gentleWobble;
-      groupRef.current.position.y = playerPosition[1] + floatY;
+      groupRef.current.position.x = playerPosition[0] + recoilOffsetRef.current[0];
+      groupRef.current.position.y = playerPosition[1] + floatY + recoilOffsetRef.current[1];
+      groupRef.current.scale.set(sqX, sqY, 1);
     }
     
     if (coreRef.current && !isDying) {

@@ -450,19 +450,30 @@ export function GameLogic() {
         return;
       }
       lastOverchargedFire.current = now;
-      
+
+      // Spawn slightly outside the player orb's front edge
+      const _oc_offset = 0.85;
       const projectile: Projectile = {
         id: `proj-${projectileIdCounter++}`,
-        position: [...projectileOrigin] as [number, number, number],
+        position: [
+          projectileOrigin[0] + targetDirX * _oc_offset,
+          projectileOrigin[1] + targetDirY * _oc_offset,
+          projectileOrigin[2] + targetDirZ * _oc_offset,
+        ] as [number, number, number],
         direction: [targetDirX, targetDirY, targetDirZ],
         isCharged: true,
         size: 1.0,
         type: "overcharged",
         piercing: true,
         speed: 5.0,
+        spawnScale: 0.05,
+        spawnScaleTimer: 0,
         volleyId: `volley-${now}-overcharged`,
       };
       addProjectileRef.current(projectile);
+      // Camera shake + fire signal for squash/recoil in PlayerOrb
+      useMagicOrb.getState().triggerBackgroundShake();
+      useMagicOrb.getState().triggerOverchargedFire(targetDirX, targetDirY);
     } else if (hasHomingBlasterRef.current) {
       const now = Date.now();
       if (now - lastHomingFire.current < 333) {
