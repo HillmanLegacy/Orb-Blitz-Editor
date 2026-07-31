@@ -419,6 +419,180 @@ function ShieldEffect({ scale }: { scale: number }) {
   );
 }
 
+// ── Heal Aura — green expanding rings + rising sparkles ──────────────────────
+const _HEAL_DUR    = 1.5;
+const _healRingGeo = new THREE.TorusGeometry(1, 0.022, 8, 64);
+const _healSparkGeo = new THREE.SphereGeometry(1, 5, 4);
+const _healDummy    = new THREE.Object3D();
+
+interface _HealSpark { angle: number; radOffset: number; speed: number; riseAmt: number; size: number; phase: number }
+
+function HealAura({ scale, healAnimTimer }: { scale: number; healAnimTimer: number }) {
+  const ring1Ref  = useRef<THREE.Mesh>(null);
+  const ring2Ref  = useRef<THREE.Mesh>(null);
+  const ring3Ref  = useRef<THREE.Mesh>(null);
+  const sparkRef  = useRef<THREE.InstancedMesh>(null);
+
+  const sparks = useMemo<_HealSpark[]>(() =>
+    Array.from({ length: 14 }, (_, i) => ({
+      angle:     (i / 14) * Math.PI * 2 + (Math.random() - 0.5) * 0.5,
+      radOffset: 0.25 + Math.random() * 0.55,
+      speed:     0.55 + Math.random() * 0.7,
+      riseAmt:   1.2 + Math.random() * 0.9,
+      size:      0.015 + Math.random() * 0.02,
+      phase:     Math.random() * Math.PI * 2,
+    }))
+  , []);
+
+  const [mat1]     = useState(() => new THREE.MeshBasicMaterial({ color: "#00ff77", transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+  const [mat2]     = useState(() => new THREE.MeshBasicMaterial({ color: "#33ffaa", transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+  const [mat3]     = useState(() => new THREE.MeshBasicMaterial({ color: "#aaffd4", transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+  const [sparkMat] = useState(() => new THREE.MeshBasicMaterial({ color: "#44ffaa", transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+
+  useEffect(() => () => { mat1.dispose(); mat2.dispose(); mat3.dispose(); sparkMat.dispose(); }, [mat1, mat2, mat3, sparkMat]);
+
+  useFrame(({ clock }) => {
+    const t   = clock.getElapsedTime();
+    const age = _HEAL_DUR - healAnimTimer;                       // 0 → 1.5
+    const fadeIn  = Math.min(1, age / 0.15);
+    const fadeOut = healAnimTimer > 0 ? Math.min(1, healAnimTimer / 0.35) : 0;
+    const alpha   = fadeIn * fadeOut;
+
+    // Three staggered expanding rings
+    const baseR  = scale * 0.9;
+    const maxR   = scale * 2.6;
+    const cycleHz = 0.65;
+    const ring = (offset: number) => {
+      const prog = ((t * cycleHz + offset) % 1 + 1) % 1; // 0→1 cycle
+      const r  = baseR + (maxR - baseR) * prog;
+      const op = Math.max(0, 1 - prog * 1.35) * alpha * 0.88;
+      return { r, op };
+    };
+
+    const r1 = ring(0);
+    const r2 = ring(0.33);
+    const r3 = ring(0.66);
+    if (ring1Ref.current) { ring1Ref.current.scale.setScalar(r1.r); mat1.opacity = r1.op; }
+    if (ring2Ref.current) { ring2Ref.current.scale.setScalar(r2.r); mat2.opacity = r2.op; }
+    if (ring3Ref.current) { ring3Ref.current.scale.setScalar(r3.r); mat3.opacity = r3.op; }
+
+    // Sparkles: rise from just above the player and drift outward
+    if (sparkRef.current) {
+      const SPARK_N = 14;
+      for (let i = 0; i < SPARK_N; i++) {
+        const s = sparks[i];
+        const localT = ((t * s.speed + s.phase) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+        const rise   = (localT / (Math.PI * 2)) * s.riseAmt;
+        const rad    = s.radOffset * scale * (1 + rise * 0.3);
+        const px = Math.cos(s.angle + t * 0.35) * rad;
+        const py = rise - 0.1;
+        const pz = Math.sin(s.angle + t * 0.35) * rad * 0.25;
+        const sizeFade = Math.max(0, 1 - rise / s.riseAmt);
+        _healDummy.position.set(px, py, pz);
+        _healDummy.scale.setScalar(s.size * sizeFade);
+        _healDummy.updateMatrix();
+        sparkRef.current.setMatrixAt(i, _healDummy.matrix);
+      }
+      sparkRef.current.instanceMatrix.needsUpdate = true;
+      sparkMat.opacity = alpha * 0.85;
+    }
+  });
+
+  return (
+    <group>
+      <pointLight color="#00ff77" intensity={2.5} distance={5} decay={2} />
+      <mesh ref={ring1Ref} geometry={_healRingGeo} material={mat1} />
+      <mesh ref={ring2Ref} geometry={_healRingGeo} material={mat2} />
+      <mesh ref={ring3Ref} geometry={_healRingGeo} material={mat3} />
+      <instancedMesh ref={sparkRef} args={[_healSparkGeo, sparkMat, 14]} frustumCulled={false} />
+    </group>
+  );
+}
+
+// ── Charge Gather Aura — energy streams inward → crescendos into ChargeBeamAura
+const _GATHER_DUR  = 1.4;
+const _GATHER_N    = 24;
+const _gatherGeo   = new THREE.SphereGeometry(1, 5, 4);
+const _gatherDummy = new THREE.Object3D();
+const _gatherColor = new THREE.Color();
+const _gatherPal   = [
+  new THREE.Color("#aa00ff"),
+  new THREE.Color("#ff00ff"),
+  new THREE.Color("#ffffff"),
+];
+
+interface _GatherParticle { orbitSpeed: number; phase: number; axisX: number; axisY: number; size: number; colorT: number }
+
+function ChargeGatherAura({ scale, chargeGatherTimer }: { scale: number; chargeGatherTimer: number }) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+
+  const particles = useMemo<_GatherParticle[]>(() =>
+    Array.from({ length: _GATHER_N }, () => ({
+      orbitSpeed: (3.5 + Math.random() * 4.5) * (Math.random() < 0.5 ? 1 : -1),
+      phase:      Math.random() * Math.PI * 2,
+      axisX:      Math.random() * Math.PI,
+      axisY:      Math.random() * Math.PI * 2,
+      size:       0.02 + Math.random() * 0.025,
+      colorT:     Math.random(),
+    }))
+  , []);
+
+  const [mat] = useState(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  useEffect(() => () => mat.dispose(), [mat]);
+
+  useFrame(({ clock }) => {
+    if (!meshRef.current) return;
+    const t        = clock.getElapsedTime();
+    const progress = Math.max(0, 1 - chargeGatherTimer / _GATHER_DUR); // 0→1 as gather happens
+
+    // Particles spiral inward: radius goes from max → 0 as progress → 1
+    const ease      = 1 - Math.pow(1 - progress, 1.8); // ease-in
+    const maxRadius = scale * 2.8;
+    const curRadius = maxRadius * (1 - ease);
+
+    // Alpha: ramp up fast, hold, then fade as particles converge
+    const rampUp   = Math.min(1, progress / 0.18);
+    const rampDown = progress > 0.75 ? Math.max(0, 1 - (progress - 0.75) / 0.25) : 1;
+    mat.opacity    = rampUp * rampDown * 0.92;
+
+    const im = meshRef.current;
+    for (let i = 0; i < _GATHER_N; i++) {
+      const p     = particles[i];
+      const theta = t * p.orbitSpeed + p.phase;
+      const cx    = Math.cos(p.axisX), sx = Math.sin(p.axisX);
+      const cy    = Math.cos(p.axisY), sy = Math.sin(p.axisY);
+      const cosT  = Math.cos(theta),   sinT = Math.sin(theta);
+      const px    = curRadius * (cosT * cy - sinT * sx * sy);
+      const py    = curRadius * (cosT * sy + sinT * sx * cy);
+      const pz    = curRadius * (sinT * cx);
+
+      _gatherDummy.position.set(px, py, pz);
+      _gatherDummy.scale.setScalar(p.size * (0.5 + 0.5 * Math.sin(t * 9 + i)));
+      _gatherDummy.updateMatrix();
+      im.setMatrixAt(i, _gatherDummy.matrix);
+
+      const ct = ((p.colorT + t * 0.12) % 1 + 1) % 1;
+      if (ct < 0.5) _gatherColor.lerpColors(_gatherPal[0], _gatherPal[1], ct * 2);
+      else           _gatherColor.lerpColors(_gatherPal[1], _gatherPal[2], (ct - 0.5) * 2);
+      im.setColorAt(i, _gatherColor);
+    }
+    im.instanceMatrix.needsUpdate = true;
+    if (im.instanceColor) im.instanceColor.needsUpdate = true;
+  });
+
+  // Fade in the ChargeBeamAura during the final 30% of the gather
+  const progress = Math.max(0, 1 - chargeGatherTimer / _GATHER_DUR);
+  const auraFade = Math.max(0, (progress - 0.70) / 0.30);
+
+  return (
+    <group>
+      <pointLight color="#cc00ff" intensity={progress * 3.5} distance={6} decay={2} />
+      <instancedMesh ref={meshRef} args={[_gatherGeo, mat, _GATHER_N]} frustumCulled={false} />
+      {auraFade > 0 && <ChargeBeamAura scale={scale} />}
+    </group>
+  );
+}
+
 // ── Charge Beam Aura — arcane energy vortex ──────────────────────────────────
 // Three counter-rotating rings at different tilts + fast-orbiting energy wisps.
 // Palette: deep violet → hot magenta → white (distinct from old yellow sparks).
@@ -576,7 +750,7 @@ export function PlayerOrb() {
   const hmRecoilOffsetRef     = useRef([0, 0]);
   const prevHmSignalCountRef  = useRef(0);
   
-  const { health, maxHealth, hasShield, hasChargeBeam, isDamaged, isDying, deathTimer, playerPosition, magiOrb2Active } = useMagicOrb();
+  const { health, maxHealth, hasShield, hasChargeBeam, isDamaged, isDying, deathTimer, playerPosition, magiOrb2Active, healAnimTimer, chargeGatherTimer } = useMagicOrb();
   const { equippedSkin, equippedRing, equippedTrail } = useShop();
   
   const healthRatio = health / maxHealth;
@@ -943,7 +1117,13 @@ export function PlayerOrb() {
       </Suspense>
 
 
-      {/* Electric spark swarm — only active during charge beam */}
+      {/* Heal aura — expanding green rings + rising sparkles */}
+      {healAnimTimer > 0 && <HealAura scale={scale} healAnimTimer={healAnimTimer} />}
+
+      {/* Charge gather animation — streams inward then blossoms into ChargeBeamAura */}
+      {chargeGatherTimer > 0 && <ChargeGatherAura scale={scale} chargeGatherTimer={chargeGatherTimer} />}
+
+      {/* Charge beam aura — full arcane vortex (active after gather completes) */}
       {hasChargeBeam && (
         <>
           <PlayerParticles

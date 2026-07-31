@@ -182,6 +182,8 @@ interface MagicOrbState {
   hasShield: boolean;
   hasChargeBeam: boolean;
   chargeBeamTimer: number;
+  healAnimTimer: number;
+  chargeGatherTimer: number;
   
   orbaniteBeamCooldown: number;
   orbaniteBeamMaxCooldown: number;
@@ -304,6 +306,7 @@ interface MagicOrbState {
   updateTimeDifficulty: () => void;
   consumeShield: () => void;
   updateChargeBeamTimer: (delta: number) => void;
+  updateHealAnimTimer: (delta: number) => void;
   updateDamageTimer: (delta: number) => void;
   updateDeathTimer: (delta: number) => void;
   updateOrbaniteBeamCooldown: (delta: number) => void;
@@ -472,6 +475,8 @@ export const useMagicOrb = create<MagicOrbState>()(
     hasShield: false,
     hasChargeBeam: false,
     chargeBeamTimer: 0,
+    healAnimTimer: 0,
+    chargeGatherTimer: 0,
     
     orbaniteBeamCooldown: 0,
     orbaniteBeamMaxCooldown: 8,
@@ -589,6 +594,8 @@ export const useMagicOrb = create<MagicOrbState>()(
           hasShield: false,
           hasChargeBeam: false,
           chargeBeamTimer: 0,
+          healAnimTimer: 0,
+          chargeGatherTimer: 0,
           orbaniteBeamCooldown: 0,
           hasDistort: false,
           distortSpawned: false,
@@ -761,6 +768,8 @@ export const useMagicOrb = create<MagicOrbState>()(
         hasShield: false,
         hasChargeBeam: false,
         chargeBeamTimer: 0,
+        healAnimTimer: 0,
+        chargeGatherTimer: 0,
         orbaniteBeamCooldown: 0,
         hasDistort: false,
         distortSpawned: false,
@@ -885,6 +894,8 @@ export const useMagicOrb = create<MagicOrbState>()(
         hasShield: false,
         hasChargeBeam: false,
         chargeBeamTimer: 0,
+        healAnimTimer: 0,
+        chargeGatherTimer: 0,
         hasDoubleCoins: false,
         doubleCoinsTimer: 0,
         hasRapidFire: false,
@@ -960,6 +971,8 @@ export const useMagicOrb = create<MagicOrbState>()(
             completedLevel: completedLevelValue,
             hasShield: false,
             chargeBeamTimer: 0,
+            healAnimTimer: 0,
+            chargeGatherTimer: 0,
             hasDoubleCoins: false,
             doubleCoinsTimer: 0,
             hasRapidFire: false,
@@ -1018,6 +1031,8 @@ export const useMagicOrb = create<MagicOrbState>()(
         completedLevel: completedLevelValue,
         hasShield: false,
         chargeBeamTimer: 0,
+        healAnimTimer: 0,
+        chargeGatherTimer: 0,
         hasDoubleCoins: false,
         doubleCoinsTimer: 0,
         hasRapidFire: false,
@@ -1304,14 +1319,13 @@ export const useMagicOrb = create<MagicOrbState>()(
       const clearDamage = (health === 1 && newHealth > 1)
         ? { isDamaged: false, damageTimer: 0, backgroundShake: 0 }
         : {};
-      set({ health: newHealth, ...clearDamage });
+      set({ health: newHealth, healAnimTimer: 1.5, ...clearDamage });
     },
     
     activateShield: () => set({ hasShield: true }),
     
     activateChargeBeam: () => set({ 
-      hasChargeBeam: true,
-      chargeBeamTimer: 10,
+      chargeGatherTimer: 1.4,
     }),
     
     activateDistort: () => set({ 
@@ -1374,15 +1388,32 @@ export const useMagicOrb = create<MagicOrbState>()(
     consumeShield: () => set({ hasShield: false }),
     
     updateChargeBeamTimer: (delta) => {
-      const { chargeBeamTimer, hasChargeBeam } = get();
+      const { chargeBeamTimer, hasChargeBeam, chargeGatherTimer } = get();
+
+      // Gather phase: particles stream inward → then activate charge beam
+      if (chargeGatherTimer > 0) {
+        const newGather = chargeGatherTimer - delta;
+        if (newGather <= 0) {
+          set({ chargeGatherTimer: 0, hasChargeBeam: true, chargeBeamTimer: 10 });
+        } else {
+          set({ chargeGatherTimer: newGather });
+        }
+        return;
+      }
+
       if (!hasChargeBeam) return;
-      
       const newTimer = chargeBeamTimer - delta;
       if (newTimer <= 0) {
         set({ hasChargeBeam: false, chargeBeamTimer: 0 });
       } else {
         set({ chargeBeamTimer: newTimer });
       }
+    },
+
+    updateHealAnimTimer: (delta) => {
+      const { healAnimTimer } = get();
+      if (healAnimTimer <= 0) return;
+      set({ healAnimTimer: Math.max(0, healAnimTimer - delta) });
     },
     
     updateOrbaniteBeamCooldown: (delta) => {
