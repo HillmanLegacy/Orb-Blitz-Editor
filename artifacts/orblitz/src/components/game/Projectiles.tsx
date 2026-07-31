@@ -1757,7 +1757,7 @@ export function Projectiles() {
       // travelTimer is advanced after hitSomething is declared (see below)
       let newTravelTimer = proj.travelTimer;
 
-      const screenBoundary = 13;
+      const screenBoundary = 20;
       if (Math.abs(px) > screenBoundary || Math.abs(py) > screenBoundary) {
         const projHasHit = projectileOrbHits.current.has(proj.id) && projectileOrbHits.current.get(proj.id)!.size > 0;
         
