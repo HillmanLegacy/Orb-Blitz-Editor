@@ -57,6 +57,7 @@ export function GameLogic() {
     updateDifficulty,
     updateChargeBeamTimer,
     updateHealAnimTimer,
+    updateShieldDisintTimer,
     updateDamageTimer,
     updateDeathTimer,
     updateBackgroundEffects,
@@ -653,6 +654,7 @@ export function GameLogic() {
     }
     updateChargeBeamTimer(delta);
     updateHealAnimTimer(delta);
+    updateShieldDisintTimer(delta);
     updateDamageTimer(delta);
     updateBackgroundEffects(delta);
     updateDeathTimer(delta);

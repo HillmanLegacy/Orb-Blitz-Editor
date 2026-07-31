@@ -115,6 +115,117 @@ function PowerUpTeleportVFX({
   );
 }
 
+// ── Shield formation VFX — 80 tiny cyan particles converge to shield surface ──
+const _SFX_N    = 80;
+const _sfxDummy = new THREE.Object3D();
+const _sfxColor = new THREE.Color();
+const _sfxPal   = [
+  new THREE.Color("#00ddff"), // cyan  — matches shield icon primary
+  new THREE.Color("#0099ff"), // ice-blue
+  new THREE.Color("#ffffff"), // white flash
+];
+const _sfxGeo   = new THREE.SphereGeometry(1, 4, 3);
+
+interface _SFXParticle {
+  burstAngle: number; burstSpd: number;
+  size: number; colorT: number; delay: number;
+  tx: number; ty: number; tz: number; // target on shield sphere surface
+}
+
+function ShieldFormVFX({ startPos }: { startPos: [number, number, number] }) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const bornRef = useRef<number | null>(null);
+
+  const particles = useMemo<_SFXParticle[]>(() => {
+    // Compute shield radius from current player health
+    const { health, maxHealth } = useMagicOrb.getState();
+    const hR     = Math.max(0, health) / Math.max(1, maxHealth);
+    const pScale = 0.432 + (0.72 - 0.432) * hR;
+    const r      = pScale * 2.5;
+
+    return Array.from({ length: _SFX_N }, (_, i) => {
+      // Uniform random point on unit sphere → target position on shield surface
+      const phi   = Math.acos(2 * Math.random() - 1);
+      const theta = Math.random() * Math.PI * 2;
+      return {
+        burstAngle: (i / _SFX_N) * Math.PI * 2 + (Math.random() - 0.5) * 0.7,
+        burstSpd:   1.1 + Math.random() * 1.6,
+        size:       0.011 + Math.random() * 0.014, // tiny
+        colorT:     Math.random(),
+        delay:      Math.random() * 0.06,
+        tx: Math.sin(phi) * Math.cos(theta) * r,
+        ty: Math.cos(phi) * r,
+        tz: Math.sin(phi) * Math.sin(theta) * r,
+      };
+    });
+  }, []);
+
+  const [mat] = useState(() => new THREE.MeshBasicMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  }));
+  useEffect(() => () => mat.dispose(), [mat]);
+
+  useFrame(({ clock }) => {
+    if (bornRef.current === null) bornRef.current = clock.getElapsedTime();
+    const age = clock.getElapsedTime() - bornRef.current;
+    const im  = meshRef.current;
+    if (!im) return;
+
+    const [sx, sy, sz] = startPos;
+    const BURST_END     = 0.26;
+
+    // Stay fully opaque until the very last 8% — particles are AT the shield surface
+    const gProgress = Math.min(1, age / DESTROY_DUR);
+    mat.opacity      = gProgress > 0.92 ? Math.max(0, 1 - (gProgress - 0.92) / 0.08) : 0.95;
+
+    for (let i = 0; i < _SFX_N; i++) {
+      const p  = particles[i];
+      const pt = Math.max(0, Math.min((age - p.delay) / (DESTROY_DUR - p.delay), 1));
+
+      if (pt <= 0) {
+        _sfxDummy.scale.setScalar(0); _sfxDummy.updateMatrix();
+        im.setMatrixAt(i, _sfxDummy.matrix); continue;
+      }
+
+      const maxBurst = p.burstSpd * 0.44;
+      const bx = sx + Math.cos(p.burstAngle) * maxBurst;
+      const by = sy + Math.sin(p.burstAngle) * maxBurst;
+      let px: number, py: number, pz: number;
+
+      if (pt < BURST_END) {
+        // Phase 1 — burst outward from power-up position
+        const eOut = 1 - Math.pow(1 - pt / BURST_END, 2);
+        px = sx + (bx - sx) * eOut;
+        py = sy + (by - sy) * eOut;
+        pz = sz;
+      } else {
+        // Phase 2 — stream toward assigned point on the shield sphere surface
+        const st  = (pt - BURST_END) / (1 - BURST_END);
+        const eIn = Math.pow(st, 1.9);
+        px = bx + (p.tx - bx) * eIn;
+        py = by + (p.ty - by) * eIn;
+        pz = sz + (p.tz - sz) * eIn;
+      }
+
+      _sfxDummy.position.set(px, py, pz);
+      _sfxDummy.scale.setScalar(p.size);
+      _sfxDummy.updateMatrix();
+      im.setMatrixAt(i, _sfxDummy.matrix);
+
+      const ct = Math.min(pt * 2.2, 1);
+      if (p.colorT < 0.5) _sfxColor.lerpColors(_sfxPal[0], _sfxPal[1], ct);
+      else                  _sfxColor.lerpColors(_sfxPal[1], _sfxPal[2], ct);
+      im.setColorAt(i, _sfxColor);
+    }
+    im.instanceMatrix.needsUpdate = true;
+    if (im.instanceColor) im.instanceColor.needsUpdate = true;
+  });
+
+  return (
+    <instancedMesh ref={meshRef} args={[_sfxGeo, mat, _SFX_N]} frustumCulled={false} />
+  );
+}
+
 // ── Per-power-up mesh ─────────────────────────────────────────────────────────
 function PowerUpMesh({ powerUp, time }: { powerUp: PowerUp; time: number }) {
   const groupRef = useRef<THREE.Group>(null);
@@ -150,6 +261,14 @@ function PowerUpMesh({ powerUp, time }: { powerUp: PowerUp; time: number }) {
   // While destroying → show teleport VFX at world root so particle world-space
   // coordinates (startPos → player at [0,0,0]) are computed correctly.
   if (powerUp.destroying) {
+    if (powerUp.type === "shield") {
+      return (
+        <>
+          <pointLight position={powerUp.position} color={colors.glow} intensity={4} distance={7} decay={2} />
+          <ShieldFormVFX startPos={powerUp.position} />
+        </>
+      );
+    }
     return (
       <>
         <pointLight

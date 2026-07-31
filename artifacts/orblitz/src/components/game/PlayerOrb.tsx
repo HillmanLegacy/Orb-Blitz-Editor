@@ -393,6 +393,93 @@ export function PlayerGlow({
   );
 }
 
+// ── Shield Disintegration — particles burst outward from shield surface, shrink + fade
+const _SD_N              = 100;
+const _SHIELD_DISINT_DUR = 0.55;
+const _sdDummy           = new THREE.Object3D();
+const _sdColor           = new THREE.Color();
+const _sdPal             = [
+  new THREE.Color("#00ffff"), // bright cyan
+  new THREE.Color("#0099ff"), // ice-blue
+  new THREE.Color("#ffffff"), // white flash
+];
+const _sdGeo             = new THREE.SphereGeometry(1, 4, 3);
+
+interface _SDParticle {
+  x: number; y: number; z: number;     // start: on shield sphere surface
+  nx: number; ny: number; nz: number;  // outward unit normal
+  size: number; colorT: number; delay: number; speed: number;
+}
+
+function ShieldDisintegration({ scale }: { scale: number }) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const bornRef = useRef<number | null>(null);
+
+  const particles = useMemo<_SDParticle[]>(() => {
+    const r = scale * 2.5;
+    return Array.from({ length: _SD_N }, () => {
+      const phi = Math.acos(2 * Math.random() - 1);
+      const th  = Math.random() * Math.PI * 2;
+      const nx  = Math.sin(phi) * Math.cos(th);
+      const ny  = Math.cos(phi);
+      const nz  = Math.sin(phi) * Math.sin(th);
+      return {
+        x: nx * r, y: ny * r, z: nz * r,
+        nx, ny, nz,
+        size:   0.014 + Math.random() * 0.020,
+        colorT: Math.random(),
+        delay:  Math.random() * 0.09,
+        speed:  0.7 + Math.random() * 1.1,
+      };
+    });
+  }, [scale]);
+
+  const [mat] = useState(() => new THREE.MeshBasicMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  }));
+  useEffect(() => () => mat.dispose(), [mat]);
+
+  useFrame(({ clock }) => {
+    if (bornRef.current === null) bornRef.current = clock.getElapsedTime();
+    const age = clock.getElapsedTime() - bornRef.current;
+    if (!meshRef.current) return;
+
+    mat.opacity = Math.max(0, 1 - age / _SHIELD_DISINT_DUR) * 0.95;
+
+    const im = meshRef.current;
+    for (let i = 0; i < _SD_N; i++) {
+      const p  = particles[i];
+      const pt = Math.max(0, Math.min(
+        (age - p.delay) / (_SHIELD_DISINT_DUR - p.delay), 1,
+      ));
+      const eOut = 1 - Math.pow(1 - pt, 1.4); // ease-out burst
+
+      _sdDummy.position.set(
+        p.x + p.nx * p.speed * eOut,
+        p.y + p.ny * p.speed * eOut,
+        p.z + p.nz * p.speed * eOut,
+      );
+      _sdDummy.scale.setScalar(Math.max(0, p.size * (1 - pt * 0.92)));
+      _sdDummy.updateMatrix();
+      im.setMatrixAt(i, _sdDummy.matrix);
+
+      const ct = ((p.colorT + pt * 0.25) % 1 + 1) % 1;
+      if (ct < 0.5) _sdColor.lerpColors(_sdPal[0], _sdPal[1], ct * 2);
+      else           _sdColor.lerpColors(_sdPal[1], _sdPal[2], (ct - 0.5) * 2);
+      im.setColorAt(i, _sdColor);
+    }
+    im.instanceMatrix.needsUpdate = true;
+    if (im.instanceColor) im.instanceColor.needsUpdate = true;
+  });
+
+  return (
+    <group>
+      <pointLight color="#00ccff" intensity={2} distance={6} decay={2} />
+      <instancedMesh ref={meshRef} args={[_sdGeo, mat, _SD_N]} frustumCulled={false} />
+    </group>
+  );
+}
+
 function ShieldEffect({ scale }: { scale: number }) {
   const groupRef = useRef<THREE.Group>(null);
   useFrame((state) => {
@@ -724,7 +811,7 @@ export function PlayerOrb() {
   const hmRecoilOffsetRef     = useRef([0, 0]);
   const prevHmSignalCountRef  = useRef(0);
   
-  const { health, maxHealth, hasShield, hasChargeBeam, isDamaged, isDying, deathTimer, playerPosition, magiOrb2Active, healAnimTimer, chargeGatherTimer } = useMagicOrb();
+  const { health, maxHealth, hasShield, shieldDisintTimer, hasChargeBeam, isDamaged, isDying, deathTimer, playerPosition, magiOrb2Active, healAnimTimer, chargeGatherTimer } = useMagicOrb();
   const { equippedSkin, equippedRing, equippedTrail } = useShop();
   
   const healthRatio = health / maxHealth;
@@ -1133,6 +1220,9 @@ export function PlayerOrb() {
 
       {/* Shield power-up — rotating 3D wireframe icosahedron */}
       {hasShield && <ShieldEffect scale={scale} />}
+
+      {/* Shield disintegration — particles burst from shield surface when consumed */}
+      {shieldDisintTimer > 0 && <ShieldDisintegration scale={scale} />}
 
     </group>
   );

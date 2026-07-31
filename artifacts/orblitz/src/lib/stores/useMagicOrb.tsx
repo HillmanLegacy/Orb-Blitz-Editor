@@ -180,6 +180,7 @@ interface MagicOrbState {
   gauntletOrbsDestroyed: number;
   
   hasShield: boolean;
+  shieldDisintTimer: number;
   hasChargeBeam: boolean;
   chargeBeamTimer: number;
   healAnimTimer: number;
@@ -305,6 +306,7 @@ interface MagicOrbState {
   updateDifficulty: () => void;
   updateTimeDifficulty: () => void;
   consumeShield: () => void;
+  updateShieldDisintTimer: (delta: number) => void;
   updateChargeBeamTimer: (delta: number) => void;
   updateHealAnimTimer: (delta: number) => void;
   updateDamageTimer: (delta: number) => void;
@@ -473,6 +475,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     gauntletOrbsDestroyed: 0,
     
     hasShield: false,
+    shieldDisintTimer: 0,
     hasChargeBeam: false,
     chargeBeamTimer: 0,
     healAnimTimer: 0,
@@ -592,6 +595,7 @@ export const useMagicOrb = create<MagicOrbState>()(
           stars: 0,
           gameTime: 0,
           hasShield: false,
+          shieldDisintTimer: 0,
           hasChargeBeam: false,
           chargeBeamTimer: 0,
           healAnimTimer: 0,
@@ -766,6 +770,7 @@ export const useMagicOrb = create<MagicOrbState>()(
         gameTime: 0,
         gauntletOrbsDestroyed: 0,
         hasShield: false,
+        shieldDisintTimer: 0,
         hasChargeBeam: false,
         chargeBeamTimer: 0,
         healAnimTimer: 0,
@@ -892,6 +897,7 @@ export const useMagicOrb = create<MagicOrbState>()(
         timeDifficultyBonus: 0,
         lastDifficultyTick: 0,
         hasShield: false,
+        shieldDisintTimer: 0,
         hasChargeBeam: false,
         chargeBeamTimer: 0,
         healAnimTimer: 0,
@@ -970,6 +976,7 @@ export const useMagicOrb = create<MagicOrbState>()(
             bossDefeating: false,
             completedLevel: completedLevelValue,
             hasShield: false,
+            shieldDisintTimer: 0,
             chargeBeamTimer: 0,
             healAnimTimer: 0,
             chargeGatherTimer: 0,
@@ -1030,6 +1037,7 @@ export const useMagicOrb = create<MagicOrbState>()(
         bossDefeating: false,
         completedLevel: completedLevelValue,
         hasShield: false,
+        shieldDisintTimer: 0,
         chargeBeamTimer: 0,
         healAnimTimer: 0,
         chargeGatherTimer: 0,
@@ -1211,7 +1219,7 @@ export const useMagicOrb = create<MagicOrbState>()(
       }
       
       if (hasShield) {
-        set({ hasShield: false });
+        set({ hasShield: false, shieldDisintTimer: 0.55 });
         return;
       }
       
@@ -1385,7 +1393,13 @@ export const useMagicOrb = create<MagicOrbState>()(
       get().triggerBackgroundPulse();
     },
     
-    consumeShield: () => set({ hasShield: false }),
+    consumeShield: () => set({ hasShield: false, shieldDisintTimer: 0.55 }),
+
+    updateShieldDisintTimer: (delta) => {
+      const { shieldDisintTimer } = get();
+      if (shieldDisintTimer <= 0) return;
+      set({ shieldDisintTimer: Math.max(0, shieldDisintTimer - delta) });
+    },
     
     updateChargeBeamTimer: (delta) => {
       const { chargeBeamTimer, hasChargeBeam, chargeGatherTimer } = get();
