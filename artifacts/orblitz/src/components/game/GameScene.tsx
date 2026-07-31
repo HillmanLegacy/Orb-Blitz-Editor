@@ -64,7 +64,7 @@ function CameraController() {
   const shakeRef   = useRef(0);
 
   useEffect(() => {
-    targetZRef.current = (boss !== null || isBossLevel) ? 16 : 10;
+    targetZRef.current = 16;
   }, [boss, isBossLevel]);
 
   useEffect(() => {
