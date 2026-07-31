@@ -17,6 +17,8 @@ import { DefenseOrbs } from "./DefenseOrbs";
 import { MagiOrbEffects } from "./MagiOrbEffects";
 import { ScreenEffects } from "./ScreenEffects";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
+import { SubBlasterOrb } from "./SubBlasterOrb";
+import { useShop } from "@/lib/stores/useShop";
 
 // ── Renderer configuration ────────────────────────────────────────────────────
 function RendererSetup() {
@@ -198,6 +200,7 @@ export function GameScene() {
         <Particles />
         <LaserBeams />
         <DistortField />
+        <SubBlasterOrb />
         <DefenseOrbs />
         <MagiOrbEffects />
         <ScreenEffects />

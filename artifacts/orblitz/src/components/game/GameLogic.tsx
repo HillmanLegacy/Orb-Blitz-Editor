@@ -678,43 +678,7 @@ export function GameLogic() {
       }
     }
     
-    if (hasSubBlasterRef.current && !isDying) {
-      const now = performance.now();
-      const elapsed = (now - lastSubBlasterFire.current) / 1000;
-      if (elapsed >= 1.0) {
-        lastSubBlasterFire.current = now;
-        const { darkOrbs } = useMagicOrb.getState();
-        const onScreenOrbs = darkOrbs.filter(orb => 
-          orb.position && 
-          Math.abs(orb.position[0]) < 10 && 
-          Math.abs(orb.position[1]) < 6 &&
-          !orb.destroying
-        );
-        if (onScreenOrbs.length > 0) {
-          const playerPos = playerPositionRef.current;
-          const closest = onScreenOrbs.reduce((min, orb) => {
-            const dist = Math.sqrt((orb.position[0] - playerPos[0]) ** 2 + (orb.position[1] - playerPos[1]) ** 2);
-            const minDist = Math.sqrt((min.position[0] - playerPos[0]) ** 2 + (min.position[1] - playerPos[1]) ** 2);
-            return dist < minDist ? orb : min;
-          });
-          const dirX = closest.position[0] - playerPos[0];
-          const dirY = closest.position[1] - playerPos[1];
-          const len = Math.sqrt(dirX * dirX + dirY * dirY);
-          if (len > 0.1) {
-            const projectile: Projectile = {
-              id: `proj-${projectileIdCounter++}`,
-              position: [playerPos[0] + 0.8, playerPos[1], 0],
-              direction: [dirX / len, dirY / len, 0],
-              isCharged: false,
-              size: 0.12,
-              type: "subblaster",
-              hitCount: 1,
-            };
-            addProjectileRef.current(projectile);
-          }
-        }
-      }
-    }
+    // Sub-blaster drone targeting + firing is handled entirely by SubBlasterOrb.tsx
     
     if (hasRestorationRef.current && !isDying) {
       const { gameTime, health, maxHealth } = useMagicOrb.getState();

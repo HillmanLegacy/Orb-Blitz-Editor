@@ -401,6 +401,103 @@ function OcExplosionBurst({ position }: { position: [number, number, number] }) 
   );
 }
 
+// ── Sub Blaster defense bolt — needle trail + muzzle pop ─────────────────────
+const _SB_TRAIL_N  = 8;
+const _SB_TRAIL_HW = 0.022;  // very narrow needle
+const _SB_HEAD_C   = new THREE.Color("#ccffff");
+const _SB_TAIL_C   = new THREE.Color("#0088cc");
+
+const _sbCoreGeo = new THREE.SphereGeometry(1, 6, 4);
+const _sbCoreMat = new THREE.MeshBasicMaterial({
+  color: "#ffffff", transparent: true, opacity: 0.95,
+  depthWrite: false, blending: THREE.AdditiveBlending,
+});
+
+function SubblasterProjectileMesh({ projectile }: { projectile: Projectile }) {
+  const ribbonGeo = useMemo(() => {
+    const geo  = new THREE.BufferGeometry();
+    const N    = _SB_TRAIL_N;
+    const pArr = new Float32Array(N * 2 * 3);
+    const cArr = new Float32Array(N * 2 * 4);
+    const idx: number[] = [];
+    for (let i = 0; i < N - 1; i++) {
+      const b = i * 2; idx.push(b, b+2, b+1, b+1, b+2, b+3);
+    }
+    geo.setIndex(idx);
+    geo.setAttribute("position", new THREE.BufferAttribute(pArr, 3));
+    geo.setAttribute("color",    new THREE.BufferAttribute(cArr, 4));
+    geo.setDrawRange(0, 0);
+    return geo;
+  }, []);
+
+  const ribbonMat = useMemo(() => new THREE.MeshBasicMaterial({
+    vertexColors: true, transparent: true,
+    depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  }), []);
+
+  useEffect(() => () => { ribbonGeo.dispose(); ribbonMat.dispose(); }, [ribbonGeo, ribbonMat]);
+
+  const posHistRef = useRef(new Float32Array(_SB_TRAIL_N * 3));
+  const histLenRef = useRef(0);
+  const projRef    = useRef(projectile);
+  projRef.current  = projectile;
+
+  useFrame(() => {
+    const proj   = projRef.current;
+    const [wx, wy, wz] = proj.position;
+    const N   = _SB_TRAIL_N;
+    const len = Math.min(histLenRef.current + 1, N);
+    histLenRef.current = len;
+    const hist = posHistRef.current;
+    for (let i = len - 1; i > 0; i--) {
+      hist[i*3] = hist[(i-1)*3]; hist[i*3+1] = hist[(i-1)*3+1]; hist[i*3+2] = hist[(i-1)*3+2];
+    }
+    hist[0] = wx; hist[1] = wy; hist[2] = wz;
+    if (len < 2) return;
+
+    const [fdx, fdy] = proj.direction;
+    const fl  = Math.sqrt(fdx*fdx + fdy*fdy) || 1;
+    const px_ = -fdy / fl, py_ = fdx / fl;
+
+    const pAttr = ribbonGeo.getAttribute("position") as THREE.BufferAttribute;
+    const cAttr = ribbonGeo.getAttribute("color")    as THREE.BufferAttribute;
+    const pA    = pAttr.array as Float32Array;
+    const cA    = cAttr.array as Float32Array;
+
+    for (let i = 0; i < len; i++) {
+      const t   = i / (len - 1);
+      const hw  = _SB_TRAIL_HW * (1 - t * 0.90);
+      const rx  = hist[i*3]   - wx;
+      const ry  = hist[i*3+1] - wy;
+      const rz  = hist[i*3+2] - wz;
+      const vi  = i * 6;
+      pA[vi]   = rx + px_*hw; pA[vi+1] = ry + py_*hw; pA[vi+2] = rz;
+      pA[vi+3] = rx - px_*hw; pA[vi+4] = ry - py_*hw; pA[vi+5] = rz;
+      const tc    = t < 0.5 ? _SB_HEAD_C.clone().lerp(_SB_TAIL_C, t * 2) : _SB_TAIL_C;
+      const alpha = (1 - t) * 0.85;
+      const ci    = i * 8;
+      cA[ci]   = tc.r; cA[ci+1] = tc.g; cA[ci+2] = tc.b; cA[ci+3] = alpha;
+      cA[ci+4] = tc.r; cA[ci+5] = tc.g; cA[ci+6] = tc.b; cA[ci+7] = alpha;
+    }
+    pAttr.needsUpdate = true; cAttr.needsUpdate = true;
+    ribbonGeo.setDrawRange(0, (len - 1) * 6);
+    ribbonGeo.computeBoundingSphere();
+  });
+
+  return (
+    <group position={projectile.position}>
+      <pointLight color="#22ddff" intensity={3} distance={2.5} decay={2} />
+      <mesh geometry={ribbonGeo} material={ribbonMat} />
+      <mesh geometry={_sbCoreGeo} material={_sbCoreMat} scale={0.075} />
+      <mesh scale={0.18}>
+        <sphereGeometry args={[1, 5, 3]} />
+        <meshBasicMaterial color="#44eeff" transparent opacity={0.28}
+          depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+    </group>
+  );
+}
+
 // ── Rapid Blaster projectile mesh — narrow ribbon trail + muzzle flash ────────
 const _RB_TRAIL_N  = 12;
 const _RB_TRAIL_HW = 0.045; // narrow ribbon half-width
@@ -1873,6 +1970,11 @@ export function Projectiles() {
           />
         ) : proj.type === "scattershot" ? (
           <ScattershotProjectileMesh
+            key={proj.id}
+            projectile={proj}
+          />
+        ) : proj.type === "subblaster" ? (
+          <SubblasterProjectileMesh
             key={proj.id}
             projectile={proj}
           />
