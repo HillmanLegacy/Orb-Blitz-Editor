@@ -343,7 +343,7 @@ const _ocRing2Mat = new THREE.MeshBasicMaterial({ color: "#aaccff", transparent:
 
 function OverchargedProjectileMesh({ projectile, time }: { projectile: Projectile; time: number }) {
   const pulse     = 0.5 + 0.5 * Math.sin(time * 4.5);
-  const coreScale = 1.45 + pulse * 0.175;
+  const coreScale = 1.247 + pulse * 0.1505;
   // Two torus rings rotating on independent axes
   const r1 = time * 2.1;
   const r2 = time * 1.6 + 1.05;
@@ -357,11 +357,11 @@ function OverchargedProjectileMesh({ projectile, time }: { projectile: Projectil
       <mesh geometry={_ocCoreGeo} material={_ocCoreMat} scale={coreScale} />
       {/* Torus ring 1 — tilted on XZ */}
       <group rotation={[r1, 0, r2 * 0.6]}>
-        <mesh geometry={_ocRingGeo} material={_ocRingMat}  scale={2.0} />
+        <mesh geometry={_ocRingGeo} material={_ocRingMat}  scale={1.72} />
       </group>
       {/* Torus ring 2 — tilted on YZ */}
       <group rotation={[r2 * 0.5, r1 * 0.8, 0]}>
-        <mesh geometry={_ocRingGeo} material={_ocRing2Mat} scale={1.8} />
+        <mesh geometry={_ocRingGeo} material={_ocRing2Mat} scale={1.55} />
       </group>
     </group>
   );
