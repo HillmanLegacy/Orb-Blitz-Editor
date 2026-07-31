@@ -623,8 +623,6 @@ const _cbaPalette   = [
   new THREE.Color("#ffffff"), // white flash
 ];
 const _cbaWispGeo   = new THREE.SphereGeometry(1, 4, 3);
-const _cbaRingGeo   = new THREE.TorusGeometry(1, 0.045, 6, 48);
-const _cbaHaloGeo   = new THREE.SphereGeometry(1, 14, 10);
 
 interface _CBAWisp {
   orbitSpeed: number; phase: number;
@@ -633,11 +631,7 @@ interface _CBAWisp {
 }
 
 function ChargeBeamAura({ scale }: { scale: number }) {
-  const ring1Ref = useRef<THREE.Mesh>(null);
-  const ring2Ref = useRef<THREE.Mesh>(null);
-  const ring3Ref = useRef<THREE.Mesh>(null);
-  const haloRef  = useRef<THREE.Mesh>(null);
-  const wispRef  = useRef<THREE.InstancedMesh>(null);
+  const wispRef = useRef<THREE.InstancedMesh>(null);
 
   const wisps = useMemo<_CBAWisp[]>(() =>
     Array.from({ length: _CBA_WISP_N }, () => ({
@@ -651,77 +645,38 @@ function ChargeBeamAura({ scale }: { scale: number }) {
     }))
   , [scale]);
 
-  const [mat1]    = useState(() => new THREE.MeshBasicMaterial({ color: "#ffdd00", transparent: true, opacity: 0.70, depthWrite: false, blending: THREE.AdditiveBlending }));
-  const [mat2]    = useState(() => new THREE.MeshBasicMaterial({ color: "#ffaa00", transparent: true, opacity: 0.50, depthWrite: false, blending: THREE.AdditiveBlending }));
-  const [mat3]    = useState(() => new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.30, depthWrite: false, blending: THREE.AdditiveBlending }));
-  const [haloMat] = useState(() => new THREE.MeshBasicMaterial({ color: "#ffcc00", transparent: true, opacity: 0,    depthWrite: false, blending: THREE.AdditiveBlending }));
   const [wispMat] = useState(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-
-  useEffect(() => () => {
-    mat1.dispose(); mat2.dispose(); mat3.dispose(); haloMat.dispose(); wispMat.dispose();
-  }, [mat1, mat2, mat3, haloMat, wispMat]);
+  useEffect(() => () => { wispMat.dispose(); }, [wispMat]);
 
   useFrame(({ clock }) => {
-    const t = clock.getElapsedTime();
-    const r = scale * 1.58;
-
-    // Ring 1 — XY plane, slow clockwise
-    if (ring1Ref.current) {
-      ring1Ref.current.scale.setScalar(r);
-      ring1Ref.current.rotation.z = t * 0.9;
-      mat1.opacity = 0.60 + Math.sin(t * 3.2) * 0.22;
+    if (!wispRef.current) return;
+    const t  = clock.getElapsedTime();
+    const im = wispRef.current;
+    for (let i = 0; i < _CBA_WISP_N; i++) {
+      const w     = wisps[i];
+      const theta = t * w.orbitSpeed + w.phase;
+      const cx    = Math.cos(w.axisX), sx = Math.sin(w.axisX);
+      const cy    = Math.cos(w.axisY), sy = Math.sin(w.axisY);
+      const cosT  = Math.cos(theta),   sinT = Math.sin(theta);
+      const px    = w.baseRadius * (cosT * cy - sinT * sx * sy);
+      const py    = w.baseRadius * (cosT * sy + sinT * sx * cy);
+      const pz    = w.baseRadius * (sinT * cx);
+      _cbaDummy.position.set(px, py, pz);
+      _cbaDummy.scale.setScalar(w.size * (0.55 + 0.45 * Math.sin(t * 9 + i)));
+      _cbaDummy.updateMatrix();
+      im.setMatrixAt(i, _cbaDummy.matrix);
+      const ct = ((w.colorT + t * 0.13) % 1.0 + 1.0) % 1.0;
+      if (ct < 0.5) _cbaColor.lerpColors(_cbaPalette[0], _cbaPalette[1], ct * 2);
+      else           _cbaColor.lerpColors(_cbaPalette[1], _cbaPalette[2], (ct - 0.5) * 2);
+      im.setColorAt(i, _cbaColor);
     }
-    // Ring 2 — tilted 60° on X, faster counter-clockwise
-    if (ring2Ref.current) {
-      ring2Ref.current.scale.setScalar(r * 0.85);
-      ring2Ref.current.rotation.set(Math.PI / 3, t * -1.5, t * 0.6);
-      mat2.opacity = 0.42 + Math.sin(t * 4.8 + 1.1) * 0.20;
-    }
-    // Ring 3 — tilted 120°, medium speed
-    if (ring3Ref.current) {
-      ring3Ref.current.scale.setScalar(r * 0.70);
-      ring3Ref.current.rotation.set(Math.PI * 0.7, 0, t * 2.4);
-      mat3.opacity = 0.28 + Math.sin(t * 6.5 + 2.3) * 0.14;
-    }
-    // Halo — pulsing outer sphere
-    if (haloRef.current) {
-      const pulse = 0.5 + 0.5 * Math.sin(t * 5.5);
-      haloRef.current.scale.setScalar(r * (1.18 + pulse * 0.14));
-      haloMat.opacity = pulse * 0.16;
-    }
-    // Wisps — fast-orbiting energy orbs on tilted planes
-    if (wispRef.current) {
-      const im = wispRef.current;
-      for (let i = 0; i < _CBA_WISP_N; i++) {
-        const w = wisps[i];
-        const theta = t * w.orbitSpeed + w.phase;
-        const cx = Math.cos(w.axisX), sx = Math.sin(w.axisX);
-        const cy = Math.cos(w.axisY), sy = Math.sin(w.axisY);
-        const cosT = Math.cos(theta), sinT = Math.sin(theta);
-        const px = w.baseRadius * (cosT * cy - sinT * sx * sy);
-        const py = w.baseRadius * (cosT * sy + sinT * sx * cy);
-        const pz = w.baseRadius * (sinT * cx);
-        _cbaDummy.position.set(px, py, pz);
-        _cbaDummy.scale.setScalar(w.size * (0.55 + 0.45 * Math.sin(t * 9 + i)));
-        _cbaDummy.updateMatrix();
-        im.setMatrixAt(i, _cbaDummy.matrix);
-        const ct = ((w.colorT + t * 0.13) % 1.0 + 1.0) % 1.0;
-        if (ct < 0.5) _cbaColor.lerpColors(_cbaPalette[0], _cbaPalette[1], ct * 2);
-        else           _cbaColor.lerpColors(_cbaPalette[1], _cbaPalette[2], (ct - 0.5) * 2);
-        im.setColorAt(i, _cbaColor);
-      }
-      im.instanceMatrix.needsUpdate = true;
-      if (im.instanceColor) im.instanceColor.needsUpdate = true;
-    }
+    im.instanceMatrix.needsUpdate = true;
+    if (im.instanceColor) im.instanceColor.needsUpdate = true;
   });
 
   return (
     <group>
       <pointLight color="#ffcc00" intensity={3.5} distance={6} decay={2} />
-      <mesh ref={ring1Ref} geometry={_cbaRingGeo} material={mat1} />
-      <mesh ref={ring2Ref} geometry={_cbaRingGeo} material={mat2} />
-      <mesh ref={ring3Ref} geometry={_cbaRingGeo} material={mat3} />
-      <mesh ref={haloRef}  geometry={_cbaHaloGeo} material={haloMat} />
       <instancedMesh ref={wispRef} args={[_cbaWispGeo, wispMat, _CBA_WISP_N]} frustumCulled={false} />
     </group>
   );
