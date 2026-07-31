@@ -120,6 +120,9 @@ export interface PowerUp {
   velocity: [number, number, number];
   collected?: boolean;
   collectTimer?: number;
+  hurtTimer?: number;    // brief white-flash after being shot
+  destroying?: boolean;  // teleport-out VFX playing
+  destroyTimer?: number; // counts down from DESTROY_DUR; activate on 0
 }
 
 export interface Particle {
