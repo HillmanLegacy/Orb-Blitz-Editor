@@ -419,116 +419,120 @@ function ShieldEffect({ scale }: { scale: number }) {
   );
 }
 
-// ── Electric spark particles — charge-beam swarm aura ────────────────────────
-// Instanced mesh of 60 tiny spheres with erratic pulsing radii and periodic
-// "zap" bursts that shoot outward then retract, coloured yellow→white→cyan.
-const _CB_SPARK_COUNT = 60;
-const _cbDummy        = new THREE.Object3D();
-const _cbColor        = new THREE.Color();
-const _cbPalette      = [
-  new THREE.Color("#ffff00"),
-  new THREE.Color("#ffffff"),
-  new THREE.Color("#aaffff"),
+// ── Charge Beam Aura — arcane energy vortex ──────────────────────────────────
+// Three counter-rotating rings at different tilts + fast-orbiting energy wisps.
+// Palette: deep violet → hot magenta → white (distinct from old yellow sparks).
+const _CBA_WISP_N   = 12;
+const _cbaDummy     = new THREE.Object3D();
+const _cbaColor     = new THREE.Color();
+const _cbaPalette   = [
+  new THREE.Color("#bb00ff"), // deep violet
+  new THREE.Color("#ff44ff"), // hot magenta
+  new THREE.Color("#ffffff"), // white flash
 ];
+const _cbaWispGeo   = new THREE.SphereGeometry(1, 4, 3);
+const _cbaRingGeo   = new THREE.TorusGeometry(1, 0.045, 6, 48);
+const _cbaHaloGeo   = new THREE.SphereGeometry(1, 14, 10);
 
-interface _CBSpark {
-  baseRadius: number;
-  orbitSpeed: number;
-  phase:      number;
-  perp1:      THREE.Vector3;
-  perp2:      THREE.Vector3;
-  baseSize:   number;
-  pulseFreq:  number;
-  pulsePhase: number;
-  zapFreq:    number;
-  zapPhase:   number;
-  colorT:     number;
+interface _CBAWisp {
+  orbitSpeed: number; phase: number;
+  axisX: number; axisY: number;
+  baseRadius: number; size: number; colorT: number;
 }
 
-function ChargeBeamSparks({ scale }: { scale: number }) {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
+function ChargeBeamAura({ scale }: { scale: number }) {
+  const ring1Ref = useRef<THREE.Mesh>(null);
+  const ring2Ref = useRef<THREE.Mesh>(null);
+  const ring3Ref = useRef<THREE.Mesh>(null);
+  const haloRef  = useRef<THREE.Mesh>(null);
+  const wispRef  = useRef<THREE.InstancedMesh>(null);
 
-  const sparks = useMemo<_CBSpark[]>(() => {
-    const list: _CBSpark[] = [];
-    for (let i = 0; i < _CB_SPARK_COUNT; i++) {
-      const axis = new THREE.Vector3(
-        Math.random() - 0.5,
-        Math.random() - 0.5,
-        Math.random() - 0.5,
-      ).normalize();
-      let ref = new THREE.Vector3(0, 1, 0);
-      if (Math.abs(axis.dot(ref)) > 0.85) ref.set(1, 0, 0);
-      const perp1 = new THREE.Vector3().crossVectors(axis, ref).normalize();
-      const perp2 = new THREE.Vector3().crossVectors(axis, perp1).normalize();
-      list.push({
-        baseRadius: scale * (0.8 + Math.random() * 2.2),
-        orbitSpeed: (2.0 + Math.random() * 4.5) * (Math.random() < 0.5 ? 1 : -1),
-        phase:      Math.random() * Math.PI * 2,
-        perp1, perp2,
-        baseSize:   0.014 + Math.random() * 0.024,
-        pulseFreq:  8 + Math.random() * 18,
-        pulsePhase: Math.random() * Math.PI * 2,
-        zapFreq:    2.5 + Math.random() * 4.5,
-        zapPhase:   Math.random() * Math.PI * 2,
-        colorT:     Math.random(),
-      });
-    }
-    return list;
-  }, [scale]);
+  const wisps = useMemo<_CBAWisp[]>(() =>
+    Array.from({ length: _CBA_WISP_N }, () => ({
+      orbitSpeed: (4.5 + Math.random() * 6.5) * (Math.random() < 0.5 ? 1 : -1),
+      phase:      Math.random() * Math.PI * 2,
+      axisX:      Math.random() * Math.PI,
+      axisY:      Math.random() * Math.PI * 2,
+      baseRadius: scale * (1.1 + Math.random() * 0.85),
+      size:       0.016 + Math.random() * 0.022,
+      colorT:     Math.random(),
+    }))
+  , [scale]);
 
-  const geo = useMemo(() => new THREE.SphereGeometry(1, 3, 2), []);
-  const mat = useMemo(() => new THREE.MeshBasicMaterial({
-    color: "#ffff00",
-    transparent: true,
-    opacity: 0.9,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-  }), []);
+  const [mat1]    = useState(() => new THREE.MeshBasicMaterial({ color: "#bb00ff", transparent: true, opacity: 0.70, depthWrite: false, blending: THREE.AdditiveBlending }));
+  const [mat2]    = useState(() => new THREE.MeshBasicMaterial({ color: "#ff44ff", transparent: true, opacity: 0.50, depthWrite: false, blending: THREE.AdditiveBlending }));
+  const [mat3]    = useState(() => new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.30, depthWrite: false, blending: THREE.AdditiveBlending }));
+  const [haloMat] = useState(() => new THREE.MeshBasicMaterial({ color: "#cc00ff", transparent: true, opacity: 0,    depthWrite: false, blending: THREE.AdditiveBlending }));
+  const [wispMat] = useState(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+
+  useEffect(() => () => {
+    mat1.dispose(); mat2.dispose(); mat3.dispose(); haloMat.dispose(); wispMat.dispose();
+  }, [mat1, mat2, mat3, haloMat, wispMat]);
 
   useFrame(({ clock }) => {
-    const mesh = meshRef.current;
-    if (!mesh) return;
     const t = clock.getElapsedTime();
+    const r = scale * 1.58;
 
-    for (let i = 0; i < _CB_SPARK_COUNT; i++) {
-      const sp     = sparks[i];
-      const theta  = t * sp.orbitSpeed + sp.phase;
-      const cosT   = Math.cos(theta);
-      const sinT   = Math.sin(theta);
-
-      // Radius pulses at high frequency (electric oscillation)
-      const pulse  = Math.abs(Math.sin(t * sp.pulseFreq + sp.pulsePhase));
-      const pulseR = sp.baseRadius * (0.25 + 0.75 * pulse);
-
-      // Zap: sharp outward burst — sin raised to power 6 gives narrow peaks
-      const zapRaw = Math.sin(t * sp.zapFreq + sp.zapPhase);
-      const zapAmt = zapRaw > 0 ? zapRaw ** 6 : 0;
-      const r      = pulseR + scale * 1.8 * zapAmt;
-
-      _cbDummy.position.set(
-        (sp.perp1.x * cosT + sp.perp2.x * sinT) * r,
-        (sp.perp1.y * cosT + sp.perp2.y * sinT) * r,
-        (sp.perp1.z * cosT + sp.perp2.z * sinT) * r,
-      );
-      _cbDummy.scale.setScalar(sp.baseSize * (0.4 + pulse * 0.6 + zapAmt * 3.0));
-      _cbDummy.updateMatrix();
-      mesh.setMatrixAt(i, _cbDummy.matrix);
-
-      // Colour cycles yellow → white → cyan over time
-      const ct = ((sp.colorT + t * 0.15) % 1.0 + 1.0) % 1.0;
-      if (ct < 0.5) {
-        _cbColor.lerpColors(_cbPalette[0], _cbPalette[1], ct * 2);
-      } else {
-        _cbColor.lerpColors(_cbPalette[1], _cbPalette[2], (ct - 0.5) * 2);
-      }
-      mesh.setColorAt(i, _cbColor);
+    // Ring 1 — XY plane, slow clockwise
+    if (ring1Ref.current) {
+      ring1Ref.current.scale.setScalar(r);
+      ring1Ref.current.rotation.z = t * 0.9;
+      mat1.opacity = 0.60 + Math.sin(t * 3.2) * 0.22;
     }
-
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    // Ring 2 — tilted 60° on X, faster counter-clockwise
+    if (ring2Ref.current) {
+      ring2Ref.current.scale.setScalar(r * 0.85);
+      ring2Ref.current.rotation.set(Math.PI / 3, t * -1.5, t * 0.6);
+      mat2.opacity = 0.42 + Math.sin(t * 4.8 + 1.1) * 0.20;
+    }
+    // Ring 3 — tilted 120°, medium speed
+    if (ring3Ref.current) {
+      ring3Ref.current.scale.setScalar(r * 0.70);
+      ring3Ref.current.rotation.set(Math.PI * 0.7, 0, t * 2.4);
+      mat3.opacity = 0.28 + Math.sin(t * 6.5 + 2.3) * 0.14;
+    }
+    // Halo — pulsing outer sphere
+    if (haloRef.current) {
+      const pulse = 0.5 + 0.5 * Math.sin(t * 5.5);
+      haloRef.current.scale.setScalar(r * (1.18 + pulse * 0.14));
+      haloMat.opacity = pulse * 0.16;
+    }
+    // Wisps — fast-orbiting energy orbs on tilted planes
+    if (wispRef.current) {
+      const im = wispRef.current;
+      for (let i = 0; i < _CBA_WISP_N; i++) {
+        const w = wisps[i];
+        const theta = t * w.orbitSpeed + w.phase;
+        const cx = Math.cos(w.axisX), sx = Math.sin(w.axisX);
+        const cy = Math.cos(w.axisY), sy = Math.sin(w.axisY);
+        const cosT = Math.cos(theta), sinT = Math.sin(theta);
+        const px = w.baseRadius * (cosT * cy - sinT * sx * sy);
+        const py = w.baseRadius * (cosT * sy + sinT * sx * cy);
+        const pz = w.baseRadius * (sinT * cx);
+        _cbaDummy.position.set(px, py, pz);
+        _cbaDummy.scale.setScalar(w.size * (0.55 + 0.45 * Math.sin(t * 9 + i)));
+        _cbaDummy.updateMatrix();
+        im.setMatrixAt(i, _cbaDummy.matrix);
+        const ct = ((w.colorT + t * 0.13) % 1.0 + 1.0) % 1.0;
+        if (ct < 0.5) _cbaColor.lerpColors(_cbaPalette[0], _cbaPalette[1], ct * 2);
+        else           _cbaColor.lerpColors(_cbaPalette[1], _cbaPalette[2], (ct - 0.5) * 2);
+        im.setColorAt(i, _cbaColor);
+      }
+      im.instanceMatrix.needsUpdate = true;
+      if (im.instanceColor) im.instanceColor.needsUpdate = true;
+    }
   });
 
-  return <instancedMesh ref={meshRef} args={[geo, mat, _CB_SPARK_COUNT]} />;
+  return (
+    <group>
+      <pointLight color="#cc00ff" intensity={3.5} distance={6} decay={2} />
+      <mesh ref={ring1Ref} geometry={_cbaRingGeo} material={mat1} />
+      <mesh ref={ring2Ref} geometry={_cbaRingGeo} material={mat2} />
+      <mesh ref={ring3Ref} geometry={_cbaRingGeo} material={mat3} />
+      <mesh ref={haloRef}  geometry={_cbaHaloGeo} material={haloMat} />
+      <instancedMesh ref={wispRef} args={[_cbaWispGeo, wispMat, _CBA_WISP_N]} frustumCulled={false} />
+    </group>
+  );
 }
 
 export function PlayerOrb() {
@@ -897,7 +901,7 @@ export function PlayerOrb() {
     }
   });
   
-  const glowColor = hasChargeBeam ? "#ffff00" : (isDamaged ? "#ff0000" : skinColors.glow);
+  const glowColor = hasChargeBeam ? "#dd00ff" : (isDamaged ? "#ff0000" : skinColors.glow);
   const coreColor = isDamaged ? "#ff0000" : skinColors.core;
   const phaseOpacity = magiOrb2Active ? 0.3 : 1;
   const accentColor = skinColors.accent;
@@ -944,10 +948,10 @@ export function PlayerOrb() {
         <>
           <PlayerParticles
             scale={scale}
-            particleColors={["#ffdd00", "#ffffff", "#aaffff"]}
+            particleColors={["#dd00ff", "#ffffff", "#ff88ff"]}
             isRainbow={false}
           />
-          <ChargeBeamSparks scale={scale} />
+          <ChargeBeamAura scale={scale} />
         </>
       )}
 

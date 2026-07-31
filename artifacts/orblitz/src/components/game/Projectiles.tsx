@@ -104,119 +104,85 @@ const MemoizedHDTrailEffect = memo(HDTrailEffect);
 
 // Electric spark instanced mesh for the projectile aura
 const PAURA_SPARK_COUNT = 24;
-const _pauraDummy       = new THREE.Object3D();
-const _pauraColor       = new THREE.Color();
-const _pauraPalette     = [
-  new THREE.Color("#ffff00"),
-  new THREE.Color("#ffffff"),
-  new THREE.Color("#aaffff"),
+// ── Charged projectile corona — rotating ring + orbiting wisps ────────────────
+// Palette matches the player's new arcane vortex aura: violet → magenta → white.
+const _PCA_WISP_N  = 5;
+const _pcaDummy    = new THREE.Object3D();
+const _pcaColor    = new THREE.Color();
+const _pcaPalette  = [
+  new THREE.Color("#bb00ff"), // deep violet
+  new THREE.Color("#ff88ff"), // soft magenta
+  new THREE.Color("#ffffff"), // white
 ];
+const _pcaRingGeo  = new THREE.TorusGeometry(1, 0.07, 5, 32);
+const _pcaWispGeo  = new THREE.SphereGeometry(1, 4, 3);
 
-interface _PAuraSpark {
-  baseRadius: number;
-  orbitSpeed: number;
-  phase:      number;
-  perp1:      THREE.Vector3;
-  perp2:      THREE.Vector3;
-  baseSize:   number;
-  pulseFreq:  number;
-  pulsePhase: number;
-  zapFreq:    number;
-  zapPhase:   number;
-  colorT:     number;
-}
+function ProjectileChargeAura({ projScale }: { projScale: number }) {
+  const ringRef = useRef<THREE.Mesh>(null);
+  const wispRef = useRef<THREE.InstancedMesh>(null);
 
-// Sparks are built once at module level with a fixed scale seed; projScale is
-// applied as a multiplier each frame so the aura stays proportional.
-const _pauraSparkDefs = (() => {
-  const list: _PAuraSpark[] = [];
-  for (let i = 0; i < PAURA_SPARK_COUNT; i++) {
-    const axis = new THREE.Vector3(
-      Math.random() - 0.5,
-      Math.random() - 0.5,
-      Math.random() - 0.5,
-    ).normalize();
-    let ref = new THREE.Vector3(0, 1, 0);
-    if (Math.abs(axis.dot(ref)) > 0.85) ref.set(1, 0, 0);
-    const perp1 = new THREE.Vector3().crossVectors(axis, ref).normalize();
-    const perp2 = new THREE.Vector3().crossVectors(axis, perp1).normalize();
-    list.push({
-      baseRadius: 1.0 + Math.random() * 2.2, // multiplied by projScale in frame
-      orbitSpeed: (2.5 + Math.random() * 5.0) * (Math.random() < 0.5 ? 1 : -1),
-      phase:      Math.random() * Math.PI * 2,
-      perp1, perp2,
-      baseSize:   0.028 + Math.random() * 0.030,
-      pulseFreq:  9 + Math.random() * 20,
-      pulsePhase: Math.random() * Math.PI * 2,
-      zapFreq:    3.0 + Math.random() * 5.0,
-      zapPhase:   Math.random() * Math.PI * 2,
-      colorT:     Math.random(),
-    });
-  }
-  return list;
-})();
+  // 5 evenly-spaced wisps, each with a slightly different orbit speed
+  const wisps = useMemo(() =>
+    Array.from({ length: _PCA_WISP_N }, (_, i) => ({
+      phase:  (i / _PCA_WISP_N) * Math.PI * 2,
+      speed:  6.5 + i * 0.7,
+      size:   0.018 + i * 0.003,
+      colorT: i / _PCA_WISP_N,
+    }))
+  , []);
 
-const _pauraSparkGeo = new THREE.SphereGeometry(1, 3, 2);
-const _pauraSparkMat = new THREE.MeshBasicMaterial({
-  color: "#ffff00",
-  transparent: true,
-  opacity: 0.9,
-  depthWrite: false,
-  blending: THREE.AdditiveBlending,
-});
+  const [ringMat] = useState(() => new THREE.MeshBasicMaterial({
+    color: "#bb00ff", transparent: true, opacity: 0.75,
+    depthWrite: false, blending: THREE.AdditiveBlending,
+  }));
+  const [wispMat] = useState(() => new THREE.MeshBasicMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  }));
 
-function ProjectileChargeSparks({ projScale }: { projScale: number }) {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
+  useEffect(() => () => { ringMat.dispose(); wispMat.dispose(); }, [ringMat, wispMat]);
 
   useFrame(({ clock }) => {
-    const mesh = meshRef.current;
-    if (!mesh) return;
     const t = clock.getElapsedTime();
+    const r = projScale * 2.4;
 
-    for (let i = 0; i < PAURA_SPARK_COUNT; i++) {
-      const sp    = _pauraSparkDefs[i];
-      const theta = t * sp.orbitSpeed + sp.phase;
-      const cosT  = Math.cos(theta);
-      const sinT  = Math.sin(theta);
-
-      const pulse  = Math.abs(Math.sin(t * sp.pulseFreq + sp.pulsePhase));
-      const pulseR = sp.baseRadius * projScale * (0.25 + 0.75 * pulse);
-      const zapRaw = Math.sin(t * sp.zapFreq + sp.zapPhase);
-      const zapAmt = zapRaw > 0 ? zapRaw ** 6 : 0;
-      const r      = pulseR + projScale * 1.8 * zapAmt;
-
-      _pauraDummy.position.set(
-        (sp.perp1.x * cosT + sp.perp2.x * sinT) * r,
-        (sp.perp1.y * cosT + sp.perp2.y * sinT) * r,
-        (sp.perp1.z * cosT + sp.perp2.z * sinT) * r,
-      );
-      _pauraDummy.scale.setScalar(sp.baseSize * projScale * (0.4 + pulse * 0.6 + zapAmt * 3.0));
-      _pauraDummy.updateMatrix();
-      mesh.setMatrixAt(i, _pauraDummy.matrix);
-
-      const ct = ((sp.colorT + t * 0.18) % 1.0 + 1.0) % 1.0;
-      if (ct < 0.5) {
-        _pauraColor.lerpColors(_pauraPalette[0], _pauraPalette[1], ct * 2);
-      } else {
-        _pauraColor.lerpColors(_pauraPalette[1], _pauraPalette[2], (ct - 0.5) * 2);
-      }
-      mesh.setColorAt(i, _pauraColor);
+    // Single ring tilted and spinning on two axes for a gyroscope look
+    if (ringRef.current) {
+      ringRef.current.scale.setScalar(r);
+      ringRef.current.rotation.z = t * 5.0;
+      ringRef.current.rotation.x = t * 2.0;
+      ringMat.opacity = 0.60 + Math.sin(t * 9) * 0.28;
     }
 
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    // Orbiting wisps in the XY plane with slight Z wobble
+    if (wispRef.current) {
+      const im = wispRef.current;
+      for (let i = 0; i < _PCA_WISP_N; i++) {
+        const w = wisps[i];
+        const theta = t * w.speed + w.phase;
+        _pcaDummy.position.set(
+          Math.cos(theta) * r,
+          Math.sin(theta) * r,
+          Math.sin(theta * 1.5) * r * 0.35,
+        );
+        _pcaDummy.scale.setScalar(w.size * projScale * (0.65 + 0.35 * Math.sin(t * 13 + i)));
+        _pcaDummy.updateMatrix();
+        im.setMatrixAt(i, _pcaDummy.matrix);
+        const ct = ((w.colorT + t * 0.16) % 1.0 + 1.0) % 1.0;
+        if (ct < 0.5) _pcaColor.lerpColors(_pcaPalette[0], _pcaPalette[1], ct * 2);
+        else           _pcaColor.lerpColors(_pcaPalette[1], _pcaPalette[2], (ct - 0.5) * 2);
+        im.setColorAt(i, _pcaColor);
+      }
+      im.instanceMatrix.needsUpdate = true;
+      if (im.instanceColor) im.instanceColor.needsUpdate = true;
+    }
   });
 
   return (
-    <instancedMesh
-      ref={meshRef}
-      args={[_pauraSparkGeo, _pauraSparkMat, PAURA_SPARK_COUNT]}
-    />
+    <group>
+      <mesh ref={ringRef} geometry={_pcaRingGeo} material={ringMat} />
+      <instancedMesh ref={wispRef} args={[_pcaWispGeo, wispMat, _PCA_WISP_N]} frustumCulled={false} />
+    </group>
   );
-}
-
-function ProjectileChargeAura({ projScale }: { projScale: number }) {
-  return <ProjectileChargeSparks projScale={projScale} />;
 }
 
 // SpiralBraidMesh removed — replaced by the full OrbitalSpiralBlaster SpiralBundleMesh below
