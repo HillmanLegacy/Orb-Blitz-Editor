@@ -6,7 +6,6 @@ import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 // ── ScreenEffects ─────────────────────────────────────────────────────────────
 // 3D screen-space overlays rendered slightly in front of the scene:
 //   • Impact flash — full-screen white/red flash on heavy hits
-//   • Damage vignette — red ring that pulses at low health
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function ScreenEffects() {
@@ -18,11 +17,7 @@ export function ScreenEffects() {
   const prevDamagedRef = useRef(false);
   const prevBossRef    = useRef<string | null>(null);
 
-  // ── Damage vignette ring ──────────────────────────────────────────────────
-  const vignetteRef = useRef<THREE.Mesh>(null);
-
-  const { phase, isDamaged, boss, health, maxHealth } = useMagicOrb();
-  const healthRatio = maxHealth > 0 ? health / maxHealth : 1;
+  const { phase, isDamaged, boss } = useMagicOrb();
 
   // ── Trigger flashes on events ─────────────────────────────────────────────
   useEffect(() => {
@@ -44,9 +39,7 @@ export function ScreenEffects() {
   }, [boss]);
 
   // ── Frame update ──────────────────────────────────────────────────────────
-  useFrame((state, delta) => {
-    const time = state.clock.getElapsedTime();
-
+  useFrame((_state, delta) => {
     // Impact flash
     if (flashRef.current) {
       const mat = flashRef.current.material as THREE.MeshBasicMaterial;
@@ -62,43 +55,12 @@ export function ScreenEffects() {
       }
     }
 
-    // Damage vignette — hidden entirely during boss fights
-    if (vignetteRef.current) {
-      const mat = vignetteRef.current.material as THREE.MeshBasicMaterial;
-      if (boss) {
-        mat.opacity = 0;
-      } else {
-        const lowHealthRatio = Math.max(0, 0.5 - healthRatio) * 2;
-        const lowPulse    = lowHealthRatio * (0.2 + Math.sin(time * 4) * 0.08);
-        const atLastHP    = health === 1 && phase === "playing";
-        const damagePulse = (isDamaged || atLastHP) ? 0.3 : 0;
-        mat.opacity = 0.08 + damagePulse + lowPulse;
-        if (isDamaged || atLastHP || lowHealthRatio > 0.2) {
-          mat.color.setHSL(0, 0.9, 0.12);
-        } else {
-          mat.color.setHSL(0.82, 0.6, 0.1);
-        }
-      }
-    }
   });
 
   if (phase !== "playing") return null;
 
   return (
     <group position={[0, 0, 8]}>
-
-      {/* Damage vignette ring */}
-      <mesh ref={vignetteRef} position={[0, 0, 0.03]}>
-        <ringGeometry args={[7, 20, 64]} />
-        <meshBasicMaterial
-          color="#220000"
-          transparent
-          opacity={0.08}
-          side={THREE.DoubleSide}
-          depthTest={false}
-          depthWrite={false}
-        />
-      </mesh>
 
       {/* Dark corner accents */}
       {([[-13, 10], [13, 10], [-13, -10], [13, -10]] as [number, number][]).map(([cx, cy], i) => (
