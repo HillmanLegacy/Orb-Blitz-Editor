@@ -299,7 +299,7 @@ const OC_TRAVEL_TIME   = 1.5;   // seconds before detonation
 const OC_EXPLODE_RADIUS = 4.8;  // AOE radius in world units
 
 // ── Orbital Spiral Blaster constants ─────────────────────────────────────────
-const SPIRAL_ORBIT_R     = 0.65;
+const SPIRAL_ORBIT_R     = 0.91;
 const SPIRAL_ORBIT_SPEED = 7.0;
 const SPIRAL_SUB_SCALE   = 0.324; // 0.75 × 0.72 × 0.60
 const SPIRAL_TRAIL_N     = 14;
