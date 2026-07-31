@@ -589,7 +589,7 @@ const _HEAL_GATHER_N = 100;
 const _HEAL_DUST_N   = 25;
 const _healGatherGeo = new THREE.SphereGeometry(1, 5, 4);
 const _healDustGeo   = new THREE.SphereGeometry(1, 4, 3);
-const _healPulseGeo  = new THREE.SphereGeometry(1, 24, 16);
+
 const _healDummy     = new THREE.Object3D();
 const _healColor     = new THREE.Color();
 const _healPal       = [
@@ -613,7 +613,6 @@ interface _HealDustP {
 function HealAura({ scale, healAnimTimer }: { scale: number; healAnimTimer: number }) {
   const gatherRef = useRef<THREE.InstancedMesh>(null);
   const dustRef   = useRef<THREE.InstancedMesh>(null);
-  const pulseRef  = useRef<THREE.Mesh>(null);
   const lightRef  = useRef<THREE.PointLight>(null);
 
   const { gatherPs, dustPs } = useMemo(() => {
@@ -670,15 +669,7 @@ function HealAura({ scale, healAnimTimer }: { scale: number; healAnimTimer: numb
   const [dustMat] = useState(() => new THREE.MeshBasicMaterial({
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
   }));
-  const [pulseMat] = useState(() => new THREE.MeshBasicMaterial({
-    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-    color: new THREE.Color("#00FF88"),
-  }));
-  useEffect(() => () => { gatherMat.dispose(); dustMat.dispose(); pulseMat.dispose(); },
-    [gatherMat, dustMat, pulseMat]);
-
-  // Start pulse sphere invisible until phase 3
-  useEffect(() => { if (pulseRef.current) pulseRef.current.scale.setScalar(0.001); }, []);
+  useEffect(() => () => { gatherMat.dispose(); dustMat.dispose(); }, [gatherMat, dustMat]);
 
   useFrame(() => {
     const age = _HEAL_DUR - healAnimTimer; // 0 → 1.5 s
@@ -726,21 +717,7 @@ function HealAura({ scale, healAnimTimer }: { scale: number; healAnimTimer: numb
       lightRef.current.intensity = lt * lt * 10;
     }
 
-    // ── Phase 3a: Expanding pulse sphere ──────────────────────────────────
-    const pm = pulseRef.current;
-    if (pm) {
-      if (age > 0.78) {
-        const pt   = Math.min(1, (age - 0.78) / 0.50);
-        const eOut = 1 - Math.pow(1 - pt, 1.5);
-        pm.scale.setScalar(scale * 0.15 + scale * 4.8 * eOut);
-        pulseMat.opacity = (1 - pt) * 0.40;
-      } else {
-        pm.scale.setScalar(0.001);
-        pulseMat.opacity = 0;
-      }
-    }
-
-    // ── Phase 3b: Upward-drifting gold dust sparks ────────────────────────
+    // ── Phase 3: Upward-drifting gold dust sparks ────────────────────────
     const dm = dustRef.current;
     if (dm) {
       if (age > 0.78) {
@@ -784,10 +761,6 @@ function HealAura({ scale, healAnimTimer }: { scale: number; healAnimTimer: numb
       <pointLight ref={lightRef} color="#FFD700" intensity={0} distance={scale * 5} decay={2} />
       <instancedMesh ref={gatherRef} args={[_healGatherGeo, gatherMat, _HEAL_GATHER_N]} frustumCulled={false} />
       <instancedMesh ref={dustRef}   args={[_healDustGeo,   dustMat,   _HEAL_DUST_N]}   frustumCulled={false} />
-      <mesh ref={pulseRef}>
-        <primitive object={_healPulseGeo} />
-        <primitive object={pulseMat} />
-      </mesh>
     </group>
   );
 }
