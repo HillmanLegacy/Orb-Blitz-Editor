@@ -1256,8 +1256,7 @@ export function Projectiles() {
         if (!_subAlive.some(Boolean)) hitSomething = true;
       }
 
-      // Overcharged explodes on timer — skip all contact collision while traveling
-      if (!hitSomething && proj.type !== "spiral" && proj.type !== "overcharged") {
+      if (!hitSomething && proj.type !== "spiral") {
       if (boss && !boss.destroying && !boss.shieldActive) {
         const [bx, by, bz] = boss.position;
         const dist = Math.sqrt((px - bx) ** 2 + (py - by) ** 2 + ((bz || 0) - pz) ** 2);
@@ -1394,8 +1393,6 @@ export function Projectiles() {
       }  // end if (!hitSomething && proj.type !== "spiral")
       
       for (const powerUp of powerUps) {
-        // Overcharged collects power-ups in the AOE explosion, not on contact
-        if (proj.type === "overcharged") break;
         if (hitPowerUpsThisFrame.current.has(powerUp.id) || powerUp.collected) continue;
         
         const [pux, puy, puz] = powerUp.position;
