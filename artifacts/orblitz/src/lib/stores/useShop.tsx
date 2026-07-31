@@ -64,7 +64,7 @@ export const SHOP_ITEMS: ShopItem[] = [
   
   { id: "weapon_orbital_rapid_blaster", name: "Orbital Rapid Blaster", description: "Fires 6 shots per second. Each projectile destroys 1 enemy.", price: 2000, category: "weapon", value: "orbital_rapid_blaster" },
   { id: "weapon_orbital_scattershot", name: "Orbital Scattershot", description: "Fires 3 projectiles in a wedge pattern. Each destroys 1 enemy.", price: 2000, category: "weapon", value: "orbital_scattershot" },
-  { id: "weapon_spiral_shooter", name: "Orbital Spiral Blaster", description: "Fires 3 small spiraling projectiles. Each destroys 1 enemy.", price: 2000, category: "weapon", value: "spiral_shooter" },
+  { id: "weapon_spiral_shooter", name: "Orbital Spiral Blaster", description: "Fires 3 intertwined swirling particles toward the target. Pierces through up to 3 enemies, losing one particle per hit.", price: 2000, category: "weapon", value: "spiral_shooter" },
   { id: "weapon_overcharged_blaster", name: "Orbital Overcharged Blaster", description: "Fires one massive slow projectile every 1.5s that destroys all enemies and boss projectiles in its path. Deals 5 damage to bosses.", price: 2000, category: "weapon", value: "overcharged_blaster" },
   { id: "weapon_homing_launcher", name: "Orbital Homing Blaster", description: "Fires homing projectiles that track the nearest enemy.", price: 2000, category: "weapon", value: "homing_launcher" },
   { id: "weapon_sub_blaster", name: "Orbital Autonomous Sub Blaster", description: "A small orb orbits you and auto-fires at nearby enemies.", price: 2000, category: "weapon", value: "sub_blaster" },
