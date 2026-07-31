@@ -334,6 +334,47 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: 
   );
 }
 
+// ── Overcharged Blaster visual ────────────────────────────────────────────────
+const _ocCoreGeo  = new THREE.SphereGeometry(1, 20, 14);
+const _ocRingGeo  = new THREE.TorusGeometry(1, 0.055, 7, 48);
+const _ocCoreMat  = new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending });
+const _ocMidMat   = new THREE.MeshBasicMaterial({ color: "#55aaff", transparent: true, opacity: 0.40, depthWrite: false, blending: THREE.AdditiveBlending });
+const _ocOuterMat = new THREE.MeshBasicMaterial({ color: "#1133cc", transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending });
+const _ocRingMat  = new THREE.MeshBasicMaterial({ color: "#33aaff", transparent: true, opacity: 0.75, depthWrite: false, blending: THREE.AdditiveBlending });
+const _ocRing2Mat = new THREE.MeshBasicMaterial({ color: "#aaccff", transparent: true, opacity: 0.50, depthWrite: false, blending: THREE.AdditiveBlending });
+
+function OverchargedProjectileMesh({ projectile, time }: { projectile: Projectile; time: number }) {
+  const pulse     = 0.5 + 0.5 * Math.sin(time * 4.5);
+  const coreScale = 0.58 + pulse * 0.07;
+  const midScale  = 0.88 + pulse * 0.11;
+  const outerScale= 1.28 + pulse * 0.20;
+  // Two rings rotating on independent axes
+  const r1 = time * 2.1;
+  const r2 = time * 1.6 + 1.05;
+
+  return (
+    <group position={projectile.position}>
+      {/* Strong blue-white point light that pulses */}
+      <pointLight color="#55aaff" intensity={10 + pulse * 6} distance={9} decay={2} />
+      <pointLight color="#ffffff" intensity={4}              distance={3} decay={2} />
+      {/* Core white sphere */}
+      <mesh geometry={_ocCoreGeo}  material={_ocCoreMat}  scale={coreScale}  />
+      {/* Mid glow */}
+      <mesh geometry={_ocCoreGeo}  material={_ocMidMat}   scale={midScale}   />
+      {/* Outer haze */}
+      <mesh geometry={_ocCoreGeo}  material={_ocOuterMat} scale={outerScale} />
+      {/* Ring 1 — tilted on XZ */}
+      <group rotation={[r1, 0, r2 * 0.6]}>
+        <mesh geometry={_ocRingGeo} material={_ocRingMat}  scale={0.80} />
+      </group>
+      {/* Ring 2 — tilted on YZ */}
+      <group rotation={[r2 * 0.5, r1 * 0.8, 0]}>
+        <mesh geometry={_ocRingGeo} material={_ocRing2Mat} scale={0.72} />
+      </group>
+    </group>
+  );
+}
+
 // Colours for each strand slot (cyan, magenta, gold)
 const STRAND_COLORS = ["#00ffff", "#ff00ff", "#ffdd00"] as const;
 const STRAND_GLOW   = ["#004488", "#440044", "#443300"] as const;
@@ -715,7 +756,7 @@ export function Projectiles() {
             });
           }
         }
-      } else if (boss && boss.shieldActive) {
+      } else if (boss && boss.shieldActive && proj.type !== "overcharged") {
         const [bx, by, bz] = boss.position;
         const dist = Math.sqrt((px - bx) ** 2 + (py - by) ** 2 + ((bz || 0) - pz) ** 2);
         const shieldRadius = 3.5;
@@ -743,7 +784,9 @@ export function Projectiles() {
         if (proj.piercing && projHits.has(orb.id)) continue;
         const dist = Math.sqrt((px - ox) ** 2 + (py - oy) ** 2 + (pz - oz) ** 2);
         const bossOrbHitBonus = orb.isBossOrb ? 0.6 : 0;
-        const effectiveRadius = (proj.isCharged ? hitRadius * 1.8 : hitRadius) + bossOrbHitBonus;
+        const effectiveRadius = proj.type === "overcharged"
+          ? hitRadius * (proj.size ?? 1) * 2.8
+          : (proj.isCharged ? hitRadius * 1.8 : hitRadius) + bossOrbHitBonus;
         
         if (dist < effectiveRadius) {
           hitOrbsThisFrame.current.add(orb.id);
@@ -853,7 +896,13 @@ export function Projectiles() {
   return (
     <>
       {projectiles.map((proj) =>
-        proj.type === "spiral" ? (
+        proj.type === "overcharged" ? (
+          <OverchargedProjectileMesh
+            key={proj.id}
+            projectile={proj}
+            time={clockRef.current}
+          />
+        ) : proj.type === "spiral" ? (
           <SpiralBundleMesh
             key={proj.id}
             projectile={proj}
