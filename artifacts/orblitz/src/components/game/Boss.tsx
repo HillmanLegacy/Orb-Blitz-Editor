@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb, MovementPattern } from "@/lib/stores/useMagicOrb";
+import { useAudio } from "@/lib/stores/useAudio";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 import { FireBoss } from "./FireBoss";
 import { PlasmaBoss } from "./PlasmaBoss";
@@ -80,6 +81,7 @@ export function Boss() {
   // Frame counter used to throttle how often we push state to Zustand.
   const frameCountRef        = useRef(0);
   const offScreenTimerRef    = useRef(2.5);
+  const sfxPlayedRef         = useRef(false); // gates completeLevel behind boss_explosion.wav
 
   // ── FireBoss (circle) strike-and-retreat state machine ──────────────────────
   const fireMovePhaseRef = useRef<'entering' | 'waiting' | 'exiting'>('entering');
@@ -183,10 +185,15 @@ export function Boss() {
     const time = state.clock.getElapsedTime();
     
     if (boss.destroying) {
+      // Reset SFX gate at the start of each fresh destroy sequence
+      if ((boss.destroyTimer ?? 0) >= 3.4) sfxPlayedRef.current = false;
+
       const newTimer = (boss.destroyTimer || 0) - delta;
       if (newTimer > 0) {
         useMagicOrb.getState().updateBoss({ ...boss, destroyTimer: newTimer });
-      } else {
+      } else if (!sfxPlayedRef.current) {
+        sfxPlayedRef.current = true;
+
         // Reset per-boss local accumulators so they re-initialise on next spawn.
         bossPosRef.current          = [0, 0, 0];
         localAngleRef.current       = null;
@@ -202,10 +209,22 @@ export function Boss() {
         triBurstTimerRef.current    = 0;
         triBurstCooldownRef.current = 1.5 + Math.random() * 2.0;
         useMagicOrb.setState({ boss: null });
+
         if (gameMode === "survival") {
           useMagicOrb.setState({ survivalBossTimer: 0, survivalBossPending: false });
         } else {
-          useMagicOrb.getState().completeLevel();
+          // Play the boss explosion SFX; advance to level complete only after it finishes
+          const completeLevel = () => useMagicOrb.getState().completeLevel();
+          const { isMuted } = useAudio.getState();
+          if (!isMuted) {
+            const audio = new Audio('/sounds/boss_explosion.wav');
+            audio.volume = 0.85;
+            audio.onended = completeLevel;
+            audio.onerror = completeLevel; // fail-safe: still advance on error
+            audio.play().catch(completeLevel); // fail-safe: still advance if blocked
+          } else {
+            completeLevel();
+          }
         }
       }
       return;
