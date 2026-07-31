@@ -509,59 +509,67 @@ function HealAura({ scale, healAnimTimer }: { scale: number; healAnimTimer: numb
   );
 }
 
-// ── Charge Gather Aura — energy streams inward → crescendos into ChargeBeamAura
-const _GATHER_DUR  = 1.4;
-const _GATHER_N    = 24;
-const _gatherGeo       = new THREE.SphereGeometry(1, 5, 4);
-const _gatherDummy     = new THREE.Object3D();
-const _gatherColor     = new THREE.Color();
-const _gatherColorB    = new THREE.Color();
-// Start palette: matches the yellow charge-beam power-up icon
-const _gatherPalStart  = [
-  new THREE.Color("#ffdd00"), // bright yellow
-  new THREE.Color("#ffaa00"), // amber-gold
-  new THREE.Color("#ffffff"), // white flash
-];
-// End palette: the ChargeBeamAura violet/magenta so the transition is seamless
-const _gatherPalEnd    = [
-  new THREE.Color("#bb00ff"), // deep violet
-  new THREE.Color("#ff44ff"), // hot magenta
-  new THREE.Color("#ffffff"), // white flash
+// ── Charge Gather Aura — tiny yellow particles stream inward → become the aura
+// Particles converge TO the wisp orbit radius (not to 0) so they are already in
+// position when ChargeBeamAura appears, making the handoff seamless.
+const _GATHER_DUR   = 1.4;
+const _GATHER_N     = 20; // matches _CBA_WISP_N closely for 1-to-1 visual handoff
+const _gatherGeo    = new THREE.SphereGeometry(1, 4, 3); // same low-poly as CBA wisps
+const _gatherDummy  = new THREE.Object3D();
+const _gatherColor  = new THREE.Color();
+const _gatherPal    = [
+  new THREE.Color("#ffdd00"), // bright yellow  — same as _cbaPalette[0]
+  new THREE.Color("#ffaa00"), // amber-gold     — same as _cbaPalette[1]
+  new THREE.Color("#ffffff"), // white flash    — same as _cbaPalette[2]
 ];
 
-interface _GatherParticle { orbitSpeed: number; phase: number; axisX: number; axisY: number; size: number; colorT: number }
+// Target orbit radius matches the CBA wisp mid-range so particles land in the same band
+const _GATHER_TARGET_R = 1.35; // ×scale  (CBA wisps are 1.1–1.95×scale)
+const _GATHER_START_R  = 3.4;  // ×scale  (outside the aura)
+
+interface _GatherParticle {
+  orbitSpeed: number; phase: number;
+  axisX: number; axisY: number;
+  size: number; colorT: number;
+}
 
 function ChargeGatherAura({ scale, chargeGatherTimer }: { scale: number; chargeGatherTimer: number }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
 
+  // Match CBA wisp properties so the visual population looks identical
   const particles = useMemo<_GatherParticle[]>(() =>
     Array.from({ length: _GATHER_N }, () => ({
-      orbitSpeed: (3.5 + Math.random() * 4.5) * (Math.random() < 0.5 ? 1 : -1),
+      orbitSpeed: (4.5 + Math.random() * 6.5) * (Math.random() < 0.5 ? 1 : -1),
       phase:      Math.random() * Math.PI * 2,
       axisX:      Math.random() * Math.PI,
       axisY:      Math.random() * Math.PI * 2,
-      size:       0.02 + Math.random() * 0.025,
+      size:       0.016 + Math.random() * 0.022, // identical size range as CBA wisps
       colorT:     Math.random(),
     }))
   , []);
 
-  const [mat] = useState(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  const [mat] = useState(() => new THREE.MeshBasicMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  }));
   useEffect(() => () => mat.dispose(), [mat]);
 
   useFrame(({ clock }) => {
     if (!meshRef.current) return;
     const t        = clock.getElapsedTime();
-    const progress = Math.max(0, 1 - chargeGatherTimer / _GATHER_DUR); // 0→1 as gather happens
+    const progress = Math.max(0, 1 - chargeGatherTimer / _GATHER_DUR); // 0→1
 
-    // Particles spiral inward: radius goes from max → 0 as progress → 1
-    const ease      = 1 - Math.pow(1 - progress, 1.8); // ease-in
-    const maxRadius = scale * 2.8;
-    const curRadius = maxRadius * (1 - ease);
+    // Ease-in curve: slow start, accelerate toward player
+    const ease = 1 - Math.pow(1 - progress, 2.2);
 
-    // Alpha: ramp up fast, hold, then fade as particles fully converge
-    const rampUp   = Math.min(1, progress / 0.18);
-    const rampDown = progress > 0.82 ? Math.max(0, 1 - (progress - 0.82) / 0.18) : 1;
-    mat.opacity    = rampUp * rampDown * 0.92;
+    // Converge from START_R toward TARGET_R (not 0) so they land at wisp orbit
+    const startR  = scale * _GATHER_START_R;
+    const targetR = scale * _GATHER_TARGET_R;
+    const curR    = startR + (targetR - startR) * ease;
+
+    // Alpha: ramp in fast, hold full brightness, fade in final 12% as aura takes over
+    const rampUp   = Math.min(1, progress / 0.15);
+    const rampDown = progress > 0.88 ? Math.max(0, 1 - (progress - 0.88) / 0.12) : 1;
+    mat.opacity    = rampUp * rampDown * 0.95;
 
     const im = meshRef.current;
     for (let i = 0; i < _GATHER_N; i++) {
@@ -570,56 +578,48 @@ function ChargeGatherAura({ scale, chargeGatherTimer }: { scale: number; chargeG
       const cx    = Math.cos(p.axisX), sx = Math.sin(p.axisX);
       const cy    = Math.cos(p.axisY), sy = Math.sin(p.axisY);
       const cosT  = Math.cos(theta),   sinT = Math.sin(theta);
-      const px    = curRadius * (cosT * cy - sinT * sx * sy);
-      const py    = curRadius * (cosT * sy + sinT * sx * cy);
-      const pz    = curRadius * (sinT * cx);
+      const px    = curR * (cosT * cy - sinT * sx * sy);
+      const py    = curR * (cosT * sy + sinT * sx * cy);
+      const pz    = curR * (sinT * cx);
 
       _gatherDummy.position.set(px, py, pz);
-      _gatherDummy.scale.setScalar(p.size * (0.5 + 0.5 * Math.sin(t * 9 + i)));
+      // Same size animation as CBA wisps — continuous across the handoff
+      _gatherDummy.scale.setScalar(p.size * (0.55 + 0.45 * Math.sin(t * 9 + i)));
       _gatherDummy.updateMatrix();
       im.setMatrixAt(i, _gatherDummy.matrix);
 
-      // Color-shift: yellow at progress=0 → violet at progress=1 for a seamless
-      // blend into the ChargeBeamAura that fades in at the end of the gather.
-      const ct         = ((p.colorT + t * 0.12) % 1 + 1) % 1;
-      const colorShift = Math.max(0, (progress - 0.35) / 0.65); // 0 until 35%, 1 at 100%
-      if (ct < 0.5) {
-        _gatherColor.lerpColors(_gatherPalStart[0], _gatherPalStart[1], ct * 2);
-        _gatherColorB.lerpColors(_gatherPalEnd[0],  _gatherPalEnd[1],   ct * 2);
-      } else {
-        _gatherColor.lerpColors(_gatherPalStart[1], _gatherPalStart[2], (ct - 0.5) * 2);
-        _gatherColorB.lerpColors(_gatherPalEnd[1],  _gatherPalEnd[2],   (ct - 0.5) * 2);
-      }
-      _gatherColor.lerp(_gatherColorB, colorShift);
+      // Same colour cycling as _cbaPalette — identical yellow/amber/white
+      const ct = ((p.colorT + t * 0.13) % 1 + 1) % 1;
+      if (ct < 0.5) _gatherColor.lerpColors(_gatherPal[0], _gatherPal[1], ct * 2);
+      else           _gatherColor.lerpColors(_gatherPal[1], _gatherPal[2], (ct - 0.5) * 2);
       im.setColorAt(i, _gatherColor);
     }
     im.instanceMatrix.needsUpdate = true;
     if (im.instanceColor) im.instanceColor.needsUpdate = true;
   });
 
-  // Fade in the ChargeBeamAura during the final 45% of the gather so the
-  // violet aura is already partially visible when yellow→violet shift completes.
+  // Once particles have settled at orbit radius, fade in the full aura so the
+  // wisp population (identical size/colour/orbit-speed range) replaces them 1-to-1.
   const progress = Math.max(0, 1 - chargeGatherTimer / _GATHER_DUR);
-  const auraFade = Math.max(0, (progress - 0.55) / 0.45);
+  const auraFade = Math.max(0, (progress - 0.80) / 0.20);
 
   return (
     <group>
-      <pointLight color="#cc00ff" intensity={progress * 3.5} distance={6} decay={2} />
+      <pointLight color="#ffcc00" intensity={progress * 3.5} distance={6} decay={2} />
       <instancedMesh ref={meshRef} args={[_gatherGeo, mat, _GATHER_N]} frustumCulled={false} />
       {auraFade > 0 && <ChargeBeamAura scale={scale} />}
     </group>
   );
 }
 
-// ── Charge Beam Aura — arcane energy vortex ──────────────────────────────────
-// Three counter-rotating rings at different tilts + fast-orbiting energy wisps.
-// Palette: deep violet → hot magenta → white (distinct from old yellow sparks).
+// ── Charge Beam Aura — golden energy vortex ──────────────────────────────────
+// Three counter-rotating rings + fast-orbiting golden wisps. Yellow/amber palette.
 const _CBA_WISP_N   = 12;
 const _cbaDummy     = new THREE.Object3D();
 const _cbaColor     = new THREE.Color();
 const _cbaPalette   = [
-  new THREE.Color("#bb00ff"), // deep violet
-  new THREE.Color("#ff44ff"), // hot magenta
+  new THREE.Color("#ffdd00"), // bright yellow
+  new THREE.Color("#ffaa00"), // amber-gold
   new THREE.Color("#ffffff"), // white flash
 ];
 const _cbaWispGeo   = new THREE.SphereGeometry(1, 4, 3);
@@ -651,10 +651,10 @@ function ChargeBeamAura({ scale }: { scale: number }) {
     }))
   , [scale]);
 
-  const [mat1]    = useState(() => new THREE.MeshBasicMaterial({ color: "#bb00ff", transparent: true, opacity: 0.70, depthWrite: false, blending: THREE.AdditiveBlending }));
-  const [mat2]    = useState(() => new THREE.MeshBasicMaterial({ color: "#ff44ff", transparent: true, opacity: 0.50, depthWrite: false, blending: THREE.AdditiveBlending }));
+  const [mat1]    = useState(() => new THREE.MeshBasicMaterial({ color: "#ffdd00", transparent: true, opacity: 0.70, depthWrite: false, blending: THREE.AdditiveBlending }));
+  const [mat2]    = useState(() => new THREE.MeshBasicMaterial({ color: "#ffaa00", transparent: true, opacity: 0.50, depthWrite: false, blending: THREE.AdditiveBlending }));
   const [mat3]    = useState(() => new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.30, depthWrite: false, blending: THREE.AdditiveBlending }));
-  const [haloMat] = useState(() => new THREE.MeshBasicMaterial({ color: "#cc00ff", transparent: true, opacity: 0,    depthWrite: false, blending: THREE.AdditiveBlending }));
+  const [haloMat] = useState(() => new THREE.MeshBasicMaterial({ color: "#ffcc00", transparent: true, opacity: 0,    depthWrite: false, blending: THREE.AdditiveBlending }));
   const [wispMat] = useState(() => new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
 
   useEffect(() => () => {
@@ -717,7 +717,7 @@ function ChargeBeamAura({ scale }: { scale: number }) {
 
   return (
     <group>
-      <pointLight color="#cc00ff" intensity={3.5} distance={6} decay={2} />
+      <pointLight color="#ffcc00" intensity={3.5} distance={6} decay={2} />
       <mesh ref={ring1Ref} geometry={_cbaRingGeo} material={mat1} />
       <mesh ref={ring2Ref} geometry={_cbaRingGeo} material={mat2} />
       <mesh ref={ring3Ref} geometry={_cbaRingGeo} material={mat3} />
@@ -1093,7 +1093,7 @@ export function PlayerOrb() {
     }
   });
   
-  const glowColor = hasChargeBeam ? "#dd00ff" : (isDamaged ? "#ff0000" : skinColors.glow);
+  const glowColor = hasChargeBeam ? "#ffcc00" : (isDamaged ? "#ff0000" : skinColors.glow);
   const coreColor = isDamaged ? "#ff0000" : skinColors.core;
   const phaseOpacity = magiOrb2Active ? 0.3 : 1;
   const accentColor = skinColors.accent;
@@ -1146,7 +1146,7 @@ export function PlayerOrb() {
         <>
           <PlayerParticles
             scale={scale}
-            particleColors={["#dd00ff", "#ffffff", "#ff88ff"]}
+            particleColors={["#ffdd00", "#ffffff", "#ffaa00"]}
             isRainbow={false}
           />
           <ChargeBeamAura scale={scale} />
