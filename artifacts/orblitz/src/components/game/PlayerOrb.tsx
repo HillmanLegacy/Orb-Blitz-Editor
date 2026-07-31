@@ -419,92 +419,93 @@ function ShieldEffect({ scale }: { scale: number }) {
   );
 }
 
-// ── Heal Aura — green expanding rings + rising sparkles ──────────────────────
+// ── Heal Aura — 3D orbiting particle cloud (green), blooms from player center ──
+// Particles start at near-zero radius (matching where teleport VFX just converged)
+// and expand outward to their orbit radii — visually the teleport particles become
+// this sustained cloud.
 const _HEAL_DUR    = 1.5;
-const _healRingGeo = new THREE.TorusGeometry(1, 0.022, 8, 64);
-const _healSparkGeo = new THREE.SphereGeometry(1, 5, 4);
-const _healDummy    = new THREE.Object3D();
+const _HEAL_N      = 22;
+const _healGeo     = new THREE.SphereGeometry(1, 5, 4);
+const _healDummy   = new THREE.Object3D();
+const _healColor   = new THREE.Color();
+const _healPal     = [
+  new THREE.Color("#00ff77"), // bright green  — matches health icon primary
+  new THREE.Color("#33ffaa"), // mint-green    — matches health icon secondary
+  new THREE.Color("#aaffd4"), // pale seafoam  — white-tinted highlight
+];
 
-interface _HealSpark { angle: number; radOffset: number; speed: number; riseAmt: number; size: number; phase: number }
+interface _HealWisp {
+  orbitSpeed: number; phase: number;
+  axisX: number; axisY: number;
+  targetRadius: number; size: number; colorT: number;
+}
 
 function HealAura({ scale, healAnimTimer }: { scale: number; healAnimTimer: number }) {
-  const ring1Ref  = useRef<THREE.Mesh>(null);
-  const ring2Ref  = useRef<THREE.Mesh>(null);
-  const ring3Ref  = useRef<THREE.Mesh>(null);
-  const sparkRef  = useRef<THREE.InstancedMesh>(null);
+  const wispRef = useRef<THREE.InstancedMesh>(null);
 
-  const sparks = useMemo<_HealSpark[]>(() =>
-    Array.from({ length: 14 }, (_, i) => ({
-      angle:     (i / 14) * Math.PI * 2 + (Math.random() - 0.5) * 0.5,
-      radOffset: 0.25 + Math.random() * 0.55,
-      speed:     0.55 + Math.random() * 0.7,
-      riseAmt:   1.2 + Math.random() * 0.9,
-      size:      0.015 + Math.random() * 0.02,
-      phase:     Math.random() * Math.PI * 2,
+  // Fixed random layout so particles always orbit in stable 3D planes
+  const wisps = useMemo<_HealWisp[]>(() =>
+    Array.from({ length: _HEAL_N }, () => ({
+      orbitSpeed:   (3.5 + Math.random() * 4.0) * (Math.random() < 0.5 ? 1 : -1),
+      phase:        Math.random() * Math.PI * 2,
+      axisX:        Math.random() * Math.PI,
+      axisY:        Math.random() * Math.PI * 2,
+      targetRadius: scale * (0.9 + Math.random() * 0.9),
+      size:         0.016 + Math.random() * 0.022,
+      colorT:       Math.random(),
     }))
-  , []);
+  , [scale]);
 
-  const [mat1]     = useState(() => new THREE.MeshBasicMaterial({ color: "#00ff77", transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
-  const [mat2]     = useState(() => new THREE.MeshBasicMaterial({ color: "#33ffaa", transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
-  const [mat3]     = useState(() => new THREE.MeshBasicMaterial({ color: "#aaffd4", transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
-  const [sparkMat] = useState(() => new THREE.MeshBasicMaterial({ color: "#44ffaa", transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
-
-  useEffect(() => () => { mat1.dispose(); mat2.dispose(); mat3.dispose(); sparkMat.dispose(); }, [mat1, mat2, mat3, sparkMat]);
+  const [mat] = useState(() => new THREE.MeshBasicMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  }));
+  useEffect(() => () => mat.dispose(), [mat]);
 
   useFrame(({ clock }) => {
+    if (!wispRef.current) return;
     const t   = clock.getElapsedTime();
-    const age = _HEAL_DUR - healAnimTimer;                       // 0 → 1.5
-    const fadeIn  = Math.min(1, age / 0.15);
-    const fadeOut = healAnimTimer > 0 ? Math.min(1, healAnimTimer / 0.35) : 0;
-    const alpha   = fadeIn * fadeOut;
+    const age = _HEAL_DUR - healAnimTimer;                    // 0 → 1.5 s
 
-    // Three staggered expanding rings
-    const baseR  = scale * 0.9;
-    const maxR   = scale * 2.6;
-    const cycleHz = 0.65;
-    const ring = (offset: number) => {
-      const prog = ((t * cycleHz + offset) % 1 + 1) % 1; // 0→1 cycle
-      const r  = baseR + (maxR - baseR) * prog;
-      const op = Math.max(0, 1 - prog * 1.35) * alpha * 0.88;
-      return { r, op };
-    };
+    // Bloom: particles expand from center to orbit radius over first 0.25 s
+    const bloom    = Math.min(1, age / 0.25);
+    const bloomEase = 1 - Math.pow(1 - bloom, 2);            // ease-out
 
-    const r1 = ring(0);
-    const r2 = ring(0.33);
-    const r3 = ring(0.66);
-    if (ring1Ref.current) { ring1Ref.current.scale.setScalar(r1.r); mat1.opacity = r1.op; }
-    if (ring2Ref.current) { ring2Ref.current.scale.setScalar(r2.r); mat2.opacity = r2.op; }
-    if (ring3Ref.current) { ring3Ref.current.scale.setScalar(r3.r); mat3.opacity = r3.op; }
+    // Global alpha: quick fade-in, hold, fade out over last 0.4 s
+    const fadeIn   = Math.min(1, age / 0.12);
+    const fadeOut  = healAnimTimer > 0 ? Math.min(1, healAnimTimer / 0.4) : 0;
+    mat.opacity    = fadeIn * fadeOut * 0.92;
 
-    // Sparkles: rise from just above the player and drift outward
-    if (sparkRef.current) {
-      const SPARK_N = 14;
-      for (let i = 0; i < SPARK_N; i++) {
-        const s = sparks[i];
-        const localT = ((t * s.speed + s.phase) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
-        const rise   = (localT / (Math.PI * 2)) * s.riseAmt;
-        const rad    = s.radOffset * scale * (1 + rise * 0.3);
-        const px = Math.cos(s.angle + t * 0.35) * rad;
-        const py = rise - 0.1;
-        const pz = Math.sin(s.angle + t * 0.35) * rad * 0.25;
-        const sizeFade = Math.max(0, 1 - rise / s.riseAmt);
-        _healDummy.position.set(px, py, pz);
-        _healDummy.scale.setScalar(s.size * sizeFade);
-        _healDummy.updateMatrix();
-        sparkRef.current.setMatrixAt(i, _healDummy.matrix);
-      }
-      sparkRef.current.instanceMatrix.needsUpdate = true;
-      sparkMat.opacity = alpha * 0.85;
+    const im = wispRef.current;
+    for (let i = 0; i < _HEAL_N; i++) {
+      const w      = wisps[i];
+      const r      = w.targetRadius * bloomEase;
+      const theta  = t * w.orbitSpeed + w.phase;
+      const cx     = Math.cos(w.axisX), sx = Math.sin(w.axisX);
+      const cy     = Math.cos(w.axisY), sy = Math.sin(w.axisY);
+      const cosT   = Math.cos(theta),   sinT = Math.sin(theta);
+
+      _healDummy.position.set(
+        r * (cosT * cy - sinT * sx * sy),
+        r * (cosT * sy + sinT * sx * cy),
+        r * (sinT * cx),
+      );
+      _healDummy.scale.setScalar(w.size * (0.55 + 0.45 * Math.sin(t * 8 + i)));
+      _healDummy.updateMatrix();
+      im.setMatrixAt(i, _healDummy.matrix);
+
+      const ct = ((w.colorT + t * 0.11) % 1 + 1) % 1;
+      if (ct < 0.5) _healColor.lerpColors(_healPal[0], _healPal[1], ct * 2);
+      else           _healColor.lerpColors(_healPal[1], _healPal[2], (ct - 0.5) * 2);
+      im.setColorAt(i, _healColor);
     }
+    im.instanceMatrix.needsUpdate = true;
+    if (im.instanceColor) im.instanceColor.needsUpdate = true;
   });
 
   return (
     <group>
       <pointLight color="#00ff77" intensity={2.5} distance={5} decay={2} />
-      <mesh ref={ring1Ref} geometry={_healRingGeo} material={mat1} />
-      <mesh ref={ring2Ref} geometry={_healRingGeo} material={mat2} />
-      <mesh ref={ring3Ref} geometry={_healRingGeo} material={mat3} />
-      <instancedMesh ref={sparkRef} args={[_healSparkGeo, sparkMat, 14]} frustumCulled={false} />
+      <instancedMesh ref={wispRef} args={[_healGeo, mat, _HEAL_N]} frustumCulled={false} />
     </group>
   );
 }

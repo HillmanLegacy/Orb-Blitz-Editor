@@ -104,84 +104,70 @@ const MemoizedHDTrailEffect = memo(HDTrailEffect);
 
 // Electric spark instanced mesh for the projectile aura
 const PAURA_SPARK_COUNT = 24;
-// ── Charged projectile corona — rotating ring + orbiting wisps ────────────────
-// Palette matches the player's new arcane vortex aura: violet → magenta → white.
-const _PCA_WISP_N  = 5;
+// ── Charged projectile corona — tiny yellow orbiting particles ────────────────
+// Palette matches the player's golden charge-beam aura: yellow → amber → white.
+const _PCA_WISP_N  = 7;
 const _pcaDummy    = new THREE.Object3D();
 const _pcaColor    = new THREE.Color();
 const _pcaPalette  = [
-  new THREE.Color("#bb00ff"), // deep violet
-  new THREE.Color("#ff88ff"), // soft magenta
-  new THREE.Color("#ffffff"), // white
+  new THREE.Color("#ffdd00"), // bright yellow
+  new THREE.Color("#ffaa00"), // amber-gold
+  new THREE.Color("#ffffff"), // white flash
 ];
-const _pcaRingGeo  = new THREE.TorusGeometry(1, 0.07, 5, 32);
 const _pcaWispGeo  = new THREE.SphereGeometry(1, 4, 3);
 
+interface _PCAWisp { phase: number; speed: number; axisX: number; axisY: number; size: number; colorT: number }
+
 function ProjectileChargeAura({ projScale }: { projScale: number }) {
-  const ringRef = useRef<THREE.Mesh>(null);
   const wispRef = useRef<THREE.InstancedMesh>(null);
 
-  // 5 evenly-spaced wisps, each with a slightly different orbit speed
-  const wisps = useMemo(() =>
+  const wisps = useMemo<_PCAWisp[]>(() =>
     Array.from({ length: _PCA_WISP_N }, (_, i) => ({
       phase:  (i / _PCA_WISP_N) * Math.PI * 2,
-      speed:  6.5 + i * 0.7,
-      size:   0.018 + i * 0.003,
+      speed:  (5.5 + i * 0.9) * (i % 2 === 0 ? 1 : -1),
+      axisX:  (i / _PCA_WISP_N) * Math.PI,
+      axisY:  (i / _PCA_WISP_N) * Math.PI * 2,
+      size:   0.016 + i * 0.003,
       colorT: i / _PCA_WISP_N,
     }))
   , []);
 
-  const [ringMat] = useState(() => new THREE.MeshBasicMaterial({
-    color: "#bb00ff", transparent: true, opacity: 0.75,
-    depthWrite: false, blending: THREE.AdditiveBlending,
-  }));
   const [wispMat] = useState(() => new THREE.MeshBasicMaterial({
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
   }));
-
-  useEffect(() => () => { ringMat.dispose(); wispMat.dispose(); }, [ringMat, wispMat]);
+  useEffect(() => () => { wispMat.dispose(); }, [wispMat]);
 
   useFrame(({ clock }) => {
-    const t = clock.getElapsedTime();
-    const r = projScale * 2.4;
+    if (!wispRef.current) return;
+    const t  = clock.getElapsedTime();
+    const r  = projScale * 2.2;
+    const im = wispRef.current;
 
-    // Single ring tilted and spinning on two axes for a gyroscope look
-    if (ringRef.current) {
-      ringRef.current.scale.setScalar(r);
-      ringRef.current.rotation.z = t * 5.0;
-      ringRef.current.rotation.x = t * 2.0;
-      ringMat.opacity = 0.60 + Math.sin(t * 9) * 0.28;
+    for (let i = 0; i < _PCA_WISP_N; i++) {
+      const w     = wisps[i];
+      const theta = t * w.speed + w.phase;
+      const cx    = Math.cos(w.axisX), sx = Math.sin(w.axisX);
+      const cy    = Math.cos(w.axisY), sy = Math.sin(w.axisY);
+      const cosT  = Math.cos(theta),   sinT = Math.sin(theta);
+      _pcaDummy.position.set(
+        r * (cosT * cy - sinT * sx * sy),
+        r * (cosT * sy + sinT * sx * cy),
+        r * (sinT * cx),
+      );
+      _pcaDummy.scale.setScalar(w.size * projScale * (0.55 + 0.45 * Math.sin(t * 11 + i)));
+      _pcaDummy.updateMatrix();
+      im.setMatrixAt(i, _pcaDummy.matrix);
+      const ct = ((w.colorT + t * 0.15) % 1.0 + 1.0) % 1.0;
+      if (ct < 0.5) _pcaColor.lerpColors(_pcaPalette[0], _pcaPalette[1], ct * 2);
+      else           _pcaColor.lerpColors(_pcaPalette[1], _pcaPalette[2], (ct - 0.5) * 2);
+      im.setColorAt(i, _pcaColor);
     }
-
-    // Orbiting wisps in the XY plane with slight Z wobble
-    if (wispRef.current) {
-      const im = wispRef.current;
-      for (let i = 0; i < _PCA_WISP_N; i++) {
-        const w = wisps[i];
-        const theta = t * w.speed + w.phase;
-        _pcaDummy.position.set(
-          Math.cos(theta) * r,
-          Math.sin(theta) * r,
-          Math.sin(theta * 1.5) * r * 0.35,
-        );
-        _pcaDummy.scale.setScalar(w.size * projScale * (0.65 + 0.35 * Math.sin(t * 13 + i)));
-        _pcaDummy.updateMatrix();
-        im.setMatrixAt(i, _pcaDummy.matrix);
-        const ct = ((w.colorT + t * 0.16) % 1.0 + 1.0) % 1.0;
-        if (ct < 0.5) _pcaColor.lerpColors(_pcaPalette[0], _pcaPalette[1], ct * 2);
-        else           _pcaColor.lerpColors(_pcaPalette[1], _pcaPalette[2], (ct - 0.5) * 2);
-        im.setColorAt(i, _pcaColor);
-      }
-      im.instanceMatrix.needsUpdate = true;
-      if (im.instanceColor) im.instanceColor.needsUpdate = true;
-    }
+    im.instanceMatrix.needsUpdate = true;
+    if (im.instanceColor) im.instanceColor.needsUpdate = true;
   });
 
   return (
-    <group>
-      <mesh ref={ringRef} geometry={_pcaRingGeo} material={ringMat} />
-      <instancedMesh ref={wispRef} args={[_pcaWispGeo, wispMat, _PCA_WISP_N]} frustumCulled={false} />
-    </group>
+    <instancedMesh ref={wispRef} args={[_pcaWispGeo, wispMat, _PCA_WISP_N]} frustumCulled={false} />
   );
 }
 
