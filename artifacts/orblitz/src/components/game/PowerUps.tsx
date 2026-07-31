@@ -147,17 +147,24 @@ function PowerUpMesh({ powerUp, time }: { powerUp: PowerUp; time: number }) {
 
   const colors = getColors(powerUp.type);
 
-  // While destroying → show teleport VFX, hide normal mesh
+  // While destroying → show teleport VFX at world root so particle world-space
+  // coordinates (startPos → player at [0,0,0]) are computed correctly.
   if (powerUp.destroying) {
     return (
-      <group position={powerUp.position}>
-        <pointLight color={colors.glow} intensity={4} distance={7} decay={2} />
+      <>
+        <pointLight
+          position={powerUp.position}
+          color={colors.glow}
+          intensity={4}
+          distance={7}
+          decay={2}
+        />
         <PowerUpTeleportVFX
           startPos={powerUp.position}
           primaryColor={colors.primary}
           accentColor={colors.glow}
         />
-      </group>
+      </>
     );
   }
 
