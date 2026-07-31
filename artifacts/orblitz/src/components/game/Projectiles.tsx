@@ -334,6 +334,78 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: 
   );
 }
 
+// Colours for each strand slot (cyan, magenta, gold)
+const STRAND_COLORS = ["#00ffff", "#ff00ff", "#ffdd00"] as const;
+const STRAND_GLOW   = ["#004488", "#440044", "#443300"] as const;
+
+// Geometry shared across all instances
+const _strandGeo = new THREE.SphereGeometry(0.09, 8, 6);
+const _strandMats = STRAND_COLORS.map((c) =>
+  new THREE.MeshBasicMaterial({
+    color: c,
+    transparent: true,
+    opacity: 0.92,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  })
+);
+
+function SpiralBundleMesh({ projectile, time }: { projectile: Projectile; time: number }) {
+  const strandCount = Math.max(1, Math.min(3, projectile.hitCount ?? 3));
+  const [dx, dy] = projectile.direction;
+
+  // Orbit radius pulses slightly for a living feel
+  const orbitR    = 0.22 + Math.sin(time * 6.0) * 0.03;
+  const rotSpeed  = 5.5; // rad/s
+
+  // Two axes perpendicular to the travel direction
+  // perp1: rotate 90° in XY plane; perp2: Z axis
+  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+  const ux  = -dy / len;
+  const uy  =  dx / len;
+
+  const strands: Array<[number, number, number]> = [];
+  for (let i = 0; i < strandCount; i++) {
+    const phase = (i / strandCount) * Math.PI * 2;
+    const a     = time * rotSpeed + phase;
+    const cosA  = Math.cos(a);
+    const sinA  = Math.sin(a);
+    strands.push([
+      ux * cosA * orbitR,
+      uy * cosA * orbitR,
+      sinA * orbitR,
+    ]);
+  }
+
+  return (
+    <group position={projectile.position}>
+      {/* Shared point light — colour shifts cyan→magenta as strands are lost */}
+      <pointLight
+        color={strandCount === 3 ? "#00ffff" : strandCount === 2 ? "#cc44ff" : "#ffdd00"}
+        intensity={3.5 + Math.sin(time * 8) * 0.5}
+        distance={5}
+        decay={2}
+      />
+      {strands.map((offset, i) => (
+        <group key={i} position={offset}>
+          <mesh geometry={_strandGeo} material={_strandMats[i]} />
+          {/* Inner glow — slightly larger, dimmer sphere */}
+          <mesh scale={2.2}>
+            <sphereGeometry args={[0.09, 6, 4]} />
+            <meshBasicMaterial
+              color={STRAND_GLOW[i]}
+              transparent
+              opacity={0.25}
+              depthWrite={false}
+              blending={THREE.AdditiveBlending}
+            />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
 function ImpactEffectMesh({ effect, skinColors }: {
   effect: ImpactEffect;
   time: number;
@@ -780,17 +852,25 @@ export function Projectiles() {
   
   return (
     <>
-      {projectiles.map((proj) => (
-        <ProjectileMesh
-          key={proj.id}
-          projectile={proj}
-          time={clockRef.current}
-          trailType={equippedTrail}
-          skinColor={projectileColor}
-          skinColors={skinColors}
-          equippedSkin={equippedSkin}
-        />
-      ))}
+      {projectiles.map((proj) =>
+        proj.type === "spiral" ? (
+          <SpiralBundleMesh
+            key={proj.id}
+            projectile={proj}
+            time={clockRef.current}
+          />
+        ) : (
+          <ProjectileMesh
+            key={proj.id}
+            projectile={proj}
+            time={clockRef.current}
+            trailType={equippedTrail}
+            skinColor={projectileColor}
+            skinColors={skinColors}
+            equippedSkin={equippedSkin}
+          />
+        )
+      )}
       {impactEffects.map((effect) => (
         <ImpactEffectMesh key={effect.id} effect={effect} time={clockRef.current} skinColors={skinColors} />
       ))}
