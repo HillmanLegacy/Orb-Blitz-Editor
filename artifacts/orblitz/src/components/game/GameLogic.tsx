@@ -158,6 +158,7 @@ export function GameLogic() {
   const lastHomingFire = useRef(0);
   const triggerRapidBlasterFireRef  = useRef(useMagicOrb.getState().triggerRapidBlasterFire);
   const triggerSpiralBlasterFireRef = useRef(useMagicOrb.getState().triggerSpiralBlasterFire);
+  const triggerScatterFireRef       = useRef(useMagicOrb.getState().triggerScatterFire);
   const lastRestorationTick = useRef(0);
   const lastMagiOrb6Teleport = useRef(0);
   const lastMagiOrb8Fire = useRef(0);
@@ -431,29 +432,40 @@ export function GameLogic() {
         return;
       }
       lastScattershotFire.current = now;
-      
-      const wedgeAngle = Math.PI / 12;
+
+      const wedgeAngle = Math.PI / 12; // 15°
       const angles = [-wedgeAngle, 0, wedgeAngle];
       const scatterVolleyId = `volley-${now}-scatter`;
-      
+      const _sc_offset = 0.75; // spawn at front perimeter
+
       angles.forEach((angleOffset) => {
         const cosA = Math.cos(angleOffset);
         const sinA = Math.sin(angleOffset);
         const newDirX = targetDirX * cosA - targetDirY * sinA;
         const newDirY = targetDirX * sinA + targetDirY * cosA;
-        
+        const lenN = Math.sqrt(newDirX * newDirX + newDirY * newDirY) || 1;
+        const ndx = newDirX / lenN, ndy = newDirY / lenN;
+
         const projectile: Projectile = {
           id: `proj-${projectileIdCounter++}`,
-          position: [...projectileOrigin] as [number, number, number],
-          direction: [newDirX, newDirY, targetDirZ],
+          position: [
+            projectileOrigin[0] + ndx * _sc_offset,
+            projectileOrigin[1] + ndy * _sc_offset,
+            projectileOrigin[2],
+          ] as [number, number, number],
+          direction: [ndx, ndy, targetDirZ],
           isCharged: hasChargeBeamRef.current,
           size: 0.15,
           type: "scattershot",
           hitCount: 1,
+          speed: 20.0,
           volleyId: scatterVolleyId,
         };
         addProjectileRef.current(projectile);
       });
+
+      useMagicOrb.getState().triggerBackgroundShake();
+      triggerScatterFireRef.current(targetDirX, targetDirY);
     } else if (hasSpiralBlasterRef.current) {
       const now = Date.now();
       if (now - lastSpiralFire.current < 500) {

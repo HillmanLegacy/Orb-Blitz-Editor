@@ -358,6 +358,10 @@ interface MagicOrbState {
   /** Incremented each time the spiral blaster fires; carries fire direction */
   spiralBlasterFireSignal: { count: number; dirX: number; dirY: number };
   triggerSpiralBlasterFire: (dirX: number, dirY: number) => void;
+
+  /** Incremented each time the scattershot fires; carries fire direction */
+  scatterFireSignal: { count: number; dirX: number; dirY: number };
+  triggerScatterFire: (dirX: number, dirY: number) => void;
   
   // Magi-Orb actions
   activateMagiOrb2: () => void;
@@ -534,6 +538,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     overchargedFireSignal: { count: 0, dirX: 0, dirY: 0 },
     rapidBlasterFireSignal: { count: 0, dirX: 0, dirY: 0 },
     spiralBlasterFireSignal: { count: 0, dirX: 0, dirY: 0 },
+    scatterFireSignal: { count: 0, dirX: 0, dirY: 0 },
     
     setPhase: (phase) => set({ phase }),
     setGameMode: (mode) => set({ gameMode: mode }),
@@ -1642,6 +1647,9 @@ export const useMagicOrb = create<MagicOrbState>()(
     })),
     triggerSpiralBlasterFire: (dirX, dirY) => set(s => ({
       spiralBlasterFireSignal: { count: s.spiralBlasterFireSignal.count + 1, dirX, dirY },
+    })),
+    triggerScatterFire: (dirX, dirY) => set(s => ({
+      scatterFireSignal: { count: s.scatterFireSignal.count + 1, dirX, dirY },
     })),
     
     updateBackgroundEffects: (delta) => {

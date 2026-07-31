@@ -557,6 +557,176 @@ function RapidBlasterProjectileMesh({
   );
 }
 
+// ── Orbital Scattershot — plasma bolt + ribbon trail + muzzle arc ─────────────
+const _SC_TRAIL_N  = 14;
+const _SC_TRAIL_HW = 0.072; // wider than rapid-blaster
+const _SC_CORE_C   = new THREE.Color("#ffcc44");
+const _SC_TAIL_C   = new THREE.Color("#ff6600");
+
+const _scCoreGeo = new THREE.SphereGeometry(1, 8, 6);
+const _scCoreMat = new THREE.MeshBasicMaterial({
+  color: "#ffffff", transparent: true, opacity: 0.95,
+  depthWrite: false, blending: THREE.AdditiveBlending,
+});
+const _scFlashGeo = new THREE.SphereGeometry(1, 8, 6);
+
+// Muzzle arc — 180° torus half-ring, wide and flat
+const _scArcGeo  = new THREE.TorusGeometry(1, 0.10, 6, 32, Math.PI);
+const _scArcGeo2 = new THREE.TorusGeometry(1, 0.05, 5, 24, Math.PI);
+
+function ScatterMuzzleArc({
+  position, dirX, dirY,
+}: {
+  position: [number, number, number]; dirX: number; dirY: number;
+}) {
+  const arc1Ref  = useRef<THREE.Mesh>(null);
+  const arc2Ref  = useRef<THREE.Mesh>(null);
+  const timerRef = useRef(0);
+  const DUR      = 0.18;
+  // Rotate arcs to face fire direction — arc opens away from orb
+  const angle = Math.atan2(dirY, dirX);
+
+  useFrame((_, delta) => {
+    timerRef.current = Math.min(timerRef.current + delta, DUR);
+    const t   = timerRef.current / DUR;
+    const t2  = easeOutQuad(t);
+    const scl = 1.0 + t2 * 3.2; // expands outward fast
+    const op  = (1 - t) * 0.92;
+    if (arc1Ref.current) {
+      arc1Ref.current.scale.set(scl * 1.6, scl, 1);
+      (arc1Ref.current.material as THREE.MeshBasicMaterial).opacity = op;
+    }
+    if (arc2Ref.current) {
+      arc2Ref.current.scale.set(scl * 1.8, scl * 0.85, 1);
+      (arc2Ref.current.material as THREE.MeshBasicMaterial).opacity = op * 0.6;
+    }
+  });
+
+  return (
+    <group position={position} rotation={[0, 0, angle - Math.PI / 2]}>
+      <mesh ref={arc1Ref} geometry={_scArcGeo}>
+        <meshBasicMaterial color="#ffaa33" transparent opacity={0}
+          depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+      <mesh ref={arc2Ref} geometry={_scArcGeo2}>
+        <meshBasicMaterial color="#ffffff" transparent opacity={0}
+          depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+    </group>
+  );
+}
+
+function ScattershotProjectileMesh({ projectile }: { projectile: Projectile }) {
+  const bornRef    = useRef<number | null>(null);
+  const flashRef   = useRef<THREE.Mesh>(null);
+  const flashMatRef = useRef(new THREE.MeshBasicMaterial({
+    color: "#ffee88", transparent: true, opacity: 0,
+    depthWrite: false, blending: THREE.AdditiveBlending,
+  }));
+
+  const ribbonGeo = useMemo(() => {
+    const geo  = new THREE.BufferGeometry();
+    const N    = _SC_TRAIL_N;
+    const pArr = new Float32Array(N * 2 * 3);
+    const cArr = new Float32Array(N * 2 * 4);
+    const idx: number[] = [];
+    for (let i = 0; i < N - 1; i++) {
+      const b = i * 2; idx.push(b, b+2, b+1, b+1, b+2, b+3);
+    }
+    geo.setIndex(idx);
+    geo.setAttribute("position", new THREE.BufferAttribute(pArr, 3));
+    geo.setAttribute("color",    new THREE.BufferAttribute(cArr, 4));
+    geo.setDrawRange(0, 0);
+    return geo;
+  }, []);
+
+  const ribbonMat = useMemo(() => new THREE.MeshBasicMaterial({
+    vertexColors: true, transparent: true,
+    depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  }), []);
+
+  useEffect(() => () => {
+    ribbonGeo.dispose(); ribbonMat.dispose(); flashMatRef.current.dispose();
+  }, [ribbonGeo, ribbonMat]);
+
+  const posHistRef = useRef(new Float32Array(_SC_TRAIL_N * 3));
+  const histLenRef = useRef(0);
+  const projRef    = useRef(projectile);
+  projRef.current  = projectile;
+
+  useFrame(({ clock }, delta) => {
+    const proj   = projRef.current;
+    const [wx, wy, wz] = proj.position;
+    if (bornRef.current === null) bornRef.current = clock.getElapsedTime();
+
+    // Muzzle flash (0.07 s)
+    if (flashRef.current) {
+      const age = clock.getElapsedTime() - bornRef.current;
+      const FLASH_DUR = 0.07;
+      const op = age < FLASH_DUR ? (1 - age / FLASH_DUR) * 0.90 : 0;
+      flashMatRef.current.opacity = op;
+      flashRef.current.scale.setScalar(0.32 + (1 - (op / 0.90)) * 0.15);
+    }
+
+    // Ribbon trail — position history
+    const N   = _SC_TRAIL_N;
+    const len = Math.min(histLenRef.current + 1, N);
+    histLenRef.current = len;
+    const hist = posHistRef.current;
+    for (let i = len - 1; i > 0; i--) {
+      hist[i*3] = hist[(i-1)*3]; hist[i*3+1] = hist[(i-1)*3+1]; hist[i*3+2] = hist[(i-1)*3+2];
+    }
+    hist[0] = wx; hist[1] = wy; hist[2] = wz;
+    if (len < 2) return;
+
+    const [fdx, fdy] = proj.direction;
+    const fl  = Math.sqrt(fdx*fdx + fdy*fdy) || 1;
+    const px_ = -fdy / fl, py_ = fdx / fl;
+
+    const pAttr = ribbonGeo.getAttribute("position") as THREE.BufferAttribute;
+    const cAttr = ribbonGeo.getAttribute("color")    as THREE.BufferAttribute;
+    const pA    = pAttr.array as Float32Array;
+    const cA    = cAttr.array as Float32Array;
+
+    for (let i = 0; i < len; i++) {
+      const t   = i / (len - 1);
+      // Slight outward arc: perpendicular offset that peaks in the mid-trail
+      const arc  = Math.sin(t * Math.PI) * 0.12;
+      const hw   = _SC_TRAIL_HW * (1 - t * 0.75);
+      const rx   = hist[i*3] - wx + px_ * arc;
+      const ry   = hist[i*3+1] - wy + py_ * arc;
+      const rz   = hist[i*3+2] - wz;
+      const vi   = i * 6;
+      pA[vi]   = rx + px_*hw; pA[vi+1] = ry + py_*hw; pA[vi+2] = rz;
+      pA[vi+3] = rx - px_*hw; pA[vi+4] = ry - py_*hw; pA[vi+5] = rz;
+      // Gradient: white at head → orange→red at tail
+      const tc    = t < 0.5 ? _SC_CORE_C.clone().lerp(_SC_TAIL_C, t * 2) : _SC_TAIL_C;
+      const alpha = (1 - t) * 0.82;
+      const ci    = i * 8;
+      cA[ci]   = tc.r; cA[ci+1] = tc.g; cA[ci+2] = tc.b; cA[ci+3] = alpha;
+      cA[ci+4] = tc.r; cA[ci+5] = tc.g; cA[ci+6] = tc.b; cA[ci+7] = alpha;
+    }
+    pAttr.needsUpdate = true; cAttr.needsUpdate = true;
+    ribbonGeo.setDrawRange(0, (len - 1) * 6);
+    ribbonGeo.computeBoundingSphere();
+  });
+
+  const projScale = 0.13;
+  return (
+    <group position={projectile.position}>
+      <pointLight color="#ff9900" intensity={5} distance={4} decay={2} />
+      <mesh ref={flashRef} geometry={_scFlashGeo} material={flashMatRef.current} scale={0.32} />
+      <mesh geometry={ribbonGeo} material={ribbonMat} />
+      <mesh geometry={_scCoreGeo} material={_scCoreMat} scale={projScale} />
+      <mesh scale={projScale * 2.2}>
+        <sphereGeometry args={[1, 6, 4]} />
+        <meshBasicMaterial color="#ff8800" transparent opacity={0.22}
+          depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+    </group>
+  );
+}
+
 // ── Overcharged Blaster visual ────────────────────────────────────────────────
 const _ocCoreGeo  = new THREE.SphereGeometry(1, 20, 14);
 const _ocRingGeo  = new THREE.TorusGeometry(1, 0.055, 7, 48);
@@ -957,6 +1127,13 @@ export function Projectiles() {
   const [ocExplosions, setOcExplosions] = useState<Array<{ id: string; pos: [number,number,number] }>>([]);
   const swTimeoutsRef    = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const ocExpTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  // ── Scattershot muzzle arc flashes ────────────────────────────────────────
+  const knownScatterVolleys = useRef<Set<string>>(new Set());
+  const [scatterArcs, setScatterArcs] = useState<Array<{
+    id: string; pos: [number,number,number]; dirX: number; dirY: number;
+  }>>([]);
+  const scatterArcTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   
   const skinColors = useMemo(() => getSkinColors(equippedSkin, 3), [equippedSkin]);
   const projectileColor = skinColors.projectile;
@@ -1004,6 +1181,19 @@ export function Projectiles() {
           setShockwaves(prev => prev.filter(s => s.id !== swId));
           swTimeoutsRef.current.delete(swId);
         }, 680));
+      }
+      // Detect newly spawned scattershot volleys → muzzle arc (one arc per volley)
+      if (proj.type === "scattershot" && proj.volleyId &&
+          !knownScatterVolleys.current.has(proj.volleyId)) {
+        knownScatterVolleys.current.add(proj.volleyId);
+        const arcId  = `sarc-${proj.volleyId}`;
+        const arcPos = [...proj.position] as [number, number, number];
+        const [adx, ady] = proj.direction;
+        setScatterArcs(prev => [...prev, { id: arcId, pos: arcPos, dirX: adx, dirY: ady }]);
+        scatterArcTimeoutsRef.current.set(arcId, setTimeout(() => {
+          setScatterArcs(prev => prev.filter(a => a.id !== arcId));
+          scatterArcTimeoutsRef.current.delete(arcId);
+        }, 250));
       }
     }
 
@@ -1476,6 +1666,11 @@ export function Projectiles() {
             projectile={proj}
             skinColors={skinColors}
           />
+        ) : proj.type === "scattershot" ? (
+          <ScattershotProjectileMesh
+            key={proj.id}
+            projectile={proj}
+          />
         ) : proj.type === "rapidblaster" ? (
           <RapidBlasterProjectileMesh
             key={proj.id}
@@ -1499,6 +1694,9 @@ export function Projectiles() {
       ))}
       {ocExplosions.map(ex => (
         <OcExplosionBurst key={ex.id} position={ex.pos} />
+      ))}
+      {scatterArcs.map(arc => (
+        <ScatterMuzzleArc key={arc.id} position={arc.pos} dirX={arc.dirX} dirY={arc.dirY} />
       ))}
       {impactEffects.map((effect) => (
         <ImpactEffectMesh key={effect.id} effect={effect} time={clockRef.current} skinColors={skinColors} />

@@ -559,6 +559,12 @@ export function PlayerOrb() {
   const sbRecoilVelRef        = useRef([0, 0]);
   const sbRecoilOffsetRef     = useRef([0, 0]);
   const prevSbSignalCountRef  = useRef(0);
+
+  // ── Scattershot fire: wide squash + heavy shotgun recoil ──────────────────
+  const scSquashTimerRef      = useRef(0);          // counts down from 0.06 s
+  const scRecoilVelRef        = useRef([0, 0]);
+  const scRecoilOffsetRef     = useRef([0, 0]);
+  const prevScSignalCountRef  = useRef(0);
   
   const { health, maxHealth, hasShield, hasChargeBeam, isDamaged, isDying, deathTimer, playerPosition, magiOrb2Active } = useMagicOrb();
   const { equippedSkin, equippedRing, equippedTrail } = useShop();
@@ -689,9 +695,31 @@ export function PlayerOrb() {
       }
     }
 
+    // ── Scattershot fire signal → wide squash + heavy shotgun recoil ──────────
+    const scSig = useMagicOrb.getState().scatterFireSignal;
+    if (scSig.count !== prevScSignalCountRef.current) {
+      prevScSignalCountRef.current = scSig.count;
+      scSquashTimerRef.current = 0.06;
+      const SC_RECOIL = 1.8;
+      scRecoilVelRef.current[0] = -scSig.dirX * SC_RECOIL;
+      scRecoilVelRef.current[1] = -scSig.dirY * SC_RECOIL;
+    }
+    const scDamp = Math.exp(-8 * delta);
+    scRecoilOffsetRef.current[0] = (scRecoilOffsetRef.current[0] + scRecoilVelRef.current[0] * delta) * scDamp;
+    scRecoilOffsetRef.current[1] = (scRecoilOffsetRef.current[1] + scRecoilVelRef.current[1] * delta) * scDamp;
+    scRecoilVelRef.current[0] *= scDamp;
+    scRecoilVelRef.current[1] *= scDamp;
+    // Squash X:1.25, Y:0.75 — wide lateral energy pooling before release
+    if (scSquashTimerRef.current > 0) {
+      scSquashTimerRef.current = Math.max(0, scSquashTimerRef.current - delta);
+      if (squashTimerRef.current <= 0 && rbSquashTimerRef.current <= 0 && sbSquashTimerRef.current <= 0) {
+        sqX = 1.25; sqY = 0.75;
+      }
+    }
+
     // Combined recoil offset from all weapons
-    const totalRecoilX = recoilOffsetRef.current[0] + rbRecoilOffsetRef.current[0] + sbRecoilOffsetRef.current[0];
-    const totalRecoilY = recoilOffsetRef.current[1] + rbRecoilOffsetRef.current[1] + sbRecoilOffsetRef.current[1];
+    const totalRecoilX = recoilOffsetRef.current[0] + rbRecoilOffsetRef.current[0] + sbRecoilOffsetRef.current[0] + scRecoilOffsetRef.current[0];
+    const totalRecoilY = recoilOffsetRef.current[1] + rbRecoilOffsetRef.current[1] + sbRecoilOffsetRef.current[1] + scRecoilOffsetRef.current[1];
 
     if (groupRef.current && !isDying) {
       groupRef.current.rotation.z = gentleWobble;
