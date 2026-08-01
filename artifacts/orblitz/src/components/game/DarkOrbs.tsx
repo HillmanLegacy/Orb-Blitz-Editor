@@ -570,8 +570,8 @@ function UnifiedDarkOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
       {/* Universal frozen overlay — same blue tint across all orb variants */}
       {frozenTint && (
         <mesh>
-          <circleGeometry args={[1.05, 32]} />
-          <meshBasicMaterial color="#2255aa" transparent opacity={0.42} depthWrite={false} />
+          <sphereGeometry args={[1.08, 16, 16]} />
+          <meshBasicMaterial color="#1155bb" transparent opacity={0.55} depthWrite={false} side={THREE.FrontSide} />
         </mesh>
       )}
     </group>
