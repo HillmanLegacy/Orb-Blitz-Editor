@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
+import { useAudio } from "@/lib/stores/useAudio";
 import { useState, useEffect, useCallback, useMemo } from "react";
 
 const generateParticles = () => {
@@ -17,6 +18,7 @@ const generateParticles = () => {
 
 export function ArcadeComplete() {
   const { score, gameTime, arcadeTotalOrbs, returnToMenu } = useMagicOrb();
+  const { stopMusic } = useAudio();
   const [showTapHint, setShowTapHint] = useState(false);
   const particles = useMemo(() => generateParticles(), []);
   
@@ -32,8 +34,9 @@ export function ArcadeComplete() {
   };
   
   const handleTap = useCallback(() => {
+    stopMusic();
     returnToMenu();
-  }, [returnToMenu]);
+  }, [stopMusic, returnToMenu]);
   
   return (
     <motion.div 
