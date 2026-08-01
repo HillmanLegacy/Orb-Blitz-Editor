@@ -567,13 +567,6 @@ function UnifiedDarkOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
 
       {renderEyes()}
 
-      {/* Universal frozen overlay — same blue tint across all orb variants */}
-      {frozenTint && (
-        <mesh>
-          <sphereGeometry args={[1.08, 16, 16]} />
-          <meshBasicMaterial color="#1155bb" transparent opacity={0.55} depthWrite={false} side={THREE.FrontSide} />
-        </mesh>
-      )}
     </group>
   );
 }
@@ -606,29 +599,39 @@ function World1EnemyMesh({ orb, time }: { orb: DarkOrb; time: number }) {
 
   return (
     <group position={orb.position} scale={orb.size * pulse}>
-      <pointLight color={orb.frozen ? "#4488cc" : "#ff6600"} intensity={1.6} distance={4.5} decay={2} />
+      <pointLight color="#ff6600" intensity={1.6} distance={4.5} decay={2} />
       <MiniFireOrb />
-      {orb.frozen && (
-        <mesh>
-          <sphereGeometry args={[1.08, 16, 16]} />
-          <meshBasicMaterial color="#1155bb" transparent opacity={0.55} depthWrite={false} side={THREE.FrontSide} />
-        </mesh>
-      )}
       {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
     </group>
   );
 }
 
-// ── Router: no hooks — purely selects which mesh component to render ──────────
+// ── Router: selects mesh component + applies frozen overlay for all types ──────
 function OrbRouter({ orb, time }: { orb: DarkOrb; time: number }) {
-  if (orb.isBossOrb) return <BossOrbMesh orb={orb} time={time} />;
-
   const { arcadeLevel, gameMode } = useMagicOrb.getState();
-  if (gameMode === "arcade" && Math.floor(arcadeLevel) === 1) {
-    return <World1EnemyMesh orb={orb} time={time} />;
+
+  let mesh: React.ReactNode;
+  if (orb.isBossOrb) {
+    mesh = <BossOrbMesh orb={orb} time={time} />;
+  } else if (gameMode === "arcade" && Math.floor(arcadeLevel) === 1) {
+    mesh = <World1EnemyMesh orb={orb} time={time} />;
+  } else {
+    mesh = <UnifiedDarkOrbMesh orb={orb} time={time} />;
   }
 
-  return <UnifiedDarkOrbMesh orb={orb} time={time} />;
+  if (!orb.frozen) return <>{mesh}</>;
+
+  // Single overlay for every orb type — sphere sits outside the orb body,
+  // renderOrder + depthTest:false ensures it's never occluded by any geometry.
+  return (
+    <>
+      {mesh}
+      <mesh position={orb.position} scale={orb.size * 1.08} renderOrder={1}>
+        <sphereGeometry args={[1, 16, 16]} />
+        <meshBasicMaterial color="#1155bb" transparent opacity={0.55} depthWrite={false} depthTest={false} />
+      </mesh>
+    </>
+  );
 }
 
 const MemoizedDarkOrbMesh = memo(OrbRouter);
