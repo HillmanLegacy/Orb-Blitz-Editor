@@ -236,6 +236,7 @@ interface MagicOrbState {
   
   backgroundPulse: number;
   backgroundShake: number;
+  cameraOnlyShake: number;
   
   spawnRate: number;
   difficultyMultiplier: number;
@@ -297,6 +298,7 @@ interface MagicOrbState {
   
   triggerBackgroundPulse: () => void;
   triggerBackgroundShake: () => void;
+  triggerCameraOnlyShake: () => void;
   updateBackgroundEffects: (delta: number) => void;
   
   addScore: (points: number) => void;
@@ -530,6 +532,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     
     backgroundPulse: 0,
     backgroundShake: 0,
+    cameraOnlyShake: 0,
     
     spawnRate: 2,
     difficultyMultiplier: 1,
@@ -1729,6 +1732,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     
     triggerBackgroundPulse: () => set({ backgroundPulse: 1 }),
     triggerBackgroundShake: () => set({ backgroundShake: 0.5 }),
+    triggerCameraOnlyShake: () => set({ cameraOnlyShake: 0.5 }),
     triggerOverchargedFire: (dirX, dirY) => set(s => ({
       overchargedFireSignal: { count: s.overchargedFireSignal.count + 1, dirX, dirY },
     })),
@@ -1746,12 +1750,13 @@ export const useMagicOrb = create<MagicOrbState>()(
     })),
     
     updateBackgroundEffects: (delta) => {
-      const { backgroundPulse, backgroundShake, health, phase } = get();
+      const { backgroundPulse, backgroundShake, cameraOnlyShake, health, phase } = get();
       // At last HP while actively playing, keep a baseline shake so distortion/aberration persist
       const minShake = (health === 1 && phase === "playing") ? 0.22 : 0;
       set({
         backgroundPulse: Math.max(0, backgroundPulse - delta * 2),
         backgroundShake: Math.max(minShake, backgroundShake - delta * 2),
+        cameraOnlyShake: Math.max(0, cameraOnlyShake - delta * 6),
       });
     },
     

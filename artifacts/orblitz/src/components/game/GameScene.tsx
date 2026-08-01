@@ -77,7 +77,7 @@ function CameraController() {
     const gs = useMagicOrb.getState();
     // Only track store shake while actively playing — stale values must not
     // persist into pause, game-over, or menu screens.
-    const storeShake = gs.phase === "playing" ? gs.backgroundShake : 0;
+    const storeShake = gs.phase === "playing" ? Math.max(gs.backgroundShake, gs.cameraOnlyShake) : 0;
     if (gs.phase !== "playing") {
       // Not in active play — snap ref to zero immediately so no residual shake leaks
       shakeRef.current = 0;

@@ -428,6 +428,7 @@ export function GameLogic() {
         speed: 22.0,
       };
       addProjectileRef.current(projectile);
+      useMagicOrb.getState().triggerCameraOnlyShake();
       triggerRapidBlasterFireRef.current(targetDirX, targetDirY);
     } else if (hasScattershotRef.current) {
       const now = Date.now();
