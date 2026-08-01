@@ -633,39 +633,48 @@ export function Boss() {
           lerpSpeed = 4.5;
           if (monsterPhaseTimerRef.current <= 0) {
             monsterPhaseRef.current = 'charge';
-            // Target 3 units away from the player (toward boss), never the exact position
+            // Target 3.5 units away from the player along current approach vector
             const cdx = bossPosRef.current[0] - playerX;
             const cdy = bossPosRef.current[1] - playerY;
             const cdist = Math.sqrt(cdx * cdx + cdy * cdy) || 1;
             monsterChargeTargetRef.current = [
-              playerX + (cdx / cdist) * 3.0,
-              playerY + (cdy / cdist) * 3.0,
+              playerX + (cdx / cdist) * 3.5,
+              playerY + (cdy / cdist) * 3.5,
             ];
             monsterPhaseTimerRef.current = 1.2 + Math.random() * 0.8;
           }
         } else if (mPhase === 'charge') {
           targetX = monsterChargeTargetRef.current[0];
           targetY = monsterChargeTargetRef.current[1];
-          lerpSpeed = 24;
+          // Visible fast dash — not an instant snap
+          lerpSpeed = 10;
           if (monsterPhaseTimerRef.current <= 0) {
             monsterPhaseRef.current = 'evade';
-            monsterEvadeSetRef.current = false; // trigger one-time capture next frame
+            monsterEvadeSetRef.current = false;
             monsterPhaseTimerRef.current = 2.0 + Math.random() * 1.5;
           }
         } else if (mPhase === 'evade') {
           if (!monsterEvadeSetRef.current) {
-            // Capture far-corner target once on phase entry
-            const ex = -playerX * 0.75 + (Math.random() - 0.5) * 5;
-            const ey = -playerY * 0.75 + (Math.random() - 0.5) * 4;
-            monsterEvadeTargetRef.current = [
-              Math.max(-playAreaWidth * 0.85, Math.min(playAreaWidth * 0.85, ex)),
-              Math.max(-playAreaHeight * 0.75, Math.min(playAreaHeight * 0.75, ey)),
-            ];
+            // Capture evade target once on phase entry.
+            // Pick a point in the far half of the arena AND at least 6 units from
+            // the player so it never darts into the exclusion zone.
+            let ex: number, ey: number, attempts = 0;
+            do {
+              ex = -playerX * 0.75 + (Math.random() - 0.5) * 6;
+              ey = -playerY * 0.75 + (Math.random() - 0.5) * 5;
+              ex = Math.max(-playAreaWidth * 0.85, Math.min(playAreaWidth * 0.85, ex));
+              ey = Math.max(-playAreaHeight * 0.75, Math.min(playAreaHeight * 0.75, ey));
+              attempts++;
+            } while (
+              Math.sqrt((ex - playerX) ** 2 + (ey - playerY) ** 2) < 6 &&
+              attempts < 8
+            );
+            monsterEvadeTargetRef.current = [ex, ey];
             monsterEvadeSetRef.current = true;
           }
           targetX = monsterEvadeTargetRef.current[0];
           targetY = monsterEvadeTargetRef.current[1];
-          lerpSpeed = 13;
+          lerpSpeed = 10;
           if (monsterPhaseTimerRef.current <= 0) {
             monsterPhaseRef.current = 'vortex';
             monsterOrbitAngleRef.current = Math.atan2(
