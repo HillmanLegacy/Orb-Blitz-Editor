@@ -1,164 +1,212 @@
 import { motion } from "framer-motion";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useAudio } from "@/lib/stores/useAudio";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 
-const generateParticles = () => {
-  return [...Array(100)].map(() => ({
-    left: Math.random() * 100,
-    top: Math.random() * 100,
-    width: 4 + Math.random() * 6,
-    height: 4 + Math.random() * 6,
-    hue: Math.random() * 360,
-    yOffset: -20 - Math.random() * 40,
-    duration: 2 + Math.random() * 2,
-    delay: Math.random() * 2,
-  }));
-};
+// ── Orb field — identical constants to StartupAnimation ──────────────────────
+const ORB_COLORS = ["#00ffff","#ff00ff","#ffff00","#aa00ff","#00ff88","#ff8800","#ffffff","#00aaff"];
+const ORB_COUNT  = 30;
+
+interface OrbDef {
+  orbitX: number; orbitY: number;
+  size: number; blur: number; color: string;
+}
+
+const orbDefs: OrbDef[] = Array.from({ length: ORB_COUNT }, (_, i) => {
+  const oa = (i / ORB_COUNT) * Math.PI * 2;
+  return {
+    orbitX: Math.cos(oa) * (255 + (i % 4) * 18),
+    orbitY: Math.sin(oa) * (90  + (i % 3) * 12),
+    size:   9 + (i % 5) * 5,
+    blur:   3 + (i % 4) * 2,
+    color:  ORB_COLORS[i % ORB_COLORS.length],
+  };
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export function ArcadeComplete() {
   const { score, gameTime, arcadeTotalOrbs, returnToMenu } = useMagicOrb();
   const { stopMusic } = useAudio();
-  const [showTapHint, setShowTapHint] = useState(false);
-  const particles = useMemo(() => generateParticles(), []);
-  
+  const [showCta, setShowCta] = useState(false);
+
   useEffect(() => {
-    const timer = setTimeout(() => setShowTapHint(true), 2000);
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => setShowCta(true), 2200);
+    return () => clearTimeout(t);
   }, []);
-  
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
-  
+
   const handleTap = useCallback(() => {
     stopMusic();
     returnToMenu();
   }, [stopMusic, returnToMenu]);
-  
+
   return (
-    <motion.div 
-      className="fixed inset-0 z-50 flex items-center justify-center cursor-pointer"
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center cursor-pointer select-none"
       onClick={handleTap}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-violet-900">
-        {particles.map((p, i) => (
-          <motion.div
-            key={i}
-            className="absolute rounded-full"
-            style={{
-              left: `${p.left}%`,
-              top: `${p.top}%`,
-              width: p.width,
-              height: p.height,
-              background: `hsl(${p.hue}, 100%, 70%)`,
-            }}
-            animate={{
-              y: [0, p.yOffset, 0],
-              opacity: [0, 1, 0],
-              scale: [0.5, 1.2, 0.5],
-            }}
-            transition={{
-              duration: p.duration,
-              repeat: Infinity,
-              delay: p.delay,
-            }}
-          />
-        ))}
-      </div>
-      
-      <div className="relative z-10 text-center px-4">
+      {/* Dark space background — matches main menu exactly */}
+      <div className="absolute inset-0" style={{ background: "rgb(4, 4, 18)" }} />
+
+      {/* Scanlines overlay — same as main menu */}
+      <div className="absolute inset-0 pointer-events-none z-[1]" style={{
+        backgroundImage:
+          "repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,255,255,0.011) 3px,rgba(0,255,255,0.011) 4px)",
+      }} />
+
+      {/* Orbital orb field — same positions as StartupAnimation "done" phase */}
+      {orbDefs.map((orb, i) => (
         <motion.div
-          initial={{ scale: 0, rotate: -180 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ type: "spring", duration: 1, delay: 0.2 }}
+          key={i}
+          className="absolute rounded-full pointer-events-none"
+          style={{
+            width: orb.size, height: orb.size,
+            left: "50%", top: "50%",
+            marginLeft: -orb.size / 2, marginTop: -orb.size / 2,
+            background: `radial-gradient(circle at 38% 32%, ${orb.color}ff, ${orb.color}88 45%, transparent 75%)`,
+            filter: `blur(${orb.blur}px)`,
+            boxShadow: `0 0 ${orb.size * 1.2}px ${orb.color}44`,
+            zIndex: 2,
+          }}
+          initial={{ x: 0, y: 0, scale: 0, opacity: 0 }}
+          animate={{ x: orb.orbitX, y: orb.orbitY, scale: 0.8, opacity: 0.48 }}
+          transition={{ duration: 1.1, delay: i * 0.03, ease: [0.34, 1.26, 0.64, 1] }}
+        />
+      ))}
+
+      {/* Content */}
+      <div className="relative z-10 text-center px-4 w-full max-w-md mx-auto">
+
+        {/* Title — ORBLITZ gradient + glow, identical animation */}
+        <motion.div
+          initial={{ scale: 0.65, opacity: 0, y: -16 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          transition={{ type: "spring", duration: 1.1, delay: 0.15 }}
         >
           <motion.h1
-            className="text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 mb-2"
+            className="font-black tracking-widest text-transparent bg-clip-text"
+            style={{
+              fontSize: "clamp(2.2rem, 8vw, 4rem)",
+              lineHeight: 1.1,
+              backgroundImage: "linear-gradient(135deg,#00ffff 0%,#aa00ff 45%,#ff00ff 75%,#ffff00 100%)",
+            }}
             animate={{
-              textShadow: [
-                "0 0 30px #ffff00, 0 0 60px #ff8800",
-                "0 0 50px #ff8800, 0 0 100px #ff4400",
-                "0 0 30px #ffff00, 0 0 60px #ff8800",
+              filter: [
+                "drop-shadow(0 0 18px rgba(0,255,255,0.55)) drop-shadow(0 0 36px rgba(255,0,255,0.25))",
+                "drop-shadow(0 0 28px rgba(255,0,255,0.6))  drop-shadow(0 0 56px rgba(0,255,255,0.3))",
+                "drop-shadow(0 0 18px rgba(0,255,255,0.55)) drop-shadow(0 0 36px rgba(255,0,255,0.25))",
               ],
             }}
-            transition={{ duration: 1.5, repeat: Infinity }}
+            transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
           >
-            CONGRATULATIONS!
+            ARCADE<br />COMPLETE
           </motion.h1>
+
+          {/* Underline — matches main menu title underline */}
+          <motion.div className="mt-3 mx-auto" style={{
+            height: 1,
+            width: "clamp(160px, 36vw, 280px)",
+            background: "linear-gradient(90deg,transparent,#00ffff 35%,#ff00ff 65%,transparent)",
+          }}
+            initial={{ scaleX: 0, opacity: 0 }}
+            animate={{ scaleX: 1, opacity: 0.65 }}
+            transition={{ duration: 0.9, delay: 0.4, ease: "easeOut" }}
+          />
         </motion.div>
-        
+
         <motion.p
-          className="text-2xl md:text-3xl text-white font-bold mb-8"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
+          className="font-bold uppercase mt-3 mb-6"
+          style={{
+            color: "rgba(0,255,255,0.6)",
+            fontSize: "clamp(0.65rem, 1.8vw, 0.8rem)",
+            letterSpacing: "0.24em",
+          }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.65 }}
         >
-          You've conquered the Arcade!
+          All 9 worlds conquered
         </motion.p>
-        
+
+        {/* Stats card — matches menu panel glassmorphism style */}
         <motion.div
-          className="bg-black/40 backdrop-blur-sm rounded-2xl p-6 md:p-8 border border-purple-500/30 max-w-md mx-auto"
-          initial={{ opacity: 0, y: 30 }}
+          style={{
+            background: "linear-gradient(160deg, rgba(0,255,255,0.055) 0%, rgba(170,0,255,0.035) 100%)",
+            border: "1.5px solid rgba(0,255,255,0.16)",
+            borderRadius: "clamp(12px, 2vw, 18px)",
+            boxShadow: "0 0 32px rgba(0,255,255,0.07), inset 0 1px 0 rgba(0,255,255,0.06)",
+            backdropFilter: "blur(12px)",
+            padding: "clamp(18px, 4vw, 28px) clamp(22px, 5vw, 38px)",
+          }}
+          initial={{ opacity: 0, y: 22 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
+          transition={{ delay: 0.85, duration: 0.55, ease: [0.22, 0.61, 0.36, 1] }}
         >
-          <h2 className="text-xl text-purple-300 font-semibold mb-4">Your Stats</h2>
-          
+          <p
+            className="font-black uppercase mb-5"
+            style={{ color: "rgba(0,255,255,0.4)", fontSize: "0.65rem", letterSpacing: "0.28em" }}
+          >
+            Your Stats
+          </p>
+
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-300">Total Time</span>
-              <motion.span 
-                className="text-2xl font-bold text-cyan-400"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1 }}
+            {[
+              { label: "Total Time",    value: formatTime(gameTime),             color: "#00ffff" },
+              { label: "Final Score",   value: score.toLocaleString(),           color: "#ffff00" },
+              { label: "Orbs Defeated", value: arcadeTotalOrbs.toLocaleString(), color: "#ff00ff" },
+            ].map(({ label, value, color }, idx) => (
+              <motion.div
+                key={label}
+                className="flex justify-between items-center"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 1.1 + idx * 0.15 }}
               >
-                {formatTime(gameTime)}
-              </motion.span>
-            </div>
-            
-            <div className="flex justify-between items-center">
-              <span className="text-gray-300">Final Score</span>
-              <motion.span 
-                className="text-2xl font-bold text-yellow-400"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1.2 }}
-              >
-                {score.toLocaleString()}
-              </motion.span>
-            </div>
-            
-            <div className="flex justify-between items-center">
-              <span className="text-gray-300">Orbs Defeated</span>
-              <motion.span 
-                className="text-2xl font-bold text-pink-400"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1.4 }}
-              >
-                {arcadeTotalOrbs.toLocaleString()}
-              </motion.span>
-            </div>
+                <span style={{
+                  color: "rgba(255,255,255,0.45)",
+                  fontSize: "clamp(0.78rem, 2vw, 0.9rem)",
+                }}>
+                  {label}
+                </span>
+                <span style={{
+                  color,
+                  fontSize: "clamp(1.05rem, 3vw, 1.35rem)",
+                  fontWeight: 900,
+                  textShadow: `0 0 14px ${color}88`,
+                }}>
+                  {value}
+                </span>
+              </motion.div>
+            ))}
           </div>
         </motion.div>
-        
-        {showTapHint && (
-          <motion.p
-            className="text-lg text-cyan-300 mt-8"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: [0, 1, 0.5, 1] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
-          >
-            Tap anywhere to return to menu
-          </motion.p>
-        )}
+
+        {/* Tap CTA — identical style to main menu "Tap to Start" */}
+        <motion.p
+          className="mt-8 font-semibold uppercase"
+          style={{
+            color: "rgba(0,255,255,0.8)",
+            textShadow: "0 0 18px rgba(0,255,255,0.45)",
+            fontSize: "clamp(0.7rem, 1.8vw, 0.85rem)",
+            letterSpacing: "0.22em",
+          }}
+          initial={{ opacity: 0 }}
+          animate={showCta ? { opacity: [0, 0.85, 0.4, 0.85] } : { opacity: 0 }}
+          transition={showCta
+            ? { duration: 2, repeat: Infinity, ease: "easeInOut" }
+            : { duration: 0 }}
+        >
+          Tap anywhere to return to menu
+        </motion.p>
       </div>
     </motion.div>
   );

@@ -71,6 +71,12 @@ function App() {
   const handleShowLevelSelect = useCallback(() => setInitialMenuState("worlds"), []);
   const handleShowMainMenu    = useCallback(() => setInitialMenuState("root"),   []);
 
+  // When arcade completes, ensure returning to menu lands on the root screen
+  // (not the world-select that was open when the run started).
+  useEffect(() => {
+    if (phase === "arcadeComplete") setInitialMenuState("root");
+  }, [phase]);
+
   // Menu screen stays visible during loading sweep-in so the old frame is present
   // behind the orbs until the screen is fully hidden (midpoint at 550 ms).
   const showMenuScreen =
