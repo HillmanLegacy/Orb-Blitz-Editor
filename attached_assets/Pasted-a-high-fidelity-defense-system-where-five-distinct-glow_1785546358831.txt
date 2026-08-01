@@ -1,0 +1,33 @@
+a high-fidelity defense system where five distinct glowing orbs orbit the player in a dynamic 3D formation, form energy tethers between one another, and shatter into explosive particle reactions when colliding with targets.
+
+### Implementation Details
+
+1. Orbital Formation & Idle Animation
+   - Spawn 5 glowing defense orbs evenly distributed in a 360-degree ring around the player orb at a set orbital radius.
+   - Give each orb a multi-layered material: a dense, white-hot core wrapped in an animated, high-contrast energy shell (e.g., Electric Gold #FFD700 and Plasma Blue #00E5FF).
+   - Motion: Apply smooth orbital rotation with slight sinusoidal vertical hovering (bobbing) to make the orbit feel organic and fluid.
+   - Energy Links: Render subtle laser/plasma tethers connecting each adjacent orb in a pentagonal ring that flexes as the orbs move.
+
+2. Target Interception & Collision Reaction (Perish Trigger)
+   - Detection: When an incoming enemy or projectile enters the collision radius of an orb:
+     * Snap/LERP the intercepting orb rapidly toward the point of impact.
+     * Flash the orb's core to pure white 0.05 seconds before impact.
+   - Impact Explosion:
+     * Instantly destroy/perish the colliding orb mesh.
+     * Trigger a localized directional shockwave and a burst of 40–60 high-velocity energy shards and directional sparks flying away from the collision normal.
+     * Emit an expanding refraction ring that distorts the space around the impact.
+   - Chain Adjustments:
+     * Break the energy tethers connected to the destroyed orb.
+     * Automatically smooth-rebalance (re-space) the remaining active orbs around the 360-degree orbit.
+
+3. Visual Polish & Status Telegraphing
+   - Low Health / Final Orb State: When only 1 or 2 orbs remain, increase their orbit rotation speed and emissive pulsing frequency to telegraph that defense is low.
+   - Expiration / Dissipation (if time-limited): If orbs expire without colliding, fade out their materials smoothly over 0.5s while pulling them inward to absorb into the player orb's core.
+
+4. Performance & Technical Setup
+   - Anchor the entire orbital container to the player transform so the formation moves smoothly with player movement.
+   - Use object pooling for impact particles, debris shards, and dynamic collision lights to maintain high performance.
+
+Please review the graphics engine setup in the project (e.g., Three.js, Babylon.js, WebGL) and write modular, clean code to manage this orbital defense system.
+ use the player model and current texture/skin
+
