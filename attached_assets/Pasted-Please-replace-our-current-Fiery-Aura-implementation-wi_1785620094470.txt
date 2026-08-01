@@ -1,0 +1,36 @@
+Please replace our current "Fiery Aura" implementation with the updated, maxed-out AAA HD-quality spec detailed below. 
+
+Completely update the existing codebase (shaders, particle emitters, light behavior, and state triggers) to match this new architecture.
+
+---
+
+### Updated AAA Fiery Aura Specification
+
+1. Raymarched Volumetric Core & Solar Prominences:
+   - Upgrade the inner combustion core to use dual concentrically scaled displacement shell meshes (Inner: 1.05x, Outer Corona: 1.25x) with additive-blended ShaderMaterials.
+   - Implement dual-frequency GLSL vertex displacement combining low-frequency rolling swells with high-frequency licking tendrils.
+   - Use fragment raymarching for internal depth and map a dynamic blackbody thermal color ramp: White-Hot (#FFFFFF) -> Solar Amber (#FFCC00) -> Crimson (#FF3300) -> Dark Carbon (#1A0500).
+
+2. Convective Flame Plumes (GPU Particles with 3D Curl Noise):
+   - Increase density to 250–400 GPU-instanced quad billboards along the equatorial perimeter.
+   - Drive particle motion upward along the Y-axis using a 3D Curl Noise vector field in the vertex shader for realistic turbulent eddies.
+   - Apply a lifecycle scaling and alpha curve (spawn small -> swell 2.5x -> contract/fade into grey smoke).
+
+3. High-Velocity Ember Sparks (Kinematic Emitter):
+   - Implement a secondary GPU particle emitter spawning 120–180 tiny ember sparks radially from surface hotspots.
+   - Apply high-frequency sine wave brightness flickering and upward low-gravity drift before snapping to deep crimson and extinguishing.
+
+4. Heat Distortion & Dynamic Light Engine:
+   - Upgrade heat haze to a screen-space UV normal refraction shader on an outer sphere (1.4x scale) with a smooth edge falloff ($N \cdot V$).
+   - Drive the core point light (#FF6600) with a fast fractional Brownian motion (fBm) noise loop for organic intensity and position flickering.
+
+5. Combat API & State Management:
+   - Expose `setFireIntensity(float factor)` (range 0.2 to 2.0) to scale noise speed, flame height, and particle rates.
+   - Refine `infernoBurst()` to expand the shell by 1.4x, surge brightness to white-hot for 0.15s, and eject a radial ember shockwave.
+
+6. Optimization & Memory Rules:
+   - Ensure zero garbage collection allocations in the main render loop via pre-allocated buffer pooling.
+   - Execute all noise, physics, and displacement logic on the GPU within GLSL shaders.
+   - Provide clean `dispose()` methods for memory teardown and target a locked 60 FPS in WebGL.
+
+Please review the existing project files and update the Fiery Aura module with clean, production-ready code.
