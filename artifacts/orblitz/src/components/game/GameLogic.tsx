@@ -579,7 +579,7 @@ export function GameLogic() {
         health: health + armorBonus,
       });
     }
-    if (phase === "menu") {
+    if (phase !== "playing" && phase !== "paused") {
       armorApplied.current = false;
       defenseOrbsSpawned.current = false;
     }
