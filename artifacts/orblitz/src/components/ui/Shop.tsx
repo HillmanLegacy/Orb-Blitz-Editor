@@ -5,6 +5,7 @@ import { useState, useRef, useMemo } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { OrbitalRings } from "@/components/game/OrbitalRings";
+import { ShopItemPreview } from "@/components/ui/ShopItemPreview";
 
 // ─── Per-category design tokens ──────────────────────────────────────────────
 const PALETTE: Record<string, { color: string; shadow: string; icon: string; label: string }> = {
@@ -175,7 +176,7 @@ function ItemRow({
 export function Shop() {
   const { coins: stars, shopOpen, closeShop, purchaseItem, isOwned, canAfford } = useShop();
   const [cat, setCat] = useState<CatKey>("weapon");
-  const [hoveredAuraId, setHoveredAuraId] = useState<string | null>(null);
+  const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
 
   const filteredItems = SHOP_ITEMS
     .filter(i => i.category === cat)
@@ -183,9 +184,12 @@ export function Shop() {
 
   const activePal = PALETTE[cat];
 
-  // Aura-specific: track which item to preview
-  const auraItems = cat === "aura" ? filteredItems : [];
-  const previewItem = auraItems.find(i => i.id === hoveredAuraId) ?? auraItems[0] ?? null;
+  // Only show preview canvas when user explicitly hovers an item (avoids
+  // spawning a WebGL context before user interaction).
+  const PREVIEW_CATS = new Set(["weapon", "defense", "magi_orb", "aura"]);
+  const previewItem = (PREVIEW_CATS.has(cat) && hoveredItemId !== null)
+    ? (filteredItems.find(i => i.id === hoveredItemId) ?? null)
+    : null;
 
   return (
     <AnimatePresence>
@@ -288,7 +292,7 @@ export function Shop() {
                     <motion.button
                       key={c}
                       whileTap={{ scale: 0.94 }}
-                      onClick={() => { setCat(c); setHoveredAuraId(null); }}
+                      onClick={() => { setCat(c); setHoveredItemId(null); }}
                       className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl w-full text-left"
                       style={{
                         background: active ? `${pal.color}16` : "rgba(255,255,255,0.03)",
@@ -366,6 +370,17 @@ export function Shop() {
                       />
                     )}
 
+                    {/* ── Weapon / Defense / Magi-Orb live preview ──────── */}
+                    {(cat === "weapon" || cat === "defense" || cat === "magi_orb") && previewItem && (
+                      <ShopItemPreview
+                        key={previewItem.id}
+                        category={cat}
+                        value={previewItem.value}
+                        color={activePal.color}
+                        name={previewItem.name}
+                      />
+                    )}
+
                     {filteredItems.map(item => (
                       <ItemRow
                         key={item.id}
@@ -373,8 +388,8 @@ export function Shop() {
                         isOwned={isOwned(item.id)}
                         canAfford={canAfford(item.price)}
                         onPurchase={() => purchaseItem(item.id)}
-                        onHover={cat === "aura" ? () => setHoveredAuraId(item.id) : undefined}
-                        isHighlighted={cat === "aura" && previewItem?.id === item.id}
+                        onHover={PREVIEW_CATS.has(cat) ? () => setHoveredItemId(item.id) : undefined}
+                        isHighlighted={PREVIEW_CATS.has(cat) && previewItem?.id === item.id}
                       />
                     ))}
                     {filteredItems.length === 0 && (
