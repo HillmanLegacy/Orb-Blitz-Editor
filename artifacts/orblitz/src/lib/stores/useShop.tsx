@@ -78,7 +78,7 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: "defense_armor", name: "Orbital Armor", description: "Adds +3 maximum HP", price: 2000, category: "defense", value: "armor" },
   
   { id: "magi_orb_1", name: "Magi-Orb I", description: "Player constantly moves in a circular pattern to evade enemies", price: 3000, category: "magi_orb", value: "magi_orb_1" },
-  { id: "magi_orb_2", name: "Magi-Orb II", description: "Become invisible and phase through enemies for 5s (15s cooldown)", price: 3000, category: "magi_orb", value: "magi_orb_2" },
+  { id: "magi_orb_2", name: "Magi-Orb II", description: "Arcane Annihilator — obliterates all non-boss enemies on screen and siphons their energy to you (15s cooldown)", price: 3000, category: "magi_orb", value: "magi_orb_2" },
   { id: "magi_orb_3", name: "Magi-Orb III", description: "Fires 10 indirect homing projectiles when activated", price: 3000, category: "magi_orb", value: "magi_orb_3" },
   { id: "magi_orb_4", name: "Magi-Orb IV", description: "Quarter-circle barrier destroys enemies on contact for 10s (15s cooldown)", price: 3000, category: "magi_orb", value: "magi_orb_4" },
   { id: "magi_orb_5", name: "Magi-Orb V", description: "Protective cube with 5 HP that must be destroyed before player takes damage", price: 3000, category: "magi_orb", value: "magi_orb_5" },

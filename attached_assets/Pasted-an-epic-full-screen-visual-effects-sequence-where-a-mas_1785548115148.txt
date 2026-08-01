@@ -1,0 +1,30 @@
+an epic, full-screen visual effects sequence where a massive arcane burst sweeps the battlefield, selectively targets and overloads every regular orb/projectile on screen (excluding Boss orbs), siphons their energy back into the player orb, and triggers a 15-second HUD cooldown.
+
+### Implementation Details
+
+1. Target Filtering & Identification (Phase 0 | Execution Trigger)
+   - Identify all active orb/projectile objects in the scene.
+   - Filter targets into two groups:
+     * Non-Boss Orbs: Target for total annihilation and energy conversion.
+     * Boss Orbs / Boss Entities: Immune. Apply a brief protective shimmering shield effect (gold/purple hard-light grid) around them to visually telegraph why they survived.
+
+2. Arcane Implosion & Target Lock-On (Phase 1 | 0.0s - 0.3s)
+   - Player Flash: Flash the player orb's core with intense magenta/violet light (#FF00FF / #9D00FF) and trigger a subtle screen-space chromatic aberration pulse.
+   - Target Overload: Lock regular orbs in place. Instantly scale their core emissive values to blinding white-hot, causing them to jitter rapidly with crackling arcane lightning arcs.
+
+3. Full-Screen Siphon & Particle Annihilation (Phase 2 | 0.3s - 0.9s)
+   - Orb Shatter: Explode all target orbs simultaneously into high-density directional particle bursts (40-60 micro-shards per orb).
+   - Energy Convergence (Siphon): Instead of scattering randomly, force the shattered energy particles to spiral inward toward the player orb's center using 3D Curl Noise / vortex math.
+   - Spatial Shockwave: Expand a massive 3D planar distortion ring from the screen center, warping background geometry with a screen-space refraction shader.
+
+4. Core Climax & Player Absorption (Phase 3 | 0.9s - 1.4s)
+   - As siphoned particles collapse into the player orb, trigger a blinding white-violet point light burst with dynamic shadows.
+   - Play a brief player scale-bounce (squish & stretch easing) and emit a soft, lingering aura of floating arcane dust that gently fades out over 1.0s.
+
+5. Cooldown System & UI Integration
+   - Hook up a 15-second logic timer. Prevent activation while the cooldown is active.
+   - Expose a normalized cooldown value (0.0 to 1.0) so the HUD UI can render a smooth cooldown arc/fill overlay.
+
+6. Performance & Technical Setup
+   - Instanced Particles: Use GPU particle instantiation and object pooling for the shattering and convergence particles to guarantee 60+ FPS during heavy orb density.
+   - Clean Up: Ensure destroyed orb objects and their collision hitboxes are completely unmounted from the scene graph and memory.

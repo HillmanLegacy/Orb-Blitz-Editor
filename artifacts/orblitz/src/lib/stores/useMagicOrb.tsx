@@ -338,9 +338,10 @@ interface MagicOrbState {
   
   // Magi-Orb state
   magiOrb1Active: boolean; // Circular movement
-  magiOrb2Active: boolean; // Invisible/phase
+  magiOrb2Active: boolean; // Arcane Annihilator firing window
   magiOrb2Cooldown: number;
   magiOrb2MaxCooldown: number;
+  magiOrb2TargetPositions: [number, number, number][];
   magiOrb3Cooldown: number; // Homing projectiles
   magiOrb3MaxCooldown: number;
   magiOrb4Active: boolean; // Quarter-circle barrier
@@ -538,6 +539,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     magiOrb2Active: false,
     magiOrb2Cooldown: 0,
     magiOrb2MaxCooldown: 15,
+    magiOrb2TargetPositions: [],
     magiOrb3Cooldown: 0,
     magiOrb3MaxCooldown: 10,
     magiOrb4Active: false,
@@ -1220,13 +1222,9 @@ export const useMagicOrb = create<MagicOrbState>()(
     },
     
     takeDamage: () => {
-      const { health, hasShield, isDying, magiOrb2Active, magiOrb5HP, spatialRelocationCooldown } = get();
+      const { health, hasShield, isDying, magiOrb5HP, spatialRelocationCooldown } = get();
       
       if (isDying) return;
-      
-      if (magiOrb2Active) {
-        return;
-      }
       
       if (hasShield) {
         set({ hasShield: false, shieldDisintTimer: 0.55 });
@@ -1913,15 +1911,33 @@ export const useMagicOrb = create<MagicOrbState>()(
     },
     
     activateMagiOrb2: () => {
-      const { magiOrb2Cooldown } = get();
+      const { magiOrb2Cooldown, darkOrbs } = get();
       if (magiOrb2Cooldown > 0) return;
+
+      // Target all non-boss orbs that aren't already dying
+      const targets = darkOrbs.filter(o => !o.destroying && !o.isBossOrb && !o.bossType);
+      const targetIds = new Set(targets.map(o => o.id));
+      const targetPositions: [number, number, number][] = targets.map(o => [
+        o.position[0], o.position[1], o.position[2],
+      ]);
+
       set({
         magiOrb2Active: true,
         magiOrb2Cooldown: 15,
+        magiOrb2TargetPositions: targetPositions,
+        // Mark all targets as destroying immediately
+        darkOrbs: darkOrbs.map(o =>
+          targetIds.has(o.id) ? { ...o, destroying: true } : o
+        ),
       });
+
+      // Award score for each annihilated orb
+      targets.forEach(() => get().addScore(10));
+
+      // VFX window is 1.5s; clear after
       setTimeout(() => {
-        set({ magiOrb2Active: false });
-      }, 5000);
+        set({ magiOrb2Active: false, magiOrb2TargetPositions: [] });
+      }, 1500);
     },
     
     activateMagiOrb3: () => {
