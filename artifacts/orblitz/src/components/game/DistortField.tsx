@@ -165,12 +165,6 @@ export function DistortField() {
 
   return (
     <group position={playerPosition}>
-      {/* DIAGNOSTIC: bright red ring — visible if distortActive is true */}
-      <mesh>
-        <ringGeometry args={[FIELD_RADIUS - 0.2, FIELD_RADIUS, 48]} />
-        <meshBasicMaterial color="red" side={THREE.DoubleSide} />
-      </mesh>
-
       <instancedMesh ref={pulseRef} args={[_pulseGeo, pulseMat, N_PULSE]} frustumCulled={false} />
       <instancedMesh ref={fieldRef} args={[_pGeo,     fieldMat, N_FIELD]} frustumCulled={false} />
       <instancedMesh ref={sparkRef} args={[_sGeo,     sparkMat, N_SPARK_SLOTS]} frustumCulled={false} />
