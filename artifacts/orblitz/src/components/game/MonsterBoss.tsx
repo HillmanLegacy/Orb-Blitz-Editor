@@ -63,17 +63,17 @@ const rimFrag = /* glsl */ `
     float spark = noise3(vPos * 6.5 + vec3(uTime * 0.9, -uTime * 0.6, uTime * 0.45));
     spark = pow(spark, 3.0) * fresnel * 2.2;
 
-    vec3 voidDeep = vec3(0.012, 0.004, 0.032);  // #030108
-    vec3 indigo   = vec3(0.294, 0.000, 0.510);  // #4B0082
-    vec3 cyan     = vec3(0.000, 0.898, 1.000);  // #00E5FF
-    vec3 violet   = vec3(0.180, 0.000, 0.450);
+    vec3 voidDeep  = vec3(0.039, 0.000, 0.078);  // #0A0014
+    vec3 shadow    = vec3(0.267, 0.000, 0.533);  // #440088
+    vec3 vivid     = vec3(0.800, 0.333, 1.000);  // #CC55FF
+    vec3 midPurple = vec3(0.150, 0.000, 0.420);  // shadow mid
 
     // Void body with faint turbulence
-    vec3 col = mix(voidDeep, violet, turb * 0.35);
-    // Fresnel rim: indigo → cyan at the edges
-    col += mix(indigo, cyan, fresnel * fresnel) * fresnel * 2.2;
-    // Bright cyan tendril flickers
-    col += cyan * spark * 1.6;
+    vec3 col = mix(voidDeep, midPurple, turb * 0.38);
+    // Fresnel rim: shadow → vivid purple at the edges
+    col += mix(shadow, vivid, fresnel * fresnel) * fresnel * 2.2;
+    // Bright vivid purple tendril flickers
+    col += vivid * spark * 1.6;
 
     float alpha = clamp(fresnel * 0.88 + spark * 0.55, 0.0, 1.0);
     // Subtle dark body presence
@@ -188,14 +188,14 @@ function VoidParticleCloud({ radius }: { radius: number }) {
       dummy.updateMatrix();
       meshRef.current!.setMatrixAt(i, dummy.matrix);
 
-      // Color: deep void → violet → bright cyan
+      // Color: deep void → shadow purple → vivid bright purple
       const outerBias = Math.max(0, (rNow - 0.90) / 0.28);
       const ct = Math.max(p.colorT, outerBias) * lifeRatio;
       if (ct < 0.45) {
-        colBuf.current.setRGB(0.04 + ct * 0.28, 0.0, 0.10 + ct * 0.55);
+        colBuf.current.setRGB(0.05 + ct * 0.42, 0.0, 0.12 + ct * 0.62);
       } else {
         const f = (ct - 0.45) / 0.55;
-        colBuf.current.setRGB(0.28 * (1 - f), 0.45 + f * 0.45, 0.75 + f * 0.25);
+        colBuf.current.setRGB(0.24 + f * 0.56, 0.0 + f * 0.30, 0.50 + f * 0.50);
       }
       meshRef.current!.setColorAt(i, colBuf.current);
     });
@@ -289,7 +289,7 @@ function VoidSmoke({ radius }: { radius: number }) {
       dummy.updateMatrix();
       meshRef.current!.setMatrixAt(i, dummy.matrix);
 
-      colBuf.current.setRGB(0.08 * alpha, 0.0, 0.20 * alpha);
+      colBuf.current.setRGB(0.12 * alpha, 0.0, 0.35 * alpha);
       meshRef.current!.setColorAt(i, colBuf.current);
     });
 
@@ -322,10 +322,10 @@ function MonsterLight({ healthPercent }: { healthPercent: number }) {
       ref.current.color.setRGB(1, 0.05 + rage * 0.05, 0.0);
     } else {
       ref.current.intensity = 8 + Math.sin(t * 1.6) * 3;
-      ref.current.color.setRGB(0.0, 0.55, 1.0);  // cyan void glow
+      ref.current.color.setRGB(0.53, 0.0, 1.0);  // vivid shadowy purple
     }
   });
-  return <pointLight ref={ref} color="#00aaff" intensity={8} distance={28} decay={2} />;
+  return <pointLight ref={ref} color="#8800ff" intensity={8} distance={28} decay={2} />;
 }
 
 // ── Hurt / rage overlay ───────────────────────────────────────────────────────
