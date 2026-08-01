@@ -53,7 +53,7 @@ export const SHOP_ITEMS: ShopItem[] = [
   
   { id: "ring_eclipse_horizon",   name: "Electrified Aura",      description: "High-voltage Tesla field — Fresnel plasma shell, 40 crackling arc lines, and 200 ionic sparks that burst on impact", price: 700, category: "aura", value: "eclipse_horizon"   },
   { id: "ring_singularity_event", name: "Singularity Event",     description: "Gravitational accretion disk — black event horizon with violent orange/violet eddies", price: 500, category: "aura", value: "singularity_event" },
-  { id: "ring_celestial_aegis",   name: "Celestial Aegis",       description: "Three concentric gold hard-light rune rings with clockwork step-rotation",             price: 400, category: "aura", value: "celestial_aegis"   },
+  { id: "ring_celestial_aegis",   name: "Fiery Aura",            description: "Roaring combustion shell: GLSL displacement flames, 380 GPU particles, ember sparks, heat-haze sphere and flickering fire light", price: 400, category: "aura", value: "celestial_aegis"   },
   { id: "ring_chronos_clockwork", name: "Chronos Clockwork",     description: "Interlocking brass gear rings at precise gear ratios with cyan timeline overlay",      price: 450, category: "aura", value: "chronos_clockwork" },
   { id: "ring_void_tendril",      name: "Void Tendril Vortex",   description: "Pure dark-matter fluid — 80 swirling indigo and magenta particles, no solid geometry", price: 500, category: "aura", value: "void_tendril"      },
   { id: "ring_hyper_collider",    name: "Hyper-Tech Collider",   description: "Particle accelerator with twin plasma beams orbiting at extreme speed inside a housing ring", price: 500, category: "aura", value: "hyper_collider"    },

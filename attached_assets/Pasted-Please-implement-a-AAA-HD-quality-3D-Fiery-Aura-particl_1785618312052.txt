@@ -1,0 +1,42 @@
+Please implement a AAA HD-quality 3D "Fiery Aura" particle and shader system for a stationary 3D entity (such as a Player Orb) using custom GLSL shaders, GPU particle systems, convective turbulence noise, and advanced rendering techniques available in WebGL.
+
+### Objective
+Build a violent, hyper-realistic combustion aura that envelops the stationary entity. The effect should feature rising convective thermal plumes, roaring surface solar prominences, floating ember sparks driven by 3D curl noise, and a heat-distortion refraction field that warps surrounding space.
+
+---
+
+### Implementation Details
+
+1. Surface Solar Prominences (Inner Combustion Core)
+   - Mesh Layering: Surround the entity with an outer displacement shell mesh (1.08x scale) running an Additive ShaderMaterial.
+   - GLSL Noise Displacement:
+     * Use custom GLSL vertex shaders with scrolling 3D Simplex noise to displace mesh vertices outward along their normals, creating dynamic, fluid flame tongues that lick outward.
+   - Fire Gradient Map: Sample a procedural color ramp ranging from an ultra-bright White-Yellow core (#FFFFCC) to Intense Orange (#FF4500), Crimson Red (#CC0000), and fading into dark Smoke Brown (#1A0500) at the flame tips.
+
+2. Convective Flame Plumes (GPU Particle System)
+   - Emitter Setup: High-density GPU-instanced billboard particle emitter attached around the orb perimeter spawning 200–350 billboard quads.
+   - Thermal Physics Behavior:
+     * Particles spawn on the orb surface and ascend upward along the Y-axis (thermal convection buoyancy).
+     * Apply 3D Curl Noise to particle velocities to create swirling, chaotic eddies and flickering fire currents.
+     * Scale & Opacity Curves: Particles expand in size as they rise, transition from opaque white-hot flame to translucent red, and fade out into rising grey smoke.
+
+3. Flying Ember Sparks & Floating Ash Particles
+   - Secondary GPU Emitter: Create a secondary emitter spawning 100–150 tiny, high-velocity glowing ember sparks.
+   - Ember Kinematics:
+     * Embers shoot outward radially from the core, decelerate, and drift lazily upward while flickering in brightness.
+     * Lifespan: Short to mid-length (0.4s – 1.2s) before snapping to a deep crimson glow and extinguishing.
+
+4. Heat Distortion & Volumetric Heat-Haze Field
+   - Screen-Space Refraction Shader: Render a transparent distortion sphere around the entity that warps the background scene geometry using high-frequency 2D noise, simulating intense, rising thermal heat waves.
+   - Dynamic Fire Light Flicker: Attach a point light at the orb core with a warm amber color (#FF6600). Randomize light intensity and slightly alter position on a fast noise loop to cast flickering firelight onto surrounding geometry.
+
+5. Combat Reactivity & State Controls
+   - Intensity API: Expose a clear control method (e.g., `setFireIntensity(float factor)`) to dynamically adjust flame height, particle generation rate, and noise frequency from a low smoldering ember state (0.2) to an inferno super-state (2.0).
+   - Burst Trigger: Implement an `infernoBurst()` method that violently expands the flame displacement mesh and ejects a high-density ring wave of fiery embers upon triggering abilities or attacks.
+
+6. Performance & Optimization Constraints
+   - Object Pooling: Pool all particle buffers, billboards, and dynamic material instances to ensure zero garbage-collection memory spikes.
+   - GPU-Bound Calculations: Execute all turbulence noise, vertex displacement, and particle trajectories inside custom WebGL GLSL shaders.
+   - Frame Rate Target: Maintain a rock-solid 60+ FPS inside Three.js / Babylon.js / WebGL.
+
+Please review the current graphics engine setup in the project and output clean, modular code to implement this Fiery Aura system.

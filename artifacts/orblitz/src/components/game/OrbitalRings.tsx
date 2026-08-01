@@ -373,64 +373,317 @@ function SingularityEvent({ scale }: RingProps) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 3. Celestial Aegis — Paladin Hard-Light Runes (gold / white)
-//    Three hexagonal rings with clockwork step-rotation every 0.8s.
+// 3. Fiery Aura — GLSL displacement shell + 380-particle GPU combustion system
+//    Rising convective plumes, ember sparks, heat-haze sphere, flickering light.
 // ─────────────────────────────────────────────────────────────────────────────
-const _runeMat = new THREE.MeshBasicMaterial({ color: "#FFD700", transparent: true, opacity: 0.85, depthWrite: false });
 
-function CelestialAegis({ scale }: RingProps) {
-  const r      = scale * 2.0;
-  const r1Ref  = useRef<THREE.Mesh>(null);
-  const r2Ref  = useRef<THREE.Mesh>(null);
-  const r3Ref  = useRef<THREE.Mesh>(null);
-  const runeRef = useRef<THREE.InstancedMesh>(null);
+// ── GLSL: FBM vertex-displacement flame shell ─────────────────────────────────
+const _fireShellVert = /* glsl */`
+uniform float uTime;
+uniform float uIntensity;
+varying float vFlame;
 
-  useFrame(({ clock }) => {
-    const t = clock.getElapsedTime();
-    // Step snap: advance 30° every 0.8s with a brief ease at the end of each interval
-    const stepIdx = Math.floor(t / 0.8);
-    const frac    = (t % 0.8) / 0.8;
-    const ease    = frac > 0.88 ? THREE.MathUtils.mapLinear(frac, 0.88, 1, 0, 1) : 0;
-    const curRot  = (stepIdx + ease) * (Math.PI / 6);
+float hashF(vec3 p) {
+  p = fract(p * 0.3183099 + 0.1);
+  p *= 17.0;
+  return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+float noise3(vec3 p) {
+  vec3 i = floor(p); vec3 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(mix(hashF(i),             hashF(i + vec3(1,0,0)), f.x),
+        mix(hashF(i + vec3(0,1,0)), hashF(i + vec3(1,1,0)), f.x), f.y),
+    mix(mix(hashF(i + vec3(0,0,1)), hashF(i + vec3(1,0,1)), f.x),
+        mix(hashF(i + vec3(0,1,1)), hashF(i + vec3(1,1,1)), f.x), f.y),
+    f.z);
+}
+float fbm(vec3 p) {
+  float v = 0.0, a = 0.5;
+  for (int i = 0; i < 4; i++) {
+    v += a * noise3(p);
+    p  = p * 2.1 + vec3(1.7, 9.2, 0.3);
+    a *= 0.5;
+  }
+  return v;
+}
 
-    if (r1Ref.current)  r1Ref.current.rotation.z  =  curRot;
-    if (r2Ref.current)  r2Ref.current.rotation.z  = -curRot * 0.67;
-    if (r3Ref.current)  r3Ref.current.rotation.z  =  curRot * 1.33;
+void main() {
+  vec3 scrolled = position + vec3(0.0, -uTime * 1.6, uTime * 0.28);
+  float n       = fbm(scrolled * 3.0) * uIntensity;
+  float yBias   = position.y * 0.5 + 0.5;            // 0 bottom → 1 top
+  float disp    = n * 0.30 * (0.5 + yBias * 1.0);
+  vFlame        = n;
+  gl_Position   = projectionMatrix * modelViewMatrix * vec4(position + normal * disp, 1.0);
+}`;
 
-    const im = runeRef.current;
-    if (!im) return;
-    for (let i = 0; i < 12; i++) {
-      const a   = (i / 12) * Math.PI * 2 + curRot;
-      const rad = r * (0.58 + (i % 3) * 0.19);
-      _dummy.position.set(Math.cos(a) * rad, Math.sin(a) * rad, 0.04);
-      _dummy.rotation.z = a;
-      _dummy.scale.setScalar(0.65 + Math.sin(t * 2 + i) * 0.2);
-      _dummy.updateMatrix();
-      im.setMatrixAt(i, _dummy.matrix);
+const _fireShellFrag = /* glsl */`
+varying float vFlame;
+
+void main() {
+  float t     = clamp(vFlame * 2.4, 0.0, 1.0);
+  float alpha = clamp(vFlame * 2.8 - 0.18, 0.0, 0.88);
+  vec3 cW = vec3(1.00, 1.00, 0.85);  // white-yellow core
+  vec3 cO = vec3(1.00, 0.27, 0.00);  // intense orange
+  vec3 cC = vec3(0.80, 0.02, 0.01);  // crimson
+  vec3 cS = vec3(0.08, 0.01, 0.00);  // dark smoke
+  vec3 col;
+  if      (t < 0.33) col = mix(cW, cO, t * 3.030);
+  else if (t < 0.66) col = mix(cO, cC, (t - 0.33) * 3.030);
+  else               col = mix(cC, cS, (t - 0.66) * 3.030);
+  gl_FragColor = vec4(col, alpha);
+}`;
+
+// ── GLSL: heat-haze distortion sphere ────────────────────────────────────────
+const _hazeVert = /* glsl */`
+varying vec2 vUv;
+void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+
+const _hazeFrag = /* glsl */`
+uniform float uTime;
+varying vec2 vUv;
+
+float h2(vec2 p) { p = fract(p * vec2(234.34, 435.35)); p += dot(p, p + 34.23); return fract(p.x * p.y); }
+float n2(vec2 p) {
+  vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0 - 2.0*f);
+  return mix(mix(h2(i), h2(i + vec2(1,0)), f.x),
+             mix(h2(i + vec2(0,1)), h2(i + vec2(1,1)), f.x), f.y);
+}
+
+void main() {
+  vec2 uv = vUv + vec2(0.0, -uTime * 0.42);
+  float n = n2(uv * 7.0) * 0.55 + n2(uv * 14.0 + vec2(1.7, 0.3)) * 0.28;
+  gl_FragColor = vec4(mix(vec3(0.0), vec3(0.55, 0.22, 0.0), n), n * 0.13);
+}`;
+
+// ── Shared geometries (module-level, safe to reuse) ───────────────────────────
+const _fireShellGeo = new THREE.SphereGeometry(1.0, 52, 26);
+const _hazeGeoF     = new THREE.SphereGeometry(1.0, 20, 14);
+const _fPartGeo     = new THREE.SphereGeometry(1.0,  4,  3);
+const _emberGeoF    = new THREE.SphereGeometry(1.0,  3,  2);
+
+// ── Module-level intensity state + public API ─────────────────────────────────
+const _fieryState = { intensity: 1.0, burstTimer: 0.0 };
+export function setFieryIntensity(factor: number) {
+  _fieryState.intensity = Math.max(0.2, Math.min(2.0, factor));
+}
+export function triggerFieryInfernoBurst() { _fieryState.burstTimer = 0.55; }
+
+// ── Particle pool sizes ───────────────────────────────────────────────────────
+const _NC = 150;  // core flame slots
+const _NO = 120;  // outer/upper flame slots
+const _NE = 110;  // ember spark slots
+
+function _spawnFlame(
+  i: number,
+  px: Float32Array, py: Float32Array, pz: Float32Array,
+  vx: Float32Array, vy: Float32Array, vz: Float32Array,
+  life: Float32Array, maxLife: Float32Array, phase: Float32Array,
+  orbR: number, outer: boolean, burst: boolean,
+) {
+  const theta = Math.random() * Math.PI * 2;
+  const phi   = Math.acos(2 * Math.random() - 1);
+  const sR    = orbR * (outer ? 1.12 : 1.0) * (burst ? 1.15 : 1.0);
+  // Standard spherical → Three.js axes (Y = up)
+  px[i] = sR * Math.sin(phi) * Math.cos(theta);
+  py[i] = sR * Math.cos(phi);
+  pz[i] = sR * Math.sin(phi) * Math.sin(theta);
+  const nx = px[i] / sR, ny = py[i] / sR, nz = pz[i] / sR;
+  const spd = outer ? (0.5 + Math.random() * 0.7) : (0.7 + Math.random() * 1.0);
+  vx[i] = nx * spd * 0.28;
+  vy[i] = ny * spd * 0.28 + 0.85 + Math.random() * 1.0; // dominant thermal rise
+  vz[i] = nz * spd * 0.28;
+  life[i]    = -(Math.random() * (outer ? 0.45 : 0.65)); // staggered birth
+  maxLife[i] = 0.55 + Math.random() * (outer ? 0.95 : 1.15);
+  phase[i]   = theta;
+}
+
+function _spawnEmber(
+  i: number,
+  px: Float32Array, py: Float32Array, pz: Float32Array,
+  vx: Float32Array, vy: Float32Array, vz: Float32Array,
+  life: Float32Array, maxLife: Float32Array, phase: Float32Array,
+  orbR: number, burst: boolean,
+) {
+  const theta = Math.random() * Math.PI * 2;
+  const phi   = Math.acos(2 * Math.random() - 1);
+  const sR    = orbR * (burst ? 1.22 : 1.0);
+  px[i] = sR * Math.sin(phi) * Math.cos(theta);
+  py[i] = sR * Math.cos(phi);
+  pz[i] = sR * Math.sin(phi) * Math.sin(theta);
+  const nx = px[i] / sR, ny = py[i] / sR, nz = pz[i] / sR;
+  const spd = (burst ? 2.8 : 1.8) + Math.random() * 2.2;
+  vx[i] = nx * spd; vy[i] = ny * spd + 0.45 + Math.random() * 0.7; vz[i] = nz * spd;
+  life[i]    = -(Math.random() * 0.85);
+  maxLife[i] = 0.35 + Math.random() * 0.80;
+  phase[i]   = Math.random() * Math.PI * 2;
+}
+
+function FieryAura({ scale }: RingProps) {
+  const orbR   = scale * 0.56;
+  const shellR = scale * 0.64;
+
+  // ── Materials in useMemo (avoids vertexColors module-level pitfall) ──────────
+  const shellMat = useMemo(() => new THREE.ShaderMaterial({
+    vertexShader: _fireShellVert, fragmentShader: _fireShellFrag,
+    uniforms: { uTime: { value: 0 }, uIntensity: { value: 1 } },
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.FrontSide,
+  }), []);
+  const hazeMat = useMemo(() => new THREE.ShaderMaterial({
+    vertexShader: _hazeVert, fragmentShader: _hazeFrag,
+    uniforms: { uTime: { value: 0 } },
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.BackSide,
+  }), []);
+  const coreMat  = useMemo(() => new THREE.MeshBasicMaterial({
+    color: "#ff7700", transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending,
+  }), []);
+  const outerMat = useMemo(() => new THREE.MeshBasicMaterial({
+    color: "#cc1100", transparent: true, opacity: 0.65, depthWrite: false, blending: THREE.AdditiveBlending,
+  }), []);
+  const emberMat = useMemo(() => new THREE.MeshBasicMaterial({
+    color: "#ffaa00", transparent: true, opacity: 0.90, depthWrite: false, blending: THREE.AdditiveBlending,
+  }), []);
+  useEffect(() => () => {
+    shellMat.dispose(); hazeMat.dispose();
+    coreMat.dispose(); outerMat.dispose(); emberMat.dispose();
+  }, [shellMat, hazeMat, coreMat, outerMat, emberMat]);
+
+  // ── Refs ───────────────────────────────────────────────────────────────────
+  const lightRef  = useRef<THREE.PointLight>(null);
+  const coreIM    = useRef<THREE.InstancedMesh>(null);
+  const outerIM   = useRef<THREE.InstancedMesh>(null);
+  const emberIM   = useRef<THREE.InstancedMesh>(null);
+
+  // ── Particle pools ──────────────────────────────────────────────────────────
+  const cp = useRef({
+    px: new Float32Array(_NC), py: new Float32Array(_NC), pz: new Float32Array(_NC),
+    vx: new Float32Array(_NC), vy: new Float32Array(_NC), vz: new Float32Array(_NC),
+    life: new Float32Array(_NC), maxLife: new Float32Array(_NC), phase: new Float32Array(_NC), born: false,
+  });
+  const op = useRef({
+    px: new Float32Array(_NO), py: new Float32Array(_NO), pz: new Float32Array(_NO),
+    vx: new Float32Array(_NO), vy: new Float32Array(_NO), vz: new Float32Array(_NO),
+    life: new Float32Array(_NO), maxLife: new Float32Array(_NO), phase: new Float32Array(_NO), born: false,
+  });
+  const ep = useRef({
+    px: new Float32Array(_NE), py: new Float32Array(_NE), pz: new Float32Array(_NE),
+    vx: new Float32Array(_NE), vy: new Float32Array(_NE), vz: new Float32Array(_NE),
+    life: new Float32Array(_NE), maxLife: new Float32Array(_NE), phase: new Float32Array(_NE), born: false,
+  });
+
+  useFrame(({ clock }, delta) => {
+    const t   = clock.getElapsedTime();
+    const dt  = Math.min(delta, 0.05);
+    const inten = _fieryState.intensity;
+    const burst = _fieryState.burstTimer > 0;
+    if (burst) _fieryState.burstTimer -= dt;
+    const bMul = burst ? 1.65 : 1.0;
+
+    // ── Shell uniforms ─────────────────────────────────────────────────────────
+    shellMat.uniforms.uTime.value      = t;
+    shellMat.uniforms.uIntensity.value = inten * bMul;
+    hazeMat.uniforms.uTime.value       = t;
+
+    // ── Flickering warm light ──────────────────────────────────────────────────
+    if (lightRef.current) {
+      const fl = 0.72
+        + Math.sin(t * 23.1) * 0.14
+        + Math.sin(t * 37.7) * 0.09
+        + Math.sin(t * 11.3) * 0.05;
+      lightRef.current.intensity  = 3.4 * fl * inten * bMul;
+      lightRef.current.position.x = Math.sin(t * 11.0) * 0.055;
+      lightRef.current.position.y = Math.sin(t *  7.3) * 0.044;
     }
-    im.instanceMatrix.needsUpdate = true;
+
+    // ── Core flames ────────────────────────────────────────────────────────────
+    const c = cp.current;
+    if (!c.born) { for (let i = 0; i < _NC; i++) _spawnFlame(i, c.px,c.py,c.pz,c.vx,c.vy,c.vz,c.life,c.maxLife,c.phase,orbR,false,false); c.born = true; }
+    const cMesh = coreIM.current;
+    if (cMesh) {
+      for (let i = 0; i < _NC; i++) {
+        c.life[i] += dt * inten;
+        if (c.life[i] >= c.maxLife[i]) { _spawnFlame(i, c.px,c.py,c.pz,c.vx,c.vy,c.vz,c.life,c.maxLife,c.phase,orbR,false,burst); continue; }
+        if (c.life[i] < 0) { _dummy.position.set(999,0,0); _dummy.scale.setScalar(0.001); _dummy.updateMatrix(); cMesh.setMatrixAt(i, _dummy.matrix); continue; }
+        const lf = c.life[i] / c.maxLife[i];
+        const cx = Math.sin(t * 3.2 + c.phase[i]) * 0.20 * lf;
+        const cz = Math.cos(t * 2.8 + c.phase[i]) * 0.20 * lf;
+        c.px[i] += (c.vx[i] + cx) * dt;
+        c.py[i] += c.vy[i] * dt * (1 + lf * 0.5);
+        c.pz[i] += (c.vz[i] + cz) * dt;
+        c.vx[i] *= 0.993; c.vy[i] *= 0.996; c.vz[i] *= 0.993;
+        const sc = (lf < 0.4 ? lf / 0.4 : 1 - (lf - 0.4) / 0.6 * 0.4);
+        const sz = Math.max(0.001, (0.055 + lf * 0.065) * sc * scale * bMul);
+        _dummy.position.set(c.px[i], c.py[i], c.pz[i]); _dummy.scale.setScalar(sz); _dummy.updateMatrix();
+        cMesh.setMatrixAt(i, _dummy.matrix);
+      }
+      cMesh.instanceMatrix.needsUpdate = true;
+      coreMat.opacity = 0.82 * inten;
+    }
+
+    // ── Outer flames ───────────────────────────────────────────────────────────
+    const o = op.current;
+    if (!o.born) { for (let i = 0; i < _NO; i++) _spawnFlame(i, o.px,o.py,o.pz,o.vx,o.vy,o.vz,o.life,o.maxLife,o.phase,orbR,true,false); o.born = true; }
+    const oMesh = outerIM.current;
+    if (oMesh) {
+      for (let i = 0; i < _NO; i++) {
+        o.life[i] += dt * inten;
+        if (o.life[i] >= o.maxLife[i]) { _spawnFlame(i, o.px,o.py,o.pz,o.vx,o.vy,o.vz,o.life,o.maxLife,o.phase,orbR,true,burst); continue; }
+        if (o.life[i] < 0) { _dummy.position.set(999,0,0); _dummy.scale.setScalar(0.001); _dummy.updateMatrix(); oMesh.setMatrixAt(i, _dummy.matrix); continue; }
+        const lf = o.life[i] / o.maxLife[i];
+        const cx = Math.sin(t * 2.7 + o.phase[i] + 1.5) * 0.26 * lf;
+        const cz = Math.cos(t * 2.1 + o.phase[i] + 1.5) * 0.26 * lf;
+        o.px[i] += (o.vx[i] + cx) * dt;
+        o.py[i] += o.vy[i] * dt * (1 + lf * 0.6);
+        o.pz[i] += (o.vz[i] + cz) * dt;
+        o.vx[i] *= 0.989; o.vy[i] *= 0.993; o.vz[i] *= 0.989;
+        const sz = Math.max(0.001, (0.045 + lf * 0.055) * (1 - lf * 0.45) * scale * bMul);
+        _dummy.position.set(o.px[i], o.py[i], o.pz[i]); _dummy.scale.setScalar(sz); _dummy.updateMatrix();
+        oMesh.setMatrixAt(i, _dummy.matrix);
+      }
+      oMesh.instanceMatrix.needsUpdate = true;
+      outerMat.opacity = 0.60 * inten;
+    }
+
+    // ── Ember sparks ───────────────────────────────────────────────────────────
+    const e = ep.current;
+    if (!e.born) { for (let i = 0; i < _NE; i++) _spawnEmber(i, e.px,e.py,e.pz,e.vx,e.vy,e.vz,e.life,e.maxLife,e.phase,orbR,false); e.born = true; }
+    const eMesh = emberIM.current;
+    if (eMesh) {
+      for (let i = 0; i < _NE; i++) {
+        e.life[i] += dt * inten;
+        if (e.life[i] >= e.maxLife[i]) { _spawnEmber(i, e.px,e.py,e.pz,e.vx,e.vy,e.vz,e.life,e.maxLife,e.phase,orbR,burst); continue; }
+        if (e.life[i] < 0) { _dummy.position.set(999,0,0); _dummy.scale.setScalar(0.001); _dummy.updateMatrix(); eMesh.setMatrixAt(i, _dummy.matrix); continue; }
+        const lf = e.life[i] / e.maxLife[i];
+        // Radial deceleration + steady upward drift
+        e.vx[i] *= 0.934; e.vz[i] *= 0.934; e.vy[i] *= 0.958;
+        e.px[i] += e.vx[i] * dt;
+        e.py[i] += (e.vy[i] + 0.38) * dt;
+        e.pz[i] += e.vz[i] * dt;
+        // Flickering size
+        const fl = 0.68 + Math.sin(t * 28 + e.phase[i]) * 0.32;
+        const sz = Math.max(0.001, (0.020 + (1 - lf) * 0.032) * fl * scale);
+        _dummy.position.set(e.px[i], e.py[i], e.pz[i]); _dummy.scale.setScalar(sz); _dummy.updateMatrix();
+        eMesh.setMatrixAt(i, _dummy.matrix);
+      }
+      eMesh.instanceMatrix.needsUpdate = true;
+      emberMat.opacity = (0.52 + Math.sin(t * 19.3) * 0.28) * inten;
+    }
   });
 
   return (
     <group>
-      <pointLight color="#FFD700" intensity={1.2} distance={4} decay={2} />
-      <mesh ref={r1Ref}>
-        <ringGeometry args={[r * 0.60, r * 0.68, 6]} />
-        <meshBasicMaterial color="#FFD700" transparent opacity={0.75} side={THREE.DoubleSide} depthWrite={false} />
-      </mesh>
-      <mesh ref={r2Ref}>
-        <ringGeometry args={[r * 0.74, r * 0.81, 6]} />
-        <meshBasicMaterial color="#FFFFFF" transparent opacity={0.65} side={THREE.DoubleSide} depthWrite={false} />
-      </mesh>
-      <mesh ref={r3Ref}>
-        <ringGeometry args={[r * 0.87, r * 0.94, 6]} />
-        <meshBasicMaterial color="#FFD700" transparent opacity={0.60} side={THREE.DoubleSide} depthWrite={false} />
-      </mesh>
-      <mesh>
-        <ringGeometry args={[r * 0.95, r, 48]} />
-        <meshBasicMaterial color="#FFEEAA" transparent opacity={0.25} side={THREE.DoubleSide} depthWrite={false} />
-      </mesh>
-      <instancedMesh ref={runeRef} args={[_geo_tri, _runeMat, 12]} frustumCulled={false} />
+      {/* Flickering amber fire light */}
+      <pointLight ref={lightRef} color="#ff6600" intensity={3.4} distance={5.5} decay={2} />
+      {/* FBM displacement flame shell */}
+      <mesh scale={shellR} material={shellMat} geometry={_fireShellGeo} />
+      {/* Rising heat-haze distortion sphere */}
+      <mesh scale={shellR * 1.6} material={hazeMat} geometry={_hazeGeoF} />
+      {/* Core orange-hot flame particles */}
+      <instancedMesh ref={coreIM}  args={[_fPartGeo, coreMat,  _NC]} frustumCulled={false} />
+      {/* Outer crimson flame particles */}
+      <instancedMesh ref={outerIM} args={[_fPartGeo, outerMat, _NO]} frustumCulled={false} />
+      {/* Tiny ember sparks */}
+      <instancedMesh ref={emberIM} args={[_emberGeoF, emberMat, _NE]} frustumCulled={false} />
     </group>
   );
 }
@@ -838,7 +1091,7 @@ export function OrbitalRings({ style, scale }: { style: RingStyle; scale: number
   switch (style) {
     case "eclipse_horizon":   return <ElectrifiedAura  scale={scale} />;
     case "singularity_event": return <SingularityEvent scale={scale} />;
-    case "celestial_aegis":   return <CelestialAegis   scale={scale} />;
+    case "celestial_aegis":   return <FieryAura         scale={scale} />;
     case "chronos_clockwork": return <ChronosClockwork scale={scale} />;
     case "void_tendril":      return <VoidTendril      scale={scale} />;
     case "hyper_collider":    return <HyperCollider    scale={scale} />;
