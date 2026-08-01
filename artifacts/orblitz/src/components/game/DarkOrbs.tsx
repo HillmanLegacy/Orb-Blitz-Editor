@@ -692,6 +692,121 @@ function World2EnemyMesh({ orb, time }: { orb: DarkOrb; time: number }) {
   );
 }
 
+function World4EnemyMesh({ orb, time }: { orb: DarkOrb; time: number }) {
+  const destroyProgress = orb.destroying ? (orb.destroyTimer || 0) / 0.6 : 0;
+  const pulse = 1 + Math.sin(time * 4 + orb.seed * 6) * 0.06;
+  if (orb.destroying) {
+    return (
+      <group position={orb.position}>
+        <EnergyDissipationVFX progress={destroyProgress} color="#8a2a4a" glowColor="#ff4488" scale={orb.size} seed={Math.round(orb.seed * 999)} />
+        {destroyProgress > 0.80 && <group scale={orb.size * pulse}><MiniToxicOrb /></group>}
+      </group>
+    );
+  }
+  return (
+    <group position={orb.position} scale={orb.size * pulse}>
+      <MiniToxicOrb />
+      {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
+    </group>
+  );
+}
+
+function World5EnemyMesh({ orb, time }: { orb: DarkOrb; time: number }) {
+  const destroyProgress = orb.destroying ? (orb.destroyTimer || 0) / 0.6 : 0;
+  const pulse = 1 + Math.sin(time * 4 + orb.seed * 6) * 0.06;
+  if (orb.destroying) {
+    return (
+      <group position={orb.position}>
+        <EnergyDissipationVFX progress={destroyProgress} color="#4a4a8a" glowColor="#8888ff" scale={orb.size} seed={Math.round(orb.seed * 999)} />
+        {destroyProgress > 0.80 && <group scale={orb.size * pulse}><MiniPlasmaOrb /></group>}
+      </group>
+    );
+  }
+  return (
+    <group position={orb.position} scale={orb.size * pulse}>
+      <MiniPlasmaOrb />
+      {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
+    </group>
+  );
+}
+
+function World6EnemyMesh({ orb, time }: { orb: DarkOrb; time: number }) {
+  const destroyProgress = orb.destroying ? (orb.destroyTimer || 0) / 0.6 : 0;
+  const pulse = 1 + Math.sin(time * 4 + orb.seed * 6) * 0.06;
+  if (orb.destroying) {
+    return (
+      <group position={orb.position}>
+        <EnergyDissipationVFX progress={destroyProgress} color="#5a5a6a" glowColor="#aaaacc" scale={orb.size} seed={Math.round(orb.seed * 999)} />
+        {destroyProgress > 0.80 && <group scale={orb.size * pulse}><MiniDiamondOrb /></group>}
+      </group>
+    );
+  }
+  return (
+    <group position={orb.position} scale={orb.size * pulse}>
+      <MiniDiamondOrb />
+      {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
+    </group>
+  );
+}
+
+function World7EnemyMesh({ orb, time }: { orb: DarkOrb; time: number }) {
+  const destroyProgress = orb.destroying ? (orb.destroyTimer || 0) / 0.6 : 0;
+  const pulse = 1 + Math.sin(time * 4 + orb.seed * 6) * 0.06;
+  if (orb.destroying) {
+    return (
+      <group position={orb.position}>
+        <EnergyDissipationVFX progress={destroyProgress} color="#8a5a2a" glowColor="#ff8844" scale={orb.size} seed={Math.round(orb.seed * 999)} />
+        {destroyProgress > 0.80 && <group scale={orb.size * pulse}><MiniRainbowOrb /></group>}
+      </group>
+    );
+  }
+  return (
+    <group position={orb.position} scale={orb.size * pulse}>
+      <MiniRainbowOrb />
+      {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
+    </group>
+  );
+}
+
+function World8EnemyMesh({ orb, time }: { orb: DarkOrb; time: number }) {
+  const destroyProgress = orb.destroying ? (orb.destroyTimer || 0) / 0.6 : 0;
+  const pulse = 1 + Math.sin(time * 4 + orb.seed * 6) * 0.06;
+  if (orb.destroying) {
+    return (
+      <group position={orb.position}>
+        <EnergyDissipationVFX progress={destroyProgress} color="#2a6a6a" glowColor="#44ffcc" scale={orb.size} seed={Math.round(orb.seed * 999)} />
+        {destroyProgress > 0.80 && <group scale={orb.size * pulse}><MiniMechaOrb /></group>}
+      </group>
+    );
+  }
+  return (
+    <group position={orb.position} scale={orb.size * pulse}>
+      <pointLight color="#33aaff" intensity={1.8} distance={4.5} decay={2} />
+      <MiniMechaOrb />
+      {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
+    </group>
+  );
+}
+
+function World9EnemyMesh({ orb, time }: { orb: DarkOrb; time: number }) {
+  const destroyProgress = orb.destroying ? (orb.destroyTimer || 0) / 0.6 : 0;
+  const pulse = 1 + Math.sin(time * 4 + orb.seed * 6) * 0.06;
+  if (orb.destroying) {
+    return (
+      <group position={orb.position}>
+        <EnergyDissipationVFX progress={destroyProgress} color="#6a2a2a" glowColor="#ff4444" scale={orb.size} seed={Math.round(orb.seed * 999)} />
+        {destroyProgress > 0.80 && <group scale={orb.size * pulse}><MiniMonsterOrb /></group>}
+      </group>
+    );
+  }
+  return (
+    <group position={orb.position} scale={orb.size * pulse}>
+      <MiniMonsterOrb />
+      {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
+    </group>
+  );
+}
+
 // ── Router: selects mesh component + applies frozen overlay for all types ──────
 function OrbRouter({ orb, time }: { orb: DarkOrb; time: number }) {
   const { arcadeLevel, gameMode } = useMagicOrb.getState();
@@ -705,6 +820,18 @@ function OrbRouter({ orb, time }: { orb: DarkOrb; time: number }) {
     mesh = <World2EnemyMesh orb={orb} time={time} />;
   } else if (gameMode === "arcade" && Math.floor(arcadeLevel) === 3) {
     mesh = <World3EnemyMesh orb={orb} time={time} />;
+  } else if (gameMode === "arcade" && Math.floor(arcadeLevel) === 4) {
+    mesh = <World4EnemyMesh orb={orb} time={time} />;
+  } else if (gameMode === "arcade" && Math.floor(arcadeLevel) === 5) {
+    mesh = <World5EnemyMesh orb={orb} time={time} />;
+  } else if (gameMode === "arcade" && Math.floor(arcadeLevel) === 6) {
+    mesh = <World6EnemyMesh orb={orb} time={time} />;
+  } else if (gameMode === "arcade" && Math.floor(arcadeLevel) === 7) {
+    mesh = <World7EnemyMesh orb={orb} time={time} />;
+  } else if (gameMode === "arcade" && Math.floor(arcadeLevel) === 8) {
+    mesh = <World8EnemyMesh orb={orb} time={time} />;
+  } else if (gameMode === "arcade" && Math.floor(arcadeLevel) === 9) {
+    mesh = <World9EnemyMesh orb={orb} time={time} />;
   } else {
     mesh = <UnifiedDarkOrbMesh orb={orb} time={time} />;
   }
