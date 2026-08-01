@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useShop, SHOP_ITEMS, ShopItem, OrbSkin, TrailEffect, RingStyle, WeaponType, DefenseType, MagiOrbType } from "@/lib/stores/useShop";
 import { useState } from "react";
 
-// ─── Per-slot design tokens ───────────────────────────────────────────────────
+// ─── Slot definitions ─────────────────────────────────────────────────────────
 type SlotKey = "weapon" | "defense_0" | "defense_1" | "magi_orb" | "skin" | "trail" | "ring";
 type Category = "weapon" | "defense" | "magi_orb" | "skin" | "trail" | "ring";
 
@@ -16,7 +16,6 @@ interface SlotDef {
   defSlot?: 0 | 1;
 }
 
-// Typed snapshot of equipped state passed down as props
 interface EquippedState {
   equippedSkin: string;
   equippedTrail: string;
@@ -53,32 +52,14 @@ function getEquippedName(slot: SlotDef, val: string): string {
   return SHOP_ITEMS.find(i => i.value === val && i.category === slot.cat)?.name ?? val;
 }
 
-// The "clear" option label and description per category
-function clearMeta(cat: Category): { label: string; desc: string; value: string } {
-  if (cat === "skin")  return { label: "Default Skin",  desc: "Standard orb appearance",   value: "default" };
-  if (cat === "ring")  return { label: "Default Ring",  desc: "Standard orbital ring",      value: "default" };
-  if (cat === "trail") return { label: "No Trail",      desc: "Remove trail effect",        value: "none" };
-  if (cat === "weapon") return { label: "No Weapon",    desc: "Unequip weapon",             value: "none" };
-  if (cat === "defense") return { label: "Empty Slot",  desc: "Remove defense from slot",   value: "none" };
-  return { label: "None",          desc: "Unequip item",                value: "none" };
+function clearMeta(cat: Category): { label: string; desc: string } {
+  if (cat === "skin")    return { label: "Default Skin",  desc: "Standard orb appearance"  };
+  if (cat === "ring")    return { label: "Default Ring",  desc: "Standard orbital ring"     };
+  if (cat === "trail")   return { label: "No Trail",      desc: "Remove trail effect"       };
+  if (cat === "weapon")  return { label: "No Weapon",     desc: "Unequip weapon"            };
+  if (cat === "defense") return { label: "Empty Slot",    desc: "Remove defense from slot"  };
+  return                        { label: "None",          desc: "Unequip item"              };
 }
-
-// ─── Popup shell helpers ──────────────────────────────────────────────────────
-const GLASS: React.CSSProperties = {
-  background: "rgba(4,4,18,0.97)",
-  border: "1px solid rgba(0,255,255,0.14)",
-  backdropFilter: "blur(32px)",
-  boxShadow: "0 0 60px rgba(0,255,255,0.07), 0 24px 80px rgba(0,0,0,0.7)",
-};
-
-const SCANLINES = (
-  <div className="absolute inset-0 pointer-events-none rounded-[inherit] overflow-hidden" style={{ zIndex: 0 }}>
-    <div style={{
-      position: "absolute", inset: 0,
-      backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 5px,rgba(255,255,255,0.007) 5px,rgba(255,255,255,0.007) 6px)",
-    }} />
-  </div>
-);
 
 // ─── Main Inventory (Gear) popup ──────────────────────────────────────────────
 export function Inventory() {
@@ -90,7 +71,7 @@ export function Inventory() {
     equipSkin, equipTrail, equipRing, equipWeapon, equipDefense, equipMagiOrb,
   } = useShop();
 
-  const [pickingSlot, setPickingSlot] = useState<SlotDef | null>(null);
+  const [activeSlot, setActiveSlot] = useState<SlotDef>(SLOTS[0]);
 
   const eq: EquippedState = {
     equippedSkin, equippedTrail, equippedRing,
@@ -98,7 +79,6 @@ export function Inventory() {
   };
 
   const doEquip = (slot: SlotDef, item: ShopItem | null) => {
-    // null → reset to default/none
     switch (slot.cat) {
       case "skin":     equipSkin(item ? item.value as OrbSkin : "default"); break;
       case "trail":    equipTrail(item ? item.value as TrailEffect : "none"); break;
@@ -107,8 +87,16 @@ export function Inventory() {
       case "defense":  equipDefense(item ? item.value as DefenseType : "none", slot.defSlot!); break;
       case "magi_orb": equipMagiOrb(item ? item.value as MagiOrbType : "none"); break;
     }
-    setPickingSlot(null);
   };
+
+  const slot = activeSlot;
+  const currentVal = getEquippedValue(slot, eq);
+  const clear = clearMeta(slot.cat);
+  const isDefaultSelected = currentVal === "none" || currentVal === "default";
+
+  const ownedCatItems = SHOP_ITEMS.filter(
+    i => i.category === slot.cat && ownedItems.includes(i.id)
+  );
 
   if (!inventoryOpen) return null;
 
@@ -116,228 +104,252 @@ export function Inventory() {
     <AnimatePresence>
       <motion.div
         className="fixed inset-0 z-50 flex items-center justify-center"
-        style={{ padding: "clamp(12px,3vw,24px)" }}
+        style={{ padding: "clamp(10px, 2.5vw, 20px)" }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.22 }}
       >
         {/* Backdrop */}
-        <div className="absolute inset-0 cursor-pointer"
+        <div
+          className="absolute inset-0 cursor-pointer"
           style={{ background: "rgba(0,0,8,0.82)", backdropFilter: "blur(8px)" }}
-          onClick={() => { setPickingSlot(null); closeInventory(); }}
+          onClick={closeInventory}
         />
 
-        {/* Card */}
+        {/* Card — matches Shop dimensions exactly */}
         <motion.div
-          className="relative flex flex-col w-full overflow-hidden"
+          className="relative flex flex-col w-full"
           style={{
-            maxWidth: "min(440px, 100%)",
-            maxHeight: "min(86vh, 640px)",
-            borderRadius: "clamp(16px,2.5vw,24px)",
-            ...GLASS,
+            maxWidth: "min(720px, 100%)",
+            maxHeight: "min(88vh, 680px)",
+            background: "rgba(4,4,18,0.97)",
+            border: "1px solid rgba(0,255,255,0.14)",
+            borderRadius: "clamp(16px, 2.5vw, 24px)",
+            backdropFilter: "blur(32px)",
+            boxShadow: "0 0 80px rgba(0,255,255,0.07), 0 28px 90px rgba(0,0,0,0.75)",
           }}
           initial={{ scale: 0.88, y: 28, opacity: 0 }}
           animate={{ scale: 1, y: 0, opacity: 1 }}
           exit={{ scale: 0.9, y: 20, opacity: 0 }}
           transition={{ type: "spring", stiffness: 340, damping: 28 }}
         >
-          {SCANLINES}
+          {/* Scanline texture */}
+          <div className="absolute inset-0 pointer-events-none rounded-[inherit] overflow-hidden" style={{ zIndex: 0 }}>
+            <div style={{
+              position: "absolute", inset: 0,
+              backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 5px,rgba(255,255,255,0.008) 5px,rgba(255,255,255,0.008) 6px)",
+            }} />
+          </div>
 
-          <AnimatePresence mode="wait">
-            {pickingSlot === null
-              ? <LoadoutView
-                  key="loadout"
-                  slots={SLOTS}
-                  eq={eq}
-                  onSlotClick={setPickingSlot}
-                  onClose={() => { setPickingSlot(null); closeInventory(); }}
-                />
-              : <PickerView
-                  key={pickingSlot.key}
-                  slot={pickingSlot}
-                  ownedItems={ownedItems}
-                  eq={eq}
-                  onPick={doEquip}
-                  onBack={() => setPickingSlot(null)}
-                />
-            }
-          </AnimatePresence>
+          {/* ── Header ─────────────────────────────────────────────────── */}
+          <div
+            className="relative flex-none flex items-center justify-between px-5 pt-4 pb-3"
+            style={{ borderBottom: "1px solid rgba(255,255,255,0.07)", zIndex: 1 }}
+          >
+            <span
+              className="font-black text-lg tracking-[0.18em] uppercase"
+              style={{
+                background: "linear-gradient(90deg,#ff7700,#ff00ff,#8844ff)",
+                WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+                filter: "drop-shadow(0 0 8px rgba(255,119,0,0.4))",
+              }}
+            >
+              LOADOUT
+            </span>
+            <motion.button
+              whileTap={{ scale: 0.85 }}
+              onClick={closeInventory}
+              className="flex items-center justify-center rounded-lg"
+              style={{
+                width: 32, height: 32,
+                background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
+                color: "rgba(255,255,255,0.5)", fontSize: "1.1rem", cursor: "pointer",
+              }}
+            >
+              ×
+            </motion.button>
+          </div>
+
+          {/* ── Body: slot sidebar + picker ────────────────────────────── */}
+          <div className="relative flex flex-1 min-h-0" style={{ zIndex: 1 }}>
+
+            {/* Left sidebar — all 7 slots always visible */}
+            <div
+              className="flex-none flex flex-col gap-1 py-3 px-2"
+              style={{
+                width: "clamp(130px, 24%, 164px)",
+                borderRight: "1px solid rgba(255,255,255,0.06)",
+              }}
+            >
+              {SLOTS.map(s => {
+                const val     = getEquippedValue(s, eq);
+                const name    = getEquippedName(s, val);
+                const hasItem = val !== "none" && val !== "default" && !!val;
+                const active  = activeSlot.key === s.key;
+                return (
+                  <motion.button
+                    key={s.key}
+                    whileTap={{ scale: 0.94 }}
+                    onClick={() => setActiveSlot(s)}
+                    className="relative flex items-center gap-2 px-2.5 py-2 rounded-xl w-full text-left"
+                    style={{
+                      background: active ? `${s.color}16` : "rgba(255,255,255,0.03)",
+                      border: `1px solid ${active ? s.color + "55" : "rgba(255,255,255,0.06)"}`,
+                      boxShadow: active ? `0 0 18px ${s.shadow}` : "none",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    {/* Icon circle */}
+                    <div
+                      className="flex items-center justify-center flex-shrink-0"
+                      style={{
+                        width: 26, height: 26, borderRadius: 7,
+                        background: active ? `${s.color}22` : "rgba(255,255,255,0.05)",
+                        border: `1px solid ${active ? s.color + "55" : "rgba(255,255,255,0.08)"}`,
+                        color: active ? s.color : "rgba(255,255,255,0.3)",
+                        fontSize: "0.8rem", lineHeight: 1, flexShrink: 0,
+                      }}
+                    >
+                      {s.icon}
+                    </div>
+
+                    {/* Slot info */}
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className="font-black tracking-widest uppercase leading-none"
+                        style={{
+                          fontSize: "0.58rem",
+                          color: active ? s.color : "rgba(255,255,255,0.28)",
+                          textShadow: active ? `0 0 8px ${s.color}88` : "none",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {s.label}
+                      </p>
+                      <p
+                        className="truncate leading-tight mt-0.5"
+                        style={{
+                          fontSize: "0.62rem",
+                          fontWeight: 600,
+                          color: hasItem
+                            ? (active ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.45)")
+                            : "rgba(255,255,255,0.18)",
+                        }}
+                      >
+                        {name}
+                      </p>
+                    </div>
+
+                    {/* Active right-edge accent */}
+                    {active && (
+                      <motion.div
+                        layoutId="slot-accent"
+                        className="absolute right-0"
+                        style={{
+                          width: 2, top: "20%", bottom: "20%",
+                          background: s.color,
+                          borderRadius: "2px 0 0 2px",
+                          boxShadow: `0 0 8px ${s.color}`,
+                        }}
+                      />
+                    )}
+                  </motion.button>
+                );
+              })}
+            </div>
+
+            {/* Right — item picker for the active slot */}
+            <div className="flex flex-col flex-1 min-w-0">
+
+              {/* Picker header */}
+              <div
+                className="flex-none flex items-center gap-3 px-4 py-3"
+                style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+              >
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={slot.key}
+                    className="flex items-center gap-2.5"
+                    initial={{ opacity: 0, x: 8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -8 }}
+                    transition={{ duration: 0.16 }}
+                  >
+                    <div
+                      className="flex items-center justify-center flex-shrink-0"
+                      style={{
+                        width: 30, height: 30, borderRadius: 8,
+                        background: `${slot.color}18`, border: `1px solid ${slot.color}44`,
+                        color: slot.color, fontSize: "1rem", lineHeight: 1,
+                      }}
+                    >
+                      {slot.icon}
+                    </div>
+                    <div>
+                      <p
+                        className="font-black tracking-widest uppercase leading-none"
+                        style={{ color: slot.color, fontSize: "0.72rem", textShadow: `0 0 10px ${slot.color}66` }}
+                      >
+                        {slot.label}
+                      </p>
+                      <p className="text-white/30 text-[10px] mt-0.5">
+                        Select an item to equip
+                      </p>
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+
+              {/* Picker list */}
+              <div
+                className="flex-1 min-h-0 overflow-y-auto px-4 py-3"
+                style={{ scrollbarWidth: "thin", scrollbarColor: `${slot.color}22 transparent` }}
+              >
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={slot.key}
+                    className="flex flex-col gap-2"
+                    initial={{ opacity: 0, x: 12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -8 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    {/* Default / clear option */}
+                    <PickerRow
+                      label={clear.label}
+                      desc={clear.desc}
+                      isSelected={isDefaultSelected}
+                      color={slot.color}
+                      onClick={() => doEquip(slot, null)}
+                    />
+
+                    {ownedCatItems.length === 0 && (
+                      <div className="py-8 text-center">
+                        <p className="text-white/20 text-sm uppercase tracking-widest">No items owned</p>
+                        <p className="text-white/15 text-xs mt-1">Visit the Shop to get some!</p>
+                      </div>
+                    )}
+
+                    {ownedCatItems.map(item => (
+                      <PickerRow
+                        key={item.id}
+                        label={item.name}
+                        desc={item.description}
+                        isSelected={currentVal === item.value}
+                        color={slot.color}
+                        onClick={() => doEquip(slot, item)}
+                      />
+                    ))}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            </div>
+          </div>
         </motion.div>
       </motion.div>
     </AnimatePresence>
-  );
-}
-
-// ─── Loadout overview ─────────────────────────────────────────────────────────
-function LoadoutView({ slots, eq, onSlotClick, onClose }: {
-  slots: SlotDef[];
-  eq: EquippedState;
-  onSlotClick: (s: SlotDef) => void;
-  onClose: () => void;
-}) {
-  return (
-    <motion.div
-      className="relative flex flex-col flex-1 min-h-0"
-      initial={{ opacity: 0, x: -14 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -14 }}
-      transition={{ duration: 0.22 }}
-      style={{ zIndex: 1 }}
-    >
-      {/* Header */}
-      <div className="flex-none flex items-center justify-between px-5 pt-4 pb-3"
-        style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-        <span className="font-black text-lg tracking-[0.18em] uppercase"
-          style={{
-            background: "linear-gradient(90deg,#ff7700,#ff00ff,#8844ff)",
-            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-            filter: "drop-shadow(0 0 8px rgba(255,119,0,0.4))",
-          }}>
-          LOADOUT
-        </span>
-        <motion.button whileTap={{ scale: 0.85 }} onClick={onClose}
-          className="flex items-center justify-center rounded-lg"
-          style={{
-            width: 32, height: 32,
-            background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
-            color: "rgba(255,255,255,0.5)", fontSize: "1.1rem", cursor: "pointer",
-          }}>
-          ×
-        </motion.button>
-      </div>
-
-      {/* Slot grid */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4"
-        style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,119,0,0.15) transparent" }}>
-        <div className="grid grid-cols-2 gap-2.5">
-          {slots.map(slot => {
-            const val = getEquippedValue(slot, eq);
-            const name = getEquippedName(slot, val);
-            const hasItem = val !== "none" && val !== "default" && !!val;
-            return (
-              <motion.button key={slot.key}
-                whileTap={{ scale: 0.94 }}
-                onClick={() => onSlotClick(slot)}
-                className="relative flex items-center gap-2.5 text-left rounded-xl px-3 py-3 overflow-hidden"
-                style={{
-                  background: hasItem ? `${slot.color}0c` : "rgba(255,255,255,0.025)",
-                  border: `1px solid ${hasItem ? slot.color + "44" : "rgba(255,255,255,0.08)"}`,
-                  cursor: "pointer",
-                  transition: "border-color 0.15s, background 0.15s",
-                }}
-              >
-                {/* Radial glow when equipped */}
-                {hasItem && (
-                  <div className="absolute inset-0 pointer-events-none" style={{
-                    background: `radial-gradient(ellipse at 0% 50%, ${slot.color}14 0%, transparent 70%)`,
-                  }} />
-                )}
-                {/* Icon */}
-                <div className="flex-shrink-0 flex items-center justify-center rounded-lg"
-                  style={{
-                    width: 34, height: 34,
-                    background: `${slot.color}18`, border: `1px solid ${slot.color}44`,
-                    color: slot.color, fontSize: "1rem",
-                  }}>
-                  {slot.icon}
-                </div>
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-[9px] font-black tracking-widest uppercase"
-                    style={{ color: slot.color, opacity: 0.7 }}>{slot.label}</p>
-                  <p className="text-white font-semibold text-xs leading-tight truncate mt-0.5"
-                    style={{ opacity: hasItem ? 1 : 0.3 }}>{name}</p>
-                </div>
-                {/* Chevron */}
-                <span className="flex-shrink-0 text-xs" style={{ color: "rgba(255,255,255,0.2)" }}>›</span>
-              </motion.button>
-            );
-          })}
-        </div>
-
-      </div>
-    </motion.div>
-  );
-}
-
-// ─── Slot picker view ─────────────────────────────────────────────────────────
-function PickerView({ slot, ownedItems, eq, onPick, onBack }: {
-  slot: SlotDef;
-  ownedItems: string[];
-  eq: EquippedState;
-  onPick: (slot: SlotDef, item: ShopItem | null) => void;
-  onBack: () => void;
-}) {
-  const currentVal = getEquippedValue(slot, eq);
-  const clear = clearMeta(slot.cat);
-
-  const ownedCatItems = SHOP_ITEMS.filter(
-    i => i.category === slot.cat && ownedItems.includes(i.id)
-  );
-
-  const isDefaultSelected = currentVal === "none" || currentVal === "default";
-
-  return (
-    <motion.div
-      className="relative flex flex-col flex-1 min-h-0"
-      initial={{ opacity: 0, x: 14 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 14 }}
-      transition={{ duration: 0.22 }}
-      style={{ zIndex: 1 }}
-    >
-      {/* Header */}
-      <div className="flex-none flex items-center gap-3 px-4 pt-4 pb-3"
-        style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-        <motion.button whileTap={{ scale: 0.9 }} onClick={onBack}
-          className="flex items-center gap-1.5 text-[10px] font-black tracking-widest uppercase px-2.5 py-1.5 rounded-lg"
-          style={{
-            color: slot.color, background: `${slot.color}12`,
-            border: `1px solid ${slot.color}44`, cursor: "pointer",
-          }}>
-          ← BACK
-        </motion.button>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <span style={{ color: slot.color, fontSize: "1.1rem", flexShrink: 0 }}>{slot.icon}</span>
-          <span className="font-black text-sm tracking-widest uppercase truncate" style={{ color: slot.color }}>
-            {slot.label}
-          </span>
-        </div>
-      </div>
-
-      {/* Item list */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 flex flex-col gap-2"
-        style={{ scrollbarWidth: "thin", scrollbarColor: `${slot.color}22 transparent` }}>
-
-        {/* Default / clear option — always first */}
-        <PickerRow
-          label={clear.label}
-          desc={clear.desc}
-          isSelected={isDefaultSelected}
-          color={slot.color}
-          onClick={() => onPick(slot, null)}
-        />
-
-        {ownedCatItems.length === 0 && (
-          <div className="py-6 text-center">
-            <p className="text-white/20 text-sm uppercase tracking-widest">No items owned</p>
-            <p className="text-white/15 text-xs mt-1">Visit the Shop to get some!</p>
-          </div>
-        )}
-
-        {ownedCatItems.map(item => (
-          <PickerRow
-            key={item.id}
-            label={item.name}
-            desc={item.description}
-            isSelected={currentVal === item.value}
-            color={slot.color}
-            onClick={() => onPick(slot, item)}
-          />
-        ))}
-      </div>
-    </motion.div>
   );
 }
 
@@ -372,8 +384,10 @@ function PickerRow({ label, desc, isSelected, color, onClick }: {
       </div>
       {/* Equipped badge */}
       {isSelected && (
-        <span className="flex-shrink-0 text-[9px] font-black tracking-widest uppercase px-2 py-1 rounded-md"
-          style={{ color, background: `${color}18`, border: `1px solid ${color}44` }}>
+        <span
+          className="flex-shrink-0 text-[9px] font-black tracking-widest uppercase px-2 py-1 rounded-md"
+          style={{ color, background: `${color}18`, border: `1px solid ${color}44` }}
+        >
           EQUIPPED
         </span>
       )}
