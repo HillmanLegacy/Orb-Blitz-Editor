@@ -11,10 +11,18 @@ const SPARKS_PER      = 6;         // sparks around each caught enemy
 const MAX_ENEMY_SLOTS = 20;        // max enemies shown with sparks
 const N_SPARK_SLOTS   = MAX_ENEMY_SLOTS * SPARKS_PER;  // 120
 
-// ── Shared geometry ───────────────────────────────────────────────────────────
-const _pGeo   = new THREE.SphereGeometry(0.055, 4, 4);
-const _sGeo   = new THREE.SphereGeometry(0.045, 4, 4);
-const _dummy  = new THREE.Object3D();
+// ── Shared geometry & materials (module-level, never recreated) ───────────────
+const _pGeo      = new THREE.SphereGeometry(0.055, 4, 4);
+const _sGeo      = new THREE.SphereGeometry(0.045, 4, 4);
+const _dummy     = new THREE.Object3D();
+const _fieldMat  = new THREE.MeshBasicMaterial({
+  transparent: true, depthWrite: false,
+  blending: THREE.AdditiveBlending, vertexColors: true,
+});
+const _sparkMat  = new THREE.MeshBasicMaterial({
+  transparent: true, depthWrite: false,
+  blending: THREE.AdditiveBlending, vertexColors: true,
+});
 
 // ── Field particle seeds ──────────────────────────────────────────────────────
 // Uniform-in-sphere: r = R * cbrt(u), direction from spherical coords
@@ -175,30 +183,16 @@ export function DistortField() {
       {/* Electric particles filling the field volume */}
       <instancedMesh
         ref={fieldRef}
-        args={[_pGeo, undefined, N_FIELD]}
+        args={[_pGeo, _fieldMat, N_FIELD]}
         frustumCulled={false}
-      >
-        <meshBasicMaterial
-          transparent
-          depthWrite={false}
-          blending={THREE.AdditiveBlending}
-          vertexColors
-        />
-      </instancedMesh>
+      />
 
       {/* Electric sparks orbiting caught enemies */}
       <instancedMesh
         ref={sparkRef}
-        args={[_sGeo, undefined, N_SPARK_SLOTS]}
+        args={[_sGeo, _sparkMat, N_SPARK_SLOTS]}
         frustumCulled={false}
-      >
-        <meshBasicMaterial
-          transparent
-          depthWrite={false}
-          blending={THREE.AdditiveBlending}
-          vertexColors
-        />
-      </instancedMesh>
+      />
 
     </group>
   );
