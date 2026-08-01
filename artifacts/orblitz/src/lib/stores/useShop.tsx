@@ -3,7 +3,7 @@ import { subscribeWithSelector } from "zustand/middleware";
 
 export type OrbSkin = "default" | "golden" | "neon" | "rainbow" | "crystal" | "void" | "plasma" | "galaxy" | "phoenix" | "shadow" | "aurora" | "diamond" | "inferno" | "frost" | "toxic" | "electric";
 export type TrailEffect = "none" | "sparkle" | "fire" | "ice" | "cosmic" | "lightning" | "rainbow" | "plasma" | "shadow" | "stardust" | "meteor" | "spirit" | "neon" | "sakura" | "galaxy" | "particle_swarm" | "flame_aura";
-export type RingStyle = "default" | "double" | "triple" | "spiral" | "none" | "pulse" | "orbit" | "halo" | "shield" | "hex" | "prism";
+export type RingStyle = "default" | "none" | "eclipse_horizon" | "singularity_event" | "celestial_aegis" | "chronos_clockwork" | "void_tendril" | "hyper_collider" | "solar_corona" | "prismatic_lattice" | "zero_tesla" | "astral_nebula";
 export type WeaponType = "none" | "orbital_rapid_blaster" | "orbital_scattershot" | "spiral_shooter" | "overcharged_blaster" | "homing_launcher" | "sub_blaster";
 export type DefenseType = "none" | "orbital_teletransfer" | "distort_field" | "pulse_shield" | "defense_system" | "spatial_relocation" | "restoration" | "armor";
 export type MagiOrbType = "none" | "magi_orb_1" | "magi_orb_2" | "magi_orb_3" | "magi_orb_4" | "magi_orb_5" | "magi_orb_6" | "magi_orb_7" | "magi_orb_8" | "magi_orb_9";
@@ -51,16 +51,16 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: "trail_particle_swarm", name: "Particle Swarm", description: "A living swarm of energy particles orbits your projectile", price: 600, category: "trail", value: "particle_swarm" },
   { id: "trail_flame_aura", name: "Flame Aura", description: "Upward-flowing fire embers surround your orb. Awarded for defeating the Fire Boss.", price: 4000, category: "trail", value: "flame_aura" },
   
-  { id: "ring_double", name: "Double Rings", description: "Two glowing orbital rings", price: 300, category: "ring", value: "double" },
-  { id: "ring_triple", name: "Triple Rings", description: "Three intersecting rings", price: 300, category: "ring", value: "triple" },
-  { id: "ring_spiral", name: "Spiral Rings", description: "Spiraling energy rings with particles", price: 300, category: "ring", value: "spiral" },
-  { id: "ring_none", name: "No Rings", description: "Clean orbless look", price: 300, category: "ring", value: "none" },
-  { id: "ring_pulse", name: "Pulse Rings", description: "Expanding pulse waves", price: 300, category: "ring", value: "pulse" },
-  { id: "ring_orbit", name: "Orbit Rings", description: "Orbiting energy spheres", price: 300, category: "ring", value: "orbit" },
-  { id: "ring_halo", name: "Halo Ring", description: "Angelic golden halo effect", price: 300, category: "ring", value: "halo" },
-  { id: "ring_shield", name: "Shield Ring", description: "Hexagonal force field", price: 300, category: "ring", value: "shield" },
-  { id: "ring_hex", name: "Hex Rings", description: "Geometric hexagon patterns", price: 300, category: "ring", value: "hex" },
-  { id: "ring_prism", name: "Prism Rings", description: "Light-splitting crystal rings", price: 300, category: "ring", value: "prism" },
+  { id: "ring_eclipse_horizon",   name: "Eclipse Horizon",       description: "Dual-axis gyroscope — cyan plasma disk with counter-rotating metallic hoops",          price: 400, category: "ring", value: "eclipse_horizon"   },
+  { id: "ring_singularity_event", name: "Singularity Event",     description: "Gravitational accretion disk — black event horizon with violent orange/violet eddies", price: 500, category: "ring", value: "singularity_event" },
+  { id: "ring_celestial_aegis",   name: "Celestial Aegis",       description: "Three concentric gold hard-light rune rings with clockwork step-rotation",             price: 400, category: "ring", value: "celestial_aegis"   },
+  { id: "ring_chronos_clockwork", name: "Chronos Clockwork",     description: "Interlocking brass gear rings at precise gear ratios with cyan timeline overlay",      price: 450, category: "ring", value: "chronos_clockwork" },
+  { id: "ring_void_tendril",      name: "Void Tendril Vortex",   description: "Pure dark-matter fluid — 80 swirling indigo and magenta particles, no solid geometry", price: 500, category: "ring", value: "void_tendril"      },
+  { id: "ring_hyper_collider",    name: "Hyper-Tech Collider",   description: "Particle accelerator with twin plasma beams orbiting at extreme speed inside a housing ring", price: 500, category: "ring", value: "hyper_collider"    },
+  { id: "ring_solar_corona",      name: "Solar Flare Corona",    description: "Shader-displaced torus with solar prominences, bubbling surface, and burning ember halo", price: 600, category: "ring", value: "solar_corona"      },
+  { id: "ring_prismatic_lattice", name: "Prismatic Lattice",     description: "12 crystal cone shards bob in a rainbow-caustic halo with individual sine wave motion",  price: 500, category: "ring", value: "prismatic_lattice" },
+  { id: "ring_zero_tesla",        name: "Zero-Point Tesla",      description: "Twin copper conductor rings surrounded by 12 persistent arc lightning branches",         price: 600, category: "ring", value: "zero_tesla"        },
+  { id: "ring_astral_nebula",     name: "Astral Nebula Ring",    description: "200 twinkling stardust points orbit in magenta, teal, and gold like a miniature galaxy", price: 600, category: "ring", value: "astral_nebula"     },
   
   { id: "weapon_orbital_rapid_blaster", name: "Orbital Rapid Blaster", description: "Fires 6 shots per second. Each projectile destroys 1 enemy.", price: 2000, category: "weapon", value: "orbital_rapid_blaster" },
   { id: "weapon_orbital_scattershot", name: "Orbital Scattershot", description: "Fires 3 projectiles in a wedge pattern. Each destroys 1 enemy.", price: 2000, category: "weapon", value: "orbital_scattershot" },
@@ -165,12 +165,23 @@ const getStoredShopData = (): StoredShopData => {
         needsSave = true;
       }
       
+      // ── Ring migration: old ring values → "none" + strip legacy owned IDs ──
+      const _validRings = new Set(["none","default","eclipse_horizon","singularity_event","celestial_aegis","chronos_clockwork","void_tendril","hyper_collider","solar_corona","prismatic_lattice","zero_tesla","astral_nebula"]);
+      const _legacyRingIds = new Set(["ring_double","ring_triple","ring_spiral","ring_none","ring_pulse","ring_orbit","ring_halo","ring_shield","ring_hex","ring_prism"]);
+      const hadLegacyRings = ownedItems.some((id: string) => _legacyRingIds.has(id));
+      if (hadLegacyRings) {
+        ownedItems = ownedItems.filter((id: string) => !_legacyRingIds.has(id));
+        needsSave = true;
+      }
+      const equippedRing = _validRings.has(data.equippedRing) ? data.equippedRing : "none";
+      if (!_validRings.has(data.equippedRing)) needsSave = true;
+
       const result: StoredShopData = {
         coins: data.coins ?? 0,
         ownedItems,
         equippedSkin: data.equippedSkin ?? "default",
         equippedTrail: data.equippedTrail ?? "none",
-        equippedRing: data.equippedRing ?? "none",
+        equippedRing,
         equippedWeapon: equippedWeapon === "orbital_teletransfer" ? "none" as WeaponType : equippedWeapon,
         equippedDefenses: equippedDefenses as [DefenseType, DefenseType],
         equippedMagiOrb: data.equippedMagiOrb ?? "none",

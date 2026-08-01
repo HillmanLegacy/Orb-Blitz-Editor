@@ -2,3 +2,4 @@
 - [R3F InstancedMesh colors](r3f-instanced-mesh-colors.md) — vertexColors on module-level materials silently fails; use useState materials + scale-based brightness instead.
 - [Orblitz music scheduler pattern](orblitz-music-scheduler.md) — `active` gate stops AudioNode creation when muted; `fadeIn` must reset `active+nextT` before gain ramp; `playComboSound(comboCount, volume)` order matches useAudio call site.
 - [Orblitz background particle system](orblitz-background-particles.md) — Three particle types + HD instanced orbs; addExplosionImpulse ring buffer export; shader/instancing conventions.
+- [Orblitz ring system](orblitz-ring-system.md) — 10 new ring components in OrbitalRings.tsx; r=scale*2 convention; shared vs per-component material disposal rules; ZeroTesla imperative line pattern.

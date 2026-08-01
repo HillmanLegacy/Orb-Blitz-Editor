@@ -2,17 +2,17 @@ import { useRef, useMemo, memo, Suspense, useEffect, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
-import { useShop, OrbSkin, RingStyle } from "@/lib/stores/useShop";
+import { useShop, OrbSkin } from "@/lib/stores/useShop";
 import { ToonOrbLayer, CelOutline, RayTracedGlow, AmbientOcclusionLayer, GlobalIlluminationBounce, ScreenSpaceReflection, CausticPattern } from "./ToonShaders";
 import { PlayerModel } from "./PlayerModel";
 import { PlayerParticles } from "./PlayerParticles";
 import { FlameAura } from "./FlameAura";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
+import { OrbitalRings } from "./OrbitalRings";
 
 const sharedCircleGeo = new THREE.CircleGeometry(1, 32);
 const sharedCircleGeoLow = new THREE.CircleGeometry(1, 16);
 const sharedCircleGeoHD = new THREE.CircleGeometry(1, 48);
-const sharedRingGeo = new THREE.RingGeometry(0.85, 1, 48);
 const sharedPlaneGeo = new THREE.PlaneGeometry(1, 1);
 
 export const getSkinColors = (skin: OrbSkin, health: number) => {
@@ -167,115 +167,6 @@ export const getSkinColors = (skin: OrbSkin, health: number) => {
   }
 };
 
-interface RingConfig {
-  count: number;
-  colors: string[];
-  spiral?: boolean;
-  pulse?: boolean;
-  orbit?: boolean;
-  halo?: boolean;
-  shield?: boolean;
-  hex?: boolean;
-  prism?: boolean;
-  segments?: number;
-  thickness?: number;
-  glowIntensity?: number;
-}
-
-const getRingConfig = (style: RingStyle): RingConfig => {
-  switch (style) {
-    case "double":
-      return { 
-        count: 2, 
-        colors: ["#ff00ff", "#00ffff"],
-        segments: 64,
-        thickness: 0.08,
-        glowIntensity: 0.8
-      };
-    case "triple":
-      return { 
-        count: 3, 
-        colors: ["#ff00ff", "#00ffff", "#ffff00"],
-        segments: 64,
-        thickness: 0.07,
-        glowIntensity: 0.85
-      };
-    case "spiral":
-      return { 
-        count: 5, 
-        colors: ["#ff00ff", "#00ffff", "#ffff00", "#ff6600", "#00ff88"], 
-        spiral: true,
-        segments: 48,
-        thickness: 0.06,
-        glowIntensity: 0.9
-      };
-    case "pulse":
-      return { 
-        count: 3, 
-        colors: ["#00ffff", "#0088ff", "#00ccff"],
-        pulse: true,
-        segments: 64,
-        thickness: 0.05,
-        glowIntensity: 1.0
-      };
-    case "orbit":
-      return { 
-        count: 6, 
-        colors: ["#ff00ff", "#00ffff", "#ffff00", "#ff6600", "#00ff88", "#ff0088"],
-        orbit: true,
-        segments: 32,
-        thickness: 0.04,
-        glowIntensity: 0.9
-      };
-    case "halo":
-      return { 
-        count: 2, 
-        colors: ["#ffd700", "#fff8dc"],
-        halo: true,
-        segments: 96,
-        thickness: 0.1,
-        glowIntensity: 1.2
-      };
-    case "shield":
-      return { 
-        count: 1, 
-        colors: ["#00ffff"],
-        shield: true,
-        segments: 6,
-        thickness: 0.08,
-        glowIntensity: 0.95
-      };
-    case "hex":
-      return { 
-        count: 3, 
-        colors: ["#ff00ff", "#00ffff", "#ffff00"],
-        hex: true,
-        segments: 6,
-        thickness: 0.06,
-        glowIntensity: 0.85
-      };
-    case "prism":
-      return { 
-        count: 4, 
-        colors: ["#ff0000", "#00ff00", "#0000ff", "#ffff00"],
-        prism: true,
-        segments: 3,
-        thickness: 0.07,
-        glowIntensity: 1.1
-      };
-    case "none":
-    case "default":
-      return { count: 0, colors: [], segments: 0 };
-    default:
-      return { 
-        count: 2, 
-        colors: ["#ff00ff", "#00ffff"],
-        segments: 64,
-        thickness: 0.08,
-        glowIntensity: 0.8
-      };
-  }
-};
 
 interface OrbParticle {
   angle: number;
@@ -944,7 +835,6 @@ export function PlayerOrb() {
   const glowRef = useRef<THREE.Mesh>(null);
   const outerGlowRef = useRef<THREE.Mesh>(null);
   const shieldRef = useRef<THREE.Mesh>(null);
-  const ringRefs = useRef<THREE.Mesh[]>([]);
   const groupRef = useRef<THREE.Group>(null);
   const particleRefs = useRef<THREE.Mesh[]>([]);
   const rayRefs = useRef<THREE.Mesh[]>([]);
@@ -995,8 +885,7 @@ export function PlayerOrb() {
   }, [healthRatio]);
   
   const skinColors = useMemo(() => getSkinColors(equippedSkin, health), [equippedSkin, health]);
-  const ringConfig = useMemo(() => getRingConfig(equippedRing), [equippedRing]);
-  
+
   const orbParticles = useMemo<OrbParticle[]>(() => {
     const particles: OrbParticle[] = [];
     for (let i = 0; i < 24; i++) {
@@ -1243,59 +1132,6 @@ export function PlayerOrb() {
       }
     });
     
-    ringRefs.current.forEach((mesh, i) => {
-      if (mesh) {
-        const direction = i % 2 === 0 ? 1 : -1;
-        const speed = 2.5 - i * 0.3;
-        const mat = mesh.material as THREE.MeshBasicMaterial;
-        const glowIntensity = ringConfig.glowIntensity || 0.8;
-        
-        if (ringConfig.spiral) {
-          mesh.rotation.z = time * speed * direction * 1.5;
-          mesh.rotation.x = Math.sin(time * 0.9 + i * 0.6) * 0.8;
-          mesh.rotation.y = Math.cos(time * 0.7 + i * 0.4) * 0.7;
-          mat.opacity = (0.85 - i * 0.08) * dimFactor * glowIntensity;
-        } else if (ringConfig.pulse) {
-          const pulseScale = 1 + Math.sin(time * 4 + i * 0.8) * 0.15;
-          mesh.scale.setScalar(pulseScale);
-          mesh.rotation.z = time * 1.5 * direction;
-          mat.opacity = (0.6 + Math.sin(time * 6 + i * 1.2) * 0.3) * dimFactor * glowIntensity;
-        } else if (ringConfig.orbit) {
-          const orbitAngle = time * (2 + i * 0.3) * direction;
-          mesh.position.x = Math.cos(orbitAngle) * 0.2;
-          mesh.position.y = Math.sin(orbitAngle) * 0.2;
-          mesh.rotation.z = time * 3 * direction;
-          mesh.rotation.x = Math.sin(time + i) * 0.4;
-          mat.opacity = (0.7 + Math.sin(time * 4 + i) * 0.2) * dimFactor * glowIntensity;
-        } else if (ringConfig.halo) {
-          mesh.rotation.x = Math.PI / 2.5;
-          mesh.rotation.z = time * 0.5;
-          const haloGlow = 0.7 + Math.sin(time * 2) * 0.25;
-          mat.opacity = haloGlow * dimFactor * glowIntensity;
-        } else if (ringConfig.shield) {
-          mesh.rotation.z = time * 0.8;
-          const shieldPulse = 0.9 + Math.sin(time * 3) * 0.1;
-          mesh.scale.setScalar(shieldPulse);
-          mat.opacity = (0.65 + Math.sin(time * 5) * 0.2) * dimFactor * glowIntensity;
-        } else if (ringConfig.hex) {
-          mesh.rotation.z = time * 1.2 * direction;
-          mesh.rotation.x = (Math.PI / 3) * i;
-          mat.opacity = (0.7 + Math.sin(time * 3 + i * 0.7) * 0.2) * dimFactor * glowIntensity;
-        } else if (ringConfig.prism) {
-          mesh.rotation.z = time * 2 * direction;
-          mesh.rotation.x = Math.sin(time * 1.5 + i * 0.5) * 0.5;
-          mesh.rotation.y = Math.cos(time * 1.2 + i * 0.3) * 0.4;
-          const hue = (time * 0.1 + i * 0.25) % 1;
-          mat.color.setHSL(hue, 1, 0.6);
-          mat.opacity = (0.8 + Math.sin(time * 4 + i) * 0.15) * dimFactor * glowIntensity;
-        } else {
-          mesh.rotation.z = time * speed * direction;
-          mesh.rotation.x = (Math.PI / 2) + (i * Math.PI / (ringConfig.count + 1)) - Math.PI / 2;
-          mat.opacity = (0.75 - i * 0.1) * dimFactor * glowIntensity;
-        }
-      }
-    });
-    
     // ShieldEffect animates its own meshes via internal refs — no external manipulation needed
   });
   
@@ -1358,6 +1194,9 @@ export function PlayerOrb() {
           <ChargeBeamAura scale={scale} />
         </>
       )}
+
+      {/* Orbital Ring cosmetic set */}
+      <OrbitalRings style={equippedRing} scale={scale} />
 
       {/* Flame Aura cosmetic trail */}
       {equippedTrail === "flame_aura" && <FlameAura scale={scale} />}

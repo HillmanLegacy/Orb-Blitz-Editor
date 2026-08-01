@@ -1,0 +1,85 @@
+Please implement a AAA HD-quality modular "Orbital Ring Customization System" for a stationary Player Orb featuring 10 distinct, fully realized 3D ring sets using custom GLSL shaders, GPU particles, multi-axis geometry, and combat-reactive state animations.
+
+### Objective
+Build a modular ring system where players can select between 10 uniquely themed orbital ring sets. Because the player orb is stationary, each ring set must rely on mesmerizing rotation mechanics, procedural shader animations, gravity pulses, and dynamic visual state triggers (idle breathing, firing acceleration, damage distortion, and ability charging).
+
+---
+
+### Implementation Details
+
+1. Modular Ring Manager & API
+   - Class Structure: Build a modular `OrbitalRingManager` class attached to the Player Orb transform.
+   - Core API: Expose clean methods to swap ring sets on the fly with smooth fade transitions:
+     * `setRingStyle(RingStyleEnum style)`
+     * `triggerFiringPulse()`
+     * `triggerDamageHit(impactPoint)`
+     * `setChargeState(float 0.0_to_1.0)`
+   - Unified State Triggers Across All Sets:
+     * Idle State: Smooth, rhythmic breathing cycle (radius scales ±5–8% over 2.5s).
+     * Firing Trigger: Rings instantly spin 3x faster for 0.4s and flash core emissive shader values to white-hot.
+     * Damage Taken: Rings violently shake/glitch along their axes for 0.2s and emit directional spark bursts.
+     * Charging State: Rings collapse tightly toward the core while ramping up rotation speed and particle emission, snapping back outward on release.
+
+---
+
+### 2. The 10 Unique Orbital Ring Sets
+
+1. "Eclipse Horizon" (Classic Dual-Axis Gyroscope)
+   - Visuals: Primary cyan/cobalt plasma equatorial disk (#00FFFF to #0033FF) flanked by two 45-degree metallic hoops.
+   - Motion: Smooth counter-rotating gyroscope motion (Outer: 1.2 rad/s, Inner: -1.8 rad/s).
+   - Details: 8 floating triangular prism shards orbiting the inner radius; electric arcs snap between shards and orb core.
+
+2. "Singularity Event" (Gravitational Accretion Disk)
+   - Visuals: Inverted black-hole aesthetic. A pitch-black inner event horizon ring surrounded by a violent, ultra-dense orange/violet accretion disk (#FF4500 to #8A2BE2).
+   - Motion: Ultra-fast horizontal rotation with 3D Curl Noise driving swirling gaseous particle eddies.
+   - Details: Distorts background space using a screen-space gravitational lensing refraction shader.
+
+3. "Celestial Aegis" (Paladin Hard-Light Runes)
+   - Visuals: Three concentric floating gold/white hard-light rings (#FFD700 / #FFFFFF) etched with glowing geometric runes and hexagonal lattice patterns.
+   - Motion: Intermittent step-rotation (snaps 30 degrees every 0.8 seconds like a clockwork mechanical lock).
+   - Details: Expands outward into a solid dome shield flash when taking damage.
+
+4. "Chronos Clockwork" (Temporal Gear Matrix)
+   - Visuals: Intricate brass/bronze mechanical gear rings intertwined with glowing cyan time-lines.
+   - Motion: Complex interlocking gear speeds—outer gear spins slowly clockwise while inner cog rings spin in opposing gear ratios.
+   - Details: Leaves a lingering ghost/afterimage trail during firing pulses, simulating time dilations.
+
+5. "Void Tendril Vortex" (Ethereal Dark Matter Fluid)
+   - Visuals: Zero solid geometry. Entirely composed of dark indigo/magenta (#1A002C to #FF0055) liquid-gas particles and swirling fluid tendrils.
+   - Motion: Organic, chaotic fluid swirl driven by procedural 3D Simplex noise vectors.
+   - Details: Emits rising dark smoke and tendrils that stretch outward toward enemies during attacks.
+
+6. "Hyper-Tech Collider" (Particle Accelerator)
+   - Visuals: Sleek carbon-fiber ring housing containing two visible, blindingly white plasma particle beams accelerating in opposite directions.
+   - Motion: Particle beams orbit at extreme speeds inside glass tracks, creating a solid ring of light.
+   - Details: Sparks high-voltage lightning bursts between track gaps when weapon attacks trigger.
+
+7. "Solar Flare Corona" (Sunspot Plasma Waves)
+   - Visuals: Fiery white-gold torus (#FFFFFF to #FFA500) featuring high-amplitude vertex shader displacement that erupts in solar prominences and flares.
+   - Motion: Slow, heavy rolling rotation with turbulent surface bubbling.
+   - Details: Continually sheds burning ember particles that orbit in a loose solar halo before fading out.
+
+8. "Prismatic Lattice" (Crystalline Light Refraction)
+   - Visuals: Low-poly quartz crystal shards forming a jagged, floating halo with dynamic caustic light refraction and rainbow dispersion shaders.
+   - Motion: Shards bob gently up and down on individual sine waves while drifting along the orbit plane.
+   - Details: Prism shards split incoming laser attacks into rainbow particle showers.
+
+9. "Zero-Point Tesla" (High-Voltage Energy Grid)
+   - Visuals: Twin copper conductor rings generating a dense, persistent spherical cage of arc lightning.
+   - Motion: Rings remain mostly static while 10–16 procedural Tesla lightning branches continuously jump, dance, and morph around the perimeter.
+   - Details: On firing, all lightning arcs instantly converge to a single focal point facing the target.
+
+10. "Astral Nebula Ring" (Stardust Cosmic Halo)
+    - Visuals: Soft, billowing cosmic dust cloud ring embedded with thousands of tiny twinkling star points in deep magenta, teal, and gold (#FF00AA, #00F0FF, #FFD700).
+    - Motion: Gentle, majestic orbital swirl resembling a miniature ringed galaxy.
+    - Details: Firing releases a wave of stardust particles that expand outward across the screen.
+
+---
+
+### 3. Performance & Optimization Rules
+   - Pooling: Strict object pooling for all particle emitters, arc lines, and dynamic mesh shards across all 10 sets.
+   - GPU Shaders: Execute procedural noise, rotation matrices, vertex displacement, and color blending inside custom GLSL shaders.
+   - Unloading: Ensure clean memory disposal (geometries, materials, textures) when swapping active ring styles to prevent WebGL context leaks.
+   - Frame Rate Target: Maintain a locked 60+ FPS in Three.js / Babylon.js / WebGL.
+
+Please review the existing graphics engine setup in the project and output clean, modular code implementing this 10-ring customization system.
