@@ -13,9 +13,11 @@ import * as THREE from "three";
 const vertexShader = /* glsl */ `
   varying vec2 vUv;
   varying vec3 vNormal;
+  varying vec3 vPos;
   void main() {
     vUv        = uv;
     vNormal    = normalMatrix * normal;
+    vPos       = position;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
@@ -24,22 +26,31 @@ const fragmentShader = /* glsl */ `
   uniform float uTime;
   varying vec2 vUv;
   varying vec3 vNormal;
+  varying vec3 vPos;
 
-  float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-  float noise(vec2 p) {
-    vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
-    return mix(mix(hash(i), hash(i+vec2(1,0)), f.x),
-               mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), f.x), f.y);
+  // 3-D hash + noise — no UV seam
+  float hash3(vec3 p) {
+    p = fract(p * vec3(443.897, 441.423, 437.195));
+    p += dot(p, p.yzx + 19.19);
+    return fract((p.x + p.y) * p.z);
+  }
+  float noise3(vec3 p) {
+    vec3 i = floor(p); vec3 f = fract(p); f = f*f*(3.0-2.0*f);
+    return mix(
+      mix(mix(hash3(i),           hash3(i+vec3(1,0,0)), f.x),
+          mix(hash3(i+vec3(0,1,0)), hash3(i+vec3(1,1,0)), f.x), f.y),
+      mix(mix(hash3(i+vec3(0,0,1)), hash3(i+vec3(1,0,1)), f.x),
+          mix(hash3(i+vec3(0,1,1)), hash3(i+vec3(1,1,1)), f.x), f.y), f.z);
   }
 
   void main() {
-    vec2 q = vUv * 4.5 + vec2(uTime * 0.22, uTime * 0.12);
-    float n1 = noise(q);
-    float n2 = noise(q * 2.3 + 1.7);
+    vec3 q = vPos * 4.5 + vec3(uTime * 0.22, uTime * 0.12, uTime * 0.08);
+    float n1 = noise3(q);
+    float n2 = noise3(q * 2.3 + 1.7);
     float n  = n1 * 0.65 + n2 * 0.35;
 
     // Sparkle flecks
-    float sparkle = step(0.82, noise(q * 7.0 + uTime * 3.0));
+    float sparkle = step(0.82, noise3(q * 7.0 + uTime * 3.0));
 
     float limb = max(0.0, 1.0 - length(vNormal.xy) * 0.72);
     n = clamp(n * (0.5 + limb * 0.5) + n * 0.15, 0.0, 1.0);

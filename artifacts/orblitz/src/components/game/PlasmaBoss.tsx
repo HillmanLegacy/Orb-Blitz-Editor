@@ -39,14 +39,21 @@ const electricFrag = /* glsl */ `
   varying vec2 vUv;
   varying vec3 vPos;
 
-  float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
   float hash1(float p) { return fract(sin(p) * 43758.5453); }
 
-  float noise(vec2 p) {
-    vec2 i = floor(p); vec2 f = fract(p);
-    f = f*f*(3.0-2.0*f);
-    return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),
-               mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);
+  // 3-D hash + noise — no UV seam
+  float hash3(vec3 p) {
+    p = fract(p * vec3(443.897, 441.423, 437.195));
+    p += dot(p, p.yzx + 19.19);
+    return fract((p.x + p.y) * p.z);
+  }
+  float noise3(vec3 p) {
+    vec3 i = floor(p); vec3 f = fract(p); f = f*f*(3.0-2.0*f);
+    return mix(
+      mix(mix(hash3(i),             hash3(i+vec3(1,0,0)), f.x),
+          mix(hash3(i+vec3(0,1,0)), hash3(i+vec3(1,1,0)), f.x), f.y),
+      mix(mix(hash3(i+vec3(0,0,1)), hash3(i+vec3(1,0,1)), f.x),
+          mix(hash3(i+vec3(0,1,1)), hash3(i+vec3(1,1,1)), f.x), f.y), f.z);
   }
 
   // Thin bright arc line: maximum at sin(x)==0 crossing
@@ -59,11 +66,12 @@ const electricFrag = /* glsl */ `
     vec3 v = normalize(-vViewPos);
     float fresnel = pow(1.0 - max(0.0, dot(n, v)), 1.8);
 
-    // Noise warp — makes arcs look organic, not grid-like
-    vec2 q  = vUv * 3.5 + vec2(uTime * 0.04, uTime * 0.025);
-    float warpX = noise(q) * 2.0 - 1.0;
-    float warpY = noise(q + vec2(3.7, 1.9)) * 2.0 - 1.0;
-    vec2 warped = vUv + vec2(warpX, warpY) * 0.18;
+    // Noise warp — 3-D position sampling eliminates the UV seam
+    vec3 q3  = vPos * 3.5 + vec3(uTime * 0.04, uTime * 0.025, uTime * 0.015);
+    float warpX = noise3(q3) * 2.0 - 1.0;
+    float warpY = noise3(q3 + vec3(3.7, 1.9, 2.3)) * 2.0 - 1.0;
+    float warpZ = noise3(q3 + vec3(1.1, 2.7, 3.5)) * 2.0 - 1.0;
+    vec3 warped = vPos + vec3(warpX, warpY, warpZ) * 0.18;
 
     // Arc layer 1 — wide arcs, slow drift
     float a1 = arcLine(warped.x * 12.0 + uTime * 1.8,  18.0)
@@ -71,10 +79,10 @@ const electricFrag = /* glsl */ `
 
     // Arc layer 2 — finer arcs, cross-oriented
     float a2 = arcLine(warped.x * 20.0 - uTime * 2.7 + 1.1, 22.0)
-             * arcLine(warped.y * 14.0 + uTime * 2.1 + 0.7, 18.0);
+             * arcLine(warped.z * 14.0 + uTime * 2.1 + 0.7, 18.0);
 
     // Arc layer 3 — diagonal web
-    vec2 diag = vec2(warped.x + warped.y, warped.x - warped.y) * 0.707;
+    vec2 diag = vec2(warped.x + warped.y, warped.y - warped.z) * 0.707;
     float a3 = arcLine(diag.x * 16.0 + uTime * 3.1 + 2.0, 20.0)
              * arcLine(diag.y * 11.0 - uTime * 1.9 + 0.5, 16.0);
 
@@ -93,8 +101,8 @@ const electricFrag = /* glsl */ `
     vec3 arcCol = vec3(0.80, 0.88, 1.00);   // near-white arc core
 
     // Noise-based base color
-    float nBase = noise(vUv * 4.0 + vec2(-uTime*0.06, uTime*0.04));
-    float nDetail = noise(vUv * 8.0 + vec2(uTime*0.10, -uTime*0.07));
+    float nBase   = noise3(vPos * 4.0 + vec3(-uTime*0.06,  uTime*0.04,  uTime*0.03));
+    float nDetail = noise3(vPos * 8.0 + vec3( uTime*0.10, -uTime*0.07, -uTime*0.05));
     float t = nBase * 0.65 + nDetail * 0.35;
 
     vec3 col;
