@@ -1,6 +1,10 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useShop, SHOP_ITEMS, ShopItem } from "@/lib/stores/useShop";
-import { useState } from "react";
+import type { RingStyle } from "@/lib/stores/useShop";
+import { useState, useRef, useMemo } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import * as THREE from "three";
+import { OrbitalRings } from "@/components/game/OrbitalRings";
 
 // ─── Per-category design tokens ──────────────────────────────────────────────
 const PALETTE: Record<string, { color: string; shadow: string; icon: string; label: string }> = {
@@ -15,12 +19,88 @@ const PALETTE: Record<string, { color: string; shadow: string; icon: string; lab
 const CAT_ORDER = ["weapon", "defense", "magi_orb", "skin", "trail", "aura"] as const;
 type CatKey = typeof CAT_ORDER[number];
 
+// ─── Aura preview — inner R3F scene ──────────────────────────────────────────
+function AuraPreviewScene({ style }: { style: RingStyle }) {
+  const groupRef = useRef<THREE.Group>(null);
+
+  useFrame(({ clock }) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y = clock.getElapsedTime() * 0.55;
+    }
+  });
+
+  // Dummy orb sphere — dark iridescent material
+  const orbMat = useMemo(() => new THREE.MeshStandardMaterial({
+    color: new THREE.Color("#0d1b2a"),
+    metalness: 0.65,
+    roughness: 0.30,
+    emissive: new THREE.Color("#0a1020"),
+    emissiveIntensity: 0.5,
+  }), []);
+
+  return (
+    <group ref={groupRef}>
+      <mesh material={orbMat}>
+        <sphereGeometry args={[1, 32, 24]} />
+      </mesh>
+      <OrbitalRings style={style} scale={1} />
+    </group>
+  );
+}
+
+// ─── Aura preview — Canvas wrapper ───────────────────────────────────────────
+function AuraPreview({ style, name }: { style: RingStyle; name: string }) {
+  return (
+    <div style={{
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      gap: 8,
+      paddingBottom: 12,
+      borderBottom: "1px solid rgba(0,204,238,0.12)",
+      marginBottom: 8,
+    }}>
+      <div style={{
+        width: 180,
+        height: 180,
+        borderRadius: 16,
+        overflow: "hidden",
+        border: "1px solid rgba(0,204,238,0.22)",
+        background: "radial-gradient(ellipse at center, rgba(0,20,40,0.95) 0%, rgba(0,0,8,0.98) 100%)",
+        boxShadow: "0 0 24px rgba(0,204,238,0.12), inset 0 0 20px rgba(0,0,0,0.5)",
+        flexShrink: 0,
+      }}>
+        <Canvas
+          camera={{ position: [0, 0.4, 4.2], fov: 46 }}
+          style={{ width: "100%", height: "100%" }}
+          gl={{ antialias: true, alpha: true }}
+          dpr={[1, 1.5]}
+        >
+          <ambientLight intensity={0.18} />
+          <AuraPreviewScene style={style} />
+        </Canvas>
+      </div>
+      <p style={{
+        color: "rgba(0,204,238,0.65)",
+        fontSize: "9px",
+        fontWeight: 900,
+        letterSpacing: "0.18em",
+        textTransform: "uppercase",
+        textAlign: "center",
+      }}>
+        {name}
+      </p>
+    </div>
+  );
+}
+
 // ─── Item row ─────────────────────────────────────────────────────────────────
 function ItemRow({
-  item, isOwned, canAfford, onPurchase,
+  item, isOwned, canAfford, onPurchase, onHover, isHighlighted,
 }: {
   item: ShopItem; isOwned: boolean;
   canAfford: boolean; onPurchase: () => void;
+  onHover?: () => void; isHighlighted?: boolean;
 }) {
   const pal = PALETTE[item.category];
   return (
@@ -31,14 +111,26 @@ function ItemRow({
       exit={{ opacity: 0, x: 10 }}
       className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl"
       style={{
-        background: isOwned ? `${pal.color}0a` : "rgba(255,255,255,0.025)",
-        border: `1px solid ${isOwned ? pal.color + "35" : "rgba(255,255,255,0.07)"}`,
+        background: isHighlighted
+          ? `${pal.color}14`
+          : isOwned
+            ? `${pal.color}0a`
+            : "rgba(255,255,255,0.025)",
+        border: `1px solid ${isHighlighted
+          ? pal.color + "55"
+          : isOwned
+            ? pal.color + "35"
+            : "rgba(255,255,255,0.07)"}`,
+        boxShadow: isHighlighted ? `0 0 12px ${pal.shadow}` : "none",
+        cursor: onHover ? "pointer" : undefined,
+        transition: "background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
       }}
+      onMouseEnter={onHover}
     >
       {/* Accent bar */}
       <div style={{
         width: 3, alignSelf: "stretch", minHeight: 36,
-        background: pal.color, borderRadius: 2, opacity: isOwned ? 0.7 : 0.3, flexShrink: 0,
+        background: pal.color, borderRadius: 2, opacity: isOwned ? 0.7 : isHighlighted ? 0.9 : 0.3, flexShrink: 0,
       }} />
       {/* Category icon */}
       <div className="flex items-center justify-center flex-shrink-0 mt-0.5" style={{
@@ -83,12 +175,17 @@ function ItemRow({
 export function Shop() {
   const { coins: stars, shopOpen, closeShop, purchaseItem, isOwned, canAfford } = useShop();
   const [cat, setCat] = useState<CatKey>("weapon");
+  const [hoveredAuraId, setHoveredAuraId] = useState<string | null>(null);
 
   const filteredItems = SHOP_ITEMS
     .filter(i => i.category === cat)
     .sort((a, b) => a.price - b.price);
 
   const activePal = PALETTE[cat];
+
+  // Aura-specific: track which item to preview
+  const auraItems = cat === "aura" ? filteredItems : [];
+  const previewItem = auraItems.find(i => i.id === hoveredAuraId) ?? auraItems[0] ?? null;
 
   return (
     <AnimatePresence>
@@ -191,7 +288,7 @@ export function Shop() {
                     <motion.button
                       key={c}
                       whileTap={{ scale: 0.94 }}
-                      onClick={() => setCat(c)}
+                      onClick={() => { setCat(c); setHoveredAuraId(null); }}
                       className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl w-full text-left"
                       style={{
                         background: active ? `${pal.color}16` : "rgba(255,255,255,0.03)",
@@ -246,7 +343,7 @@ export function Shop() {
 
               </div>
 
-              {/* Right — item list */}
+              {/* Right — item list (+ aura preview when on aura tab) */}
               <div
                 className="flex-1 min-w-0 overflow-y-auto px-4 py-3"
                 style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(0,255,255,0.15) transparent" }}
@@ -260,6 +357,15 @@ export function Shop() {
                     exit={{ opacity: 0, x: -8 }}
                     transition={{ duration: 0.18 }}
                   >
+                    {/* ── Aura live preview ─────────────────────────────── */}
+                    {cat === "aura" && previewItem && (
+                      <AuraPreview
+                        key={previewItem.id}
+                        style={previewItem.value as RingStyle}
+                        name={previewItem.name}
+                      />
+                    )}
+
                     {filteredItems.map(item => (
                       <ItemRow
                         key={item.id}
@@ -267,6 +373,8 @@ export function Shop() {
                         isOwned={isOwned(item.id)}
                         canAfford={canAfford(item.price)}
                         onPurchase={() => purchaseItem(item.id)}
+                        onHover={cat === "aura" ? () => setHoveredAuraId(item.id) : undefined}
+                        isHighlighted={cat === "aura" && previewItem?.id === item.id}
                       />
                     ))}
                     {filteredItems.length === 0 && (
