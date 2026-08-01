@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useShop, SHOP_ITEMS, ShopItem } from "@/lib/stores/useShop";
-import { useState, useRef } from "react";
+import { useState } from "react";
 
 // ─── Per-category design tokens ──────────────────────────────────────────────
 const PALETTE: Record<string, { color: string; shadow: string; icon: string; label: string }> = {
@@ -15,7 +15,7 @@ const PALETTE: Record<string, { color: string; shadow: string; icon: string; lab
 const CAT_ORDER = ["weapon", "defense", "magi_orb", "skin", "trail", "ring"] as const;
 type CatKey = typeof CAT_ORDER[number];
 
-// ─── Compact item row ─────────────────────────────────────────────────────────
+// ─── Item row ─────────────────────────────────────────────────────────────────
 function ItemRow({
   item, isOwned, canAfford, onPurchase,
 }: {
@@ -60,7 +60,9 @@ function ItemRow({
           OWNED
         </span>
       ) : (
-        <motion.button whileTap={{ scale: canAfford ? 0.9 : 1 }} onClick={canAfford ? onPurchase : undefined}
+        <motion.button
+          whileTap={{ scale: canAfford ? 0.9 : 1 }}
+          onClick={canAfford ? onPurchase : undefined}
           disabled={!canAfford}
           className="flex-shrink-0 mt-1 flex items-center gap-1 text-[10px] font-black tracking-wider px-2 py-1 rounded-lg"
           style={{
@@ -79,57 +81,51 @@ function ItemRow({
 
 // ─── Main Shop popup ──────────────────────────────────────────────────────────
 export function Shop() {
-  const {
-    coins: stars, shopOpen, closeShop,
-    purchaseItem, isOwned, canAfford,
-  } = useShop();
-
+  const { coins: stars, shopOpen, closeShop, purchaseItem, isOwned, canAfford } = useShop();
   const [cat, setCat] = useState<CatKey>("weapon");
-  const tabsRef = useRef<HTMLDivElement>(null);
 
   const filteredItems = SHOP_ITEMS
     .filter(i => i.category === cat)
     .sort((a, b) => a.price - b.price);
 
-  const handlePurchase = (item: ShopItem) => {
-    purchaseItem(item.id);
-  };
+  const activePal = PALETTE[cat];
 
   return (
     <AnimatePresence>
       {shopOpen && (
         <motion.div
           className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ padding: "clamp(12px,3vw,24px)" }}
+          style={{ padding: "clamp(10px, 2.5vw, 20px)" }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.22 }}
         >
           {/* Backdrop */}
-          <div className="absolute inset-0 cursor-pointer"
+          <div
+            className="absolute inset-0 cursor-pointer"
             style={{ background: "rgba(0,0,8,0.82)", backdropFilter: "blur(8px)" }}
             onClick={closeShop}
           />
 
-          {/* Card */}
+          {/* Card — wide enough to fit sidebar + items */}
           <motion.div
             className="relative flex flex-col w-full"
             style={{
-              maxWidth: "min(440px, 100%)",
-              maxHeight: "min(86vh, 640px)",
+              maxWidth: "min(720px, 100%)",
+              maxHeight: "min(88vh, 680px)",
               background: "rgba(4,4,18,0.97)",
               border: "1px solid rgba(0,255,255,0.14)",
-              borderRadius: "clamp(16px,2.5vw,24px)",
+              borderRadius: "clamp(16px, 2.5vw, 24px)",
               backdropFilter: "blur(32px)",
-              boxShadow: "0 0 60px rgba(0,255,255,0.08), 0 24px 80px rgba(0,0,0,0.7)",
+              boxShadow: "0 0 80px rgba(0,255,255,0.07), 0 28px 90px rgba(0,0,0,0.75)",
             }}
             initial={{ scale: 0.88, y: 28, opacity: 0 }}
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.9, y: 20, opacity: 0 }}
             transition={{ type: "spring", stiffness: 340, damping: 28 }}
           >
-            {/* Top scanline texture */}
+            {/* Scanline texture */}
             <div className="absolute inset-0 pointer-events-none rounded-[inherit] overflow-hidden" style={{ zIndex: 0 }}>
               <div style={{
                 position: "absolute", inset: 0,
@@ -137,86 +133,174 @@ export function Shop() {
               }} />
             </div>
 
-            {/* ── Header ── */}
-            <div className="relative flex-none flex items-center justify-between px-5 pt-4 pb-3"
-              style={{ borderBottom: "1px solid rgba(255,255,255,0.07)", zIndex: 1 }}>
-              {/* Title */}
-              <span className="font-black text-lg tracking-[0.18em] uppercase"
+            {/* ── Header ─────────────────────────────────────────────────── */}
+            <div
+              className="relative flex-none flex items-center justify-between px-5 pt-4 pb-3"
+              style={{ borderBottom: "1px solid rgba(255,255,255,0.07)", zIndex: 1 }}
+            >
+              <span
+                className="font-black text-lg tracking-[0.18em] uppercase"
                 style={{
                   background: "linear-gradient(90deg,#00ffff,#8844ff,#ff00ff)",
                   WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
                   filter: "drop-shadow(0 0 8px rgba(0,255,255,0.4))",
-                }}>
+                }}
+              >
                 SHOP
               </span>
-              {/* Stars */}
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
-                  style={{ background: "rgba(221,204,0,0.1)", border: "1px solid rgba(221,204,0,0.3)" }}>
+                {/* Stars balance */}
+                <div
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
+                  style={{ background: "rgba(221,204,0,0.1)", border: "1px solid rgba(221,204,0,0.3)" }}
+                >
                   <span style={{ color: "#ddcc00", fontSize: "1rem" }}>★</span>
                   <span className="font-black text-sm" style={{ color: "#ddcc00" }}>{stars.toLocaleString()}</span>
                 </div>
                 {/* Close */}
-                <motion.button whileTap={{ scale: 0.85 }} onClick={closeShop}
+                <motion.button
+                  whileTap={{ scale: 0.85 }}
+                  onClick={closeShop}
                   className="flex items-center justify-center rounded-lg"
-                  style={{ width: 32, height: 32, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)", fontSize: "1.1rem", cursor: "pointer" }}>
+                  style={{
+                    width: 32, height: 32,
+                    background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
+                    color: "rgba(255,255,255,0.5)", fontSize: "1.1rem", cursor: "pointer",
+                  }}
+                >
                   ×
                 </motion.button>
               </div>
             </div>
 
-            {/* ── Category tabs ── */}
-            <div ref={tabsRef} className="relative flex-none flex gap-2 px-4 py-3 overflow-x-auto"
-              style={{
-                borderBottom: "1px solid rgba(255,255,255,0.06)",
-                scrollbarWidth: "none", zIndex: 1,
-              }}>
-              {CAT_ORDER.map(c => {
-                const pal = PALETTE[c];
-                const active = cat === c;
-                return (
-                  <motion.button key={c}
-                    whileTap={{ scale: 0.92 }}
-                    onClick={() => setCat(c)}
-                    className="flex-none flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase whitespace-nowrap"
-                    style={{
-                      color: active ? pal.color : "rgba(255,255,255,0.35)",
-                      background: active ? `${pal.color}18` : "rgba(255,255,255,0.04)",
-                      border: `1px solid ${active ? pal.color + "66" : "rgba(255,255,255,0.08)"}`,
-                      boxShadow: active ? `0 0 14px ${pal.shadow}` : "none",
-                      cursor: "pointer",
-                      transition: "all 0.15s",
-                    }}>
-                    <span>{pal.icon}</span>
-                    <span>{pal.label}</span>
-                  </motion.button>
-                );
-              })}
-            </div>
+            {/* ── Body: sidebar + items ───────────────────────────────────── */}
+            <div className="relative flex flex-1 min-h-0" style={{ zIndex: 1 }}>
 
-            {/* ── Item list ── */}
-            <div className="relative flex-1 min-h-0 overflow-y-auto px-4 py-3"
-              style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(0,255,255,0.15) transparent", zIndex: 1 }}>
-              <AnimatePresence mode="wait">
-                <motion.div key={cat} className="flex flex-col gap-2"
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  transition={{ duration: 0.18 }}>
-                  {filteredItems.map(item => (
-                    <ItemRow
-                      key={item.id}
-                      item={item}
-                      isOwned={isOwned(item.id)}
-                      canAfford={canAfford(item.price)}
-                      onPurchase={() => handlePurchase(item)}
-                    />
-                  ))}
-                  {filteredItems.length === 0 && (
-                    <p className="text-center py-8 text-white/25 text-sm uppercase tracking-widest">No items</p>
-                  )}
-                </motion.div>
-              </AnimatePresence>
+              {/* Left sidebar — all 6 categories always visible */}
+              <div
+                className="flex-none flex flex-col gap-1 py-3 px-2"
+                style={{
+                  width: "clamp(120px, 22%, 152px)",
+                  borderRight: "1px solid rgba(255,255,255,0.06)",
+                }}
+              >
+                {CAT_ORDER.map(c => {
+                  const pal = PALETTE[c];
+                  const active = cat === c;
+                  return (
+                    <motion.button
+                      key={c}
+                      whileTap={{ scale: 0.94 }}
+                      onClick={() => setCat(c)}
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl w-full text-left"
+                      style={{
+                        background: active ? `${pal.color}16` : "rgba(255,255,255,0.03)",
+                        border: `1px solid ${active ? pal.color + "55" : "rgba(255,255,255,0.06)"}`,
+                        boxShadow: active ? `0 0 18px ${pal.shadow}` : "none",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      {/* Icon circle */}
+                      <div
+                        className="flex items-center justify-center flex-shrink-0"
+                        style={{
+                          width: 28, height: 28, borderRadius: 8,
+                          background: active ? `${pal.color}22` : "rgba(255,255,255,0.05)",
+                          border: `1px solid ${active ? pal.color + "55" : "rgba(255,255,255,0.08)"}`,
+                          color: active ? pal.color : "rgba(255,255,255,0.3)",
+                          fontSize: "0.85rem", lineHeight: 1,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {pal.icon}
+                      </div>
+                      {/* Label */}
+                      <span
+                        className="font-black tracking-widest text-[10px] uppercase leading-none"
+                        style={{
+                          color: active ? pal.color : "rgba(255,255,255,0.3)",
+                          textShadow: active ? `0 0 10px ${pal.color}88` : "none",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {pal.label}
+                      </span>
+
+                      {/* Active accent line */}
+                      {active && (
+                        <motion.div
+                          layoutId="cat-accent"
+                          className="absolute right-0"
+                          style={{
+                            width: 2, top: "20%", bottom: "20%",
+                            background: pal.color,
+                            borderRadius: "2px 0 0 2px",
+                            boxShadow: `0 0 8px ${pal.color}`,
+                          }}
+                        />
+                      )}
+                    </motion.button>
+                  );
+                })}
+
+                {/* Active category glow badge */}
+                <div className="mt-auto pt-3 px-1">
+                  <motion.div
+                    key={cat}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-lg px-2 py-2 text-center"
+                    style={{
+                      background: `${activePal.color}0c`,
+                      border: `1px solid ${activePal.color}28`,
+                    }}
+                  >
+                    <span
+                      className="font-black text-[28px] leading-none block"
+                      style={{ color: activePal.color, filter: `drop-shadow(0 0 6px ${activePal.color})` }}
+                    >
+                      {activePal.icon}
+                    </span>
+                    <span className="text-[8px] font-black tracking-widest uppercase mt-1 block"
+                      style={{ color: `${activePal.color}88` }}>
+                      {activePal.label}
+                    </span>
+                  </motion.div>
+                </div>
+              </div>
+
+              {/* Right — item list */}
+              <div
+                className="flex-1 min-w-0 overflow-y-auto px-4 py-3"
+                style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(0,255,255,0.15) transparent" }}
+              >
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={cat}
+                    className="flex flex-col gap-2"
+                    initial={{ opacity: 0, x: 12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -8 }}
+                    transition={{ duration: 0.18 }}
+                  >
+                    {filteredItems.map(item => (
+                      <ItemRow
+                        key={item.id}
+                        item={item}
+                        isOwned={isOwned(item.id)}
+                        canAfford={canAfford(item.price)}
+                        onPurchase={() => purchaseItem(item.id)}
+                      />
+                    ))}
+                    {filteredItems.length === 0 && (
+                      <p className="text-center py-12 text-white/25 text-sm uppercase tracking-widest">
+                        No items
+                      </p>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
             </div>
           </motion.div>
         </motion.div>
