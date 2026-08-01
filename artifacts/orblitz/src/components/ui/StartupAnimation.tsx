@@ -496,15 +496,11 @@ export function StartupAnimation({
               </div>
             </div>
 
-            {/* Back button */}
-            <div className="flex-none border-t text-center" style={{ borderColor: "rgba(255,255,255,0.07)", padding: "clamp(10px, 2vh, 20px) 0 clamp(16px, 3vh, 32px)" }}>
-              <button
-                onClick={panelButtons[0]?.action}
-                className="text-xs font-bold tracking-widest uppercase"
-                style={{ color: "rgba(0,255,255,0.65)", letterSpacing: "0.18em" }}
-              >
-                ← {menuState === "levels" ? "WORLDS" : "BACK"}
-              </button>
+            {/* Back button — styled to match ButtonRow */}
+            <div className="flex-none border-t flex justify-center" style={{ borderColor: "rgba(255,255,255,0.07)", padding: "clamp(10px, 2vh, 20px) clamp(16px, 4vw, 56px) clamp(16px, 3vh, 32px)" }}>
+              <div style={{ width: "clamp(120px, 40vw, 200px)" }}>
+                <ButtonRow buttons={panelButtons} pressedBtn={pressedBtn} setPressedBtn={setPressedBtn} compact />
+              </div>
             </div>
           </motion.div>
         )}

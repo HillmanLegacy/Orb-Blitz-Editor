@@ -192,7 +192,7 @@ export function ArcadeComplete() {
 
         {/* Tap CTA — identical style to main menu "Tap to Start" */}
         <motion.p
-          className="mt-8 font-semibold uppercase"
+          className="mt-5 font-semibold uppercase"
           style={{
             color: "rgba(0,255,255,0.8)",
             textShadow: "0 0 18px rgba(0,255,255,0.45)",
