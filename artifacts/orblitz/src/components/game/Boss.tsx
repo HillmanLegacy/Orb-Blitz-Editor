@@ -633,7 +633,14 @@ export function Boss() {
           lerpSpeed = 4.5;
           if (monsterPhaseTimerRef.current <= 0) {
             monsterPhaseRef.current = 'charge';
-            monsterChargeTargetRef.current = [playerX, playerY];
+            // Target 3 units away from the player (toward boss), never the exact position
+            const cdx = bossPosRef.current[0] - playerX;
+            const cdy = bossPosRef.current[1] - playerY;
+            const cdist = Math.sqrt(cdx * cdx + cdy * cdy) || 1;
+            monsterChargeTargetRef.current = [
+              playerX + (cdx / cdist) * 3.0,
+              playerY + (cdy / cdist) * 3.0,
+            ];
             monsterPhaseTimerRef.current = 1.2 + Math.random() * 0.8;
           }
         } else if (mPhase === 'charge') {
@@ -867,7 +874,10 @@ export function Boss() {
       let finalX = bossPosRef.current[0] + (targetX - bossPosRef.current[0]) * lerpFactor;
       let finalY = bossPosRef.current[1] + (targetY - bossPosRef.current[1]) * lerpFactor;
 
-      const safePos = keepDistanceFromPlayer([finalX, finalY, 0], [playerX, playerY, 0], MIN_PLAYER_DISTANCE, delta);
+      // Monster boss orbits closely by design — use a tighter 2.5-unit exclusion
+      // so its orbit/charge phases don't fight the generic 7-unit push-back.
+      const monsterMinDist = bossType === "monster" ? 2.5 : MIN_PLAYER_DISTANCE;
+      const safePos = keepDistanceFromPlayer([finalX, finalY, 0], [playerX, playerY, 0], monsterMinDist, delta);
       finalX = safePos[0];
       finalY = safePos[1];
 
