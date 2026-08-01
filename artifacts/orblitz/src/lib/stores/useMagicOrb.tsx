@@ -1388,7 +1388,9 @@ export const useMagicOrb = create<MagicOrbState>()(
     
     activateDistortField: () => {
       const { distortCooldown, hasDistort, distortMaxCooldown } = get();
-      if (!hasDistort || distortCooldown > 0) return;
+      const { equippedDefenses } = useShop.getState();
+      const hasDistortDefense = equippedDefenses.includes("distort_field");
+      if ((!hasDistort && !hasDistortDefense) || distortCooldown > 0) return;
       
       set({
         distortActive: true,
