@@ -9,10 +9,10 @@ const PALETTE: Record<string, { color: string; shadow: string; icon: string; lab
   magi_orb: { color: "#8844ff", shadow: "rgba(136,68,255,0.5)",  icon: "◆", label: "MAGI-ORB" },
   skin:     { color: "#ff00ff", shadow: "rgba(255,0,255,0.5)",   icon: "●", label: "SKINS"    },
   trail:    { color: "#ddcc00", shadow: "rgba(221,204,0,0.45)",  icon: "≋", label: "TRAILS"   },
-  ring:     { color: "#00ccee", shadow: "rgba(0,204,238,0.45)",  icon: "○", label: "RINGS"    },
+  aura:     { color: "#00ccee", shadow: "rgba(0,204,238,0.45)",  icon: "✦", label: "AURA"     },
 };
 
-const CAT_ORDER = ["weapon", "defense", "magi_orb", "skin", "trail", "ring"] as const;
+const CAT_ORDER = ["weapon", "defense", "magi_orb", "skin", "trail", "aura"] as const;
 type CatKey = typeof CAT_ORDER[number];
 
 // ─── Item row ─────────────────────────────────────────────────────────────────

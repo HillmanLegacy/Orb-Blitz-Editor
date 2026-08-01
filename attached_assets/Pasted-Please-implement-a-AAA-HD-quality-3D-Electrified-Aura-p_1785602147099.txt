@@ -1,0 +1,41 @@
+Please implement a AAA HD-quality 3D "Electrified Aura" particle and shader effect designed to envelop a 3D entity (such as a Player Orb or Character Mesh) in a living, high-voltage electrical field using GPU particles and custom GLSL shaders.
+
+### Objective
+Create a hyper-reactive, high-contrast electrical aura. The effect should look like violent, crackling Tesla arcs snapping along the surface of the entity, accompanied by an ambient halo of floating ionic plasma sparks, electromagnetic discharge, and screen-space distortion.
+
+---
+
+### Implementation Details
+
+1. Surface Arc Network (High-Frequency Tesla Branching)
+   - Procedural Line Geometry: Generate a dynamic web of 12–20 procedural 3D line ribbons/stripes anchored to the entity's surface.
+   - GLSL Vertex Jitter Shader:
+     * Use custom GLSL shaders to apply high-frequency 3D Simplex noise to line vertices, causing them to jaggedly jump, snap, and recalculate positions every 0.02s (50Hz crackle).
+     * Color Profile: Blinding white core (#FFFFFF) with an ultra-bright Electric Cyan (#00FFFF) and Deep Violet-Blue (#1A00FF) outer glow pass.
+   - Branching Arcs: Procedurally fork main arcs into smaller micro-tendrils that jump off the surface into empty space and dissipate quickly.
+
+2. Volumetric Plasma Shell (Fresnel Electric Shield)
+   - Outer Shell Mesh: Surround the main entity mesh with a slightly inflated duplicate mesh (1.05x to 1.15x scale) using an Additive Blending ShaderMaterial.
+   - Fresnel Glow Calculation: Compute strong Fresnel edge intensity so the perimeter glows intensely with electric energy while keeping the core visible.
+   - Animated Surface Noise: Drive surface opacity with a fast-scrolling 3D noise map to simulate continuous electrical current flowing across the shell.
+
+3. Ionic Spark & Stardust Particle Emitter (GPU Particles)
+   - Particle System: Create a GPU-instanced particle emitter spawning 150–250 high-velocity electrical sparks from the entity's surface.
+   - Spark Behavior:
+     * Sparks burst outward along surface normal vectors, then curve wildly using 3D Curl Noise to simulate magnetic field lines.
+     * Life Cycle: Short lifespan (0.15s – 0.4s) with rapid scale-down and color decay from white to electric cyan to translucent indigo.
+
+4. Spatial Electromagnetic Distortion & Light
+   - Dynamic Point Light Flash: Attach a dynamic point light to the entity's core with an electric blue hue (#00E1FF). Randomize its light intensity every frame to simulate flicker from the lightning arcs.
+   - Heat-Haze / Electromagnetic Refraction: Apply a subtle screen-space refraction pass around the perimeter of the aura to visually warp space geometry, conveying extreme high-voltage energy.
+
+5. Combat Reactivity & State Controls
+   - Intensity API: Expose a clear scalar method (e.g., `setAuraIntensity(float factor)`) to modulate arc density, noise frequency, and particle count from 0.0 (subtle idle hum) to 2.0 (overcharged super-state).
+   - Burst Trigger: Implement an `impactBurst()` trigger that violently expands the aura shell outward and ejects a high-density radial wave of electric sparks upon taking or dealing a hit.
+
+6. Performance & Technical Constraints
+   - Object Pooling: Pool all line segment buffers, particle systems, and dynamic line meshes to prevent memory allocation spikes.
+   - GPU-Bound Animation: Perform all noise generation, arc vertex displacement, and spark trajectory calculations inside custom WebGL shaders on the GPU.
+   - Target Performance: Maintain a rock-solid 60+ FPS inside Three.js / Babylon.js / WebGL environments.
+
+Please review the current graphics engine setup in the project and output clean, modular code to implement this Electrified Aura system.

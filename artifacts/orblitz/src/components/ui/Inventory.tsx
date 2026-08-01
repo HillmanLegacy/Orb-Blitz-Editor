@@ -3,8 +3,8 @@ import { useShop, SHOP_ITEMS, ShopItem, OrbSkin, TrailEffect, RingStyle, WeaponT
 import { useState } from "react";
 
 // ─── Slot definitions ─────────────────────────────────────────────────────────
-type SlotKey = "weapon" | "defense_0" | "defense_1" | "magi_orb" | "skin" | "trail" | "ring";
-type Category = "weapon" | "defense" | "magi_orb" | "skin" | "trail" | "ring";
+type SlotKey = "weapon" | "defense_0" | "defense_1" | "magi_orb" | "skin" | "trail" | "aura";
+type Category = "weapon" | "defense" | "magi_orb" | "skin" | "trail" | "aura";
 
 interface SlotDef {
   key: SlotKey;
@@ -32,7 +32,7 @@ const SLOTS: SlotDef[] = [
   { key: "magi_orb",  label: "MAGI-ORB",  icon: "◆", color: "#8844ff", shadow: "rgba(136,68,255,0.45)", cat: "magi_orb" },
   { key: "skin",      label: "SKIN",       icon: "●", color: "#ff00ff", shadow: "rgba(255,0,255,0.45)",  cat: "skin"     },
   { key: "trail",     label: "TRAIL",      icon: "≋", color: "#ddcc00", shadow: "rgba(221,204,0,0.4)",   cat: "trail"    },
-  { key: "ring",      label: "RING",       icon: "○", color: "#00ccee", shadow: "rgba(0,204,238,0.4)",   cat: "ring"     },
+  { key: "aura",      label: "AURA",       icon: "✦", color: "#00ccee", shadow: "rgba(0,204,238,0.4)",   cat: "aura"     },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ function getEquippedValue(slot: SlotDef, eq: EquippedState): string {
     case "magi_orb": return eq.equippedMagiOrb;
     case "skin":     return eq.equippedSkin;
     case "trail":    return eq.equippedTrail;
-    case "ring":     return eq.equippedRing;
+    case "aura":     return eq.equippedRing;
   }
 }
 
@@ -54,7 +54,7 @@ function getEquippedName(slot: SlotDef, val: string): string {
 
 function clearMeta(cat: Category): { label: string; desc: string } {
   if (cat === "skin")    return { label: "Default Skin",  desc: "Standard orb appearance"  };
-  if (cat === "ring")    return { label: "Default Ring",  desc: "Standard orbital ring"     };
+  if (cat === "aura")    return { label: "Default Aura",  desc: "No aura equipped"           };
   if (cat === "trail")   return { label: "No Trail",      desc: "Remove trail effect"       };
   if (cat === "weapon")  return { label: "No Weapon",     desc: "Unequip weapon"            };
   if (cat === "defense") return { label: "Empty Slot",    desc: "Remove defense from slot"  };
@@ -82,7 +82,7 @@ export function Inventory() {
     switch (slot.cat) {
       case "skin":     equipSkin(item ? item.value as OrbSkin : "default"); break;
       case "trail":    equipTrail(item ? item.value as TrailEffect : "none"); break;
-      case "ring":     equipRing(item ? item.value as RingStyle : "default"); break;
+      case "aura":     equipRing(item ? item.value as RingStyle : "default"); break;
       case "weapon":   equipWeapon(item ? item.value as WeaponType : "none"); break;
       case "defense":  equipDefense(item ? item.value as DefenseType : "none", slot.defSlot!); break;
       case "magi_orb": equipMagiOrb(item ? item.value as MagiOrbType : "none"); break;

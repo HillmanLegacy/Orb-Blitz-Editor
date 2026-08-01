@@ -13,7 +13,7 @@ export interface ShopItem {
   name: string;
   description: string;
   price: number;
-  category: "skin" | "trail" | "ring" | "weapon" | "defense" | "magi_orb";
+  category: "skin" | "trail" | "aura" | "weapon" | "defense" | "magi_orb";
   value: OrbSkin | TrailEffect | RingStyle | WeaponType | DefenseType | MagiOrbType;
 }
 
@@ -51,16 +51,16 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: "trail_particle_swarm", name: "Particle Swarm", description: "A living swarm of energy particles orbits your projectile", price: 600, category: "trail", value: "particle_swarm" },
   { id: "trail_flame_aura", name: "Flame Aura", description: "Upward-flowing fire embers surround your orb. Awarded for defeating the Fire Boss.", price: 4000, category: "trail", value: "flame_aura" },
   
-  { id: "ring_eclipse_horizon",   name: "Eclipse Horizon",       description: "Dual-axis gyroscope — cyan plasma disk with counter-rotating metallic hoops",          price: 400, category: "ring", value: "eclipse_horizon"   },
-  { id: "ring_singularity_event", name: "Singularity Event",     description: "Gravitational accretion disk — black event horizon with violent orange/violet eddies", price: 500, category: "ring", value: "singularity_event" },
-  { id: "ring_celestial_aegis",   name: "Celestial Aegis",       description: "Three concentric gold hard-light rune rings with clockwork step-rotation",             price: 400, category: "ring", value: "celestial_aegis"   },
-  { id: "ring_chronos_clockwork", name: "Chronos Clockwork",     description: "Interlocking brass gear rings at precise gear ratios with cyan timeline overlay",      price: 450, category: "ring", value: "chronos_clockwork" },
-  { id: "ring_void_tendril",      name: "Void Tendril Vortex",   description: "Pure dark-matter fluid — 80 swirling indigo and magenta particles, no solid geometry", price: 500, category: "ring", value: "void_tendril"      },
-  { id: "ring_hyper_collider",    name: "Hyper-Tech Collider",   description: "Particle accelerator with twin plasma beams orbiting at extreme speed inside a housing ring", price: 500, category: "ring", value: "hyper_collider"    },
-  { id: "ring_solar_corona",      name: "Solar Flare Corona",    description: "Shader-displaced torus with solar prominences, bubbling surface, and burning ember halo", price: 600, category: "ring", value: "solar_corona"      },
-  { id: "ring_prismatic_lattice", name: "Prismatic Lattice",     description: "12 crystal cone shards bob in a rainbow-caustic halo with individual sine wave motion",  price: 500, category: "ring", value: "prismatic_lattice" },
-  { id: "ring_zero_tesla",        name: "Zero-Point Tesla",      description: "Twin copper conductor rings surrounded by 12 persistent arc lightning branches",         price: 600, category: "ring", value: "zero_tesla"        },
-  { id: "ring_astral_nebula",     name: "Astral Nebula Ring",    description: "200 twinkling stardust points orbit in magenta, teal, and gold like a miniature galaxy", price: 600, category: "ring", value: "astral_nebula"     },
+  { id: "ring_eclipse_horizon",   name: "Electrified Aura",      description: "High-voltage Tesla field — Fresnel plasma shell, 40 crackling arc lines, and 200 ionic sparks that burst on impact", price: 700, category: "aura", value: "eclipse_horizon"   },
+  { id: "ring_singularity_event", name: "Singularity Event",     description: "Gravitational accretion disk — black event horizon with violent orange/violet eddies", price: 500, category: "aura", value: "singularity_event" },
+  { id: "ring_celestial_aegis",   name: "Celestial Aegis",       description: "Three concentric gold hard-light rune rings with clockwork step-rotation",             price: 400, category: "aura", value: "celestial_aegis"   },
+  { id: "ring_chronos_clockwork", name: "Chronos Clockwork",     description: "Interlocking brass gear rings at precise gear ratios with cyan timeline overlay",      price: 450, category: "aura", value: "chronos_clockwork" },
+  { id: "ring_void_tendril",      name: "Void Tendril Vortex",   description: "Pure dark-matter fluid — 80 swirling indigo and magenta particles, no solid geometry", price: 500, category: "aura", value: "void_tendril"      },
+  { id: "ring_hyper_collider",    name: "Hyper-Tech Collider",   description: "Particle accelerator with twin plasma beams orbiting at extreme speed inside a housing ring", price: 500, category: "aura", value: "hyper_collider"    },
+  { id: "ring_solar_corona",      name: "Solar Flare Corona",    description: "Shader-displaced torus with solar prominences, bubbling surface, and burning ember halo", price: 600, category: "aura", value: "solar_corona"      },
+  { id: "ring_prismatic_lattice", name: "Prismatic Lattice",     description: "12 crystal cone shards bob in a rainbow-caustic halo with individual sine wave motion",  price: 500, category: "aura", value: "prismatic_lattice" },
+  { id: "ring_zero_tesla",        name: "Zero-Point Tesla",      description: "Twin copper conductor rings surrounded by 12 persistent arc lightning branches",         price: 600, category: "aura", value: "zero_tesla"        },
+  { id: "ring_astral_nebula",     name: "Astral Nebula Ring",    description: "200 twinkling stardust points orbit in magenta, teal, and gold like a miniature galaxy", price: 600, category: "aura", value: "astral_nebula"     },
   
   { id: "weapon_orbital_rapid_blaster", name: "Orbital Rapid Blaster", description: "Fires 6 shots per second. Each projectile destroys 1 enemy.", price: 2000, category: "weapon", value: "orbital_rapid_blaster" },
   { id: "weapon_orbital_scattershot", name: "Orbital Scattershot", description: "Fires 3 projectiles in a wedge pattern. Each destroys 1 enemy.", price: 2000, category: "weapon", value: "orbital_scattershot" },
