@@ -244,30 +244,6 @@ export function Shop() {
                   );
                 })}
 
-                {/* Active category glow badge */}
-                <div className="mt-auto pt-3 px-1">
-                  <motion.div
-                    key={cat}
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="rounded-lg px-2 py-2 text-center"
-                    style={{
-                      background: `${activePal.color}0c`,
-                      border: `1px solid ${activePal.color}28`,
-                    }}
-                  >
-                    <span
-                      className="font-black text-[28px] leading-none block"
-                      style={{ color: activePal.color, filter: `drop-shadow(0 0 6px ${activePal.color})` }}
-                    >
-                      {activePal.icon}
-                    </span>
-                    <span className="text-[8px] font-black tracking-widest uppercase mt-1 block"
-                      style={{ color: `${activePal.color}88` }}>
-                      {activePal.label}
-                    </span>
-                  </motion.div>
-                </div>
               </div>
 
               {/* Right — item list */}
