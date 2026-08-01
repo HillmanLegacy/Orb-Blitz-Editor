@@ -290,38 +290,44 @@ export function DefenseOrbs() {
     const py        = playerPosition[1];
 
     if (n === 0) {
-      // Hide all tethers
+      // Hide all tethers but keep shards/shockwave running (handled below)
       tethersRef.current.forEach(t => { t.line.visible = false; });
-      return;
     }
 
-    const spd = n <= 2 ? LOW_SPD : BASE_SPD;
+    if (n > 0) {
+      const spd = n <= 2 ? LOW_SPD : BASE_SPD;
 
-    // ── Rotate + rebalance angles ────────────────────────────────────────────
-    // Sort alive orbs by their current angle so target assignment is stable
-    const sorted = aliveOrbs
-      .map(o => ({ id: o.id, cur: orbStatesRef.current.get(o.id)?.current.angle ?? 0 }))
-      .sort((a, b) => a.cur - b.cur);
+      // ── Rotate + rebalance angles ──────────────────────────────────────────
+      if (n > 1) {
+        // Sort alive orbs by current angle so target assignment is stable
+        const sorted = aliveOrbs
+          .map(o => ({ id: o.id, cur: orbStatesRef.current.get(o.id)?.current.angle ?? 0 }))
+          .sort((a, b) => a.cur - b.cur);
 
-    const baseAngle = sorted[0]?.cur ?? 0;
-    sorted.forEach((entry, i) => {
-      const st = orbStatesRef.current.get(entry.id);
-      if (st) st.current.targetA = baseAngle + (i / n) * Math.PI * 2;
-    });
+        const baseAngle = sorted[0]?.cur ?? 0;
+        sorted.forEach((entry, i) => {
+          const st = orbStatesRef.current.get(entry.id);
+          if (st) st.current.targetA = baseAngle + (i / n) * Math.PI * 2;
+        });
+      }
 
-    for (const orb of aliveOrbs) {
-      const st = orbStatesRef.current.get(orb.id);
-      if (!st) continue;
-      const s = st.current;
+      for (const orb of aliveOrbs) {
+        const st = orbStatesRef.current.get(orb.id);
+        if (!st) continue;
+        const s = st.current;
 
-      s.angle += delta * spd;
+        s.angle += delta * spd;
 
-      // Lerp toward rebalance target
-      let diff = s.targetA - s.angle;
-      while (diff >  Math.PI) diff -= Math.PI * 2;
-      while (diff < -Math.PI) diff += Math.PI * 2;
-      s.angle += diff * Math.min(1, REBAL_SPD * delta);
-    }
+        // Lerp toward rebalance target only when multiple orbs exist —
+        // with n=1 the target would equal the pre-increment angle every frame,
+        // making diff ≈ -deltaSpeed and cancelling all rotation.
+        if (n > 1) {
+          let diff = s.targetA - s.angle;
+          while (diff >  Math.PI) diff -= Math.PI * 2;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          s.angle += diff * Math.min(1, REBAL_SPD * delta);
+        }
+      }
 
     // ── Collision detection ──────────────────────────────────────────────────
     outerLoop:
@@ -387,9 +393,11 @@ export function DefenseOrbs() {
           t.line.visible = false;
         }
       }
-    }
+    } // end tethers
 
-    // ── Shard particles ──────────────────────────────────────────────────────
+    } // end if (n > 0)
+
+    // ── Shard particles (run even when n===0 so last burst finishes) ─────────
     const gm = goldRef.current;
     const bm = blueRef.current;
     let anyG = false, anyB = false;
