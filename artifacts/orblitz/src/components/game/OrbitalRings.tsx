@@ -15,62 +15,132 @@ interface RingProps { scale: number }
 const _dummy = new THREE.Object3D();
 const _col   = new THREE.Color();
 
-// ── ElectrifiedAura shader strings ───────────────────────────────────────────
-const _auraVert = /* glsl */`
-  uniform float u_time;
-  uniform float u_intensity;
-  varying vec3 vNormal;
-  varying vec3 vViewDir;
-  void main() {
-    float nx = sin(position.x * 12.0 + u_time * 5.0) * cos(position.y *  9.0 + u_time * 4.0);
-    float ny = cos(position.y * 10.0 + u_time * 5.5) * sin(position.z *  8.0 + u_time * 3.5);
-    float nz = sin(position.z * 11.0 + u_time * 4.5) * cos(position.x *  7.0 + u_time * 6.0);
-    vec3 displaced = position + normal * (nx + ny + nz) * 0.05 * u_intensity;
-    vec4 worldPos  = modelViewMatrix * vec4(displaced, 1.0);
-    vNormal  = normalize(normalMatrix * normal);
-    vViewDir = normalize(-worldPos.xyz);
-    gl_Position = projectionMatrix * worldPos;
-  }
-`;
-const _auraFrag = /* glsl */`
-  uniform float u_time;
-  uniform float u_intensity;
-  varying vec3 vNormal;
-  varying vec3 vViewDir;
-  void main() {
-    float NdotV  = max(dot(vNormal, vViewDir), 0.0);
-    float fresnel = pow(1.0 - NdotV, 2.5);
-    float f1  = sin(vNormal.x * 8.0 + u_time * 6.0) * 0.5 + 0.5;
-    float f2  = cos(vNormal.y * 6.0 + u_time * 4.5) * 0.5 + 0.5;
-    float flow = f1 * f2;
-    vec3 col  = mix(vec3(0.0, 1.0, 1.0), vec3(1.0), fresnel * 0.8);
-    col = mix(col, vec3(0.1, 0.0, 1.0), flow * 0.35);
-    col += vec3(1.0) * flow * 0.2 * u_intensity;
-    float alpha = (fresnel * 0.75 + flow * 0.18) * u_intensity;
-    gl_FragColor = vec4(col, clamp(alpha, 0.0, 1.0));
-  }
-`;
+// ── GLSL: dielectric plasma shell — Voronoi cellular noise + N·V⁴ Fresnel ────
+const _elecShellVert = /* glsl */`
+uniform float uTime;
+uniform float uIntensity;
+varying vec3  vNrm;
+varying vec3  vView;
+varying vec2  vUv2;
+void main() {
+  float nx = sin(position.x*18.0+uTime*8.2)*cos(position.y*14.0+uTime*6.5);
+  float ny = cos(position.y*16.0+uTime*7.1)*sin(position.z*12.0+uTime*5.8);
+  float nz = sin(position.z*15.0+uTime*9.3)*cos(position.x*11.0+uTime*7.8);
+  float disp = (nx+ny+nz)*0.032*uIntensity;
+  vec3 displaced = position + normal*disp;
+  vec4 wp = modelMatrix * vec4(displaced, 1.0);
+  vNrm  = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+  vView = normalize(cameraPosition - wp.xyz);
+  vUv2  = uv;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
+}`;
 
-// ── ElectrifiedAura arc constants ─────────────────────────────────────────────
-const _N_SPARKS   = 200;
-const _N_ARCS     = 16;
+const _elecShellFrag = /* glsl */`
+uniform float uTime;
+uniform float uIntensity;
+uniform float uWhiteHot;
+varying vec3  vNrm;
+varying vec3  vView;
+varying vec2  vUv2;
+
+float _vh(vec2 p){p=fract(p*vec2(127.1,311.7));p+=dot(p,p+73.2);return fract(p.x*p.y);}
+float voronoi(vec2 p, float spd) {
+  vec2 ip=floor(p); vec2 fp=fract(p); float d=1e9;
+  for(int y=-1;y<=1;y++) for(int x=-1;x<=1;x++){
+    vec2 g=vec2(float(x),float(y));
+    vec2 o=0.5+0.5*sin(uTime*spd+6.2831*fract(sin(vec2(dot(ip+g,vec2(127.1,311.7)),dot(ip+g,vec2(269.5,183.3))))*43758.5453));
+    vec2 r=g+o-fp; d=min(d,dot(r,r));
+  }
+  return sqrt(d);
+}
+
+void main() {
+  float NdotV  = max(0.0, dot(normalize(vNrm), normalize(vView)));
+  float fresnel = pow(1.0 - NdotV, 4.0);                 // steep N·V⁴
+  float v1 = 1.0 - voronoi(vUv2*5.5 + vec2(uTime*0.7,0.0), 2.2);
+  float v2 = 1.0 - voronoi(vUv2*9.0 - vec2(0.0,uTime*1.1), 3.4);
+  float plasma = v1*0.65 + v2*0.35;
+  // Ramp: White-Hot → Electric Cyan #00FFFF → Ultraviolet #7B00FF → Deep Cobalt #0011FF
+  vec3 cW=vec3(1.00,1.00,1.00), cC=vec3(0.00,1.00,1.00), cU=vec3(0.48,0.00,1.00), cB=vec3(0.00,0.07,1.00);
+  float t = fresnel*0.55 + plasma*0.45;
+  vec3 col;
+  if      (t > 0.75) col = mix(cC, cW, (t-0.75)*4.0);
+  else if (t > 0.50) col = mix(cU, cC, (t-0.50)*4.0);
+  else if (t > 0.25) col = mix(cB, cU, (t-0.25)*4.0);
+  else               col = cB;
+  col = mix(col, cW, uWhiteHot*0.92);
+  float alpha = (fresnel*0.80 + plasma*0.22) * uIntensity;
+  gl_FragColor = vec4(col, clamp(alpha, 0.0, 0.96));
+}`;
+
+// ── GLSL: chromatic dispersion outer sphere (1.35×) — RGB channel splitting ──
+const _elecDispVert = /* glsl */`
+varying vec2 vUv;
+varying vec3 vNrm;
+varying vec3 vView;
+void main() {
+  vUv = uv;
+  vec4 wp = modelMatrix * vec4(position, 1.0);
+  vNrm  = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+  vView = normalize(cameraPosition - wp.xyz);
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}`;
+
+const _elecDispFrag = /* glsl */`
+uniform float uTime;
+varying vec2 vUv;
+varying vec3 vNrm;
+varying vec3 vView;
+float _dh(vec2 p){p=fract(p*vec2(234.34,435.35));p+=dot(p,p+34.23);return fract(p.x*p.y);}
+float _dn(vec2 p){
+  vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);
+  return mix(mix(_dh(i),_dh(i+vec2(1,0)),f.x),mix(_dh(i+vec2(0,1)),_dh(i+vec2(1,1)),f.x),f.y);
+}
+void main() {
+  float NdotV = abs(dot(normalize(vNrm), normalize(vView)));
+  float edge  = 1.0 - NdotV;
+  float n = _dn(vUv*8.0+vec2(uTime*1.2,0.0))*0.6 + _dn(vUv*15.0-vec2(0.0,uTime*0.8))*0.4;
+  float disp = edge * n * 0.025;
+  float r = _dn((vUv+vec2(disp,0.0))*8.0+vec2(uTime*1.2,0.0)) * 0.35;
+  float g = n * 0.65;
+  float b = _dn((vUv-vec2(disp,0.0))*8.0+vec2(uTime*1.2,0.0)) * 1.0;
+  float alpha = (n*0.14 + edge*0.06) * 0.75;
+  gl_FragColor = vec4(r, g, b, clamp(alpha, 0.0, 0.32));
+}`;
+
+// ── Arc / particle constants ──────────────────────────────────────────────────
+const _N_SPARKS   = 300;
+const _N_ARCS     = 20;
 const _N_BRANCHES = 24;
-const _ARC_PTS    = 14;
-const _BRANCH_PTS = 7;
+const _ARC_PTS    = 18;
+const _BRANCH_PTS = 8;
 
-// Shared geometries (never disposed — module-level singletons)
-const _geo_xs   = new THREE.SphereGeometry(0.018, 4, 3);
-const _geo_sm   = new THREE.SphereGeometry(0.032, 5, 3);
-const _geo_tri  = new THREE.CircleGeometry(0.055, 3);
-const _geo_cone = new THREE.ConeGeometry(0.042, 0.17, 4);
+// ── Shared geometries (module-level singletons — never disposed) ──────────────
+const _geo_xs    = new THREE.SphereGeometry(0.018, 4, 3);
+const _geo_sm    = new THREE.SphereGeometry(0.032, 5, 3);
+const _geo_tri   = new THREE.CircleGeometry(0.055, 3);
+const _geo_cone  = new THREE.ConeGeometry(0.042, 0.17, 4);
+const _elecShGeo = new THREE.SphereGeometry(1, 40, 28);
+const _elecDpGeo = new THREE.SphereGeometry(1, 24, 16);
 
-// Shared materials for instanced meshes with vertexColors
+// ── Shared vertexColors material (used by SingularityEvent, VoidTendril, etc.) 
 const _mat_vc = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, vertexColors: true });
 
+// ── Module-level intensity state + public API ─────────────────────────────────
+const _elecState = { intensity: 1.0, burstTimer: 0.0, whiteHotTimer: 0.0, shockwave: false };
+export function setElecIntensity(factor: number) {
+  _elecState.intensity = Math.max(0.0, Math.min(2.0, factor));
+}
+export function triggerElecImpactBurst() {
+  _elecState.burstTimer    = 0.60;
+  _elecState.whiteHotTimer = 0.12;
+  _elecState.shockwave     = true;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// 1. Electrified Aura — High-Voltage Electrical Field
-//    Fresnel plasma shell + 16 main arc lines + 24 branch tendrils + 200 ionic sparks.
-//    Impact burst fires when the player takes damage (reads isDamaged from game state).
+// 1. Electrified Aura — AAA dual-shell plasma field + Tesla arc ribbon network
+//    Voronoi N·V⁴ Fresnel shells, chromatic RGB dispersion sphere, 300 Lorentz-
+//    force spark particles, 20-arc 60Hz crackle network, stroboscopic light.
 // ─────────────────────────────────────────────────────────────────────────────
 function ElectrifiedAura({ scale }: RingProps) {
   const isDamaged    = useMagicOrb(s => s.isDamaged);
@@ -81,77 +151,60 @@ function ElectrifiedAura({ scale }: RingProps) {
   const lightRef = useRef<THREE.PointLight>(null);
   const sparkRef = useRef<THREE.InstancedMesh>(null);
 
-  // Plasma-shell uniforms (shared ref → shader sees latest values without re-creating material)
-  const uniforms = useRef({ u_time: { value: 0 }, u_intensity: { value: 1.0 } });
-
-  const auraMat = useMemo(() => new THREE.ShaderMaterial({
-    vertexShader:   _auraVert,
-    fragmentShader: _auraFrag,
-    uniforms:        uniforms.current,
-    transparent:     true,
-    blending:        THREE.AdditiveBlending,
-    side:            THREE.DoubleSide,
-    depthWrite:      false,
+  // ── Shell materials ──────────────────────────────────────────────────────────
+  const innerMat = useMemo(() => new THREE.ShaderMaterial({
+    vertexShader: _elecShellVert, fragmentShader: _elecShellFrag,
+    uniforms: { uTime: { value: 0 }, uIntensity: { value: 1.0 }, uWhiteHot: { value: 0 } },
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.FrontSide,
   }), []);
-  useEffect(() => () => { auraMat.dispose(); }, [auraMat]);
-
-  // Spark instanced mesh material — additive blending + per-instance colors
+  const outerMat = useMemo(() => new THREE.ShaderMaterial({
+    vertexShader: _elecShellVert, fragmentShader: _elecShellFrag,
+    uniforms: { uTime: { value: 0 }, uIntensity: { value: 0.60 }, uWhiteHot: { value: 0 } },
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.BackSide,
+  }), []);
+  const dispMat = useMemo(() => new THREE.ShaderMaterial({
+    vertexShader: _elecDispVert, fragmentShader: _elecDispFrag,
+    uniforms: { uTime: { value: 0 } },
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.BackSide,
+  }), []);
   const sparkMat = useMemo(() => new THREE.MeshBasicMaterial({
     transparent: true, depthWrite: false, vertexColors: true, blending: THREE.AdditiveBlending,
   }), []);
-  useEffect(() => () => { sparkMat.dispose(); }, [sparkMat]);
+  useEffect(() => () => {
+    innerMat.dispose(); outerMat.dispose(); dispMat.dispose(); sparkMat.dispose();
+  }, [innerMat, outerMat, dispMat, sparkMat]);
 
-  // Spark pool — zero-alloc Float32Array state, pooled by slot index
-  const _ss = useRef({
-    pos:     new Float32Array(_N_SPARKS * 3),
-    vel:     new Float32Array(_N_SPARKS * 3),
-    life:    new Float32Array(_N_SPARKS),
-    maxLife: new Float32Array(_N_SPARKS),
-    slot:    0,
-  });
-  const _prevDamaged = useRef(false);
-
-  // Arc network — 16 main arcs + 24 branch tendrils (THREE.Line, added imperatively)
+  // ── Arc ribbon network — 20 mains + 24 branches ───────────────────────────
   const arcData = useMemo(() => {
-    const matW = new THREE.LineBasicMaterial({ color: "#FFFFFF", transparent: true, opacity: 0.90, depthWrite: false, blending: THREE.AdditiveBlending });
-    const matC = new THREE.LineBasicMaterial({ color: "#00FFFF", transparent: true, opacity: 0.70, depthWrite: false, blending: THREE.AdditiveBlending });
-    const matV = new THREE.LineBasicMaterial({ color: "#4400FF", transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending });
-    const mats = [matW, matC, matV];
-
-    // Golden-angle distribution — evenly spread anchor points on unit sphere
+    const matW = new THREE.LineBasicMaterial({ color: "#FFFFFF", transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending });
+    const matC = new THREE.LineBasicMaterial({ color: "#00FFFF", transparent: true, opacity: 0.75, depthWrite: false, blending: THREE.AdditiveBlending });
+    const matU = new THREE.LineBasicMaterial({ color: "#7B00FF", transparent: true, opacity: 0.60, depthWrite: false, blending: THREE.AdditiveBlending });
+    const matB = new THREE.LineBasicMaterial({ color: "#0011FF", transparent: true, opacity: 0.50, depthWrite: false, blending: THREE.AdditiveBlending });
+    const mats = [matW, matC, matU, matB];
+    // Golden-angle anchor distribution on unit sphere
     const anchors: [number, number, number][] = Array.from({ length: _N_ARCS * 2 }, (_, i) => {
-      const phi   = Math.acos(1 - 2 * ((i * 0.618034) % 1));
-      const theta = i * 2.399963;
-      return [Math.sin(phi) * Math.cos(theta), Math.sin(phi) * Math.sin(theta), Math.cos(phi)];
+      const phi = Math.acos(1 - 2 * ((i * 0.618034) % 1)), theta = i * 2.399963;
+      return [Math.sin(phi)*Math.cos(theta), Math.sin(phi)*Math.sin(theta), Math.cos(phi)];
     });
-
     const mains = Array.from({ length: _N_ARCS }, (_, i) => {
       const geo = new THREE.BufferGeometry();
       const pos = new Float32Array(_ARC_PTS * 3);
       geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-      return {
-        line: new THREE.Line(geo, mats[i % 3]), geo, pos,
-        a0: anchors[i], a1: anchors[i + _N_ARCS],
-        phase: Math.sin(i * 7.3) * Math.PI * 2,
-      };
+      return { line: new THREE.Line(geo, mats[i % 4]), geo, pos,
+               a0: anchors[i], a1: anchors[i + _N_ARCS],
+               phase: Math.sin(i * 7.3) * Math.PI * 2, snapSeed: Math.random() * 65536 };
     });
-
     const branches = Array.from({ length: _N_BRANCHES }, (_, i) => {
       const geo = new THREE.BufferGeometry();
       const pos = new Float32Array(_BRANCH_PTS * 3);
       geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-      return {
-        line: new THREE.Line(geo, matC), geo, pos,
-        parentIdx: i % _N_ARCS,
-        branchT: 0.25 + (i % 3) * 0.2,  // branch point along parent arc
-        phase: Math.cos(i * 3.7) * Math.PI * 2,
-      };
+      return { line: new THREE.Line(geo, mats[1 + (i % 3)]), geo, pos,
+               parentIdx: i % _N_ARCS, branchT: 0.25 + (i % 4) * 0.15,
+               phase: Math.cos(i * 3.7) * Math.PI * 2, snapSeed: Math.random() * 65536 };
     });
-
     return { mains, branches, mats };
   }, []);
 
-  // Mount/unmount arc lines imperatively into the group
   useEffect(() => {
     const g = groupRef.current;
     if (!g) return;
@@ -164,138 +217,168 @@ function ElectrifiedAura({ scale }: RingProps) {
     };
   }, [arcData]);
 
+  // ── Spark pool (300 slots, zero GC) ──────────────────────────────────────────
+  const sp2 = useRef({
+    px: new Float32Array(_N_SPARKS), py: new Float32Array(_N_SPARKS), pz: new Float32Array(_N_SPARKS),
+    vx: new Float32Array(_N_SPARKS), vy: new Float32Array(_N_SPARKS), vz: new Float32Array(_N_SPARKS),
+    life: new Float32Array(_N_SPARKS), maxLife: new Float32Array(_N_SPARKS),
+    phase: new Float32Array(_N_SPARKS), slot: 0,
+  });
+
+  // ── 60Hz crackle timer ────────────────────────────────────────────────────────
+  const crackle = useRef({ timer: 0.0 });
+  const _prevDamaged = useRef(false);
+
   useFrame(({ clock }, delta) => {
-    const t   = clock.getElapsedTime();
-    const r   = scale * 0.88;           // arc/spark radius ≈ orb surface
-    const dt  = Math.min(delta, 0.05);
-    const uni = uniforms.current;
+    const t  = clock.getElapsedTime();
+    const dt = Math.min(delta, 0.05);
+    const inten   = _elecState.intensity;
+    const burst   = _elecState.burstTimer > 0;
+    if (burst) _elecState.burstTimer -= dt;
+    _elecState.whiteHotTimer = Math.max(0, _elecState.whiteHotTimer - dt);
+    const whiteHot = _elecState.whiteHotTimer > 0 ? (_elecState.whiteHotTimer / 0.12) : 0;
+    const burstMul = burst ? 1.5 : 1.0;
 
-    // Plasma shell time + intensity decay after burst flash
-    uni.u_time.value = t;
-    if (uni.u_intensity.value > 1.0) {
-      uni.u_intensity.value = Math.max(1.0, uni.u_intensity.value - dt * 3.5);
-    }
+    // ── Shell + dispersion uniforms ─────────────────────────────────────────────
+    innerMat.uniforms.uTime.value      = t;
+    innerMat.uniforms.uIntensity.value = inten * burstMul;
+    innerMat.uniforms.uWhiteHot.value  = whiteHot;
+    outerMat.uniforms.uTime.value      = t;
+    outerMat.uniforms.uIntensity.value = inten * 0.62 * burstMul;
+    outerMat.uniforms.uWhiteHot.value  = whiteHot;
+    dispMat.uniforms.uTime.value       = t;
 
-    // Flicker point light: compound sin at inharmonic frequencies for organic stutter
+    // ── Multi-octave stroboscopic light (random spike probability) ──────────────
     if (lightRef.current) {
-      lightRef.current.intensity = 2.0 + Math.sin(t * 47) * 0.9 + Math.sin(t * 73.1) * 1.1;
+      const f1 = Math.sin(t*47.3)*0.9 + Math.sin(t*73.1)*0.7 + Math.sin(t*31.7)*0.4;
+      // ~3-4 spikes/sec at 60 fps (0.06 probability per frame)
+      const spike = Math.random() < 0.06 ? Math.random() * 2.5 : 0;
+      lightRef.current.intensity = Math.max(0.5, 1.5 + f1*0.6 + spike) * inten * (1 + whiteHot*1.5);
     }
+
+    // ── 60Hz crackle: refresh all arc snap seeds simultaneously ────────────────
+    crackle.current.timer += dt;
+    if (crackle.current.timer >= 0.016) {
+      crackle.current.timer = 0;
+      for (let i = 0; i < _N_ARCS; i++) arcData.mains[i].snapSeed = Math.random() * 65536;
+      for (let i = 0; i < _N_BRANCHES; i++) arcData.branches[i].snapSeed = Math.random() * 65536;
+    }
+
+    const r     = scale * 0.88;
+    const burstR = r * burstMul;
 
     // ── Main arc network ──────────────────────────────────────────────────────
     for (let ai = 0; ai < _N_ARCS; ai++) {
-      const { geo, pos, a0, a1, phase } = arcData.mains[ai];
-      const sx = a0[0]*r, sy = a0[1]*r, sz = a0[2]*r;
-      const ex = a1[0]*r, ey = a1[1]*r, ez = a1[2]*r;
+      const { geo, pos, a0, a1, phase, snapSeed } = arcData.mains[ai];
+      const sx = a0[0]*burstR, sy = a0[1]*burstR, sz = a0[2]*burstR;
+      const ex = a1[0]*burstR, ey = a1[1]*burstR, ez = a1[2]*burstR;
       const dx = ex-sx, dy = ey-sy, dz = ez-sz;
-      const arcL = Math.sqrt(dx*dx + dy*dy + dz*dz) || 1;
-
-      // Build two perpendicular axes to the arc direction (for 3D jitter)
+      const arcL = Math.sqrt(dx*dx+dy*dy+dz*dz) || 1;
       const ux = Math.abs(dx/arcL) < 0.9 ? 1 : 0, uy = ux ? 0 : 1;
-      const p1x = (dy*0 - dz*uy)/arcL, p1y = (dz*ux - dx*0)/arcL, p1z = (dx*uy - dy*ux)/arcL;
-      const p2x = dy*p1z - dz*p1y, p2y = dz*p1x - dx*p1z, p2z = dx*p1y - dy*p1x;
-      const p2L = Math.sqrt(p2x*p2x + p2y*p2y + p2z*p2z) || 1;
-
+      const p1x = (dy*0-dz*uy)/arcL, p1y = (dz*ux-dx*0)/arcL, p1z = (dx*uy-dy*ux)/arcL;
+      const p2x = dy*p1z-dz*p1y, p2y = dz*p1x-dx*p1z, p2z = dx*p1y-dy*p1x;
+      const p2L = Math.sqrt(p2x*p2x+p2y*p2y+p2z*p2z) || 1;
       pos[0] = sx; pos[1] = sy; pos[2] = sz;
-      for (let s = 1; s < _ARC_PTS - 1; s++) {
-        const f     = s / (_ARC_PTS - 1);
-        const taper = Math.sin(f * Math.PI);   // taper: 0 at endpoints, 1 at midpoint
-        const j1    = Math.sin(t * 28 + phase + ai * 2.71 + s * 3.14) * taper * r * 0.55;
-        const j2    = Math.cos(t * 19 + phase + ai * 1.83 + s * 2.41) * taper * r * 0.40;
-        pos[s*3]   = sx + dx*f + p1x*j1 + (p2x/p2L)*j2;
-        pos[s*3+1] = sy + dy*f + p1y*j1 + (p2y/p2L)*j2;
-        pos[s*3+2] = sz + dz*f + p1z*j1 + (p2z/p2L)*j2;
+      for (let s = 1; s < _ARC_PTS-1; s++) {
+        const f = s / (_ARC_PTS-1), taper = Math.sin(f*Math.PI);
+        // Discrete snap: deterministic from snapSeed (no lerp = instantaneous crackle)
+        const sn1 = Math.sin(snapSeed*0.001 + s*2.31 + ai*1.77)*0.5+0.5;
+        const sn2 = Math.cos(snapSeed*0.0013 + s*1.97 + ai*2.43)*0.5+0.5;
+        const j1 = (sn1*2-1)*taper*burstR*0.52;
+        const j2 = (sn2*2-1)*taper*burstR*0.38;
+        pos[s*3]   = sx+dx*f+p1x*j1+(p2x/p2L)*j2;
+        pos[s*3+1] = sy+dy*f+p1y*j1+(p2y/p2L)*j2;
+        pos[s*3+2] = sz+dz*f+p1z*j1+(p2z/p2L)*j2;
       }
-      pos[(_ARC_PTS-1)*3]   = ex;
-      pos[(_ARC_PTS-1)*3+1] = ey;
-      pos[(_ARC_PTS-1)*3+2] = ez;
+      pos[(_ARC_PTS-1)*3] = ex; pos[(_ARC_PTS-1)*3+1] = ey; pos[(_ARC_PTS-1)*3+2] = ez;
       (geo.attributes.position as THREE.BufferAttribute).needsUpdate = true;
       (arcData.mains[ai].line.material as THREE.LineBasicMaterial).opacity =
-        (0.58 + Math.sin(t * 45 + phase) * 0.38) * Math.min(uni.u_intensity.value, 1.8);
+        Math.min(1.0, (0.55 + Math.sin(t*45+phase)*0.40)*inten*(1+whiteHot));
     }
 
-    // ── Branch tendrils ───────────────────────────────────────────────────────
+    // ── Branch tendrils ────────────────────────────────────────────────────────
     for (let bi = 0; bi < _N_BRANCHES; bi++) {
-      const { geo, pos, parentIdx, branchT, phase } = arcData.branches[bi];
+      const { geo, pos, parentIdx, branchT, phase, snapSeed } = arcData.branches[bi];
       const pPos = arcData.mains[parentIdx].pos;
-      const pPt  = Math.min(Math.floor(branchT * (_ARC_PTS - 1)), _ARC_PTS - 2);
+      const pPt  = Math.min(Math.floor(branchT*(_ARC_PTS-1)), _ARC_PTS-2);
       const bx = pPos[pPt*3], by = pPos[pPt*3+1], bz = pPos[pPt*3+2];
-      const endX = bx + Math.cos(phase + t * 0.07) * r * 0.45;
-      const endY = by + Math.sin(phase * 1.3 + t * 0.09) * r * 0.45;
-      const endZ = bz + Math.sin(phase * 0.8 + t * 0.06) * r * 0.32;
+      const endX = bx+Math.cos(phase+t*0.07)*burstR*0.40;
+      const endY = by+Math.sin(phase*1.3+t*0.09)*burstR*0.40;
+      const endZ = bz+Math.sin(phase*0.8+t*0.06)*burstR*0.28;
       pos[0] = bx; pos[1] = by; pos[2] = bz;
       for (let s = 1; s < _BRANCH_PTS; s++) {
-        const f      = s / (_BRANCH_PTS - 1);
-        const taper  = Math.sin(f * Math.PI);
-        const jitter = Math.sin(t * 38 + phase + bi * 5.1 + s * 2.7) * taper * r * 0.18;
-        pos[s*3]   = bx + (endX-bx)*f + jitter;
-        pos[s*3+1] = by + (endY-by)*f + jitter * 0.8;
-        pos[s*3+2] = bz + (endZ-bz)*f + jitter * 0.6;
+        const f = s/(_BRANCH_PTS-1), taper = Math.sin(f*Math.PI);
+        const sn = Math.sin(snapSeed*0.0012+s*3.14+bi*4.2)*0.5+0.5;
+        const j = (sn*2-1)*taper*burstR*0.16;
+        pos[s*3]   = bx+(endX-bx)*f+j;
+        pos[s*3+1] = by+(endY-by)*f+j*0.8;
+        pos[s*3+2] = bz+(endZ-bz)*f+j*0.6;
       }
       (geo.attributes.position as THREE.BufferAttribute).needsUpdate = true;
       (arcData.branches[bi].line.material as THREE.LineBasicMaterial).opacity =
-        0.32 + Math.sin(t * 60 + phase) * 0.28;
+        (0.28 + Math.sin(t*62+phase)*0.28) * inten;
     }
 
-    // ── Impact burst (isDamaged rising edge) ──────────────────────────────────
-    const ss = _ss.current;
-    if (isDamagedRef.current && !_prevDamaged.current) {
-      for (let i = 0; i < _N_SPARKS; i++) {
-        const phi = Math.acos(1 - 2 * Math.random()), theta = Math.random() * Math.PI * 2;
+    // ── Impact burst (isDamaged rising edge OR shockwave flag) ─────────────────
+    const s2 = sp2.current;
+    const doBurst = (isDamagedRef.current && !_prevDamaged.current) || _elecState.shockwave;
+    if (doBurst) {
+      _elecState.shockwave = false;
+      // 360° radial ring burst — 200 ionic sparks on equatorial ring
+      for (let i = 0; i < 200; i++) {
+        const theta = (i/200)*Math.PI*2;
+        const phi   = Math.PI/2 + (Math.random()-0.5)*1.0;
         const nx = Math.sin(phi)*Math.cos(theta), ny = Math.sin(phi)*Math.sin(theta), nz = Math.cos(phi);
-        const i3 = i * 3;
-        ss.pos[i3]   = nx*r; ss.pos[i3+1] = ny*r; ss.pos[i3+2] = nz*r;
-        const sp = (6 + Math.random()*6) * r;
-        ss.vel[i3]   = nx*sp + (Math.random()-0.5)*2*r;
-        ss.vel[i3+1] = ny*sp + (Math.random()-0.5)*2*r;
-        ss.vel[i3+2] = nz*sp + (Math.random()-0.5)*2*r;
-        const life = 0.28 + Math.random()*0.32;
-        ss.life[i] = life; ss.maxLife[i] = life;
+        s2.px[i]=nx*burstR; s2.py[i]=ny*burstR; s2.pz[i]=nz*burstR;
+        const spd = (5+Math.random()*4)*burstR;
+        s2.vx[i]=nx*spd; s2.vy[i]=ny*spd; s2.vz[i]=nz*spd;
+        s2.life[i]=0.25+Math.random()*0.20; s2.maxLife[i]=s2.life[i];
+        s2.phase[i]=Math.random()*Math.PI*2;
       }
-      uni.u_intensity.value = 2.8;   // flash the plasma shell
     }
     _prevDamaged.current = isDamagedRef.current;
 
-    // ── Continuous spark spawn (~3 per frame at idle) ─────────────────────────
-    for (let sp = 0; sp < 3; sp++) {
-      const slot = ss.slot;
-      if (ss.life[slot] <= 0) {
-        const phi = Math.acos(1 - 2 * Math.random()), theta = Math.random() * Math.PI * 2;
+    // ── Continuous spark spawn ─────────────────────────────────────────────────
+    const spawnN = Math.floor(4 + inten * 2);
+    for (let sp = 0; sp < spawnN; sp++) {
+      const slot = s2.slot;
+      if (s2.life[slot] <= 0) {
+        const phi = Math.acos(1-2*Math.random()), theta = Math.random()*Math.PI*2;
         const nx = Math.sin(phi)*Math.cos(theta), ny = Math.sin(phi)*Math.sin(theta), nz = Math.cos(phi);
-        const i3 = slot * 3;
-        ss.pos[i3]   = nx*r; ss.pos[i3+1] = ny*r; ss.pos[i3+2] = nz*r;
-        const spd = (1.5 + Math.random()*2.5) * r;
-        ss.vel[i3]   = nx*spd + (Math.random()-0.5)*spd*0.5;
-        ss.vel[i3+1] = ny*spd + (Math.random()-0.5)*spd*0.5;
-        ss.vel[i3+2] = nz*spd + (Math.random()-0.5)*spd*0.5;
-        const life = 0.15 + Math.random()*0.28;
-        ss.life[slot] = life; ss.maxLife[slot] = life;
+        s2.px[slot]=nx*r; s2.py[slot]=ny*r; s2.pz[slot]=nz*r;
+        const spd = (1.4+Math.random()*2.8)*r;
+        s2.vx[slot]=nx*spd+(Math.random()-0.5)*spd*0.4;
+        s2.vy[slot]=ny*spd+(Math.random()-0.5)*spd*0.4;
+        s2.vz[slot]=nz*spd+(Math.random()-0.5)*spd*0.4;
+        s2.life[slot]=0.15+Math.random()*0.28; s2.maxLife[slot]=s2.life[slot];
+        s2.phase[slot]=Math.random()*Math.PI*2;
       }
-      ss.slot = (slot + 1) % _N_SPARKS;
+      s2.slot = (slot+1) % _N_SPARKS;
     }
 
-    // ── Update spark simulation ───────────────────────────────────────────────
+    // ── Spark simulation — Lorentz dipole force F=q(E+v×B), B along Y-axis ────
+    const Bstr = 0.9 * inten;
     const im = sparkRef.current;
     if (!im) return;
     for (let i = 0; i < _N_SPARKS; i++) {
-      if (ss.life[i] <= 0) {
-        _dummy.position.set(9999, 0, 0); _dummy.scale.setScalar(0.001);
-        _dummy.updateMatrix(); im.setMatrixAt(i, _dummy.matrix);
-        continue;
+      if (s2.life[i] <= 0) {
+        _dummy.position.set(9999,0,0); _dummy.scale.setScalar(0.001);
+        _dummy.updateMatrix(); im.setMatrixAt(i,_dummy.matrix); continue;
       }
-      const i3 = i * 3;
-      ss.vel[i3]   *= 0.87; ss.vel[i3+1] *= 0.87; ss.vel[i3+2] *= 0.87;  // drag
-      ss.pos[i3]   += ss.vel[i3]   * dt;
-      ss.pos[i3+1] += ss.vel[i3+1] * dt;
-      ss.pos[i3+2] += ss.vel[i3+2] * dt;
-      ss.life[i]   -= dt;
-
-      const lr = Math.max(ss.life[i] / ss.maxLife[i], 0);
-      _dummy.position.set(ss.pos[i3], ss.pos[i3+1], ss.pos[i3+2]);
-      _dummy.scale.setScalar(lr * 0.65);
-      _dummy.updateMatrix(); im.setMatrixAt(i, _dummy.matrix);
-      // Colour decay: white → cyan → violet-blue
-      _col.setHex(lr > 0.65 ? 0xFFFFFF : lr > 0.3 ? 0x00FFFF : 0x1A00FF);
-      im.setColorAt(i, _col);
+      // v×B where B=(0,By,0): x-comp = -vz·By, z-comp = vx·By → helical curl
+      s2.vx[i] += -s2.vz[i]*Bstr*dt;
+      s2.vz[i] +=  s2.vx[i]*Bstr*dt;
+      s2.vx[i]*=0.88; s2.vy[i]*=0.88; s2.vz[i]*=0.88;  // drag
+      s2.px[i]+=s2.vx[i]*dt; s2.py[i]+=s2.vy[i]*dt; s2.pz[i]+=s2.vz[i]*dt;
+      s2.life[i]-=dt;
+      const lr = Math.max(s2.life[i]/s2.maxLife[i], 0);
+      // High-freq sine flash at ~40 Hz
+      const fl = Math.abs(Math.sin(t*40.0 + s2.phase[i]));
+      _dummy.position.set(s2.px[i],s2.py[i],s2.pz[i]);
+      _dummy.scale.setScalar(lr*0.60*(0.45+fl*0.55));
+      _dummy.updateMatrix(); im.setMatrixAt(i,_dummy.matrix);
+      _col.setHex(lr>0.65 ? 0xFFFFFF : lr>0.30 ? 0x00FFFF : 0x7B00FF);
+      im.setColorAt(i,_col);
     }
     im.instanceMatrix.needsUpdate = true;
     if (im.instanceColor) im.instanceColor.needsUpdate = true;
@@ -303,13 +386,15 @@ function ElectrifiedAura({ scale }: RingProps) {
 
   return (
     <group ref={groupRef}>
-      {/* Dynamic flicker light — intensity randomised in useFrame */}
-      <pointLight ref={lightRef} color="#00E1FF" intensity={2.0} distance={5} decay={2} />
-      {/* Fresnel plasma shell at 1.12× orb scale */}
-      <mesh scale={scale * 1.12} material={auraMat}>
-        <sphereGeometry args={[1, 32, 24]} />
-      </mesh>
-      {/* Ionic spark particle pool */}
+      {/* Multi-octave stroboscopic cyan light with random spikes */}
+      <pointLight ref={lightRef} color="#00E1FF" intensity={1.5} distance={5.5} decay={2} />
+      {/* Inner dielectric plasma shell (1.06×) — Voronoi N·V⁴ Fresnel */}
+      <mesh scale={scale * 1.06} material={innerMat} geometry={_elecShGeo} />
+      {/* Outer corona shell (1.18×) — BackSide bloom */}
+      <mesh scale={scale * 1.18} material={outerMat} geometry={_elecShGeo} />
+      {/* Chromatic dispersion sphere (1.35×) — RGB channel splitting */}
+      <mesh scale={scale * 1.35} material={dispMat}  geometry={_elecDpGeo} />
+      {/* 300-slot ionic spark pool */}
       <instancedMesh ref={sparkRef} args={[_geo_sm, sparkMat, _N_SPARKS]} frustumCulled={false} />
     </group>
   );

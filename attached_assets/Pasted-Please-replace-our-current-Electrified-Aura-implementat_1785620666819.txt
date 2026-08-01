@@ -1,0 +1,36 @@
+Please replace our current "Electrified Aura" implementation with the updated, maxed-out AAA HD-quality spec detailed below. 
+
+Completely update the existing codebase (shaders, particle emitters, light behavior, and state triggers) to match this new architecture.
+
+---
+
+### Updated AAA Electrified Aura Specification
+
+1. Procedural Surface & Space Arc Network (High-Frequency Tesla Ribbons):
+   - Upgrade surface arcs to 16–24 camera-facing 3D ribbon strips anchored between orb surface nodes and outer space anchors.
+   - Use discrete 3D Simplex noise lookup in GLSL snapping vertex positions every 0.016s (60Hz crackle) with zero linear interpolation for instantaneous lightning jumps.
+   - Apply additive-blended color ramp: Blinding White-Hot (#FFFFFF) -> Electric Cyan (#00FFFF) -> Ultraviolet (#7B00FF) -> Deep Cobalt (#0011FF).
+
+2. Dielectric Breakdown & Corona Shell (Volumetric Plasma Field):
+   - Use two concentric dielectric shell meshes (Inner: 1.06x, Outer Corona: 1.18x) with custom ShaderMaterials.
+   - Combine high-frequency animated Voronoi cellular noise with a steep Fresnel edge calculation (N · V^4) to simulate surface electric plasma streamers.
+
+3. Ionic Spark & Electromagnetic Lorentz Field (GPU Particles):
+   - Increase density to 250–400 GPU-instanced spark quads emitting from surface hotspots.
+   - Calculate spark trajectories in the GPU vertex shader using 3D Curl Noise combined with a simulated dipole magnetic Lorentz vector field (F = q(E + v x B)), forcing sparks along curved electromagnetic flux lines.
+   - Apply high-frequency sine-wave flashing (I = sin(time * 40.0)) over a 0.15s – 0.4s lifespan.
+
+4. Spatial Electromagnetic Refraction & Dynamic Stroboscopic Light:
+   - Upgrade heat haze to an outer distortion sphere (1.35x scale) applying screen-space UV chromatic dispersion (RGB channel splitting) driven by electric noise.
+   - Attach a dynamic point light at orb origin (#00E1FF) driven by a multi-octave noise loop with random spike probability to flash light intensity between 0.5 and 2.5 on every frame.
+
+5. Combat API & State Management:
+   - Expose setAuraIntensity(float factor) (range 0.0 to 2.0) to scale arc jitter, ribbon count, shell bloom, spark count, and flicker depth.
+   - Refine impactBurst() to expand the corona shell by 1.5x, surge arc opacity to blinding white (#FFFFFF) for 0.12s, and eject a 360-degree radial ring burst of 200 ionic sparks.
+
+6. Optimization & Memory Rules:
+   - Pre-allocate all ribbon geometries, particle buffers, and shader uniforms during initialization (zero main-loop garbage collection).
+   - Execute all noise, physics, and displacement logic on the GPU within GLSL shaders.
+   - Provide clean dispose() cleanup methods for memory teardown and target a locked 60+ FPS in WebGL.
+
+Please review the existing project files and update the Electrified Aura module with clean, production-ready code.
