@@ -18,6 +18,7 @@ import { MiniPlasmaOrb } from "./MiniPlasmaOrb";
 import { MiniDiamondOrb } from "./MiniDiamondOrb";
 import { MiniRainbowOrb } from "./MiniRainbowOrb";
 import { MiniMechaOrb } from "./MiniMechaOrb";
+import { MiniMonsterOrb } from "./MiniMonsterOrb";
 import { addExplosionImpulse } from "./Background";
 
 const DISTORT_FIELD_RADIUS  = 7.125;
@@ -172,6 +173,16 @@ function BossOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
       <group position={orb.position} scale={orb.size * pulse}>
         <pointLight color="#33aaff" intensity={1.8} distance={5} decay={2} />
         <MiniMechaOrb />
+        {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
+      </group>
+    );
+  }
+
+  // ── Shadow boss type: MiniMonsterOrb (level 9.9) ─────────────────────────────
+  if (bossType === "monster") {
+    return (
+      <group position={orb.position} scale={orb.size * pulse}>
+        <MiniMonsterOrb />
         {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
       </group>
     );

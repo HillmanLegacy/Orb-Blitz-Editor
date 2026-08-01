@@ -12,6 +12,7 @@ import { StarBoss } from "./StarBoss";
 import { CrystalBoss } from "./CrystalBoss";
 import { ToxicBoss } from "./ToxicBoss";
 import { MechaBoss } from "./MechaBoss";
+import { MonsterBoss } from "./MonsterBoss";
 import { FireExplosionVFX } from "./FireExplosionVFX";
 import { StarSupernovaVFX } from "./StarSupernovaVFX";
 import { StarBossTeleportVFX, StarTeleportVFXState } from "./StarBossTeleportVFX";
@@ -1400,26 +1401,7 @@ export function Boss() {
   if (bossType === "monster") {
     return (
       <group ref={meshRef} position={boss.position}>
-
-
-        {renderBaseSphere(1.2, "#3a1a1a", "#6a2a2a", "#ff4444")}
-        {renderDecoration("horns", 1.2, "#882222")}
-        {renderEyes(1, 1.2, "#ffff00", "#440000")}
-        {renderMouth(2, 1.2, "#220000")}
-        <mesh position={[0, 0, 0.01]} scale={bossSize * 0.4} rotation={[0, 0, time * 2]}>
-          <ringGeometry args={[0.5, 0.7, 6]} />
-          <meshBasicMaterial color="#ff2200" transparent opacity={0.3} />
-        </mesh>
-        {[0, 1, 2, 3].map((i) => {
-          const angle = (i / 4) * Math.PI * 2 + time;
-          const dist = 0.5;
-          return (
-            <mesh key={i} position={[Math.cos(angle) * dist, Math.sin(angle) * dist - 0.2, 0.03]} scale={0.08}>
-              <circleGeometry args={[1, 6]} />
-              <meshBasicMaterial color="#ff6644" />
-            </mesh>
-          );
-        })}
+        <MonsterBoss radius={1.44} healthPercent={healthPercent} />
       </group>
     );
   }
