@@ -1643,7 +1643,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     
     freezeAllOrbs: () => set((state) => {
       const { playerPosition } = state;
-      const r2 = 7.5 * 7.5;
+      const r2 = 7.125 * 7.125;
       return {
         darkOrbs: state.darkOrbs.map((orb) => {
           const dx = orb.position[0] - playerPosition[0];

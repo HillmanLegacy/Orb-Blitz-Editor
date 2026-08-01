@@ -15,7 +15,7 @@ import { MiniRainbowOrb } from "./MiniRainbowOrb";
 import { MiniMechaOrb } from "./MiniMechaOrb";
 import { addExplosionImpulse } from "./Background";
 
-const DISTORT_FIELD_RADIUS  = 7.5;
+const DISTORT_FIELD_RADIUS  = 7.125;
 const HURT_FLASH_DURATION   = 0.15;
 
 
