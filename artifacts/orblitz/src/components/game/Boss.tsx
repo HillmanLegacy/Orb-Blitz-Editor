@@ -26,7 +26,7 @@ const DODGE_SPEED = 8;
 
 interface BossConfig {
   projectileCount: number;
-  movementStyle: "drift" | "teleport" | "dash" | "perimeter" | "figure8" | "bounce" | "spiral" | "wave" | "chaos" | "orbit_player";
+  movementStyle: "drift" | "teleport" | "dash" | "perimeter" | "figure8" | "bounce" | "spiral" | "wave" | "chaos" | "orbit_player" | "shadow";
 }
 
 const BOSS_CONFIGS: Record<string, BossConfig> = {
@@ -38,7 +38,7 @@ const BOSS_CONFIGS: Record<string, BossConfig> = {
   cloud: { projectileCount: 6, movementStyle: "bounce" },
   arrow: { projectileCount: 7, movementStyle: "spiral" },
   tentacle: { projectileCount: 8, movementStyle: "wave" },
-  monster: { projectileCount: 9, movementStyle: "chaos" },
+  monster: { projectileCount: 9, movementStyle: "shadow" },
 };
 
 const getAttackInterval = (projectileCount: number): number => {
@@ -114,6 +114,20 @@ export function Boss() {
   const triBurstCountRef    = useRef(0);              // projectiles left in current burst
   const triBurstTimerRef    = useRef(0);              // seconds until next burst shot
   const triBurstCooldownRef = useRef(1.5 + Math.random() * 2.0); // seconds until first burst
+
+  // ── MonsterBoss (shadow) movement + attack state ─────────────────────────────
+  // Movement cycles through 4 phases: stalk → charge → evade → vortex
+  const monsterPhaseRef         = useRef<'stalk' | 'charge' | 'evade' | 'vortex'>('stalk');
+  const monsterPhaseTimerRef    = useRef(4.0 + Math.random() * 2.0);
+  const monsterOrbitAngleRef    = useRef(Math.random() * Math.PI * 2);
+  const monsterChargeTargetRef  = useRef<[number, number]>([0, 0]);
+  const monsterEvadeTargetRef   = useRef<[number, number]>([8, 0]);
+  const monsterEvadeSetRef      = useRef(false); // true once evade target is captured for current evade phase
+  // Attack: 5 modes cycling 0–3 (mode 4 = rage, triggered by low health)
+  const monsterAttackModeRef    = useRef(0);
+  const monsterBurstCountRef    = useRef(0);
+  const monsterBurstTimerRef    = useRef(0);
+  const monsterBurstCooldownRef = useRef(2.0 + Math.random() * 1.5);
 
   const keepDistanceFromPlayer = (
     currentPos: [number, number, number],
@@ -600,6 +614,74 @@ export function Boss() {
         }
         break;
       }
+      case "shadow": {
+        // ── 4-phase state machine ─────────────────────────────────────────────
+        // stalk  (4–6 s) : slow orbit around player at ~6 unit radius
+        // charge (1–2 s) : snap-dash to the player's captured position
+        // evade  (2–3 s) : dart to far corner, hold position
+        // vortex (3–5 s) : tight fast orbit spiraling around player
+        monsterPhaseTimerRef.current -= delta;
+        const mPhase = monsterPhaseRef.current;
+
+        if (mPhase === 'stalk') {
+          monsterOrbitAngleRef.current += delta * 0.9;
+          const orbitR = 5.5 + Math.sin(time * 0.5) * 0.8;
+          targetX = playerX + Math.cos(monsterOrbitAngleRef.current) * orbitR;
+          targetY = playerY + Math.sin(monsterOrbitAngleRef.current) * orbitR;
+          targetX = Math.max(-playAreaWidth, Math.min(playAreaWidth, targetX));
+          targetY = Math.max(-playAreaHeight + 2, Math.min(playAreaHeight, targetY));
+          lerpSpeed = 4.5;
+          if (monsterPhaseTimerRef.current <= 0) {
+            monsterPhaseRef.current = 'charge';
+            monsterChargeTargetRef.current = [playerX, playerY];
+            monsterPhaseTimerRef.current = 1.2 + Math.random() * 0.8;
+          }
+        } else if (mPhase === 'charge') {
+          targetX = monsterChargeTargetRef.current[0];
+          targetY = monsterChargeTargetRef.current[1];
+          lerpSpeed = 24;
+          if (monsterPhaseTimerRef.current <= 0) {
+            monsterPhaseRef.current = 'evade';
+            monsterEvadeSetRef.current = false; // trigger one-time capture next frame
+            monsterPhaseTimerRef.current = 2.0 + Math.random() * 1.5;
+          }
+        } else if (mPhase === 'evade') {
+          if (!monsterEvadeSetRef.current) {
+            // Capture far-corner target once on phase entry
+            const ex = -playerX * 0.75 + (Math.random() - 0.5) * 5;
+            const ey = -playerY * 0.75 + (Math.random() - 0.5) * 4;
+            monsterEvadeTargetRef.current = [
+              Math.max(-playAreaWidth * 0.85, Math.min(playAreaWidth * 0.85, ex)),
+              Math.max(-playAreaHeight * 0.75, Math.min(playAreaHeight * 0.75, ey)),
+            ];
+            monsterEvadeSetRef.current = true;
+          }
+          targetX = monsterEvadeTargetRef.current[0];
+          targetY = monsterEvadeTargetRef.current[1];
+          lerpSpeed = 13;
+          if (monsterPhaseTimerRef.current <= 0) {
+            monsterPhaseRef.current = 'vortex';
+            monsterOrbitAngleRef.current = Math.atan2(
+              bossPosRef.current[1] - playerY,
+              bossPosRef.current[0] - playerX,
+            );
+            monsterPhaseTimerRef.current = 3.0 + Math.random() * 2.0;
+          }
+        } else { // 'vortex'
+          monsterOrbitAngleRef.current += delta * 3.2;
+          const vortexR = 6.5 + Math.sin(monsterPhaseTimerRef.current * 1.5) * 1.5;
+          targetX = playerX + Math.cos(monsterOrbitAngleRef.current) * vortexR;
+          targetY = playerY + Math.sin(monsterOrbitAngleRef.current) * vortexR;
+          targetX = Math.max(-playAreaWidth, Math.min(playAreaWidth, targetX));
+          targetY = Math.max(-playAreaHeight + 2, Math.min(playAreaHeight, targetY));
+          lerpSpeed = 11;
+          if (monsterPhaseTimerRef.current <= 0) {
+            monsterPhaseRef.current = 'stalk';
+            monsterPhaseTimerRef.current = 4.0 + Math.random() * 2.0;
+          }
+        }
+        break;
+      }
       case "orbit_player": {
         // ── FireBoss "strike-and-retreat" state machine ──────────────────────
         // Phases: entering (fires while moving) → waiting (3 s, no fire)
@@ -877,6 +959,90 @@ export function Boss() {
         }
 
         // Suppress generic fireProjectiles for triangle boss
+        attackResult = { timer: localAttackTimerRef.current, burst: attackBurstRef.current };
+      } else if (bossType === "monster") {
+        // ── Shadow Boss: 5 distinct attack modes ─────────────────────────────
+        // 0: Shadow Ring  — 9 orbs full 360°
+        // 1: Triple Fang  — 3 rapid homing shots (fan spread)
+        // 2: Spiral Storm — 12 rotating sequential shots
+        // 3: Shadow Pulse — 10 alternating homing + wave pairs
+        // 4: Void Barrage — rage-only; 12 mixed orbs (triggered at < 30 % HP)
+        monsterBurstTimerRef.current    -= delta;
+        monsterBurstCooldownRef.current -= delta;
+
+        if (monsterBurstCountRef.current > 0 && monsterBurstTimerRef.current <= 0) {
+          const { darkOrbs: liveMDO, addDarkOrb: addMOrb } = useMagicOrb.getState();
+          const activeMBO = liveMDO.filter(o => o.isBossOrb && !o.destroying).length;
+
+          if (activeMBO < 16) {
+            const baseAngle = Math.atan2(playerY - finalY, playerX - finalX);
+            const mode = healthPercent < 0.3 ? 4 : monsterAttackModeRef.current;
+
+            if (mode === 0) {
+              // Shadow Ring — all 9 at once, varied patterns
+              for (let i = 0; i < 9; i++) {
+                const angle = (i / 9) * Math.PI * 2;
+                const pat: MovementPattern = i % 3 === 0 ? "homing" : i % 3 === 1 ? "spiral" : "wave";
+                addMOrb({ id: `m-ring-${Date.now()}-${i}`, position: [finalX, finalY, 0.5], direction: [Math.cos(angle), Math.sin(angle), 0], speed: 2.6 + Math.random() * 0.5, size: 0.52, seed: Math.random(), shape: "circle", pattern: pat, patternPhase: Math.random() * Math.PI * 2, isBossOrb: true, bossType: "monster" });
+              }
+              monsterBurstCountRef.current = 0;
+            } else if (mode === 1) {
+              // Triple Fang — sequential, one per 100 ms
+              const shotIdx = 3 - monsterBurstCountRef.current; // 0, 1, 2
+              const fanOffset = (shotIdx - 1) * 0.28;
+              addMOrb({ id: `m-fang-${Date.now()}-${shotIdx}`, position: [finalX, finalY, 0.5], direction: [Math.cos(baseAngle + fanOffset), Math.sin(baseAngle + fanOffset), 0], speed: 4.8, size: 0.58, seed: Math.random(), shape: "circle", pattern: "homing", patternPhase: 0, isBossOrb: true, bossType: "monster" });
+              monsterBurstCountRef.current -= 1;
+              monsterBurstTimerRef.current  = 0.1;
+            } else if (mode === 2) {
+              // Spiral Storm — one per 120 ms, angle rotates each shot
+              const shotIdx = 12 - monsterBurstCountRef.current;
+              const spiralAngle = baseAngle + shotIdx * (Math.PI * 2 / 12);
+              addMOrb({ id: `m-storm-${Date.now()}-${shotIdx}`, position: [finalX, finalY, 0.5], direction: [Math.cos(spiralAngle), Math.sin(spiralAngle), 0], speed: 3.3, size: 0.46, seed: Math.random(), shape: "circle", pattern: "spiral", patternPhase: Math.random() * Math.PI * 2, isBossOrb: true, bossType: "monster" });
+              monsterBurstCountRef.current -= 1;
+              monsterBurstTimerRef.current  = 0.12;
+            } else if (mode === 3) {
+              // Shadow Pulse — alternating homing / wave
+              const shotIdx  = 10 - monsterBurstCountRef.current;
+              const isHoming = shotIdx % 2 === 0;
+              const pulseAngle = baseAngle + (Math.random() - 0.5) * 0.35;
+              addMOrb({ id: `m-pulse-${Date.now()}-${shotIdx}`, position: [finalX, finalY, 0.5], direction: [Math.cos(pulseAngle), Math.sin(pulseAngle), 0], speed: isHoming ? 4.2 : 3.6, size: 0.5, seed: Math.random(), shape: "circle", pattern: isHoming ? "homing" : "wave", patternPhase: Math.random() * Math.PI * 2, isBossOrb: true, bossType: "monster" });
+              monsterBurstCountRef.current -= 1;
+              monsterBurstTimerRef.current  = 0.14;
+            } else {
+              // Void Barrage (rage) — 12 simultaneous: outer ring + aimed cluster
+              for (let i = 0; i < 12; i++) {
+                const angle = i < 6
+                  ? (i / 6) * Math.PI * 2
+                  : baseAngle + (i - 9) * 0.32;
+                const pat: MovementPattern = i < 6 ? "spiral" : i % 2 === 0 ? "direct" : "homing";
+                addMOrb({ id: `m-barrage-${Date.now()}-${i}`, position: [finalX, finalY, 0.5], direction: [Math.cos(angle), Math.sin(angle), 0], speed: 3.0 + Math.random() * 1.8, size: 0.5, seed: Math.random(), shape: "circle", pattern: pat, patternPhase: Math.random() * Math.PI * 2, isBossOrb: true, bossType: "monster" });
+              }
+              monsterBurstCountRef.current = 0;
+            }
+          } else {
+            // Too many live orbs — skip this shot
+            monsterBurstCountRef.current = 0;
+          }
+        }
+
+        if (monsterBurstCountRef.current <= 0 && monsterBurstCooldownRef.current <= 0) {
+          const mode = healthPercent < 0.3 ? 4 : monsterAttackModeRef.current;
+          if (mode === 0)      monsterBurstCountRef.current = 1;  // ring fires once
+          else if (mode === 1) monsterBurstCountRef.current = 3;  // fang: 3 shots
+          else if (mode === 2) monsterBurstCountRef.current = 12; // storm: 12 shots
+          else if (mode === 3) monsterBurstCountRef.current = 10; // pulse: 10 shots
+          else                 monsterBurstCountRef.current = 1;  // barrage fires once
+          monsterBurstTimerRef.current = 0;
+          // Cycle to next normal mode (0–3); rage mode 4 fires every cooldown
+          if (healthPercent >= 0.3) {
+            monsterAttackModeRef.current = (monsterAttackModeRef.current + 1) % 4;
+          }
+          monsterBurstCooldownRef.current = healthPercent < 0.3
+            ? 1.0 + Math.random() * 0.8
+            : 2.2 + Math.random() * 2.0;
+        }
+
+        // Suppress generic fireProjectiles
         attackResult = { timer: localAttackTimerRef.current, burst: attackBurstRef.current };
       } else {
         attackResult = fireProjectiles([finalX, finalY, 0], localAttackTimerRef.current, attackBurstRef.current);
