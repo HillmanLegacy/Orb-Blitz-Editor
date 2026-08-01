@@ -3,18 +3,18 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 
-const FIELD_RADIUS    = 5;
+const FIELD_RADIUS    = 7.5;
 const TOTAL_DUR       = 5.0;
-const N_FIELD         = 200;
+const N_FIELD         = 360;
 const SPARKS_PER      = 6;
 const MAX_ENEMY_SLOTS = 20;
 const N_SPARK_SLOTS   = MAX_ENEMY_SLOTS * SPARKS_PER;
 const N_PULSE         = 64;
 const PULSE_DUR       = 0.55;
 
-const _pGeo     = new THREE.SphereGeometry(0.12, 4, 4);
-const _sGeo     = new THREE.SphereGeometry(0.09, 4, 4);
-const _pulseGeo = new THREE.SphereGeometry(0.18, 4, 4);
+const _pGeo     = new THREE.SphereGeometry(0.024, 4, 4);
+const _sGeo     = new THREE.SphereGeometry(0.018, 4, 4);
+const _pulseGeo = new THREE.SphereGeometry(0.036, 4, 4);
 const _dummy    = new THREE.Object3D();
 
 const _fSeeds = Array.from({ length: N_FIELD }, (_, i) => {
