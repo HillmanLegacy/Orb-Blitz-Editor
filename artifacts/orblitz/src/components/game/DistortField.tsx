@@ -95,8 +95,28 @@ export function DistortField() {
   const pulseTimerRef = useRef(0);
   const pulseHidRef   = useRef(false); // true once we've zeroed out finished pulse
 
-  // Trigger pulse burst on every activation (component mounts = field just activated)
+  // On mount: pre-initialise instanceColor on all three meshes so Three.js compiles
+  // the shader WITH USE_INSTANCING_COLOR from the very first render.
+  // Without this, the attribute is absent on first compile and colours never show.
   useEffect(() => {
+    const black = new THREE.Color(0, 0, 0);
+
+    const fm = fieldRef.current;
+    if (fm) {
+      for (let i = 0; i < N_FIELD; i++) fm.setColorAt(i, black);
+      if (fm.instanceColor) fm.instanceColor.needsUpdate = true;
+    }
+    const sm = sparkRef.current;
+    if (sm) {
+      for (let i = 0; i < N_SPARK_SLOTS; i++) sm.setColorAt(i, black);
+      if (sm.instanceColor) sm.instanceColor.needsUpdate = true;
+    }
+    const pm = pulseRef.current;
+    if (pm) {
+      for (let i = 0; i < N_PULSE; i++) pm.setColorAt(i, black);
+      if (pm.instanceColor) pm.instanceColor.needsUpdate = true;
+    }
+
     pulseTimerRef.current = PULSE_DUR;
     pulseHidRef.current   = false;
   }, []);
