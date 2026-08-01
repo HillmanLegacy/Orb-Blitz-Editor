@@ -1,16 +1,314 @@
 /**
  * MonsterBoss — Level 9.9 boss (Shadow Orb).
- * Uses the uploaded GLB model + baked texture with:
- *   • Slow ominous rotation
- *   • Deep crimson pulse light that rages on low health
- *   • Red hurt flash overlay
- *   • Dark void glow ring
+ * GLB model with baked texture + void fluid layering:
+ *   • Fresnel void rim shader — cyan/indigo living energy rim
+ *   • 500-particle curl-noise void cloud swirling on the surface
+ *   • 64 ambient void-smoke particles drifting outward
+ *   • Deep crimson rage flash on low health
  */
 
-import { useRef, useEffect } from "react";
-import { useFrame }          from "@react-three/fiber";
-import { useGLTF }           from "@react-three/drei";
-import * as THREE            from "three";
+import { useRef, useEffect, useMemo } from "react";
+import { useFrame }   from "@react-three/fiber";
+import { useGLTF }    from "@react-three/drei";
+import * as THREE     from "three";
+
+// ── Fresnel void rim shader ────────────────────────────────────────────────────
+// No UV seam — all noise sampled in 3-D local position space.
+
+const rimVert = /* glsl */ `
+  varying vec3 vNormal;
+  varying vec3 vViewPos;
+  varying vec3 vPos;
+  void main() {
+    vNormal  = normalMatrix * normal;
+    vec4 mvp = modelViewMatrix * vec4(position, 1.0);
+    vViewPos = mvp.xyz;
+    vPos     = position;
+    gl_Position = projectionMatrix * mvp;
+  }
+`;
+
+const rimFrag = /* glsl */ `
+  uniform float uTime;
+  varying vec3 vNormal;
+  varying vec3 vViewPos;
+  varying vec3 vPos;
+
+  float hash3(vec3 p) {
+    p = fract(p * vec3(443.897, 441.423, 437.195));
+    p += dot(p, p.yzx + 19.19);
+    return fract((p.x + p.y) * p.z);
+  }
+  float noise3(vec3 p) {
+    vec3 i = floor(p); vec3 f = fract(p); f = f*f*(3.0-2.0*f);
+    return mix(
+      mix(mix(hash3(i),             hash3(i+vec3(1,0,0)), f.x),
+          mix(hash3(i+vec3(0,1,0)), hash3(i+vec3(1,1,0)), f.x), f.y),
+      mix(mix(hash3(i+vec3(0,0,1)), hash3(i+vec3(1,0,1)), f.x),
+          mix(hash3(i+vec3(0,1,1)), hash3(i+vec3(1,1,1)), f.x), f.y), f.z);
+  }
+
+  void main() {
+    vec3 n = normalize(vNormal);
+    vec3 v = normalize(-vViewPos);
+    float fresnel = pow(1.0 - max(0.0, dot(n, v)), 2.2);
+
+    // Turbulent void skin — slow roll
+    vec3 p  = vPos * 3.0 + vec3(uTime * 0.15, uTime * 0.09, uTime * 0.12);
+    float t1 = noise3(p);
+    float t2 = noise3(p * 2.1 + 1.7);
+    float turb = t1 * 0.6 + t2 * 0.4;
+
+    // Flickering tendril sparks along the rim
+    float spark = noise3(vPos * 6.5 + vec3(uTime * 0.9, -uTime * 0.6, uTime * 0.45));
+    spark = pow(spark, 3.0) * fresnel * 2.2;
+
+    vec3 voidDeep = vec3(0.012, 0.004, 0.032);  // #030108
+    vec3 indigo   = vec3(0.294, 0.000, 0.510);  // #4B0082
+    vec3 cyan     = vec3(0.000, 0.898, 1.000);  // #00E5FF
+    vec3 violet   = vec3(0.180, 0.000, 0.450);
+
+    // Void body with faint turbulence
+    vec3 col = mix(voidDeep, violet, turb * 0.35);
+    // Fresnel rim: indigo → cyan at the edges
+    col += mix(indigo, cyan, fresnel * fresnel) * fresnel * 2.2;
+    // Bright cyan tendril flickers
+    col += cyan * spark * 1.6;
+
+    float alpha = clamp(fresnel * 0.88 + spark * 0.55, 0.0, 1.0);
+    // Subtle dark body presence
+    alpha = max(alpha, turb * 0.07);
+
+    gl_FragColor = vec4(col, clamp(alpha, 0.0, 1.0));
+  }
+`;
+
+// ── Fresnel rim shell component ────────────────────────────────────────────────
+function FresnelRimShell({ radius }: { radius: number }) {
+  const matRef   = useRef<THREE.ShaderMaterial>(null);
+  const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
+
+  useFrame((state) => {
+    if (matRef.current) matRef.current.uniforms.uTime.value = state.clock.getElapsedTime();
+  });
+
+  return (
+    <mesh scale={radius * 1.045}>
+      <sphereGeometry args={[1, 64, 64]} />
+      <shaderMaterial
+        ref={matRef}
+        uniforms={uniforms}
+        vertexShader={rimVert}
+        fragmentShader={rimFrag}
+        transparent
+        depthWrite={false}
+        blending={THREE.AdditiveBlending}
+        side={THREE.FrontSide}
+      />
+    </mesh>
+  );
+}
+
+// ── Void particle cloud ────────────────────────────────────────────────────────
+// 500 instanced particles swirling on/near the surface via curl-like flow.
+
+const VOID_PARTICLE_COUNT = 500;
+
+interface VoidParticle {
+  theta:   number;
+  phi:     number;
+  r:       number;
+  speed:   number;
+  phase:   number;
+  life:    number;
+  maxLife: number;
+  size:    number;
+  colorT:  number;
+}
+
+function VoidParticleCloud({ radius }: { radius: number }) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const dummy   = useMemo(() => new THREE.Object3D(), []);
+  const colBuf  = useRef(new THREE.Color());
+
+  const particles = useRef<VoidParticle[]>(
+    Array.from({ length: VOID_PARTICLE_COUNT }, () => ({
+      theta:   Math.random() * Math.PI * 2,
+      phi:     Math.acos(2 * Math.random() - 1),
+      r:       0.92 + Math.random() * 0.18,
+      speed:   0.3 + Math.random() * 0.7,
+      phase:   Math.random() * Math.PI * 2,
+      life:    Math.random(),
+      maxLife: 0.8 + Math.random() * 1.6,
+      size:    0.026 + Math.random() * 0.05,
+      colorT:  Math.random(),
+    }))
+  );
+
+  useFrame((state, delta) => {
+    if (!meshRef.current) return;
+    const t = state.clock.getElapsedTime();
+
+    particles.current.forEach((p, i) => {
+      p.life -= delta;
+      if (p.life <= 0) {
+        p.theta  = Math.random() * Math.PI * 2;
+        p.phi    = Math.acos(2 * Math.random() - 1);
+        p.r      = 0.90 + Math.random() * 0.12;
+        p.life   = p.maxLife;
+        p.colorT = Math.random();
+        p.size   = 0.026 + Math.random() * 0.05;
+      }
+
+      const lifeRatio = p.life / p.maxLife;
+
+      // Curl-like analytical flow (divergence-free approximation)
+      const cx   = Math.sin(p.phi) * Math.cos(p.theta);
+      const cz   = Math.cos(p.phi);
+      const ts   = t * 0.22 + p.phase;
+      const dTheta = Math.sin(cz * 2.6 + ts) * p.speed;
+      const dPhi   = Math.cos(cx * 1.9 + ts * 0.85) * p.speed * 0.55;
+
+      p.theta += dTheta * delta;
+      p.phi   += dPhi   * delta;
+      p.phi    = Math.max(0.05, Math.min(Math.PI - 0.05, p.phi));
+
+      // Subtle radial breath
+      const breathe = Math.sin(t * 1.5 + p.phase) * 0.055;
+      const rNow    = p.r + breathe;
+
+      const sinPhi = Math.sin(p.phi);
+      dummy.position.set(
+        Math.cos(p.theta) * sinPhi * rNow * radius,
+        Math.sin(p.theta) * sinPhi * rNow * radius,
+        Math.cos(p.phi)   * rNow  * radius,
+      );
+      const sz = p.size * Math.min(1, lifeRatio * 3) * (0.65 + lifeRatio * 0.35);
+      dummy.scale.setScalar(Math.max(0.0001, sz));
+      dummy.updateMatrix();
+      meshRef.current!.setMatrixAt(i, dummy.matrix);
+
+      // Color: deep void → violet → bright cyan
+      const outerBias = Math.max(0, (rNow - 0.90) / 0.28);
+      const ct = Math.max(p.colorT, outerBias) * lifeRatio;
+      if (ct < 0.45) {
+        colBuf.current.setRGB(0.04 + ct * 0.28, 0.0, 0.10 + ct * 0.55);
+      } else {
+        const f = (ct - 0.45) / 0.55;
+        colBuf.current.setRGB(0.28 * (1 - f), 0.45 + f * 0.45, 0.75 + f * 0.25);
+      }
+      meshRef.current!.setColorAt(i, colBuf.current);
+    });
+
+    meshRef.current.instanceMatrix.needsUpdate = true;
+    if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
+  });
+
+  return (
+    <instancedMesh ref={meshRef} args={[undefined, undefined, VOID_PARTICLE_COUNT]}>
+      <sphereGeometry args={[1, 4, 4]} />
+      <meshBasicMaterial
+        transparent
+        opacity={0.88}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+      />
+    </instancedMesh>
+  );
+}
+
+// ── Void smoke ─────────────────────────────────────────────────────────────────
+// 64 slow dark-violet puffs that drift outward from the surface and fade.
+
+const VOID_SMOKE_COUNT = 64;
+
+interface SmokeParticle {
+  theta:   number;
+  phi:     number;
+  r:       number;
+  vr:      number;
+  vTheta:  number;
+  vPhi:    number;
+  life:    number;
+  maxLife: number;
+  size:    number;
+}
+
+function VoidSmoke({ radius }: { radius: number }) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const dummy   = useMemo(() => new THREE.Object3D(), []);
+  const colBuf  = useRef(new THREE.Color());
+
+  const smoke = useRef<SmokeParticle[]>(
+    Array.from({ length: VOID_SMOKE_COUNT }, () => ({
+      theta:   Math.random() * Math.PI * 2,
+      phi:     Math.acos(2 * Math.random() - 1),
+      r:       1.0 + Math.random() * 0.4,
+      vr:      0.3 + Math.random() * 0.45,
+      vTheta:  (Math.random() - 0.5) * 0.35,
+      vPhi:    (Math.random() - 0.5) * 0.25,
+      life:    Math.random(),
+      maxLife: 1.2 + Math.random() * 0.8,
+      size:    0.07 + Math.random() * 0.10,
+    }))
+  );
+
+  useFrame((_, delta) => {
+    if (!meshRef.current) return;
+
+    smoke.current.forEach((s, i) => {
+      s.life -= delta;
+      if (s.life <= 0 || s.r > 2.4) {
+        s.theta   = Math.random() * Math.PI * 2;
+        s.phi     = Math.acos(2 * Math.random() - 1);
+        s.r       = 1.0;
+        s.vr      = 0.3 + Math.random() * 0.45;
+        s.vTheta  = (Math.random() - 0.5) * 0.35;
+        s.vPhi    = (Math.random() - 0.5) * 0.25;
+        s.life    = s.maxLife;
+        s.size    = 0.07 + Math.random() * 0.10;
+      }
+
+      s.r      += s.vr    * delta;
+      s.theta  += s.vTheta * delta;
+      s.phi    += s.vPhi   * delta;
+      s.phi     = Math.max(0.1, Math.min(Math.PI - 0.1, s.phi));
+
+      const lifeRatio  = s.life / s.maxLife;
+      const fadeByDist = Math.max(0, 1.0 - (s.r - 1.0) / 1.4);
+      const alpha      = lifeRatio * fadeByDist;
+
+      const sinPhi = Math.sin(s.phi);
+      const rWorld = s.r * radius;
+      dummy.position.set(
+        Math.cos(s.theta) * sinPhi * rWorld,
+        Math.sin(s.theta) * sinPhi * rWorld,
+        Math.cos(s.phi)   * rWorld,
+      );
+      dummy.scale.setScalar(Math.max(0.0001, s.size * alpha));
+      dummy.updateMatrix();
+      meshRef.current!.setMatrixAt(i, dummy.matrix);
+
+      colBuf.current.setRGB(0.08 * alpha, 0.0, 0.20 * alpha);
+      meshRef.current!.setColorAt(i, colBuf.current);
+    });
+
+    meshRef.current.instanceMatrix.needsUpdate = true;
+    if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
+  });
+
+  return (
+    <instancedMesh ref={meshRef} args={[undefined, undefined, VOID_SMOKE_COUNT]}>
+      <sphereGeometry args={[1, 6, 6]} />
+      <meshBasicMaterial
+        transparent
+        opacity={0.45}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+      />
+    </instancedMesh>
+  );
+}
 
 // ── Pulsing boss light ────────────────────────────────────────────────────────
 function MonsterLight({ healthPercent }: { healthPercent: number }) {
@@ -24,10 +322,10 @@ function MonsterLight({ healthPercent }: { healthPercent: number }) {
       ref.current.color.setRGB(1, 0.05 + rage * 0.05, 0.0);
     } else {
       ref.current.intensity = 8 + Math.sin(t * 1.6) * 3;
-      ref.current.color.setRGB(0.6, 0.05, 0.8);
+      ref.current.color.setRGB(0.0, 0.55, 1.0);  // cyan void glow
     }
   });
-  return <pointLight ref={ref} color="#880088" intensity={8} distance={28} decay={2} />;
+  return <pointLight ref={ref} color="#00aaff" intensity={8} distance={28} decay={2} />;
 }
 
 // ── Hurt / rage overlay ───────────────────────────────────────────────────────
@@ -41,8 +339,8 @@ function HurtOverlay({ radius, healthPercent }: { radius: number; healthPercent:
     prevRef.current = healthPercent;
     hurtRef.current = Math.max(0, hurtRef.current - delta);
     if (!meshRef.current) return;
-    const mat = meshRef.current.material as THREE.MeshBasicMaterial;
-    const t   = state.clock.getElapsedTime();
+    const mat  = meshRef.current.material as THREE.MeshBasicMaterial;
+    const t    = state.clock.getElapsedTime();
     const frac = hurtRef.current / 0.18;
     if (frac > 0) {
       mat.color.setRGB(1, 0.05, 0.05);
@@ -64,24 +362,6 @@ function HurtOverlay({ radius, healthPercent }: { radius: number; healthPercent:
   );
 }
 
-// ── Void glow ring ────────────────────────────────────────────────────────────
-function VoidRing({ radius }: { radius: number }) {
-  const ref = useRef<THREE.Mesh>(null);
-  useFrame((state) => {
-    if (!ref.current) return;
-    const t = state.clock.getElapsedTime();
-    const mat = ref.current.material as THREE.MeshBasicMaterial;
-    mat.opacity = 0.18 + Math.abs(Math.sin(t * 1.1)) * 0.22;
-    ref.current.rotation.z = t * 0.4;
-  });
-  return (
-    <mesh ref={ref} scale={radius * 1.35} rotation={[Math.PI * 0.5, 0, 0]}>
-      <ringGeometry args={[0.85, 1, 64]} />
-      <meshBasicMaterial color="#cc00ff" transparent depthWrite={false} blending={THREE.AdditiveBlending} opacity={0.2} side={THREE.DoubleSide} />
-    </mesh>
-  );
-}
-
 // ── Main component ────────────────────────────────────────────────────────────
 export interface MonsterBossProps {
   radius?:        number;
@@ -99,7 +379,6 @@ export function MonsterBoss({ radius = 1.44, healthPercent = 1 }: MonsterBossPro
   useEffect(() => {
     if (!groupRef.current) return;
 
-    // Extract baked texture from the GLB
     let orbTexture: THREE.Texture | null = null;
     modelScene.traverse((child) => {
       if (orbTexture) return;
@@ -117,7 +396,6 @@ export function MonsterBoss({ radius = 1.44, healthPercent = 1 }: MonsterBossPro
     const cloned = modelScene.clone(true);
     materialsRef.current = [];
 
-    // Fit to radius
     const box     = new THREE.Box3().setFromObject(cloned);
     const sizeVec = new THREE.Vector3();
     box.getSize(sizeVec);
@@ -155,7 +433,6 @@ export function MonsterBoss({ radius = 1.44, healthPercent = 1 }: MonsterBossPro
     prevHealthRef.current = healthPercent;
     hurtTimerRef.current  = Math.max(0, hurtTimerRef.current - delta);
 
-    // Slow ominous rotation — slightly wobbles
     if (groupRef.current) {
       const t = state.clock.getElapsedTime();
       groupRef.current.rotation.y += delta * 0.35;
@@ -181,15 +458,22 @@ export function MonsterBoss({ radius = 1.44, healthPercent = 1 }: MonsterBossPro
 
   return (
     <group>
+      {/* Void-blue ambient light */}
       <MonsterLight healthPercent={healthPercent} />
 
-      {/* Void glow ring orbiting the boss */}
-      <VoidRing radius={radius} />
+      {/* Ambient void smoke drifting outward */}
+      <VoidSmoke radius={radius} />
 
-      {/* GLB model body */}
+      {/* GLB model — baked texture preserved */}
       <group ref={groupRef} />
 
-      {/* Hurt / rage overlay */}
+      {/* Swirling void particle cloud on surface */}
+      <VoidParticleCloud radius={radius} />
+
+      {/* Fresnel cyan/indigo rim — outermost shell */}
+      <FresnelRimShell radius={radius} />
+
+      {/* Hurt / rage flash */}
       <HurtOverlay radius={radius} healthPercent={healthPercent} />
     </group>
   );
