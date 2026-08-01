@@ -1,20 +1,20 @@
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
-import { useShop } from "@/lib/stores/useShop";
+import { useShop, SHOP_ITEMS } from "@/lib/stores/useShop";
 import { useAudio } from "@/lib/stores/useAudio";
 import { useOrbTransition } from "@/lib/stores/useOrbTransition";
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 const _svg = { viewBox: "0 0 24 24", fill: "none", width: "1em", height: "1em", style: { display: "block" } } as const;
-function IconResume()    { return <svg {..._svg}><path d="M7 4 L20 12 L7 20 Z" fill="currentColor" opacity="0.92"/></svg>; }
-function IconShop()      { return <svg {..._svg}><path d="M6.5 7.5h11l-1.5 10h-8L6.5 7.5Z" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.15"/><path d="M9.5 7.5V6a2.5 2.5 0 0 1 5 0v1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="12" cy="13" r="1.4" fill="currentColor"/></svg>; }
-function IconGear()      { return <svg {..._svg}><rect x="3" y="3" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/><rect x="13" y="3" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/><rect x="3" y="13" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/><rect x="13" y="13" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.06" strokeDasharray="2 1.5"/></svg>; }
-function IconSound()     { return <svg {..._svg}><path d="M4 9 H7 L12 5 V19 L7 15 H4 V9 Z" fill="currentColor" fillOpacity="0.85"/><path d="M15 8 C17 9.5 17.5 11.5 17.5 12 S17 14.5 15 16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M17.5 5.5 C20.5 7.5 21.5 9.8 21.5 12 S20.5 16.5 17.5 18.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
-function IconSoundOff()  { return <svg {..._svg}><path d="M4 9 H7 L12 5 V19 L7 15 H4 V9 Z" fill="currentColor" fillOpacity="0.5"/><line x1="16.5" y1="9" x2="22" y2="15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/><line x1="22" y1="9" x2="16.5" y2="15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>; }
-function IconQuit()      { return <svg {..._svg}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><polyline points="16 17 21 12 16 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>; }
+function IconResume()  { return <svg {..._svg}><path d="M7 4 L20 12 L7 20 Z" fill="currentColor" opacity="0.92"/></svg>; }
+function IconShop()    { return <svg {..._svg}><path d="M6.5 7.5h11l-1.5 10h-8L6.5 7.5Z" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.15"/><path d="M9.5 7.5V6a2.5 2.5 0 0 1 5 0v1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="12" cy="13" r="1.4" fill="currentColor"/></svg>; }
+function IconStatus()  { return <svg {..._svg}><path d="M12 3 L20 7 V13 C20 17.4 16.5 21 12 22.5 C7.5 21 4 17.4 4 13 V7 Z" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/><circle cx="12" cy="10.5" r="1.5" fill="currentColor"/><line x1="12" y1="13.5" x2="12" y2="17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>; }
+function IconSound()   { return <svg {..._svg}><path d="M4 9 H7 L12 5 V19 L7 15 H4 V9 Z" fill="currentColor" fillOpacity="0.85"/><path d="M15 8 C17 9.5 17.5 11.5 17.5 12 S17 14.5 15 16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M17.5 5.5 C20.5 7.5 21.5 9.8 21.5 12 S20.5 16.5 17.5 18.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
+function IconSoundOff(){ return <svg {..._svg}><path d="M4 9 H7 L12 5 V19 L7 15 H4 V9 Z" fill="currentColor" fillOpacity="0.5"/><line x1="16.5" y1="9" x2="22" y2="15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/><line x1="22" y1="9" x2="16.5" y2="15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>; }
+function IconQuit()    { return <svg {..._svg}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><polyline points="16 17 21 12 16 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>; }
 
-// ─── Shared button primitives ─────────────────────────────────────────────────
+// ─── Shared design tokens ─────────────────────────────────────────────────────
 const BTN_H    = "clamp(64px,11vw,88px)";
 const ICON_SZ  = "clamp(1.2rem,3.2vw,1.7rem)";
 const LABEL_SZ = "clamp(0.48rem,1.25vw,0.66rem)";
@@ -101,20 +101,191 @@ function OrbButtonRow({ buttons, delayStart = 0 }: { buttons: BtnDef[]; delaySta
   );
 }
 
+// ─── Status Panel (read-only loadout) ─────────────────────────────────────────
+const STATUS_SLOTS = [
+  { key: "weapon",    label: "WEAPON",     icon: "⚡", color: "#ff7700", cat: "weapon"   },
+  { key: "defense_0", label: "DEFENSE I",  icon: "◎", color: "#00ffff", cat: "defense",  defSlot: 0 },
+  { key: "defense_1", label: "DEFENSE II", icon: "◎", color: "#22ddcc", cat: "defense",  defSlot: 1 },
+  { key: "magi_orb",  label: "MAGI-ORB",  icon: "◆", color: "#8844ff", cat: "magi_orb" },
+  { key: "skin",      label: "SKIN",       icon: "●", color: "#ff00ff", cat: "skin"     },
+  { key: "trail",     label: "TRAIL",      icon: "≋", color: "#ddcc00", cat: "trail"    },
+  { key: "ring",      label: "RING",       icon: "○", color: "#00ccee", cat: "ring"     },
+] as const;
+
+function resolveItemName(cat: string, value: string): string {
+  if (!value || value === "none")    return "— none —";
+  if (value === "default")           return "Default";
+  return SHOP_ITEMS.find(i => i.category === cat && i.value === value)?.name ?? value;
+}
+
+function StatusPanel({ onClose }: { onClose: () => void }) {
+  const {
+    equippedSkin, equippedTrail, equippedRing,
+    equippedWeapon, equippedDefenses, equippedMagiOrb,
+  } = useShop();
+
+  function getValue(slot: typeof STATUS_SLOTS[number]): string {
+    switch (slot.cat) {
+      case "weapon":   return equippedWeapon;
+      case "defense":  return equippedDefenses[(slot as any).defSlot];
+      case "magi_orb": return equippedMagiOrb;
+      case "skin":     return equippedSkin;
+      case "trail":    return equippedTrail;
+      case "ring":     return equippedRing;
+    }
+  }
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-auto"
+      style={{ padding: "clamp(12px,3vw,24px)" }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.18 }}
+    >
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 cursor-pointer"
+        style={{ background: "rgba(0,0,8,0.88)", backdropFilter: "blur(10px)" }}
+        onClick={onClose}
+      />
+
+      {/* Card */}
+      <motion.div
+        className="relative flex flex-col w-full overflow-hidden"
+        style={{
+          maxWidth: "min(440px,100%)",
+          maxHeight: "min(88vh,640px)",
+          background: "rgba(4,4,18,0.97)",
+          border: "1px solid rgba(170,0,255,0.22)",
+          borderRadius: "clamp(16px,2.5vw,24px)",
+          backdropFilter: "blur(32px)",
+          boxShadow: "0 0 60px rgba(170,0,255,0.1), 0 24px 80px rgba(0,0,0,0.75)",
+        }}
+        initial={{ scale: 0.88, y: 28, opacity: 0 }}
+        animate={{ scale: 1,   y: 0,  opacity: 1 }}
+        exit={{ scale: 0.9,   y: 20, opacity: 0 }}
+        transition={{ type: "spring", stiffness: 340, damping: 28 }}
+      >
+        {/* Scanlines */}
+        <div className="absolute inset-0 pointer-events-none rounded-[inherit] overflow-hidden" style={{ zIndex: 0 }}>
+          <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 5px,rgba(255,255,255,0.007) 5px,rgba(255,255,255,0.007) 6px)" }} />
+        </div>
+
+        {/* Header */}
+        <div className="relative flex-none flex items-center justify-between px-5 pt-4 pb-3"
+          style={{ borderBottom: "1px solid rgba(255,255,255,0.07)", zIndex: 1 }}>
+          <div>
+            <span className="font-black text-lg tracking-[0.18em] uppercase"
+              style={{
+                background: "linear-gradient(90deg,#aa00ff,#ff00ff,#00ffff)",
+                WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+                filter: "drop-shadow(0 0 8px rgba(170,0,255,0.5))",
+              }}>
+              LOADOUT
+            </span>
+            <p className="text-[9px] font-black tracking-[0.2em] uppercase mt-0.5"
+              style={{ color: "rgba(255,255,255,0.22)" }}>
+              EQUIP VIA MAIN MENU · BETWEEN LEVELS
+            </p>
+          </div>
+          <motion.button whileTap={{ scale: 0.85 }} onClick={onClose}
+            className="flex items-center justify-center rounded-lg"
+            style={{
+              width: 32, height: 32,
+              background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
+              color: "rgba(255,255,255,0.5)", fontSize: "1.1rem", cursor: "pointer",
+            }}>
+            ×
+          </motion.button>
+        </div>
+
+        {/* Slot grid */}
+        <div className="relative flex-1 min-h-0 overflow-y-auto px-4 py-4"
+          style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(170,0,255,0.15) transparent", zIndex: 1 }}>
+          <div className="grid grid-cols-2 gap-2.5">
+            {STATUS_SLOTS.map(slot => {
+              const val      = getValue(slot);
+              const name     = resolveItemName(slot.cat, val);
+              const hasItem  = val !== "none" && val !== "default" && !!val;
+              return (
+                <div
+                  key={slot.key}
+                  className="relative flex items-center gap-2.5 rounded-xl px-3 py-3 overflow-hidden"
+                  style={{
+                    background: hasItem ? `${slot.color}0c` : "rgba(255,255,255,0.025)",
+                    border: `1px solid ${hasItem ? slot.color + "44" : "rgba(255,255,255,0.08)"}`,
+                  }}
+                >
+                  {hasItem && (
+                    <div className="absolute inset-0 pointer-events-none" style={{
+                      background: `radial-gradient(ellipse at 0% 50%, ${slot.color}12 0%, transparent 70%)`,
+                    }} />
+                  )}
+                  {/* Icon */}
+                  <div className="flex-shrink-0 flex items-center justify-center rounded-lg"
+                    style={{
+                      width: 34, height: 34,
+                      background: `${slot.color}18`, border: `1px solid ${slot.color}44`,
+                      color: slot.color, fontSize: "1rem",
+                    }}>
+                    {slot.icon}
+                  </div>
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[9px] font-black tracking-widest uppercase"
+                      style={{ color: slot.color, opacity: 0.7 }}>{slot.label}</p>
+                    <p className="font-semibold text-xs leading-tight truncate mt-0.5"
+                      style={{ color: hasItem ? "#fff" : "rgba(255,255,255,0.28)" }}>{name}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Lock notice */}
+          <div className="mt-4 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl"
+            style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <span style={{ fontSize: "0.85rem", opacity: 0.4 }}>🔒</span>
+            <p className="text-[10px] font-bold tracking-widest uppercase text-center"
+              style={{ color: "rgba(255,255,255,0.25)" }}>
+              Gear changes locked during gameplay
+            </p>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export function PauseMenu({ onMainMenu }: { onMainMenu?: () => void }) {
   const { phase, resumeGame, startLoading, score } = useMagicOrb();
-  const { openShop, openInventory, shopOpen, inventoryOpen } = useShop();
+  const { openShop, shopOpen, inventoryOpen } = useShop();
   const { isMuted, toggleMute, playLevelSelect, playExitToMenu, stopArcadeBgm } = useAudio();
+  const [statusOpen, setStatusOpen] = useState(false);
 
   if (phase !== "paused" || shopOpen || inventoryOpen) return null;
 
   const sfx = () => { try { playLevelSelect(); } catch {} };
 
   const topRow: BtnDef[] = [
-    { id: "resume", icon: <IconResume />, label: "RESUME", color: "#00ffff", shadow: "rgba(0,255,255,0.45)",  action: () => { sfx(); useOrbTransition.getState().fastSweep(resumeGame); } },
-    { id: "shop",   icon: <IconShop />,   label: "SHOP",   color: "#ff00ff", shadow: "rgba(255,0,255,0.45)",  action: () => { sfx(); openShop(); } },
-    { id: "gear",   icon: <IconGear />,   label: "GEAR",   color: "#aa00ff", shadow: "rgba(170,0,255,0.45)",  action: () => { sfx(); openInventory(); } },
+    {
+      id: "resume", icon: <IconResume />, label: "RESUME",
+      color: "#00ffff", shadow: "rgba(0,255,255,0.45)",
+      action: () => { sfx(); useOrbTransition.getState().fastSweep(resumeGame); },
+    },
+    {
+      id: "shop", icon: <IconShop />, label: "SHOP",
+      color: "#ff00ff", shadow: "rgba(255,0,255,0.45)",
+      action: () => { sfx(); openShop(); },
+    },
+    {
+      id: "status", icon: <IconStatus />, label: "STATUS",
+      color: "#aa00ff", shadow: "rgba(170,0,255,0.45)",
+      action: () => { sfx(); setStatusOpen(true); },
+    },
   ];
 
   const soundColor  = isMuted ? "#667788" : "#00ffff";
@@ -127,84 +298,99 @@ export function PauseMenu({ onMainMenu }: { onMainMenu?: () => void }) {
       color: soundColor, shadow: soundShadow,
       action: () => { sfx(); toggleMute(); },
     },
-    { id: "quit", icon: <IconQuit />, label: "QUIT", color: "#667788", shadow: "rgba(100,110,130,0.22)", action: () => { try { playExitToMenu(); } catch {} try { stopArcadeBgm(); } catch {} onMainMenu?.(); useOrbTransition.getState().loadingSweep(() => startLoading("exiting_to_menu")); } },
+    {
+      id: "quit", icon: <IconQuit />, label: "QUIT",
+      color: "#667788", shadow: "rgba(100,110,130,0.22)",
+      action: () => {
+        try { playExitToMenu(); } catch {}
+        try { stopArcadeBgm(); } catch {}
+        onMainMenu?.();
+        useOrbTransition.getState().loadingSweep(() => startLoading("exiting_to_menu"));
+      },
+    },
   ];
 
   return (
-    <motion.div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-black pointer-events-auto select-none"
-      style={{ padding: "clamp(12px,3vh,28px) clamp(12px,4vw,32px)" }}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-    >
-      {/* Radial glow */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: "radial-gradient(ellipse 70% 50% at 50% 50%, rgba(0,255,255,0.06) 0%, rgba(170,0,255,0.05) 50%, transparent 75%)",
-      }} />
-
-      {/* Scanlines */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,255,255,0.008) 3px,rgba(0,255,255,0.008) 4px)",
-      }} />
-
+    <>
       <motion.div
-        className="relative z-10 w-full flex flex-col items-center gap-3"
-        style={{ maxWidth: "clamp(300px,90vw,440px)" }}
-        initial={{ scale: 0.9, opacity: 0, y: 16 }}
-        animate={{ scale: 1,   opacity: 1, y: 0  }}
-        transition={{ duration: 0.3, ease: [0.22, 0.61, 0.36, 1] }}
+        className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-black pointer-events-auto select-none"
+        style={{ padding: "clamp(12px,3vh,28px) clamp(12px,4vw,32px)" }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
       >
-        {/* Title */}
-        <div className="text-center">
-          <motion.h1
-            className="font-black tracking-widest text-transparent bg-clip-text"
-            style={{
-              fontSize: "clamp(2rem,8vw,3.2rem)", lineHeight: 1,
-              backgroundImage: "linear-gradient(135deg,#00ffff 0%,#aa00ff 45%,#ff00ff 75%,#ffff00 100%)",
-            }}
-            animate={{ filter: [
-              "drop-shadow(0 0 14px rgba(0,255,255,0.45)) drop-shadow(0 0 28px rgba(255,0,255,0.2))",
-              "drop-shadow(0 0 22px rgba(255,0,255,0.55)) drop-shadow(0 0 44px rgba(0,255,255,0.25))",
-              "drop-shadow(0 0 14px rgba(0,255,255,0.45)) drop-shadow(0 0 28px rgba(255,0,255,0.2))",
-            ]}}
-            transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-          >
-            PAUSED
-          </motion.h1>
+        {/* Radial glow */}
+        <div className="absolute inset-0 pointer-events-none" style={{
+          background: "radial-gradient(ellipse 70% 50% at 50% 50%, rgba(0,255,255,0.06) 0%, rgba(170,0,255,0.05) 50%, transparent 75%)",
+        }} />
 
-          {/* Underline */}
-          <div className="mt-2 mx-auto" style={{
-            height: 1, width: "clamp(80px,30%,160px)",
-            background: "linear-gradient(90deg,transparent,#00ffff 35%,#ff00ff 65%,transparent)",
-            opacity: 0.5,
-          }} />
-        </div>
+        {/* Scanlines */}
+        <div className="absolute inset-0 pointer-events-none" style={{
+          backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,255,255,0.008) 3px,rgba(0,255,255,0.008) 4px)",
+        }} />
 
-        {/* Score pill */}
         <motion.div
-          className="flex items-center gap-2 rounded-full px-4 py-1.5"
-          style={{ background: "rgba(0,0,0,0.45)", border: "1px solid rgba(0,255,255,0.12)" }}
-          initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
+          className="relative z-10 w-full flex flex-col items-center gap-3"
+          style={{ maxWidth: "clamp(300px,90vw,440px)" }}
+          initial={{ scale: 0.9, opacity: 0, y: 16 }}
+          animate={{ scale: 1,   opacity: 1, y: 0  }}
+          transition={{ duration: 0.3, ease: [0.22, 0.61, 0.36, 1] }}
         >
-          <span style={{ fontSize: "clamp(0.48rem,1.1vw,0.6rem)", color: "rgba(255,255,255,0.32)", letterSpacing: "0.2em", fontWeight: 700 }}>SCORE</span>
-          <span className="font-black text-transparent bg-clip-text"
-            style={{ fontSize: "clamp(1rem,2.5vw,1.4rem)", lineHeight: 1, backgroundImage: "linear-gradient(90deg,#00ffff,#aa00ff,#ff00ff)" }}>
-            {score}
-          </span>
+          {/* Title */}
+          <div className="text-center">
+            <motion.h1
+              className="font-black tracking-widest text-transparent bg-clip-text"
+              style={{
+                fontSize: "clamp(2rem,8vw,3.2rem)", lineHeight: 1,
+                backgroundImage: "linear-gradient(135deg,#00ffff 0%,#aa00ff 45%,#ff00ff 75%,#ffff00 100%)",
+              }}
+              animate={{ filter: [
+                "drop-shadow(0 0 14px rgba(0,255,255,0.45)) drop-shadow(0 0 28px rgba(255,0,255,0.2))",
+                "drop-shadow(0 0 22px rgba(255,0,255,0.55)) drop-shadow(0 0 44px rgba(0,255,255,0.25))",
+                "drop-shadow(0 0 14px rgba(0,255,255,0.45)) drop-shadow(0 0 28px rgba(255,0,255,0.2))",
+              ]}}
+              transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+            >
+              PAUSED
+            </motion.h1>
+
+            <div className="mt-2 mx-auto" style={{
+              height: 1, width: "clamp(80px,30%,160px)",
+              background: "linear-gradient(90deg,transparent,#00ffff 35%,#ff00ff 65%,transparent)",
+              opacity: 0.5,
+            }} />
+          </div>
+
+          {/* Score pill */}
+          <motion.div
+            className="flex items-center gap-2 rounded-full px-4 py-1.5"
+            style={{ background: "rgba(0,0,0,0.45)", border: "1px solid rgba(0,255,255,0.12)" }}
+            initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
+          >
+            <span style={{ fontSize: "clamp(0.48rem,1.1vw,0.6rem)", color: "rgba(255,255,255,0.32)", letterSpacing: "0.2em", fontWeight: 700 }}>SCORE</span>
+            <span className="font-black text-transparent bg-clip-text"
+              style={{ fontSize: "clamp(1rem,2.5vw,1.4rem)", lineHeight: 1, backgroundImage: "linear-gradient(90deg,#00ffff,#aa00ff,#ff00ff)" }}>
+              {score}
+            </span>
+          </motion.div>
+
+          {/* Primary row: RESUME · SHOP · STATUS */}
+          <div className="w-full">
+            <OrbButtonRow buttons={topRow} delayStart={0.05} />
+          </div>
+
+          {/* Secondary row: SOUND · QUIT */}
+          <div className="w-full">
+            <OrbButtonRow buttons={bottomRow} delayStart={0.18} />
+          </div>
         </motion.div>
-
-        {/* Primary row: RESUME · SHOP · GEAR */}
-        <div className="w-full">
-          <OrbButtonRow buttons={topRow} delayStart={0.05} />
-        </div>
-
-        {/* Secondary row: SOUND · QUIT */}
-        <div className="w-full">
-          <OrbButtonRow buttons={bottomRow} delayStart={0.18} />
-        </div>
       </motion.div>
-    </motion.div>
+
+      {/* Status overlay — rendered above pause menu */}
+      <AnimatePresence>
+        {statusOpen && <StatusPanel onClose={() => setStatusOpen(false)} />}
+      </AnimatePresence>
+    </>
   );
 }

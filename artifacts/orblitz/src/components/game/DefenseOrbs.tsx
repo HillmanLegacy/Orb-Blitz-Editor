@@ -1,4 +1,4 @@
-import { useRef, useMemo, useEffect, useState } from "react";
+import { useRef, useMemo, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
@@ -13,18 +13,18 @@ const BASE_SPD   = 1.2;    // rad/s normal rotation
 const LOW_SPD    = 2.8;    // rad/s when ≤2 orbs remain
 const BOB_AMP    = 0.12;
 const BOB_FREQ   = 1.8;
-const HALF_N     = 30;     // shards per pool (gold / blue)
+const HALF_N     = 30;     // shards per pool
 const N_SHARDS   = HALF_N * 2;
 const SHARD_LIFE = 0.55;
 const SHOCK_LIFE = 0.42;
-const REBAL_SPD  = 3.5;    // rad/s rebalance lerp
+const FORM_SPD   = 5.0;    // rad/s — how fast orbs lerp to formation target
 
 // ── Pooled module-level geometry ───────────────────────────────────────────────
 const _shardGeo = new THREE.SphereGeometry(0.045, 4, 3);
 const _shockGeo = new THREE.RingGeometry(0.8, 1.0, 48);
 const _dummy    = new THREE.Object3D();
 
-// ── Shard simulation state (x/y tracked here, not read back from GPU matrix) ──
+// ── Shard simulation state ─────────────────────────────────────────────────────
 type Shard = {
   x: number; y: number;
   vx: number; vy: number;
@@ -32,13 +32,12 @@ type Shard = {
 };
 function makeShard(): Shard { return { x:0, y:0, vx:0, vy:0, life:0, maxLife:SHARD_LIFE }; }
 
-// ── Per-orb visual state (keyed by orb id) ────────────────────────────────────
+// ── Per-orb visual state ───────────────────────────────────────────────────────
 type OrbState = {
-  angle:   number;        // current actual angle (managed here, not in store)
-  targetA: number;        // rebalance target angle
-  bobSeed: number;        // individual bob phase
-  flash:   number;        // 0-1 white flash, decays each frame
-  snapX:   number | null; // world-space intercept target X
+  angle:   number;   // current rendered angle
+  bobSeed: number;   // individual vertical bob phase
+  flash:   number;   // 0-1 white flash intensity, decays
+  snapX:   number | null;
   snapY:   number | null;
 };
 
@@ -183,9 +182,12 @@ export function DefenseOrbs() {
     [equippedSkin, health],
   );
 
-  // ── Per-orb state map ────────────────────────────────────────────────────────
-  // Stored as plain mutable ref-objects (not React.useRef) so we can create them
-  // inside useMemo without violating hooks rules.
+  // ── Master rotation angle — shared by the whole formation ──────────────────
+  // Each orb's formation target = masterAngle + (slotIndex / n) * 2π
+  // This decouples rotation from rebalancing so there's never any fighting.
+  const masterAngleRef = useRef(0);
+
+  // ── Per-orb state map ──────────────────────────────────────────────────────
   const orbStatesRef = useRef<Map<string, React.MutableRefObject<OrbState>>>(new Map());
 
   useMemo(() => {
@@ -195,7 +197,6 @@ export function DefenseOrbs() {
         orbStatesRef.current.set(orb.id, {
           current: {
             angle:   orb.angle,
-            targetA: orb.angle,
             bobSeed: Math.random() * Math.PI * 2,
             flash:   0,
             snapX:   null,
@@ -209,34 +210,7 @@ export function DefenseOrbs() {
     }
   }, [defenseOrbs]);
 
-  // ── Tether lines (up to 5 between adjacent orbs) ─────────────────────────────
-  const MAX_TETHERS = 5;
-  const tethersRef = useRef<{ geo: THREE.BufferGeometry; line: THREE.Line }[]>([]);
-  const tethersReady = useRef(false);
-
-  useEffect(() => {
-    for (let i = 0; i < MAX_TETHERS; i++) {
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute(
-        "position",
-        new THREE.BufferAttribute(new Float32Array(6), 3),
-      );
-      const mat = new THREE.LineBasicMaterial({
-        color: "#00E5FF",
-        transparent: true, opacity: 0.30,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      });
-      const line = new THREE.Line(geo, mat);
-      line.frustumCulled = false;
-      line.visible = false;
-      tethersRef.current[i] = { geo, line };
-    }
-    tethersReady.current = true;
-    return () => { tethersRef.current.forEach(t => t.geo.dispose()); };
-  }, []);
-
-  // ── Particle pools (two InstancedMeshes: gold + blue) ─────────────────────────
+  // ── Particle pools ─────────────────────────────────────────────────────────
   const [goldMat] = useState(() => new THREE.MeshBasicMaterial({
     color: "#FFD700", transparent: true, depthWrite: false,
     blending: THREE.AdditiveBlending,
@@ -249,11 +223,11 @@ export function DefenseOrbs() {
   const blueRef   = useRef<THREE.InstancedMesh>(null);
   const shardsRef = useRef<Shard[]>(Array.from({ length: N_SHARDS }, makeShard));
 
-  // ── Shockwave ring ────────────────────────────────────────────────────────────
+  // ── Shockwave ring ─────────────────────────────────────────────────────────
   const shockRef   = useRef<THREE.Mesh>(null);
   const shockState = useRef({ active: false, x: 0, y: 0, timer: 0 });
 
-  // ── Spawn impact particles + shockwave ───────────────────────────────────────
+  // ── Spawn shards + shockwave at impact ─────────────────────────────────────
   function triggerImpact(ix: number, iy: number) {
     const gm = goldRef.current;
     const bm = blueRef.current;
@@ -276,11 +250,10 @@ export function DefenseOrbs() {
     if (bm) bm.instanceMatrix.needsUpdate = true;
     goldMat.opacity = 1;
     blueMat.opacity = 1;
-
     shockState.current = { active: true, x: ix, y: iy, timer: SHOCK_LIFE };
   }
 
-  // ── Main frame loop ───────────────────────────────────────────────────────────
+  // ── Main frame loop ────────────────────────────────────────────────────────
   useFrame((_, delta) => {
     if (phase !== "playing") return;
 
@@ -288,116 +261,71 @@ export function DefenseOrbs() {
     const n         = aliveOrbs.length;
     const px        = playerPosition[0];
     const py        = playerPosition[1];
+    const spd       = n <= 2 ? LOW_SPD : BASE_SPD;
 
-    if (n === 0) {
-      // Hide all tethers but keep shards/shockwave running (handled below)
-      tethersRef.current.forEach(t => { t.line.visible = false; });
-    }
+    // ── Advance master angle ────────────────────────────────────────────────
+    masterAngleRef.current += delta * spd;
 
     if (n > 0) {
-      const spd = n <= 2 ? LOW_SPD : BASE_SPD;
+      // ── Assign formation slots ────────────────────────────────────────────
+      // Sort live orbs by current angle so slot assignment is stable:
+      // the orb already closest to a slot gets it, preventing cross-overs.
+      const sorted = aliveOrbs
+        .map(o => ({ id: o.id, cur: orbStatesRef.current.get(o.id)?.current.angle ?? 0 }))
+        .sort((a, b) => a.cur - b.cur);
 
-      // ── Rotate + rebalance angles ──────────────────────────────────────────
-      if (n > 1) {
-        // Sort alive orbs by current angle so target assignment is stable
-        const sorted = aliveOrbs
-          .map(o => ({ id: o.id, cur: orbStatesRef.current.get(o.id)?.current.angle ?? 0 }))
-          .sort((a, b) => a.cur - b.cur);
-
-        const baseAngle = sorted[0]?.cur ?? 0;
-        sorted.forEach((entry, i) => {
-          const st = orbStatesRef.current.get(entry.id);
-          if (st) st.current.targetA = baseAngle + (i / n) * Math.PI * 2;
-        });
-      }
-
-      for (const orb of aliveOrbs) {
-        const st = orbStatesRef.current.get(orb.id);
-        if (!st) continue;
+      sorted.forEach((entry, slotIdx) => {
+        const st = orbStatesRef.current.get(entry.id);
+        if (!st) return;
         const s = st.current;
 
-        s.angle += delta * spd;
+        // Formation target for this slot
+        const target = masterAngleRef.current + (slotIdx / n) * Math.PI * 2;
 
-        // Lerp toward rebalance target only when multiple orbs exist —
-        // with n=1 the target would equal the pre-increment angle every frame,
-        // making diff ≈ -deltaSpeed and cancelling all rotation.
-        if (n > 1) {
-          let diff = s.targetA - s.angle;
-          while (diff >  Math.PI) diff -= Math.PI * 2;
-          while (diff < -Math.PI) diff += Math.PI * 2;
-          s.angle += diff * Math.min(1, REBAL_SPD * delta);
-        }
-      }
+        // Smooth lerp — wrap diff to [-π, π] so orbs never take the long way round
+        let diff = target - s.angle;
+        while (diff >  Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        s.angle += diff * Math.min(1, FORM_SPD * delta);
+      });
 
-    // ── Collision detection ──────────────────────────────────────────────────
-    outerLoop:
-    for (const defOrb of aliveOrbs) {
-      const st = orbStatesRef.current.get(defOrb.id);
-      if (!st) continue;
-      const s  = st.current;
-      const ox = px + Math.cos(s.angle) * ORBIT_R;
-      const oy = py + Math.sin(s.angle) * ORBIT_R;
+      // ── Collision detection ───────────────────────────────────────────────
+      outerLoop:
+      for (const defOrb of aliveOrbs) {
+        const st = orbStatesRef.current.get(defOrb.id);
+        if (!st) continue;
+        const s  = st.current;
+        const ox = px + Math.cos(s.angle) * ORBIT_R;
+        const oy = py + Math.sin(s.angle) * ORBIT_R;
 
-      for (const dark of darkOrbs) {
-        if (dark.destroying) continue;
-        const dx   = ox - dark.position[0];
-        const dy   = oy - dark.position[1];
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        for (const dark of darkOrbs) {
+          if (dark.destroying) continue;
+          const dx   = ox - dark.position[0];
+          const dy   = oy - dark.position[1];
+          const dist = Math.sqrt(dx * dx + dy * dy);
 
-        if (dist < HIT_R * 1.6) {
-          s.snapX = dark.position[0];
-          s.snapY = dark.position[1];
-        }
+          if (dist < HIT_R * 1.6) {
+            s.snapX = dark.position[0];
+            s.snapY = dark.position[1];
+          }
 
-        if (dist < HIT_R) {
-          s.flash = 1.0;
-          triggerImpact(
-            (ox + dark.position[0]) * 0.5,
-            (oy + dark.position[1]) * 0.5,
-          );
-          markOrbDestroying(dark.id);
-          destroyDefenseOrb(defOrb.id);
-          addScore(10);
-          playHit();
-          break outerLoop;
+          if (dist < HIT_R) {
+            s.flash = 1.0;
+            triggerImpact(
+              (ox + dark.position[0]) * 0.5,
+              (oy + dark.position[1]) * 0.5,
+            );
+            markOrbDestroying(dark.id);
+            destroyDefenseOrb(defOrb.id);
+            addScore(10);
+            playHit();
+            break outerLoop;
+          }
         }
       }
     }
 
-    // ── Tethers ──────────────────────────────────────────────────────────────
-    if (tethersReady.current) {
-      for (let i = 0; i < MAX_TETHERS; i++) {
-        const t = tethersRef.current[i];
-        if (!t) continue;
-        if (i < n) {
-          const aId  = aliveOrbs[i].id;
-          const bId  = aliveOrbs[(i + 1) % n].id;
-          const aSt  = orbStatesRef.current.get(aId)?.current;
-          const bSt  = orbStatesRef.current.get(bId)?.current;
-          if (!aSt || !bSt) { t.line.visible = false; continue; }
-
-          const ax = px + Math.cos(aSt.angle) * ORBIT_R;
-          const ay = py + Math.sin(aSt.angle) * ORBIT_R;
-          const bx = px + Math.cos(bSt.angle) * ORBIT_R;
-          const by = py + Math.sin(bSt.angle) * ORBIT_R;
-
-          const pos = t.geo.attributes.position as THREE.BufferAttribute;
-          pos.setXYZ(0, ax, ay, 0);
-          pos.setXYZ(1, bx, by, 0);
-          pos.needsUpdate = true;
-          t.line.visible  = true;
-
-          const lmat    = t.line.material as THREE.LineBasicMaterial;
-          lmat.opacity  = 0.22 + Math.sin(Date.now() * 0.003 + i * 1.3) * 0.1;
-        } else {
-          t.line.visible = false;
-        }
-      }
-    } // end tethers
-
-    } // end if (n > 0)
-
-    // ── Shard particles (run even when n===0 so last burst finishes) ─────────
+    // ── Shard particles (runs even when n===0 to let last burst finish) ────
     const gm = goldRef.current;
     const bm = blueRef.current;
     let anyG = false, anyB = false;
@@ -409,8 +337,8 @@ export function DefenseOrbs() {
         _dummy.position.set(0, 0, -999);
         _dummy.scale.setScalar(0);
         _dummy.updateMatrix();
-        if (i < HALF_N) gm?.setMatrixAt(i, _dummy.matrix);
-        else            bm?.setMatrixAt(i - HALF_N, _dummy.matrix);
+        if (i < HALF_N) gm?.setMatrixAt(i,          _dummy.matrix);
+        else            bm?.setMatrixAt(i - HALF_N,  _dummy.matrix);
         continue;
       }
 
@@ -427,7 +355,7 @@ export function DefenseOrbs() {
       _dummy.scale.setScalar(fade);
       _dummy.updateMatrix();
 
-      if (i < HALF_N) { gm?.setMatrixAt(i,         _dummy.matrix); anyG = true; }
+      if (i < HALF_N) { gm?.setMatrixAt(i,          _dummy.matrix); anyG = true; }
       else             { bm?.setMatrixAt(i - HALF_N, _dummy.matrix); anyB = true; }
     }
 
@@ -436,7 +364,7 @@ export function DefenseOrbs() {
     goldMat.opacity = anyG ? 1 : 0;
     blueMat.opacity = anyB ? 1 : 0;
 
-    // ── Shockwave ring ────────────────────────────────────────────────────────
+    // ── Shockwave ring ─────────────────────────────────────────────────────
     const sw = shockState.current;
     if (sw.active && shockRef.current) {
       sw.timer -= delta;
@@ -457,11 +385,6 @@ export function DefenseOrbs() {
 
   return (
     <>
-      {/* Tether lines — imperatively updated in useFrame */}
-      {tethersRef.current.map((t, i) => (
-        <primitive key={`tether-${i}`} object={t.line} />
-      ))}
-
       {/* Per-orb meshes */}
       {defenseOrbs.map(orb => {
         const stRef = orbStatesRef.current.get(orb.id);
@@ -476,14 +399,14 @@ export function DefenseOrbs() {
         );
       })}
 
-      {/* Gold shard pool (first HALF_N shards) */}
+      {/* Gold shard pool */}
       <instancedMesh
         ref={goldRef}
         args={[_shardGeo, goldMat, HALF_N]}
         frustumCulled={false}
       />
 
-      {/* Blue shard pool (second HALF_N shards) */}
+      {/* Blue shard pool */}
       <instancedMesh
         ref={blueRef}
         args={[_shardGeo, blueMat, HALF_N]}
