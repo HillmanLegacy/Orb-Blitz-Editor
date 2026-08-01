@@ -610,8 +610,8 @@ function World1EnemyMesh({ orb, time }: { orb: DarkOrb; time: number }) {
       <MiniFireOrb />
       {orb.frozen && (
         <mesh>
-          <circleGeometry args={[1.1, 24]} />
-          <meshBasicMaterial color="#2266aa" transparent opacity={0.45} depthWrite={false} />
+          <sphereGeometry args={[1.08, 16, 16]} />
+          <meshBasicMaterial color="#1155bb" transparent opacity={0.55} depthWrite={false} side={THREE.FrontSide} />
         </mesh>
       )}
       {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
