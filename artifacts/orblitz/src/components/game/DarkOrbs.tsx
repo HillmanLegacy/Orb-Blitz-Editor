@@ -642,6 +642,31 @@ function World1EnemyMesh({ orb, time }: { orb: DarkOrb; time: number }) {
   );
 }
 
+function World3EnemyMesh({ orb, time }: { orb: DarkOrb; time: number }) {
+  const destroyProgress = orb.destroying ? (orb.destroyTimer || 0) / 0.6 : 0;
+  const pulse = 1 + Math.sin(time * 4.5 + orb.seed * 6) * 0.06;
+
+  if (orb.destroying) {
+    return (
+      <group position={orb.position}>
+        <CrystalCrackExplosionVFX progress={destroyProgress} scale={orb.size} />
+        {destroyProgress > 0.80 && (
+          <group scale={orb.size * pulse}>
+            <MiniCrystalOrb />
+          </group>
+        )}
+      </group>
+    );
+  }
+
+  return (
+    <group position={orb.position} scale={orb.size * pulse}>
+      <MiniCrystalOrb />
+      {(orb.hurtTimer || 0) > 0 && <FireHurtFlash hurtTimer={orb.hurtTimer || 0} />}
+    </group>
+  );
+}
+
 function World2EnemyMesh({ orb, time }: { orb: DarkOrb; time: number }) {
   const destroyProgress = orb.destroying ? (orb.destroyTimer || 0) / 0.6 : 0;
   const pulse = 1 + Math.sin(time * 3.5 + orb.seed * 6) * 0.06;
@@ -678,6 +703,8 @@ function OrbRouter({ orb, time }: { orb: DarkOrb; time: number }) {
     mesh = <World1EnemyMesh orb={orb} time={time} />;
   } else if (gameMode === "arcade" && Math.floor(arcadeLevel) === 2) {
     mesh = <World2EnemyMesh orb={orb} time={time} />;
+  } else if (gameMode === "arcade" && Math.floor(arcadeLevel) === 3) {
+    mesh = <World3EnemyMesh orb={orb} time={time} />;
   } else {
     mesh = <UnifiedDarkOrbMesh orb={orb} time={time} />;
   }
