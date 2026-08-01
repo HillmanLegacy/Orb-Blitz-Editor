@@ -615,87 +615,128 @@ export function Boss() {
         break;
       }
       case "shadow": {
-        // ── 4-phase state machine ─────────────────────────────────────────────
-        // stalk  (4–6 s) : slow orbit around player at ~6 unit radius
-        // charge (1–2 s) : snap-dash to the player's captured position
-        // evade  (2–3 s) : dart to far corner, hold position
-        // vortex (3–5 s) : tight fast orbit spiraling around player
+        // ── Perimeter-bound state machine ─────────────────────────────────────
+        // The Shadow Boss prowls the screen edge — never through the center.
+        // Phases (existing ref names repurposed):
+        //   'stalk'  → patrol : steady clockwise crawl (~5 wu/s)
+        //   'charge' → sprint : 3× speed burst for ~2 s
+        //   'evade'  → reverse: flips direction, prowls CCW briefly
+        //   'vortex' → corner : races to nearest corner, holds ominously
+        //
+        // Ref repurposing:
+        //   monsterOrbitAngleRef      → perimT   (0–4, position on perimeter)
+        //   monsterChargeTargetRef[0] → dir      (1 = CW, -1 = CCW)
+        //   monsterChargeTargetRef[1] → cornerT  (target corner t-value, 0–3)
+
+        const pW = 10.0; // perimeter half-width  (arena ≈ ±12)
+        const pH =  6.0; // perimeter half-height (arena ≈ ±8)
+
+        // Map t ∈ [0,4) to world (x,y) on the rectangular perimeter
+        const perimXY = (t: number): [number, number] => {
+          t = ((t % 4) + 4) % 4;
+          if (t < 1) return [-pW + t * 2 * pW,  pH];
+          if (t < 2) return [ pW, pH - (t - 1) * 2 * pH];
+          if (t < 3) return [ pW - (t - 2) * 2 * pW, -pH];
+          return             [-pW, -pH + (t - 3) * 2 * pH];
+        };
+
+        // Convert world-units/s to perimeter-t/s for current segment
+        const tRate = (wuPerSec: number, t: number): number => {
+          const seg = Math.floor(((t % 4) + 4) % 4);
+          return wuPerSec / (seg % 2 === 0 ? 2 * pW : 2 * pH);
+        };
+
+        // One-time init: seed perimT to top-center, dir to CW
+        if (monsterOrbitAngleRef.current < 0 || monsterOrbitAngleRef.current >= 4) {
+          monsterOrbitAngleRef.current = 0.5;
+        }
+        if (monsterChargeTargetRef.current[0] === 0) {
+          monsterChargeTargetRef.current[0] = 1;
+        }
+
+        const perimT = monsterOrbitAngleRef;   // alias
+        const dirRef = monsterChargeTargetRef; // [0]=dir, [1]=cornerT
+
         monsterPhaseTimerRef.current -= delta;
         const mPhase = monsterPhaseRef.current;
+        let worldSpeed = 5.0;
 
         if (mPhase === 'stalk') {
-          monsterOrbitAngleRef.current += delta * 0.9;
-          const orbitR = 5.5 + Math.sin(time * 0.5) * 0.8;
-          targetX = playerX + Math.cos(monsterOrbitAngleRef.current) * orbitR;
-          targetY = playerY + Math.sin(monsterOrbitAngleRef.current) * orbitR;
-          targetX = Math.max(-playAreaWidth, Math.min(playAreaWidth, targetX));
-          targetY = Math.max(-playAreaHeight + 2, Math.min(playAreaHeight, targetY));
-          lerpSpeed = 4.5;
+          // ── Patrol: slow steady traversal ──────────────────────────────────
+          worldSpeed = 5.0;
           if (monsterPhaseTimerRef.current <= 0) {
-            monsterPhaseRef.current = 'charge';
-            // Target 3.5 units away from the player along current approach vector
-            const cdx = bossPosRef.current[0] - playerX;
-            const cdy = bossPosRef.current[1] - playerY;
-            const cdist = Math.sqrt(cdx * cdx + cdy * cdy) || 1;
-            monsterChargeTargetRef.current = [
-              playerX + (cdx / cdist) * 3.5,
-              playerY + (cdy / cdist) * 3.5,
-            ];
-            monsterPhaseTimerRef.current = 1.2 + Math.random() * 0.8;
+            const roll = Math.random();
+            if (roll < 0.35) {
+              // Sprint burst
+              monsterPhaseRef.current = 'charge';
+              monsterPhaseTimerRef.current = 1.8 + Math.random() * 0.8;
+            } else if (roll < 0.65) {
+              // Reverse direction
+              monsterPhaseRef.current = 'evade';
+              dirRef.current[0] *= -1;
+              monsterPhaseTimerRef.current = 3.0 + Math.random() * 2.0;
+            } else {
+              // Corner dash — find nearest corner in current travel direction
+              monsterPhaseRef.current = 'vortex';
+              const curDir = dirRef.current[0];
+              const curT   = perimT.current;
+              let bestCorner = 0, bestDist = 99;
+              for (const c of [0, 1, 2, 3]) {
+                const fwd = ((c - curT) * curDir + 4) % 4;
+                if (fwd < bestDist) { bestDist = fwd; bestCorner = c; }
+              }
+              dirRef.current[1] = bestCorner;
+              monsterPhaseTimerRef.current = 6.0; // generous timeout
+            }
           }
         } else if (mPhase === 'charge') {
-          targetX = monsterChargeTargetRef.current[0];
-          targetY = monsterChargeTargetRef.current[1];
-          // Visible fast dash — not an instant snap
-          lerpSpeed = 10;
-          if (monsterPhaseTimerRef.current <= 0) {
-            monsterPhaseRef.current = 'evade';
-            monsterEvadeSetRef.current = false;
-            monsterPhaseTimerRef.current = 2.0 + Math.random() * 1.5;
-          }
-        } else if (mPhase === 'evade') {
-          if (!monsterEvadeSetRef.current) {
-            // Capture evade target once on phase entry.
-            // Pick a point in the far half of the arena AND at least 6 units from
-            // the player so it never darts into the exclusion zone.
-            let ex: number, ey: number, attempts = 0;
-            do {
-              ex = -playerX * 0.75 + (Math.random() - 0.5) * 6;
-              ey = -playerY * 0.75 + (Math.random() - 0.5) * 5;
-              ex = Math.max(-playAreaWidth * 0.85, Math.min(playAreaWidth * 0.85, ex));
-              ey = Math.max(-playAreaHeight * 0.75, Math.min(playAreaHeight * 0.75, ey));
-              attempts++;
-            } while (
-              Math.sqrt((ex - playerX) ** 2 + (ey - playerY) ** 2) < 6 &&
-              attempts < 8
-            );
-            monsterEvadeTargetRef.current = [ex, ey];
-            monsterEvadeSetRef.current = true;
-          }
-          targetX = monsterEvadeTargetRef.current[0];
-          targetY = monsterEvadeTargetRef.current[1];
-          lerpSpeed = 10;
-          if (monsterPhaseTimerRef.current <= 0) {
-            monsterPhaseRef.current = 'vortex';
-            monsterOrbitAngleRef.current = Math.atan2(
-              bossPosRef.current[1] - playerY,
-              bossPosRef.current[0] - playerX,
-            );
-            monsterPhaseTimerRef.current = 3.0 + Math.random() * 2.0;
-          }
-        } else { // 'vortex'
-          monsterOrbitAngleRef.current += delta * 3.2;
-          const vortexR = 6.5 + Math.sin(monsterPhaseTimerRef.current * 1.5) * 1.5;
-          targetX = playerX + Math.cos(monsterOrbitAngleRef.current) * vortexR;
-          targetY = playerY + Math.sin(monsterOrbitAngleRef.current) * vortexR;
-          targetX = Math.max(-playAreaWidth, Math.min(playAreaWidth, targetX));
-          targetY = Math.max(-playAreaHeight + 2, Math.min(playAreaHeight, targetY));
-          lerpSpeed = 11;
+          // ── Sprint: 3× speed burst ──────────────────────────────────────────
+          worldSpeed = 15.0;
           if (monsterPhaseTimerRef.current <= 0) {
             monsterPhaseRef.current = 'stalk';
             monsterPhaseTimerRef.current = 4.0 + Math.random() * 2.0;
           }
+        } else if (mPhase === 'evade') {
+          // ── Reverse: prowl CCW briefly then flip back ───────────────────────
+          worldSpeed = 5.0;
+          if (monsterPhaseTimerRef.current <= 0) {
+            dirRef.current[0] *= -1; // restore original direction
+            monsterPhaseRef.current = 'stalk';
+            monsterPhaseTimerRef.current = 4.0 + Math.random() * 2.0;
+          }
+        } else {
+          // ── Corner: race to corner and hold ────────────────────────────────
+          const cornerT = dirRef.current[1];
+          const fwdDist = ((cornerT - perimT.current) * dirRef.current[0] + 4) % 4;
+
+          if (fwdDist < 0.07 || fwdDist > 3.95) {
+            // Arrived — ominous pause
+            worldSpeed = 0;
+            if (monsterPhaseTimerRef.current > 2.0) {
+              monsterPhaseTimerRef.current = 1.0 + Math.random() * 0.8;
+            }
+            if (monsterPhaseTimerRef.current <= 0) {
+              monsterPhaseRef.current = 'stalk';
+              monsterPhaseTimerRef.current = 4.0 + Math.random() * 2.0;
+            }
+          } else {
+            worldSpeed = 14.0; // race to corner
+            if (monsterPhaseTimerRef.current <= 0) {
+              // Timed out — resume patrol without stopping
+              monsterPhaseRef.current = 'stalk';
+              monsterPhaseTimerRef.current = 4.0 + Math.random() * 2.0;
+            }
+          }
         }
+
+        // Advance perimeter — read direction AFTER phase logic so flips take effect immediately
+        perimT.current = ((perimT.current + tRate(worldSpeed, perimT.current) * delta * dirRef.current[0]) % 4 + 4) % 4;
+
+        const [px, py] = perimXY(perimT.current);
+        targetX   = px;
+        targetY   = py;
+        lerpSpeed = 28; // tight tracking — boss stays on the perimeter path
+
         break;
       }
       case "orbit_player": {
