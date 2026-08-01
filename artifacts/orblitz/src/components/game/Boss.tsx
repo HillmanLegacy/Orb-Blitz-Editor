@@ -884,31 +884,6 @@ export function Boss() {
       localAttackTimerRef.current = attackResult.timer;
       attackBurstRef.current = attackResult.burst;
 
-      // ── Off-screen ambient spawns — come from any edge, home to player ──────
-      offScreenTimerRef.current -= delta;
-      if (offScreenTimerRef.current <= 0) {
-        const { spawnBossOrb } = useMagicOrb.getState();
-        // Pick a random screen edge (0=left,1=right,2=top,3=bottom)
-        const edge = Math.floor(Math.random() * 4);
-        const W = 16, H = 12; // spawn margin outside visible play area
-        let sx: number, sy: number;
-        if (edge === 0)      { sx = -W; sy = (Math.random() * 2 - 1) * H; }
-        else if (edge === 1) { sx =  W; sy = (Math.random() * 2 - 1) * H; }
-        else if (edge === 2) { sx = (Math.random() * 2 - 1) * W; sy =  H; }
-        else                 { sx = (Math.random() * 2 - 1) * W; sy = -H; }
-        const dx = playerX - sx;
-        const dy = playerY - sy;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        spawnBossOrb(
-          [sx, sy, 0.5],
-          dist > 0 ? [dx / dist, dy / dist, 0] : [0, 1, 0],
-          "homing"
-        );
-        // Interval scales with boss projectile count so later bosses feel more intense
-        const baseInterval = 3.5 - config.projectileCount * 0.2;
-        offScreenTimerRef.current = Math.max(1.2, baseInterval) + Math.random() * 1.5;
-      }
-
       const newAngle = localAngle + delta * 0.5;
       localAngleRef.current = newAngle;
 
@@ -928,6 +903,39 @@ export function Boss() {
       // Star boss: hide mesh during brief invisible transit between teleport phases
       if (bossType === "star") {
         meshRef.current.visible = starTeleportPhaseRef.current !== 'transiting';
+      }
+    }
+
+    // ── Off-screen ambient spawns — ALL boss types, difficulty scales with world ──
+    // Moved outside `if (bossType !== "circle")` so world-1 circle boss also spawns
+    // off-screen projectiles. Rate: 4.5 s at world 1 → 0.9 s at world 9.
+    // Count: 1 per burst at worlds 1-6, 2 at worlds 7-8, 3 at world 9.
+    {
+      const { arcadeLevel: osAL, spawnBossOrb: osSpawn } = useMagicOrb.getState();
+      const osWorld = Math.max(1, Math.floor(osAL));
+      offScreenTimerRef.current -= delta;
+      if (offScreenTimerRef.current <= 0) {
+        const spawnCount = osWorld >= 9 ? 3 : osWorld >= 7 ? 2 : 1;
+        for (let s = 0; s < spawnCount; s++) {
+          const osEdge = Math.floor(Math.random() * 4);
+          const osW = 16, osH = 12;
+          let osSx: number, osSy: number;
+          if (osEdge === 0)      { osSx = -osW; osSy = (Math.random() * 2 - 1) * osH; }
+          else if (osEdge === 1) { osSx =  osW; osSy = (Math.random() * 2 - 1) * osH; }
+          else if (osEdge === 2) { osSx = (Math.random() * 2 - 1) * osW; osSy =  osH; }
+          else                   { osSx = (Math.random() * 2 - 1) * osW; osSy = -osH; }
+          const osDx = playerX - osSx;
+          const osDy = playerY - osSy;
+          const osDist = Math.sqrt(osDx * osDx + osDy * osDy);
+          osSpawn(
+            [osSx, osSy, 0.5],
+            osDist > 0 ? [osDx / osDist, osDy / osDist, 0] : [0, 1, 0],
+            "homing"
+          );
+        }
+        // Interval: 4.5 s at world 1 → 0.9 s at world 9 (challenging but not impossible)
+        const osBaseInt = Math.max(0.9, 4.5 - (osWorld - 1) * 0.45);
+        offScreenTimerRef.current = osBaseInt * (0.8 + Math.random() * 0.5);
       }
     }
   });

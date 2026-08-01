@@ -3,8 +3,13 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb, DarkOrb, Particle, BossType } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
+import { useAudio } from "@/lib/stores/useAudio";
+import { playBossDefeatSound } from "@/lib/audio/SynthSounds";
 import { DarkOrbModel } from "./DarkOrbModel";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
+import { FireExplosionVFX } from "./FireExplosionVFX";
+import { StarSupernovaVFX } from "./StarSupernovaVFX";
+import { CrystalCrackExplosionVFX } from "./CrystalCrackExplosionVFX";
 import { MiniFireOrb } from "./MiniFireOrb";
 import { MiniStarOrb } from "./MiniStarOrb";
 import { MiniCrystalOrb } from "./MiniCrystalOrb";
@@ -65,14 +70,34 @@ function BossOrbMesh({ orb, time }: { orb: DarkOrb; time: number }) {
   const spin = time * 3;
   
   if (orb.destroying) {
-    // Circle boss type = MiniFireOrb — uses the same fire explosion as world 1 enemies
-    const isFireOrb = bossType === "circle";
+    // Match the full boss death VFX for each world, scaled to orb size
+    if (bossType === "circle") {
+      return (
+        <group position={orb.position}>
+          <FireExplosionVFX progress={destroyProgress} scale={orb.size} />
+        </group>
+      );
+    }
+    if (bossType === "star") {
+      return (
+        <group position={orb.position}>
+          <StarSupernovaVFX progress={destroyProgress} scale={orb.size} />
+        </group>
+      );
+    }
+    if (bossType === "triangle") {
+      return (
+        <group position={orb.position}>
+          <CrystalCrackExplosionVFX progress={destroyProgress} scale={orb.size} />
+        </group>
+      );
+    }
     return (
       <group position={orb.position}>
         <EnergyDissipationVFX
           progress={destroyProgress}
-          color={isFireOrb ? "#ff4400" : colors.primary}
-          glowColor={isFireOrb ? "#ffaa00" : colors.glow}
+          color={colors.primary}
+          glowColor={colors.glow}
           scale={orb.size}
           seed={Math.round(orb.seed * 1000)}
         />
@@ -640,6 +665,8 @@ export function DarkOrbs() {
   const { equippedSkin } = useShop();
   const darkOrbs = useMagicOrb((s) => s.darkOrbs);
   const clockRef = useRef(0);
+  // Tracks which boss orb IDs have already had their defeat sound triggered
+  const bossOrbDeathSoundedRef = useRef(new Set<string>());
   
   useFrame((state, delta) => {
     clockRef.current = state.clock.getElapsedTime();
@@ -675,9 +702,14 @@ export function DarkOrbs() {
     
     for (const orb of darkOrbs) {
       if (orb.destroying) {
+        // Play the world's boss defeat sound the first time this orb enters destroying state
+        if (orb.isBossOrb && !bossOrbDeathSoundedRef.current.has(orb.id)) {
+          bossOrbDeathSoundedRef.current.add(orb.id);
+          if (!useAudio.getState().isMuted) playBossDefeatSound(0.18);
+        }
         const newTimer = (orb.destroyTimer || 0) - delta;
         if (newTimer <= 0) {
-          // Trigger background particle blast at the orb's death position
+          bossOrbDeathSoundedRef.current.delete(orb.id);
           if (orb.position) {
             addExplosionImpulse(orb.position[0], orb.position[1], 10);
           }
