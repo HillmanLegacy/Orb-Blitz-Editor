@@ -689,51 +689,376 @@ function FieryAura({ scale }: RingProps) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 4. Chronos Clockwork — Temporal Gear Matrix (brass / cyan)
-//    Four rings at precise gear ratios + cyan timeline overlay.
+// 4. Crystalline Aura — Prismatic Crystal Shell & Chromatic Dispersion VFX
+//    Dual-layer refractive GLSL shells, dual-Voronoi caustic rays, 200-particle
+//    camera-glint crystal dust, 12 orbiting shards, flickering jewel light.
 // ─────────────────────────────────────────────────────────────────────────────
-function ChronosClockwork({ scale }: RingProps) {
-  const r    = scale * 2.0;
-  const g1   = useRef<THREE.Mesh>(null);
-  const g2   = useRef<THREE.Mesh>(null);
-  const g3   = useRef<THREE.Mesh>(null);
-  const g4   = useRef<THREE.Mesh>(null);
-  const tl   = useRef<THREE.Mesh>(null);
 
-  useFrame(({ clock }) => {
-    const t = clock.getElapsedTime();
-    if (g1.current)  g1.current.rotation.z  =  t * 0.60;          // outer slow CW
-    if (g2.current)  g2.current.rotation.z  = -t * 0.60 * 1.500;  // gear ratio 1.5
-    if (g3.current)  g3.current.rotation.z  =  t * 0.60 * 2.200;  // gear ratio 2.2
-    if (g4.current)  g4.current.rotation.z  = -t * 0.60 * 3.100;  // gear ratio 3.1
-    if (tl.current)  tl.current.rotation.z  =  t * 2.0;
+// ── GLSL: inner crystal shell (Fresnel facets + chromatic IOR split) ──────────
+const _crystInnerVert = /* glsl */`
+uniform float uTime;
+uniform float uIntensity;
+varying vec3 vWorldPos;
+varying vec3 vViewDir;
+void main() {
+  vec4 wp   = modelMatrix * vec4(position, 1.0);
+  vWorldPos = wp.xyz;
+  vViewDir  = normalize(cameraPosition - wp.xyz);
+  float b   = sin(uTime * 1.9 + position.y * 3.2) * 0.013 * uIntensity;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position * (1.0 + b), 1.0);
+}`;
+
+const _crystInnerFrag = /* glsl */`
+#extension GL_OES_standard_derivatives : enable
+uniform float uTime;
+uniform float uIntensity;
+varying vec3 vWorldPos;
+varying vec3 vViewDir;
+void main() {
+  vec3 flatN  = normalize(cross(dFdx(vWorldPos), dFdy(vWorldPos)));
+  float nv    = max(0.0, dot(flatN, vViewDir));
+  float fr    = pow(1.0 - nv, 4.0);
+  float frR   = pow(1.0 - max(0.0, dot(flatN + vec3(0.04,0.0,0.0), vViewDir)), 4.0);
+  float frB   = pow(1.0 - max(0.0, dot(flatN - vec3(0.04,0.0,0.0), vViewDir)), 4.0);
+  float cy    = fract(uTime * 0.15);
+  vec3 cS = vec3(0.00, 0.20, 1.00);
+  vec3 cA = vec3(0.54, 0.17, 0.89);
+  vec3 cQ = vec3(0.00, 1.00, 0.80);
+  vec3 base;
+  if      (cy < 0.33) base = mix(cS, cA, cy * 3.030);
+  else if (cy < 0.66) base = mix(cA, cQ, (cy - 0.33) * 3.030);
+  else                base = mix(cQ, cS, (cy - 0.66) * 3.030);
+  vec3 col  = mix(base, vec3(1.0), pow(fr, 2.0) * 0.85);
+  col.r     = min(1.0, col.r + frR * 0.55);
+  col.b     = min(1.0, col.b + frB * 0.55);
+  float alpha = (0.12 + fr * 0.60) * uIntensity;
+  gl_FragColor = vec4(col * (1.0 + fr * 0.9), alpha);
+}`;
+
+// ── GLSL: outer crystal shell (dual-Voronoi caustics + stronger dispersion) ───
+const _crystOuterVert = /* glsl */`
+uniform float uTime;
+uniform float uIntensity;
+varying vec3 vWorldPos;
+varying vec3 vViewDir;
+void main() {
+  vec4 wp   = modelMatrix * vec4(position, 1.0);
+  vWorldPos = wp.xyz;
+  vViewDir  = normalize(cameraPosition - wp.xyz);
+  float b   = sin(uTime * 1.3 + position.y * 2.5) * 0.018 * uIntensity;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position * (1.0 + b), 1.0);
+}`;
+
+const _crystOuterFrag = /* glsl */`
+#extension GL_OES_standard_derivatives : enable
+uniform float uTime;
+uniform float uIntensity;
+varying vec3 vWorldPos;
+varying vec3 vViewDir;
+float h2(vec2 p) { p = fract(p * vec2(127.1, 311.7)); p += dot(p, p + 73.2); return fract(p.x * p.y); }
+float voronoi(vec2 p, float spd) {
+  vec2 i = floor(p); vec2 f = fract(p); float md = 1.0;
+  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+    vec2 nb = vec2(float(x), float(y));
+    vec2 pt = nb + 0.5 + 0.45 * sin(uTime * spd + 6.2832 * vec2(h2(i+nb), h2(i+nb+vec2(34.2,11.5))));
+    vec2 r = pt - f; md = min(md, dot(r, r));
+  }
+  return sqrt(md);
+}
+void main() {
+  vec3 flatN  = normalize(cross(dFdx(vWorldPos), dFdy(vWorldPos)));
+  float nv    = max(0.0, dot(flatN, vViewDir));
+  float fr    = pow(1.0 - nv, 3.0);
+  float frR   = pow(1.0 - max(0.0, dot(flatN + vec3(0.06,0.0,0.0), vViewDir)), 3.0);
+  float frB   = pow(1.0 - max(0.0, dot(flatN - vec3(0.06,0.0,0.0), vViewDir)), 3.0);
+  float v1    = voronoi(vWorldPos.xy * 2.2,  1.1);
+  float v2    = voronoi(vWorldPos.yz * 2.0, -0.85);
+  float caust = pow(1.0 - (v1 + v2) * 0.5, 2.5);
+  float cy    = fract(uTime * 0.15 + 0.17);
+  vec3 cS = vec3(0.00, 0.20, 1.00);
+  vec3 cA = vec3(0.54, 0.17, 0.89);
+  vec3 cQ = vec3(0.00, 1.00, 0.80);
+  vec3 base;
+  if      (cy < 0.33) base = mix(cS, cA, cy * 3.030);
+  else if (cy < 0.66) base = mix(cA, cQ, (cy - 0.33) * 3.030);
+  else                base = mix(cQ, cS, (cy - 0.66) * 3.030);
+  vec3 col  = mix(base, vec3(1.0), pow(fr, 1.5) * 0.75);
+  col      += caust * vec3(0.25, 0.55, 1.0) * 0.55;
+  col.r     = min(1.0, col.r + frR * 0.65);
+  col.b     = min(1.0, col.b + frB * 0.65);
+  float alpha = (0.08 + fr * 0.50 + caust * 0.20) * uIntensity;
+  gl_FragColor = vec4(col * (1.0 + fr * 0.8 + caust * 0.5), alpha);
+}`;
+
+// ── GLSL: caustic ray cones (dual-Voronoi scrolled in opposite directions) ────
+const _crystRayVert = /* glsl */`
+varying vec2 vUv2;
+void main() { vUv2 = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+
+const _crystRayFrag = /* glsl */`
+uniform float uTime;
+uniform float uIntensity;
+varying vec2 vUv2;
+float h2r(vec2 p) { p = fract(p * vec2(127.1, 311.7)); p += dot(p, p + 73.2); return fract(p.x * p.y); }
+float voronoiR(vec2 p, float spd) {
+  vec2 i = floor(p); vec2 f = fract(p); float md = 1.0;
+  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+    vec2 nb = vec2(float(x), float(y));
+    vec2 pt = nb + 0.5 + 0.45 * sin(uTime * spd + 6.2832 * vec2(h2r(i+nb), h2r(i+nb+vec2(34.2,11.5))));
+    vec2 r = pt - f; md = min(md, dot(r, r));
+  }
+  return sqrt(md);
+}
+void main() {
+  // vUv2.y: 0 = tip (near crystal), 1 = base (far end); fade bright→transparent
+  float fade = 1.0 - vUv2.y;
+  float v1   = voronoiR(vUv2 * 3.5 + vec2(uTime * 0.28, 0.0),  1.2);
+  float v2   = voronoiR(vUv2 * 3.0 - vec2(uTime * 0.22, 0.0), -0.9);
+  float caust = pow(1.0 - (v1 + v2) * 0.5, 2.2);
+  float cy   = fract(uTime * 0.18);
+  vec3 cS = vec3(0.00, 0.20, 1.00);
+  vec3 cA = vec3(0.54, 0.17, 0.89);
+  vec3 cQ = vec3(0.00, 1.00, 0.80);
+  vec3 col;
+  if      (cy < 0.33) col = mix(cS, cA, cy * 3.030);
+  else if (cy < 0.66) col = mix(cA, cQ, (cy - 0.33) * 3.030);
+  else                col = mix(cQ, cS, (cy - 0.66) * 3.030);
+  col += caust * 0.38;
+  float pulse = 0.55 + 0.45 * sin(uTime * 2.5 + vUv2.y * 4.5);
+  float alpha = caust * fade * pulse * 0.60 * uIntensity;
+  gl_FragColor = vec4(col, alpha);
+}`;
+
+// ── Shared module-level geometries ────────────────────────────────────────────
+const _crystInnerGeo = new THREE.IcosahedronGeometry(1.0, 2);
+const _crystOuterGeo = new THREE.IcosahedronGeometry(1.0, 1);
+const _crystDustGeo  = new THREE.SphereGeometry(1.0, 3, 2);
+const _crystShardGeo = new THREE.OctahedronGeometry(1.0, 0);
+
+// ── Zero-GC temp vectors ──────────────────────────────────────────────────────
+const _v3cam = new THREE.Vector3();
+const _v3p   = new THREE.Vector3();
+
+// ── Module-level crystalline state + public API ───────────────────────────────
+const _crystState = { intensity: 1.0, burstTimer: 0.0 };
+export function setCrystallineIntensity(f: number) {
+  _crystState.intensity = Math.max(0.2, Math.min(2.0, f));
+}
+export function shatterBurst() { _crystState.burstTimer = 0.60; }
+
+// ── Dust particle pool ────────────────────────────────────────────────────────
+const _N_CDUST = 200;
+
+function _spawnDust(
+  i: number,
+  px: Float32Array, py: Float32Array, pz: Float32Array,
+  vx: Float32Array, vy: Float32Array, vz: Float32Array,
+  life: Float32Array, maxLife: Float32Array, phase: Float32Array,
+  driftR: number,
+) {
+  const theta = Math.random() * Math.PI * 2;
+  const phi   = Math.acos(2 * Math.random() - 1);
+  const r     = driftR * (0.45 + Math.random() * 0.55);
+  px[i] = r * Math.sin(phi) * Math.cos(theta);
+  py[i] = r * Math.cos(phi);
+  pz[i] = r * Math.sin(phi) * Math.sin(theta);
+  vx[i] = (Math.random() - 0.5) * 0.14;
+  vy[i] = (Math.random() - 0.5) * 0.14;
+  vz[i] = (Math.random() - 0.5) * 0.14;
+  life[i]    = -(Math.random() * 1.6);
+  maxLife[i] = 1.6 + Math.random() * 2.0;
+  phase[i]   = Math.random() * Math.PI * 2;
+}
+
+function CrystallineAura({ scale }: RingProps) {
+  const innerR   = scale * 0.70;
+  const outerR   = scale * 0.90;
+  const rayLen   = scale * 1.55;
+  const rayBase  = rayLen * 0.17;
+  const driftR   = scale * 1.45;
+  const shardOR  = scale * 1.10;
+
+  // ── Materials (in useMemo — avoids vertexColors module-level pitfall) ────────
+  const innerMat = useMemo(() => new THREE.ShaderMaterial({
+    vertexShader: _crystInnerVert, fragmentShader: _crystInnerFrag,
+    uniforms: { uTime: { value: 0 }, uIntensity: { value: 1 } },
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide, extensions: { derivatives: true },
+  }), []);
+  const outerMat = useMemo(() => new THREE.ShaderMaterial({
+    vertexShader: _crystOuterVert, fragmentShader: _crystOuterFrag,
+    uniforms: { uTime: { value: 0 }, uIntensity: { value: 1 } },
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide, extensions: { derivatives: true },
+  }), []);
+  const rayMat = useMemo(() => new THREE.ShaderMaterial({
+    vertexShader: _crystRayVert, fragmentShader: _crystRayFrag,
+    uniforms: { uTime: { value: 0 }, uIntensity: { value: 1 } },
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  }), []);
+  // Scale-dependent ray cone geometry
+  const rayGeo = useMemo(() => new THREE.ConeGeometry(rayBase, rayLen, 6, 4), [rayBase, rayLen]);
+  const dustMat   = useMemo(() => new THREE.MeshBasicMaterial({ color: "#99ccff", transparent: true, opacity: 0.88, depthWrite: false, blending: THREE.AdditiveBlending }), []);
+  // Three shard colors: sapphire / amethyst / aquamarine
+  const matS = useMemo(() => new THREE.MeshBasicMaterial({ color: "#0044ff", transparent: true, opacity: 0.78, depthWrite: false, blending: THREE.AdditiveBlending }), []);
+  const matA = useMemo(() => new THREE.MeshBasicMaterial({ color: "#8822ee", transparent: true, opacity: 0.78, depthWrite: false, blending: THREE.AdditiveBlending }), []);
+  const matQ = useMemo(() => new THREE.MeshBasicMaterial({ color: "#00ffcc", transparent: true, opacity: 0.72, depthWrite: false, blending: THREE.AdditiveBlending }), []);
+
+  useEffect(() => () => {
+    innerMat.dispose(); outerMat.dispose(); rayMat.dispose(); rayGeo.dispose();
+    dustMat.dispose(); matS.dispose(); matA.dispose(); matQ.dispose();
+  }, [innerMat, outerMat, rayMat, rayGeo, dustMat, matS, matA, matQ]);
+
+  // ── Refs ─────────────────────────────────────────────────────────────────────
+  const lightRef  = useRef<THREE.PointLight>(null);
+  const raysRef   = useRef<THREE.Group>(null);
+  const dustIM    = useRef<THREE.InstancedMesh>(null);
+  const shardImS  = useRef<THREE.InstancedMesh>(null);
+  const shardImA  = useRef<THREE.InstancedMesh>(null);
+  const shardImQ  = useRef<THREE.InstancedMesh>(null);
+
+  // ── Dust particle pool ───────────────────────────────────────────────────────
+  const dp = useRef({
+    px: new Float32Array(_N_CDUST), py: new Float32Array(_N_CDUST), pz: new Float32Array(_N_CDUST),
+    vx: new Float32Array(_N_CDUST), vy: new Float32Array(_N_CDUST), vz: new Float32Array(_N_CDUST),
+    life: new Float32Array(_N_CDUST), maxLife: new Float32Array(_N_CDUST), phase: new Float32Array(_N_CDUST),
+    born: false,
   });
+
+  useFrame(({ clock, camera }, delta) => {
+    const t   = clock.getElapsedTime();
+    const dt  = Math.min(delta, 0.05);
+    const inten = _crystState.intensity;
+    const burst = _crystState.burstTimer > 0;
+    if (burst) _crystState.burstTimer -= dt;
+    const bMul = burst ? 1.70 : 1.0;
+
+    // ── Shell + ray uniforms ────────────────────────────────────────────────────
+    innerMat.uniforms.uTime.value      = t;
+    innerMat.uniforms.uIntensity.value = inten * bMul;
+    outerMat.uniforms.uTime.value      = t;
+    outerMat.uniforms.uIntensity.value = inten * bMul;
+    rayMat.uniforms.uTime.value        = t;
+    rayMat.uniforms.uIntensity.value   = inten * (0.55 + Math.sin(t * 2.5) * 0.45) * bMul;
+
+    // ── Slow-rotate caustic ray group ───────────────────────────────────────────
+    if (raysRef.current) raysRef.current.rotation.z = t * 0.30;
+
+    // ── Jewel light flicker ─────────────────────────────────────────────────────
+    if (lightRef.current) {
+      const fl = 0.78 + Math.sin(t * 13.7) * 0.13 + Math.sin(t * 8.3) * 0.09;
+      lightRef.current.intensity = 2.8 * fl * inten * bMul;
+    }
+
+    // ── 12 orbiting crystal shards (4 per color group) ──────────────────────────
+    const orbitR = shardOR * (burst ? 1.38 : 1.0);
+    const inclinations = [0, Math.PI / 5, Math.PI / 3, Math.PI * 2 / 5];
+    ([
+      { im: shardImS.current, mat: matS, offset: 0 },
+      { im: shardImA.current, mat: matA, offset: 1 },
+      { im: shardImQ.current, mat: matQ, offset: 2 },
+    ] as const).forEach(({ im, mat, offset }) => {
+      if (!im) return;
+      for (let k = 0; k < 4; k++) {
+        const gi    = offset * 4 + k;
+        const incl  = inclinations[k];
+        const spd   = burst ? 4.0 : (0.65 + offset * 0.20 + k * 0.13);
+        const a     = (gi / 12) * Math.PI * 2 + t * spd;
+        const x     = orbitR * Math.cos(a);
+        const y     = orbitR * Math.sin(a) * Math.cos(incl);
+        const z     = orbitR * Math.sin(a) * Math.sin(incl);
+        const glint = 0.85 + Math.sin(t * 4.8 + gi * 1.2) * 0.45;
+        const sc    = scale * 0.078 * glint * (burst ? 1.45 : 1.0);
+        _dummy.position.set(x, y, z);
+        _dummy.rotation.x = t * 1.3 + gi;
+        _dummy.rotation.y = t * 0.8 + gi * 0.6;
+        _dummy.scale.setScalar(Math.max(0.001, sc));
+        _dummy.updateMatrix();
+        im.setMatrixAt(k, _dummy.matrix);
+      }
+      im.instanceMatrix.needsUpdate = true;
+      mat.opacity = 0.70 + Math.sin(t * 3.3 + offset) * 0.22;
+    });
+
+    // ── Crystal dust — 200-particle zero-gravity glint field ────────────────────
+    const d = dp.current;
+    if (!d.born) {
+      for (let i = 0; i < _N_CDUST; i++) _spawnDust(i, d.px,d.py,d.pz,d.vx,d.vy,d.vz,d.life,d.maxLife,d.phase,driftR);
+      d.born = true;
+    }
+    const dMesh = dustIM.current;
+    if (dMesh) {
+      _v3cam.copy(camera.position).normalize(); // camera view direction (zero-alloc)
+      for (let i = 0; i < _N_CDUST; i++) {
+        d.life[i] += dt * inten;
+        if (d.life[i] >= d.maxLife[i]) {
+          _spawnDust(i, d.px,d.py,d.pz,d.vx,d.vy,d.vz,d.life,d.maxLife,d.phase, driftR * (burst ? 1.55 : 1.0));
+          continue;
+        }
+        if (d.life[i] < 0) {
+          _dummy.position.set(999,0,0); _dummy.scale.setScalar(0.001); _dummy.updateMatrix();
+          dMesh.setMatrixAt(i, _dummy.matrix); continue;
+        }
+        const lf = d.life[i] / d.maxLife[i];
+        // Zero-gravity drift + gentle curl
+        d.px[i] += (d.vx[i] + Math.sin(t * 0.8 + d.phase[i]) * 0.038) * dt;
+        d.py[i] += d.vy[i] * dt;
+        d.pz[i] += (d.vz[i] + Math.cos(t * 0.7 + d.phase[i]) * 0.038) * dt;
+        // Camera-dot glint: particles aligned with camera → starburst scale
+        _v3p.set(d.px[i], d.py[i], d.pz[i]).normalize();
+        const camDot   = Math.max(0, _v3p.dot(_v3cam));
+        const starburst = Math.pow(camDot, 6) * 3.8 + 1.0;
+        // Opacity envelope
+        const fadeLf = lf < 0.1 ? lf * 10 : (lf > 0.85 ? (1 - lf) / 0.15 : 1.0);
+        const sparkle = 0.68 + Math.sin(t * 22 + d.phase[i]) * 0.32;
+        const sz = Math.max(0.001, scale * 0.021 * starburst * sparkle * fadeLf);
+        _dummy.position.set(d.px[i], d.py[i], d.pz[i]);
+        _dummy.scale.setScalar(sz);
+        _dummy.updateMatrix();
+        dMesh.setMatrixAt(i, _dummy.matrix);
+      }
+      dMesh.instanceMatrix.needsUpdate = true;
+      dustMat.opacity = (0.78 + Math.sin(t * 11.3) * 0.18) * inten;
+    }
+  });
+
+  // Pre-compute 8 ray cone transforms (tip near crystal, base fans outward)
+  // Cone +Y = tip; rotating [0,0, π/2 + a] makes tip point toward center.
+  const rayTransforms = useMemo(() => Array.from({ length: 8 }, (_, i) => {
+    const a    = (i / 8) * Math.PI * 2;
+    const dist = innerR + rayLen / 2;
+    return {
+      position: [Math.cos(a) * dist, Math.sin(a) * dist, 0] as [number, number, number],
+      rotZ: Math.PI / 2 + a,
+    };
+  }), [innerR, rayLen]);
 
   return (
     <group>
-      <pointLight color="#B8860B" intensity={1.2} distance={4} decay={2} />
-      {/* Outer brass gear */}
-      <mesh ref={g1}>
-        <ringGeometry args={[r * 0.88, r, 12]} />
-        <meshBasicMaterial color="#B8860B" transparent opacity={0.70} side={THREE.DoubleSide} depthWrite={false} />
-      </mesh>
-      <mesh ref={g2}>
-        <ringGeometry args={[r * 0.72, r * 0.82, 10]} />
-        <meshBasicMaterial color="#CD853F" transparent opacity={0.65} side={THREE.DoubleSide} depthWrite={false} />
-      </mesh>
-      <mesh ref={g3}>
-        <ringGeometry args={[r * 0.56, r * 0.65, 8]} />
-        <meshBasicMaterial color="#DAA520" transparent opacity={0.60} side={THREE.DoubleSide} depthWrite={false} />
-      </mesh>
-      <mesh ref={g4}>
-        <ringGeometry args={[r * 0.40, r * 0.48, 6]} />
-        <meshBasicMaterial color="#B8860B" transparent opacity={0.55} side={THREE.DoubleSide} depthWrite={false} />
-      </mesh>
-      {/* Cyan timeline */}
-      <mesh ref={tl}>
-        <ringGeometry args={[r * 0.76, r * 0.80, 64]} />
-        <meshBasicMaterial color="#00FFFF" transparent opacity={0.50} side={THREE.DoubleSide} depthWrite={false} />
-      </mesh>
+      {/* Flickering jewel point light */}
+      <pointLight ref={lightRef} color="#6633ff" intensity={2.8} distance={6} decay={2} />
+
+      {/* Inner faceted crystal shell — Fresnel + chromatic IOR split */}
+      <mesh scale={innerR} material={innerMat} geometry={_crystInnerGeo} />
+
+      {/* Outer faceted crystal shell — Voronoi caustics + stronger dispersion */}
+      <mesh scale={outerR} material={outerMat} geometry={_crystOuterGeo} />
+
+      {/* 8 caustic ray cones — rotate as a group, dual-Voronoi shader */}
+      <group ref={raysRef}>
+        {rayTransforms.map((rt, i) => (
+          <mesh key={i} position={rt.position} rotation={[0, 0, rt.rotZ]}
+                material={rayMat} geometry={rayGeo} />
+        ))}
+      </group>
+
+      {/* 200-particle zero-gravity crystal dust — camera-glint starburst */}
+      <instancedMesh ref={dustIM} args={[_crystDustGeo, dustMat, _N_CDUST]} frustumCulled={false} />
+
+      {/* 12 orbiting shards: 4 sapphire + 4 amethyst + 4 aquamarine */}
+      <instancedMesh ref={shardImS} args={[_crystShardGeo, matS, 4]} frustumCulled={false} />
+      <instancedMesh ref={shardImA} args={[_crystShardGeo, matA, 4]} frustumCulled={false} />
+      <instancedMesh ref={shardImQ} args={[_crystShardGeo, matQ, 4]} frustumCulled={false} />
     </group>
   );
 }
@@ -1092,7 +1417,7 @@ export function OrbitalRings({ style, scale }: { style: RingStyle; scale: number
     case "eclipse_horizon":   return <ElectrifiedAura  scale={scale} />;
     case "singularity_event": return <SingularityEvent scale={scale} />;
     case "celestial_aegis":   return <FieryAura         scale={scale} />;
-    case "chronos_clockwork": return <ChronosClockwork scale={scale} />;
+    case "chronos_clockwork": return <CrystallineAura  scale={scale} />;
     case "void_tendril":      return <VoidTendril      scale={scale} />;
     case "hyper_collider":    return <HyperCollider    scale={scale} />;
     case "solar_corona":      return <SolarCorona      scale={scale} />;

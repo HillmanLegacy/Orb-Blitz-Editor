@@ -1,0 +1,45 @@
+Please implement an ultra-optimized, AAA HD-quality "Crystalline Aura & Chromatic Dispersion" VFX system for a stationary Player Orb using advanced WebGL rendering techniques engineered for maximum visual impact within Replit browser limits.
+
+### Objective
+Create a breathtaking crystal and gem aura around the stationary Player Orb. Maximize visual fidelity using low-cost GPU shader tricks: multi-pass refraction, procedural Voronoi caustics, camera-aligned glint flares, and screen-space chromatic dispersion—achieving a film-quality look at a locked 60 FPS.
+
+---
+
+### Implementation Details
+
+1. Refractive Crystal Shell (Dual-Layer Facet Shader)
+   - Inner & Outer Shells: Create an inner ico-sphere (1.05x scale) and an outer faceted quartz cluster mesh (1.2x scale) with additive-transparent ShaderMaterials.
+   - Micro-Facet Normal Perturbation:
+     * Compute sharp, per-face flat normals in the fragment shader to give each facet distinct, edge-to-edge light reflection.
+   - Screen-Space Chromatic Dispersion (IOR Splitting):
+     * Split screen-space UV samples into Red, Green, and Blue offset passes based on the fragment's Fresnel reflection angle.
+     * Yield vibrant rainbow prism fringes along sharp facet borders without expensive multi-scene render targets.
+   - Color Profile: Diamond white (#FFFFFF) specular highlights blending into deep Sapphire (#0033FF), Amethyst (#8A2BE2), and Aquamarine (#00FFCC) internal refractance.
+
+2. Caustic Light Projection & Volumetric Beams
+   - Caustic Light Rays: Project 8 volumetric geometry light cones outward along the facet normals.
+   - Procedural Dual-Voronoi Shader:
+     * Layer two animated cellular/Voronoi noise functions scrolling in opposite directions to simulate swimming light caustics on the rays and orb surface.
+   - Dynamic Pulse: Sine-wave the opacity and ray lengths independently to give the aura a breathing, living jewel brilliance.
+
+3. Anisotropic Glint Flares & Instanced Star-Dust (GPU Particles)
+   - Camera-Aligned Sparkle Flares:
+     * Deploy an instanced GPU particle system (150–250 particles) spawning crystal dust in a zero-gravity drift.
+     * Material: Custom billboard shader that calculates the dot product between particle normals and the camera view vector. When aligned, the particle dynamically scales up and flashes a sharp, 4-point cross starburst flare.
+   - Orbiting Fragment Ring:
+     * 12 low-poly instanced crystal shards orbiting on tilted axes that independently catch and reflect the core light.
+
+4. Surface Caustic Projection & Point Light
+   - Caustic Ground/Surface Projection: Cast an animated Voronoi-textured light cookie from an internal point light onto the ground plane and adjacent arena geometry.
+   - Specular Edge Highlight: Apply a high-exponent Fresnel calculation ($N \cdot V^6$) to force the outermost crystal edges to burn with metallic diamond luster.
+
+5. Combat States & Event Triggers
+   - `setCrystallineIntensity(float factor)`: Smoothly scale refraction intensity, caustics speed, and sparkle density from 0.2 (dormant gem) to 2.0 (overcharged prism).
+   - `shatterBurst()`: Instantly explode outer crystal facets into high-velocity orbiting shards that dissolve into rainbow sparkle dust before reconstructing over 0.6 seconds.
+
+6. Replit Engine Optimization Rules
+   - No Heavy Post-Processing Stack: Re-create bloom and chromatic dispersion directly inside the object material shaders using additive blending and Fresnel tricks—avoiding heavy full-screen post-processing passes.
+   - Zero Garbage Collection: Rigorously pool all instanced geometry buffers, particle arrays, and uniform vectors.
+   - Target Framerate: Maintain a locked 60+ FPS inside Three.js / WebGL on Replit instances.
+
+Please review the current graphics setup in the project and output clean, modular code to implement this maxed-out Crystalline Aura system.
