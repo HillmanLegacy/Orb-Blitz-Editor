@@ -1073,11 +1073,11 @@ export function Boss() {
       }
     }
 
-    // ── Off-screen ambient spawns — ALL boss types, difficulty scales with world ──
-    // Moved outside `if (bossType !== "circle")` so world-1 circle boss also spawns
-    // off-screen projectiles. Rate: 4.5 s at world 1 → 0.9 s at world 9.
+    // ── Off-screen ambient spawns — all boss types except monster (9.9) ─────────
+    // Monster boss has its own rich attack patterns and doesn't need ambient spawns.
+    // Rate: 4.5 s at world 1 → 0.9 s at world 9.
     // Count: 1 per burst at worlds 1-6, 2 at worlds 7-8, 3 at world 9.
-    {
+    if (bossType !== "monster") {
       const { arcadeLevel: osAL, spawnBossOrb: osSpawn } = useMagicOrb.getState();
       const osWorld = Math.max(1, Math.floor(osAL));
       offScreenTimerRef.current -= delta;
