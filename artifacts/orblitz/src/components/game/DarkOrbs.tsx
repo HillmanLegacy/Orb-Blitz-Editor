@@ -883,6 +883,7 @@ export function DarkOrbs() {
       phase,
       magiOrb4Active,
       magiOrb4Direction,
+      addStarFlowEvent,
     } = useMagicOrb.getState();
     
     if (phase !== "playing") return;
@@ -1050,6 +1051,7 @@ export function DarkOrbs() {
             });
             addScore(10);
             useShop.getState().addCoins(5);
+            addStarFlowEvent([x, y, z], 5);
             
             if (gameMode === "arcade" && !orb.isBossOrb) {
               const newDestroyed = orbsDestroyedInLevel + 1;
@@ -1142,6 +1144,7 @@ export function DarkOrbs() {
         });
         addScore(10);
         useShop.getState().addCoins(5);
+        addStarFlowEvent([x, y, z], 5);
         
         if (gameMode === "arcade" && !orb.isBossOrb) {
           const newDestroyed = orbsDestroyedInLevel + 1;
