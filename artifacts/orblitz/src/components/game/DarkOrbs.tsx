@@ -1170,6 +1170,7 @@ export function DarkOrbs() {
       // Decrement hurt timer; transition to destroying when the window expires
       const newHurtTimer = Math.max(0, (orb.hurtTimer || 0) - delta);
       if ((orb.hurtTimer || 0) > 0 && newHurtTimer <= 0) {
+        addStarFlowEvent([x, y, z], 5);
         updatedOrbs.push({ ...orb, position: [x, y, z], direction: [dx, dy, dz], hurtTimer: 0, destroying: true, destroyTimer: 0.6 });
       } else {
         updatedOrbs.push({
