@@ -1,8 +1,10 @@
 import { motion, AnimatePresence } from "framer-motion";
+import { Suspense } from "react";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useAudio } from "@/lib/stores/useAudio";
 import { useShop } from "@/lib/stores/useShop";
 import { useOrbTransition } from "@/lib/stores/useOrbTransition";
+import { StarHUDIcon } from "./StarHUDIcon";
 
 // ── Design primitives — matches main menu aesthetic ────────────────────────────
 const SCANLINES = "repeating-linear-gradient(0deg,transparent,transparent 4px,rgba(255,255,255,0.012) 4px,rgba(255,255,255,0.012) 5px)";
@@ -267,10 +269,39 @@ export function GameUI() {
           </motion.div>
 
           {/* Stars */}
-          <div className="flex items-center gap-1.5 px-2.5 md:px-3 py-1 md:py-1.5" style={pnl("#ffd700")}>
+          <div style={{
+            ...pnl("#ffd700", true),
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "6px 10px 6px 6px",
+            minWidth: 112,
+          }}>
             <TA color="#ffd700" /><SL />
-            <span style={{ color: "#ffd700", fontSize: "0.85rem", filter: "drop-shadow(0 0 4px #ffd70099)" }}>★</span>
-            <span className="font-bold text-sm md:text-base" style={{ color: "#fde68a" }}>{shopStars}</span>
+            {/* 3-D spinning star model */}
+            <Suspense fallback={
+              <div style={{ width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center",
+                            fontSize: "1.4rem", filter: "drop-shadow(0 0 6px #ffd700)" }}>★</div>
+            }>
+              <StarHUDIcon size={44} />
+            </Suspense>
+            {/* Counter */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.2em",
+                             color: "#fde68a", opacity: 0.65, textTransform: "uppercase" }}>
+                Stars
+              </span>
+              <motion.span
+                key={shopStars}
+                initial={{ scale: 1.35, color: "#ffffff" }}
+                animate={{ scale: 1, color: "#ffd700" }}
+                transition={{ type: "spring", stiffness: 500, damping: 22 }}
+                style={{ fontSize: "1.35rem", fontWeight: 900, lineHeight: 1,
+                         color: "#ffd700", textShadow: "0 0 12px #ffd70088" }}
+              >
+                {shopStars}
+              </motion.span>
+            </div>
           </div>
 
           {/* Timer */}

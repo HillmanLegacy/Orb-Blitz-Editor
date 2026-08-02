@@ -1534,7 +1534,7 @@ export function Projectiles() {
   } = useMagicOrb();
   
   const { playHit, playSuccess, playSparkleExplosion } = useAudio();
-  const { addCoins, equippedTrail, equippedSkin } = useShop();
+  const { equippedTrail, equippedSkin } = useShop();
   const clockRef = useRef(0);
   const projectileSpeed = 16.5;
   const hitRadius = 1.2;
@@ -1825,7 +1825,7 @@ export function Projectiles() {
             if (Math.abs(ox) > 13 || Math.abs(oy) > 13) continue;
             if (Math.sqrt((px-ox)**2+(py-oy)**2+(pz-oz)**2) < OC_EXPLODE_RADIUS) {
               markOrbDestroying(orb.id);
-              addScore(10); incrementGauntletOrbs(); addCoins(5);
+              addScore(10); incrementGauntletOrbs();
               addStarFlowEvent([ox, oy, oz], 5);
               if (gameMode === "arcade") incrementOrbsDestroyed();
               addImpactEffect({ id: `impact-${impactIdCounter++}`, position: [ox, oy, oz], timer: 0.4, maxTimer: 0.4, seed: Math.random() });
@@ -1886,7 +1886,7 @@ export function Projectiles() {
               proj.hitCount = Math.max(0, (proj.hitCount ?? 3) - 1);
               hitOrbsThisFrame.current.add(orb.id);
               markOrbDestroying(orb.id);
-              addScore(10); incrementGauntletOrbs(); addCoins(5); playHit();
+              addScore(10); incrementGauntletOrbs(); playHit();
               addStarFlowEvent([ox, oy, oz], 5);
               if (gameMode === "arcade") incrementOrbsDestroyed();
               addImpactEffect({ id: `impact-${impactIdCounter++}`, position: [_spx, _spy, _spz], timer: 0.4, maxTimer: 0.4, seed: Math.random() });
@@ -1998,7 +1998,6 @@ export function Projectiles() {
           markOrbDestroying(orb.id);
           addScore(10);
           incrementGauntletOrbs();
-          addCoins(5);
           addStarFlowEvent([ox, oy, oz], 5);
           playHit();
           

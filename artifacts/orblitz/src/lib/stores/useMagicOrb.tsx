@@ -146,7 +146,8 @@ export interface ImpactEffect {
 export interface StarFlowEvent {
   id: string;
   fromPos: [number, number, number];
-  count: number; // equals coins/stars awarded
+  count: number;          // number of star particles to spawn
+  coinsPerStar: number;   // coins awarded when each particle is absorbed by the player
 }
 
 export interface LaserBeam {
@@ -1744,12 +1745,15 @@ export const useMagicOrb = create<MagicOrbState>()(
     
     updateImpactEffects: (effects) => set({ impactEffects: effects }),
 
-    addStarFlowEvent: (pos, count) => set((state) => ({
-      starFlowEvents: [
-        ...state.starFlowEvents,
-        { id: `sf-${Date.now()}-${Math.random()}`, fromPos: pos, count },
-      ],
-    })),
+    addStarFlowEvent: (pos, count) => {
+      const coinsPerStar = get().hasDoubleCoins ? 2 : 1;
+      set((state) => ({
+        starFlowEvents: [
+          ...state.starFlowEvents,
+          { id: `sf-${Date.now()}-${Math.random()}`, fromPos: pos, count, coinsPerStar },
+        ],
+      }));
+    },
 
     removeStarFlowEvent: (id) => set((state) => ({
       starFlowEvents: state.starFlowEvents.filter((e) => e.id !== id),

@@ -1,127 +1,166 @@
 /**
  * StarFlowVFX
- * HD yellow star particles that burst from a kill position and flow into the player.
- * Particle count equals the stars/coins awarded for that kill.
+ * Spawns 3-D mini star models (star_pickup.glb) at kill positions.
+ * Each star flies outward briefly, then homes toward the player.
+ * On arrival, it calls addCoins(coinsPerStar) so the counter ticks up one
+ * star at a time instead of all at once on the kill.
  */
 
-import { useRef } from "react";
+import { useRef, useMemo, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
+import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
+import { useShop } from "@/lib/stores/useShop";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const MAX_PARTICLES   = 400;   // hard cap across all live events
-const BURST_DUR       = 0.26;  // seconds of outward burst before homing starts
-const BASE_LIFE       = 1.4;   // base particle lifetime (seconds)
-const LIFE_VARIANCE   = 0.35;  // ± randomness on lifetime
-const BURST_SPEED_MIN = 2.8;
-const BURST_SPEED_MAX = 6.5;
-const HOME_ACCEL_BASE = 14;    // pixels/s² toward player (grows as life runs out)
-const HOME_ACCEL_RAMP = 24;    // extra acceleration at end of life
-const MAX_HOME_SPEED  = 28;
+const MAX_PARTICLES   = 400;
+const BURST_DUR       = 0.22;
+const BASE_LIFE       = 1.35;
+const LIFE_VARIANCE   = 0.30;
+const BURST_SPEED_MIN = 3.0;
+const BURST_SPEED_MAX = 6.8;
+const HOME_ACCEL_BASE = 16;
+const HOME_ACCEL_RAMP = 28;
+const MAX_HOME_SPEED  = 30;
+const ABSORB_DIST_SQ  = 0.28 * 0.28; // absorb when this close to player
 
-// ─── Module-level scratch objects (no per-frame allocations) ──────────────────
+// ─── Scratch objects ──────────────────────────────────────────────────────────
 const _dummy = new THREE.Object3D();
-const _col   = new THREE.Color();
 
-// ─── Particle data (plain arrays for speed) ────────────────────────────────────
-interface Particle {
+// ─── Particle state ───────────────────────────────────────────────────────────
+interface StarParticle {
   px: number; py: number; pz: number;
   vx: number; vy: number; vz: number;
-  life: number;    // remaining seconds
-  maxLife: number;
-  size: number;
-  isBoss: boolean; // boss reward → brighter / larger
+  ry: number; vrY: number;            // spin around Y axis
+  life: number; maxLife: number;
+  size: number;                        // world-space target size
+  coinsPerStar: number;
 }
 
 export function StarFlowVFX() {
-  const meshRef     = useRef<THREE.InstancedMesh>(null);
-  const particles   = useRef<Particle[]>([]);
-  const seenEvents  = useRef<Set<string>>(new Set());
+  // Load star model — suspended until ready (component is inside <Suspense>)
+  const { scene } = useGLTF("/models/star_pickup.glb");
+
+  // ── Extract geometry from the first mesh in the GLB ─────────────────────
+  const [starGeo, normalScale] = useMemo(() => {
+    let geo: THREE.BufferGeometry | null = null;
+    scene.traverse((child) => {
+      if (!geo && (child as THREE.Mesh).isMesh) {
+        geo = (child as THREE.Mesh).geometry;
+      }
+    });
+    if (!geo) return [new THREE.SphereGeometry(0.5, 6, 4), 1] as const;
+
+    (geo as THREE.BufferGeometry).computeBoundingBox();
+    const box = (geo as THREE.BufferGeometry).boundingBox!;
+    const s = new THREE.Vector3();
+    box.getSize(s);
+    const maxDim = Math.max(s.x, s.y, s.z);
+    // normalScale maps geo to a 1-unit bounding box
+    return [geo as THREE.BufferGeometry, maxDim > 0 ? 1 / maxDim : 1] as const;
+  }, [scene]);
+
+  // ── Lush gold material shared across all instances ────────────────────────
+  const starMat = useMemo(() => new THREE.MeshStandardMaterial({
+    color: "#ffd700",
+    emissive: "#ff9900",
+    emissiveIntensity: 1.4,   // high emissive → Bloom makes it glow like a hot star
+    metalness: 0.65,
+    roughness: 0.18,
+  }), []);
+
+  useEffect(() => () => { starMat.dispose(); }, [starMat]);
+
+  // ─── Particle pool ────────────────────────────────────────────────────────
+  const particles  = useRef<StarParticle[]>([]);
+  const seenEvents = useRef<Set<string>>(new Set());
 
   useFrame((_, delta) => {
     const store = useMagicOrb.getState();
     const { starFlowEvents, removeStarFlowEvent, playerPosition } = store;
-    const [ppx, ppy, ppz] = playerPosition;
+    const [ppx, ppy] = playerPosition;
 
-    // ── Spawn particles for new events ────────────────────────────────────────
+    // ── Spawn new particles from pending events ────────────────────────────
     for (const evt of starFlowEvents) {
       if (seenEvents.current.has(evt.id)) continue;
       seenEvents.current.add(evt.id);
 
       const [fx, fy, fz] = evt.fromPos;
-      const isBoss = evt.count >= 30;
-      // Stagger particles in a slight spread so they don't all look identical
+      const coinsPerStar = evt.coinsPerStar ?? 1;
+
       for (let i = 0; i < evt.count; i++) {
         if (particles.current.length >= MAX_PARTICLES) break;
         const theta = Math.random() * Math.PI * 2;
         const phi   = Math.acos(2 * Math.random() - 1);
         const spd   = BURST_SPEED_MIN + Math.random() * (BURST_SPEED_MAX - BURST_SPEED_MIN);
         const life  = BASE_LIFE + (Math.random() - 0.5) * LIFE_VARIANCE;
+
         particles.current.push({
-          px: fx + (Math.random() - 0.5) * 0.15,
-          py: fy + (Math.random() - 0.5) * 0.15,
+          px: fx + (Math.random() - 0.5) * 0.1,
+          py: fy + (Math.random() - 0.5) * 0.1,
           pz: fz,
           vx: Math.sin(phi) * Math.cos(theta) * spd,
           vy: Math.sin(phi) * Math.sin(theta) * spd,
           vz: 0,
+          ry:  Math.random() * Math.PI * 2,
+          vrY: (Math.random() < 0.5 ? 1 : -1) * (4 + Math.random() * 6), // rad/s
           life,
           maxLife: life,
-          size: isBoss
-            ? 0.10 + Math.random() * 0.11
-            : 0.065 + Math.random() * 0.075,
-          isBoss,
+          size: 0.18 + Math.random() * 0.10,   // world-unit target radius
+          coinsPerStar,
         });
       }
 
-      // Remove the event immediately — particles are now live in our local pool
       removeStarFlowEvent(evt.id);
     }
 
-    // ── Update particles ───────────────────────────────────────────────────────
+    // ── Update + render ────────────────────────────────────────────────────
     const mesh = meshRef.current;
     let liveCount = 0;
 
     for (let i = 0; i < particles.current.length; i++) {
       const p = particles.current[i];
       p.life -= delta;
-      if (p.life <= 0) continue;   // skip dead particles (compact below)
+      if (p.life <= 0) continue;
 
+      // ── Absorption check: reached the player ──────────────────────────
+      const dxP = ppx - p.px;
+      const dyP = ppy - p.py;
+      if (dxP * dxP + dyP * dyP < ABSORB_DIST_SQ) {
+        useShop.getState().addCoins(p.coinsPerStar);
+        continue; // absorbed — remove particle
+      }
+
+      // ── Physics ────────────────────────────────────────────────────────
       const elapsed   = p.maxLife - p.life;
       const lifeRatio = p.life / p.maxLife;
 
-      // ── Homing phase: attract toward player after burst ──────────────────
       if (elapsed > BURST_DUR) {
-        const dx = ppx - p.px;
-        const dy = ppy - p.py;
+        const dx   = ppx - p.px;
+        const dy   = ppy - p.py;
         const dist = Math.sqrt(dx * dx + dy * dy) + 0.01;
-
-        // Acceleration ramps up as particle ages → feels magnetic near player
-        const accel = (HOME_ACCEL_BASE + HOME_ACCEL_RAMP * (1 - lifeRatio)) * delta;
-        p.vx += (dx / dist) * accel;
-        p.vy += (dy / dist) * accel;
-
-        // Clamp speed so particles don't fly past the player
+        const acc  = (HOME_ACCEL_BASE + HOME_ACCEL_RAMP * (1 - lifeRatio)) * delta;
+        p.vx += (dx / dist) * acc;
+        p.vy += (dy / dist) * acc;
         const spd2 = p.vx * p.vx + p.vy * p.vy;
-        const maxSpd = MAX_HOME_SPEED;
-        if (spd2 > maxSpd * maxSpd) {
-          const inv = maxSpd / Math.sqrt(spd2);
-          p.vx *= inv;
-          p.vy *= inv;
+        if (spd2 > MAX_HOME_SPEED * MAX_HOME_SPEED) {
+          const inv = MAX_HOME_SPEED / Math.sqrt(spd2);
+          p.vx *= inv; p.vy *= inv;
         }
       }
 
       p.px += p.vx * delta;
       p.py += p.vy * delta;
-      // p.pz stays near 0
+      p.ry += p.vrY * delta;
 
-      // ── Pack alive particle into compact slot ─────────────────────────────
+      // ── Pack ──────────────────────────────────────────────────────────
       if (liveCount !== i) particles.current[liveCount] = p;
       liveCount++;
     }
     particles.current.length = liveCount;
 
-    // ── Render ─────────────────────────────────────────────────────────────────
+    // ── Build instance matrices ───────────────────────────────────────────
     if (!mesh) return;
 
     const renderCount = Math.min(liveCount, MAX_PARTICLES);
@@ -130,58 +169,43 @@ export function StarFlowVFX() {
       const p = particles.current[i];
       const lifeRatio = p.life / p.maxLife;
 
-      // Opacity: ramp in over first 10% of life, fade out over last 25%
-      const fadeIn  = Math.min(1, (p.maxLife - p.life) / (p.maxLife * 0.1));
-      const fadeOut = lifeRatio < 0.25 ? lifeRatio / 0.25 : 1;
+      // Fade in over first 8%, fade out over last 20%
+      const fadeIn  = Math.min(1, (p.maxLife - p.life) / (p.maxLife * 0.08));
+      const fadeOut = lifeRatio < 0.20 ? lifeRatio / 0.20 : 1;
       const alpha   = fadeIn * fadeOut;
 
-      // Size: slightly larger when first burst, then contract
-      const sizeScale = 1.0 + (1 - lifeRatio) * 0.6;
-      const sz = p.size * sizeScale * alpha;
+      // World-space scale: target size × normalScale × geometry normalizer
+      const worldSz = p.size * normalScale * alpha;
 
       _dummy.position.set(p.px, p.py, p.pz);
-      _dummy.scale.setScalar(Math.max(0.001, sz));
+      _dummy.rotation.set(0.3, p.ry, 0.2); // slight tilt so the star reads as 3-D
+      _dummy.scale.setScalar(Math.max(1e-4, worldSz));
       _dummy.updateMatrix();
       mesh.setMatrixAt(i, _dummy.matrix);
-
-      // Color gradient: deep gold → bright yellow → near-white flash at player
-      // lifeRatio 1 (fresh) → 0 (dead/reached player)
-      const t   = 1 - lifeRatio;                          // 0=birth → 1=death
-      const hue = 0.13 - t * 0.04;                        // 0.13 gold → 0.09 warm yellow
-      const lit = 0.5  + t * 0.32;                        // brightens toward player
-      const sat = 1.0  - t * 0.35;                        // desaturates to white flash
-      _col.setHSL(Math.max(0.05, hue), Math.max(0, sat), Math.min(1, lit));
-      // HDR over-brightening — additive blending makes this look like a hot star
-      const boost = p.isBoss ? 2.8 : 2.2;
-      _col.multiplyScalar(boost * alpha + 0.3);
-      mesh.setColorAt(i, _col);
     }
 
-    // Zero-out unused slots
-    if (renderCount < MAX_PARTICLES) {
-      _dummy.position.set(0, 0, -999);
-      _dummy.scale.setScalar(0.001);
-      _dummy.updateMatrix();
-      for (let i = renderCount; i < MAX_PARTICLES; i++) {
-        mesh.setMatrixAt(i, _dummy.matrix);
-      }
+    // Zero out unused slots
+    _dummy.position.set(0, 0, -999);
+    _dummy.scale.setScalar(1e-4);
+    _dummy.updateMatrix();
+    for (let i = renderCount; i < MAX_PARTICLES; i++) {
+      mesh.setMatrixAt(i, _dummy.matrix);
     }
 
     mesh.count = MAX_PARTICLES;
     mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   });
 
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, MAX_PARTICLES]} renderOrder={10}>
-      <sphereGeometry args={[1, 5, 4]} />
-      <meshBasicMaterial
-        transparent
-        opacity={1}
-        blending={THREE.AdditiveBlending}
-        depthWrite={false}
-        vertexColors
-      />
-    </instancedMesh>
+    <instancedMesh
+      ref={meshRef}
+      args={[starGeo, starMat, MAX_PARTICLES]}
+      renderOrder={10}
+      frustumCulled={false}
+    />
   );
 }
+
+useGLTF.preload("/models/star_pickup.glb");

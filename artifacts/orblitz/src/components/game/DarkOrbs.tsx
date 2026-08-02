@@ -1050,7 +1050,6 @@ export function DarkOrbs() {
               seed: Math.random(),
             });
             addScore(10);
-            useShop.getState().addCoins(5);
             addStarFlowEvent([x, y, z], 5);
             
             if (gameMode === "arcade" && !orb.isBossOrb) {
@@ -1143,7 +1142,6 @@ export function DarkOrbs() {
           seed: Math.random(),
         });
         addScore(10);
-        useShop.getState().addCoins(5);
         addStarFlowEvent([x, y, z], 5);
         
         if (gameMode === "arcade" && !orb.isBossOrb) {
