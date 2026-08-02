@@ -143,6 +143,12 @@ export interface ImpactEffect {
   isBossHit?: boolean;
 }
 
+export interface StarFlowEvent {
+  id: string;
+  fromPos: [number, number, number];
+  count: number; // equals coins/stars awarded
+}
+
 export interface LaserBeam {
   id: string;
   start: [number, number, number];
@@ -233,7 +239,8 @@ interface MagicOrbState {
   particles: Particle[];
   impactEffects: ImpactEffect[];
   laserBeams: LaserBeam[];
-  
+  starFlowEvents: StarFlowEvent[];
+
   backgroundPulse: number;
   backgroundShake: number;
   cameraOnlyShake: number;
@@ -292,6 +299,8 @@ interface MagicOrbState {
   
   addImpactEffect: (effect: ImpactEffect) => void;
   updateImpactEffects: (effects: ImpactEffect[]) => void;
+  addStarFlowEvent: (pos: [number, number, number], count: number) => void;
+  removeStarFlowEvent: (id: string) => void;
   
   addLaserBeam: (beam: LaserBeam) => void;
   updateLaserBeams: (beams: LaserBeam[]) => void;
@@ -529,7 +538,8 @@ export const useMagicOrb = create<MagicOrbState>()(
     particles: [],
     impactEffects: [],
     laserBeams: [],
-    
+    starFlowEvents: [],
+
     backgroundPulse: 0,
     backgroundShake: 0,
     cameraOnlyShake: 0,
@@ -637,6 +647,7 @@ export const useMagicOrb = create<MagicOrbState>()(
           particles: [],
           impactEffects: [],
           laserBeams: [],
+          starFlowEvents: [],
           backgroundPulse: 0,
           backgroundShake: 0,
           spawnRate: gameMode === "chill" ? 3 : 2,
@@ -726,6 +737,7 @@ export const useMagicOrb = create<MagicOrbState>()(
           particles: [],
           impactEffects: [],
           laserBeams: [],
+          starFlowEvents: [],
           killSpeedBonus: 0,
           killSpawnBonus: 0,
           gameTime: 0,
@@ -824,6 +836,7 @@ export const useMagicOrb = create<MagicOrbState>()(
         particles: [],
         impactEffects: [],
         laserBeams: [],
+        starFlowEvents: [],
         backgroundPulse: 0,
         backgroundShake: 0,
         spawnRate: mode === "chill" ? 3 : 2,
@@ -956,6 +969,7 @@ export const useMagicOrb = create<MagicOrbState>()(
         particles: [],
         impactEffects: [],
         laserBeams: [],
+        starFlowEvents: [],
       });
     },
     
@@ -1127,6 +1141,11 @@ export const useMagicOrb = create<MagicOrbState>()(
           bossDefeating: true,
         });
         get().addBossDefeatStars();
+        // Star flow VFX — 50 golden stars stream from boss to player
+        get().addStarFlowEvent(
+          [boss.position[0], boss.position[1], boss.position[2]],
+          50,
+        );
         return true;
       } else {
         set({ boss: { ...boss, health: newHealth } });
@@ -1218,6 +1237,7 @@ export const useMagicOrb = create<MagicOrbState>()(
         particles: [],
         impactEffects: [],
         laserBeams: [],
+        starFlowEvents: [],
         isDamaged: false,
         damageTimer: 0,
         backgroundShake: 0,
@@ -1723,6 +1743,17 @@ export const useMagicOrb = create<MagicOrbState>()(
     })),
     
     updateImpactEffects: (effects) => set({ impactEffects: effects }),
+
+    addStarFlowEvent: (pos, count) => set((state) => ({
+      starFlowEvents: [
+        ...state.starFlowEvents,
+        { id: `sf-${Date.now()}-${Math.random()}`, fromPos: pos, count },
+      ],
+    })),
+
+    removeStarFlowEvent: (id) => set((state) => ({
+      starFlowEvents: state.starFlowEvents.filter((e) => e.id !== id),
+    })),
     
     addLaserBeam: (beam) => set((state) => ({
       laserBeams: [...state.laserBeams, beam]

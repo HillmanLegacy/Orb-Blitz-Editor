@@ -1530,6 +1530,7 @@ export function Projectiles() {
     gameMode,
     registerMissedShot,
     incrementGauntletOrbs,
+    addStarFlowEvent,
   } = useMagicOrb();
   
   const { playHit, playSuccess, playSparkleExplosion } = useAudio();
@@ -1599,6 +1600,7 @@ export function Projectiles() {
       incrementOrbsDestroyed,
       registerMissedShot,
       incrementGauntletOrbs,
+      addStarFlowEvent,
     } = useMagicOrb.getState();
     
     if (phase !== "playing") return;
@@ -1824,6 +1826,7 @@ export function Projectiles() {
             if (Math.sqrt((px-ox)**2+(py-oy)**2+(pz-oz)**2) < OC_EXPLODE_RADIUS) {
               markOrbDestroying(orb.id);
               addScore(10); incrementGauntletOrbs(); addCoins(5);
+              addStarFlowEvent([ox, oy, oz], 5);
               if (gameMode === "arcade") incrementOrbsDestroyed();
               addImpactEffect({ id: `impact-${impactIdCounter++}`, position: [ox, oy, oz], timer: 0.4, maxTimer: 0.4, seed: Math.random() });
             }
@@ -1884,6 +1887,7 @@ export function Projectiles() {
               hitOrbsThisFrame.current.add(orb.id);
               markOrbDestroying(orb.id);
               addScore(10); incrementGauntletOrbs(); addCoins(5); playHit();
+              addStarFlowEvent([ox, oy, oz], 5);
               if (gameMode === "arcade") incrementOrbsDestroyed();
               addImpactEffect({ id: `impact-${impactIdCounter++}`, position: [_spx, _spy, _spz], timer: 0.4, maxTimer: 0.4, seed: Math.random() });
               _ph.add(orb.id); projectileOrbHits.current.set(proj.id, _ph);
@@ -1995,6 +1999,7 @@ export function Projectiles() {
           addScore(10);
           incrementGauntletOrbs();
           addCoins(5);
+          addStarFlowEvent([ox, oy, oz], 5);
           playHit();
           
           if (gameMode === "arcade") {

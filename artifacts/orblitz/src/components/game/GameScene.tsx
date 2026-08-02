@@ -18,6 +18,7 @@ import { MagiOrbEffects } from "./MagiOrbEffects";
 import { ScreenEffects } from "./ScreenEffects";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { SubBlasterOrb } from "./SubBlasterOrb";
+import { StarFlowVFX } from "./StarFlowVFX";
 import { useShop } from "@/lib/stores/useShop";
 
 // ── Renderer configuration ────────────────────────────────────────────────────
@@ -204,6 +205,7 @@ export function GameScene() {
         <DefenseOrbs />
         <MagiOrbEffects />
         <ScreenEffects />
+        <StarFlowVFX />
         <GameLogic />
 
         {/* Post-processing stack */}
