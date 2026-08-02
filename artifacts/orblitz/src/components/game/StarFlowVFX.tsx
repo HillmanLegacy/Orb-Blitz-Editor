@@ -14,16 +14,15 @@ import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const MAX_PARTICLES   = 400;
+const MAX_PARTICLES   = 700;   // must exceed max single-event burst (boss = 500)
 const BURST_DUR       = 0.22;
-const BASE_LIFE       = 1.35;
-const LIFE_VARIANCE   = 0.30;
+const BASE_LIFE       = 60.0;  // safety-net; stars live until absorbed, not until expired
 const BURST_SPEED_MIN = 3.0;
 const BURST_SPEED_MAX = 6.8;
-const HOME_ACCEL_BASE = 16;
-const HOME_ACCEL_RAMP = 28;
-const MAX_HOME_SPEED  = 30;
-const ABSORB_DIST_SQ  = 0.28 * 0.28; // absorb when this close to player
+const HOME_ACCEL_BASE = 18;
+const HOME_ACCEL_RAMP = 32;
+const MAX_HOME_SPEED  = 36;
+const ABSORB_DIST_SQ  = 0.35 * 0.35; // absorb radius (world units)
 
 // ─── Scratch objects ──────────────────────────────────────────────────────────
 const _dummy = new THREE.Object3D();
@@ -33,7 +32,8 @@ interface StarParticle {
   px: number; py: number; pz: number;
   vx: number; vy: number; vz: number;
   ry: number; vrY: number;            // spin around Y axis
-  life: number; maxLife: number;
+  life: number;                        // safety timeout (60 s)
+  age: number;                         // time alive — drives fade-in, burst→home transition
   size: number;                        // world-space target size
   coinsPerStar: number;
 }
@@ -94,7 +94,6 @@ export function StarFlowVFX() {
         const theta = Math.random() * Math.PI * 2;
         const phi   = Math.acos(2 * Math.random() - 1);
         const spd   = BURST_SPEED_MIN + Math.random() * (BURST_SPEED_MAX - BURST_SPEED_MIN);
-        const life  = BASE_LIFE + (Math.random() - 0.5) * LIFE_VARIANCE;
 
         particles.current.push({
           px: fx + (Math.random() - 0.5) * 0.1,
@@ -105,9 +104,9 @@ export function StarFlowVFX() {
           vz: 0,
           ry:  Math.random() * Math.PI * 2,
           vrY: (Math.random() < 0.5 ? 1 : -1) * (4 + Math.random() * 6), // rad/s
-          life,
-          maxLife: life,
-          size: 0.18 + Math.random() * 0.10,   // world-unit target radius
+          life: BASE_LIFE,   // safety timeout only — stars don't expire mid-flight
+          age:  0,
+          size: 0.18 + Math.random() * 0.10,
           coinsPerStar,
         });
       }
@@ -121,7 +120,8 @@ export function StarFlowVFX() {
 
     for (let i = 0; i < particles.current.length; i++) {
       const p = particles.current[i];
-      p.life -= delta;
+      p.age  += delta;
+      p.life -= delta; // safety timeout only
       if (p.life <= 0) continue;
 
       // ── Absorption check: reached the player ──────────────────────────
@@ -133,14 +133,14 @@ export function StarFlowVFX() {
       }
 
       // ── Physics ────────────────────────────────────────────────────────
-      const elapsed   = p.maxLife - p.life;
-      const lifeRatio = p.life / p.maxLife;
-
-      if (elapsed > BURST_DUR) {
+      // Once burst phase ends, home toward player indefinitely
+      if (p.age > BURST_DUR) {
         const dx   = ppx - p.px;
         const dy   = ppy - p.py;
         const dist = Math.sqrt(dx * dx + dy * dy) + 0.01;
-        const acc  = (HOME_ACCEL_BASE + HOME_ACCEL_RAMP * (1 - lifeRatio)) * delta;
+        // Acceleration ramps up with age so distant stars always arrive
+        const homingSecs = p.age - BURST_DUR;
+        const acc  = (HOME_ACCEL_BASE + HOME_ACCEL_RAMP * Math.min(1, homingSecs / 3)) * delta;
         p.vx += (dx / dist) * acc;
         p.vy += (dy / dist) * acc;
         const spd2 = p.vx * p.vx + p.vy * p.vy;
@@ -167,12 +167,10 @@ export function StarFlowVFX() {
 
     for (let i = 0; i < renderCount; i++) {
       const p = particles.current[i];
-      const lifeRatio = p.life / p.maxLife;
 
-      // Fade in over first 8%, fade out over last 20%
-      const fadeIn  = Math.min(1, (p.maxLife - p.life) / (p.maxLife * 0.08));
-      const fadeOut = lifeRatio < 0.20 ? lifeRatio / 0.20 : 1;
-      const alpha   = fadeIn * fadeOut;
+      // Fade in over first 0.15 s; full brightness during homing (no fade-out)
+      const fadeIn = Math.min(1, p.age / 0.15);
+      const alpha  = fadeIn;
 
       // World-space scale: target size × normalScale × geometry normalizer
       const worldSz = p.size * normalScale * alpha;

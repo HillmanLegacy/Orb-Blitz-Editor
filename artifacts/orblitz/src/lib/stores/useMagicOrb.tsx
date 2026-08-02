@@ -1141,11 +1141,10 @@ export const useMagicOrb = create<MagicOrbState>()(
           darkOrbs: defeatedOrbs,
           bossDefeating: true,
         });
-        get().addBossDefeatStars();
-        // Star flow VFX — 50 golden stars stream from boss to player
+        // 500 gold stars stream from the boss to the player; each absorbed star awards a coin
         get().addStarFlowEvent(
           [boss.position[0], boss.position[1], boss.position[2]],
-          50,
+          500,
         );
         return true;
       } else {
