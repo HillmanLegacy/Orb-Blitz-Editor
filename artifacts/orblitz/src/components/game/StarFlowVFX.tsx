@@ -1,8 +1,9 @@
 /**
  * StarFlowVFX
  * Spawns 3-D mini star models at kill positions.
- * Each star immediately homes toward the player orb.
+ * Each star floats slowly toward the player orb.
  * On arrival it calls addCoins(coinsPerStar) — counter ticks up one star at a time.
+ * A pool of point lights samples across live particles to cast warm gold light on the scene.
  */
 
 import { useRef, useMemo, useEffect } from "react";
@@ -13,26 +14,29 @@ import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const MAX_PARTICLES  = 700;          // must exceed largest single burst (boss = 500)
-const HOME_SPEED     = 14;           // world-units / s — constant homing speed
-const ABSORB_DIST_SQ = 0.4 * 0.4;   // absorb when within 0.4 wu of player
+const MAX_PARTICLES  = 700;
+const HOME_SPEED     = 3.5;          // slow, satisfying float toward player
+const ABSORB_DIST_SQ = 0.4 * 0.4;
+const LIGHT_POOL     = 16;           // point lights shared across all particles
+const LIGHT_RANGE    = 2.8;
+const LIGHT_INTENSITY = 2.2;
 
 // ─── Scratch ──────────────────────────────────────────────────────────────────
 const _dummy = new THREE.Object3D();
+const _off   = new THREE.Vector3(0, 0, -999);
 
 // ─── Particle ─────────────────────────────────────────────────────────────────
 interface StarParticle {
   px: number; py: number; pz: number;
-  ry: number; vrY: number;   // Y-axis spin
-  age: number;               // seconds alive — drives fade-in
-  size: number;              // world-space radius
+  ry: number; vrY: number;
+  age: number;
+  size: number;
   coinsPerStar: number;
 }
 
 export function StarFlowVFX() {
   const { scene } = useGLTF("/models/star_pickup.glb");
 
-  // Extract first mesh geometry and compute a normalisation scale
   const [starGeo, normalScale] = useMemo(() => {
     let geo: THREE.BufferGeometry | null = null;
     scene.traverse((child) => {
@@ -49,7 +53,7 @@ export function StarFlowVFX() {
   const starMat = useMemo(() => new THREE.MeshStandardMaterial({
     color: "#ffd700",
     emissive: "#ff9900",
-    emissiveIntensity: 1.4,
+    emissiveIntensity: 1.6,
     metalness: 0.65,
     roughness: 0.18,
   }), []);
@@ -58,6 +62,11 @@ export function StarFlowVFX() {
   const particles  = useRef<StarParticle[]>([]);
   const seenEvents = useRef<Set<string>>(new Set());
   const meshRef    = useRef<THREE.InstancedMesh>(null);
+
+  // Pool of point-light refs — repositioned each frame to sampled particle positions
+  const lightRefs = useRef<(THREE.PointLight | null)[]>(
+    Array.from({ length: LIGHT_POOL }, () => null)
+  );
 
   useFrame((_, delta) => {
     const { starFlowEvents, removeStarFlowEvent, playerPosition } = useMagicOrb.getState();
@@ -69,7 +78,6 @@ export function StarFlowVFX() {
       seenEvents.current.add(evt.id);
       const [fx, fy, fz] = evt.fromPos;
       const coinsPerStar  = evt.coinsPerStar ?? 1;
-      // Larger counts (boss) get a wider spawn scatter so particles are visually distinct
       const spread = evt.count > 10 ? 3.5 : 1.2;
       for (let i = 0; i < evt.count; i++) {
         if (particles.current.length >= MAX_PARTICLES) break;
@@ -78,7 +86,7 @@ export function StarFlowVFX() {
           py: fy + (Math.random() - 0.5) * spread,
           pz: fz,
           ry:  Math.random() * Math.PI * 2,
-          vrY: (Math.random() < 0.5 ? 1 : -1) * (5 + Math.random() * 7),
+          vrY: (Math.random() < 0.5 ? 1 : -1) * (2 + Math.random() * 3),
           age: 0,
           size: 0.16 + Math.random() * 0.10,
           coinsPerStar,
@@ -95,7 +103,6 @@ export function StarFlowVFX() {
       const p = particles.current[i];
       p.age += delta;
 
-      // Absorbed?
       const dx = ppx - p.px;
       const dy = ppy - p.py;
       if (dx * dx + dy * dy < ABSORB_DIST_SQ) {
@@ -103,12 +110,11 @@ export function StarFlowVFX() {
         continue;
       }
 
-      // Home straight toward player at constant speed
       const dist = Math.sqrt(dx * dx + dy * dy) + 1e-6;
       const step = Math.min(HOME_SPEED * delta, dist);
       p.px += (dx / dist) * step;
       p.py += (dy / dist) * step;
-      p.pz  = ppz; // match player Z plane
+      p.pz  = ppz;
       p.ry += p.vrY * delta;
 
       if (live !== i) particles.current[live] = p;
@@ -116,7 +122,28 @@ export function StarFlowVFX() {
     }
     particles.current.length = live;
 
-    // ── Render ───────────────────────────────────────────────────────────────
+    // ── Reposition point lights across live particles ─────────────────────
+    const lights = lightRefs.current;
+    if (live === 0) {
+      // Park all lights off-screen
+      for (let l = 0; l < LIGHT_POOL; l++) {
+        const lt = lights[l];
+        if (lt) lt.position.copy(_off);
+      }
+    } else {
+      // Evenly sample LIGHT_POOL positions from the live particle array
+      for (let l = 0; l < LIGHT_POOL; l++) {
+        const lt = lights[l];
+        if (!lt) continue;
+        const idx = Math.floor((l / LIGHT_POOL) * live);
+        const p   = particles.current[idx];
+        lt.position.set(p.px, p.py, p.pz);
+        // Fade intensity in with age so newly-spawned lights don't pop
+        lt.intensity = LIGHT_INTENSITY * Math.min(1, p.age / 0.2);
+      }
+    }
+
+    // ── Render instances ──────────────────────────────────────────────────
     if (!mesh) return;
 
     for (let i = 0; i < live; i++) {
@@ -131,8 +158,7 @@ export function StarFlowVFX() {
       mesh.setMatrixAt(i, _dummy.matrix);
     }
 
-    // Hide unused slots
-    _dummy.position.set(0, 0, -999);
+    _dummy.position.copy(_off);
     _dummy.scale.setScalar(1e-4);
     _dummy.updateMatrix();
     for (let i = live; i < MAX_PARTICLES; i++) mesh.setMatrixAt(i, _dummy.matrix);
@@ -142,12 +168,26 @@ export function StarFlowVFX() {
   });
 
   return (
-    <instancedMesh
-      ref={meshRef}
-      args={[starGeo, starMat, MAX_PARTICLES]}
-      renderOrder={10}
-      frustumCulled={false}
-    />
+    <>
+      <instancedMesh
+        ref={meshRef}
+        args={[starGeo, starMat, MAX_PARTICLES]}
+        renderOrder={10}
+        frustumCulled={false}
+      />
+      {/* Point-light pool — each light tracks a sampled particle position */}
+      {Array.from({ length: LIGHT_POOL }, (_, i) => (
+        <pointLight
+          key={i}
+          ref={(el) => { lightRefs.current[i] = el; }}
+          color="#ffcc44"
+          intensity={0}
+          distance={LIGHT_RANGE}
+          decay={2}
+          position={[0, 0, -999]}
+        />
+      ))}
+    </>
   );
 }
 
