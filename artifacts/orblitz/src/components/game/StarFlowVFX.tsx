@@ -2,12 +2,11 @@
  * StarFlowVFX — Zero-GC instanced star collection system.
  *
  * Performance contract:
- *  - All particle & spark data lives in module-level Float32Arrays allocated
- *    once at module load — no per-frame `new` calls, no GC pressure.
+ *  - All particle, burst, and ring data lives in module-level Float32Arrays.
  *  - Stars use a single InstancedMesh draw call (GPU instancing).
- *  - Sparks use a second InstancedMesh draw call.
- *  - Point lights are assigned to the LIGHT_POOL nearest stars each frame
- *    using an O(n·LIGHT_POOL) partial-min scan — no sort, no allocation.
+ *  - Burst particles use a second InstancedMesh (additive, per-instance color).
+ *  - Shockwave rings use a third InstancedMesh (additive, per-instance color).
+ *  - Point lights are assigned to the LIGHT_POOL nearest stars each frame.
  */
 
 import { useRef, useMemo, useEffect } from "react";
@@ -17,58 +16,79 @@ import * as THREE from "three";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
 
-// ─── Config ───────────────────────────────────────────────────────────────────
+// ─── Star flow config ─────────────────────────────────────────────────────────
 const MAX_PARTICLES   = 700;
 const HOME_SPEED      = 3.5;
 const ABSORB_DIST_SQ  = 0.4 * 0.4;
 
-// Burst-phase: stars fly outward before homing
-const BURST_DURATION  = 1.0;    // seconds of outward travel
-const BURST_SPEED     = 6.0;    // units/s — uniform for all stars
-const BURST_DRAG      = 8.0;    // exponential drag coefficient during burst
-const HOME_PULL       = 3.0;    // proximity pull factor — higher = more speed-up near player
+const BURST_DURATION  = 1.0;
+const BURST_SPEED     = 6.0;
+const BURST_DRAG      = 8.0;
+const HOME_PULL       = 3.0;
 
-// Boss explosion-debris burst — chaotic scatter with wide speed range
 const BOSS_BURST_SPEED_MIN = 8.0;
 const BOSS_BURST_SPEED_MAX = 26.0;
-const BOSS_BURST_DRAG      = 4.5;   // lower drag → more distance before homing
+const BOSS_BURST_DRAG      = 4.5;
 
 const LIGHT_POOL      = 16;
 const LIGHT_RANGE     = 2.8;
 const LIGHT_INTENSITY = 2.2;
 
-const SPARKS_PER_ABSORB = 8;
-const MAX_SPARKS        = 128;
-const SPARK_LIFE        = 0.28;
-const SPARK_SPEED_MIN   = 1.8;
-const SPARK_SPEED_MAX   = 4.0;
-const SPARK_SIZE_MIN    = 0.04;
-const SPARK_SIZE_MAX    = 0.09;
+// ─── Absorption burst config ──────────────────────────────────────────────────
+const SPARKS_PER_ABSORB  = 36;
+const MAX_SPARKS         = 576;
+const SPARK_LIFE         = 0.65;
+const SPARK_SPEED_MIN    = 5.0;
+const SPARK_SPEED_MAX    = 12.0;
+const SPARK_SIZE_MIN     = 0.07;
+const SPARK_SIZE_MAX     = 0.22;
 
-const ABSORB_LIGHT_PEAK  = 5.0;
-const ABSORB_LIGHT_DECAY = 18;
+const ABSORB_LIGHT_PEAK  = 14.0;
+const ABSORB_LIGHT_DECAY = 20;
 
-// ─── Float32Array particle pool ───────────────────────────────────────────────
-// Layout per particle (P_STRIDE floats):
-//   [0] px  [1] py  [2] pz  [3] ry  [4] vrY  [5] age  [6] size  [7] coinsPerStar
-//   [8] bvx  [9] bvy   (burst-phase velocity)
-//   [10] boss  (1 = boss debris burst, 0 = standard)
+// ─── Shockwave ring config ────────────────────────────────────────────────────
+const MAX_RINGS  = 12;
+const RING_LIFE  = 0.42;
+const RING_MAX_R = 2.2;
+
+// ─── Star particle pool ───────────────────────────────────────────────────────
+// Layout (P_STRIDE floats):
+//   [0]px [1]py [2]pz [3]ry [4]vrY [5]age [6]size [7]coinsPerStar
+//   [8]bvx [9]bvy [10]boss
 const P_STRIDE = 11;
 const _pPool   = new Float32Array(MAX_PARTICLES * P_STRIDE);
 
-// ─── Float32Array spark pool ──────────────────────────────────────────────────
-// Layout per spark (S_STRIDE floats):
-//   [0] px  [1] py  [2] pz  [3] vx  [4] vy  [5] life  [6] size
-const S_STRIDE = 7;
+// ─── Burst particle pool ──────────────────────────────────────────────────────
+// Layout (S_STRIDE floats):
+//   [0]px [1]py [2]pz [3]vx [4]vy [5]vz [6]life [7]size [8]colorIdx
+const S_STRIDE = 9;
 const _sPool   = new Float32Array(MAX_SPARKS * S_STRIDE);
 
-// ─── Light-pool nearest-N scratch (reused each frame, no alloc) ──────────────
+// ─── Ring pool ────────────────────────────────────────────────────────────────
+// Layout (R_STRIDE floats): [0]px [1]py [2]pz [3]age
+const R_STRIDE = 4;
+const _ringPool = new Float32Array(MAX_RINGS * R_STRIDE);
+
+// ─── Light-pool scratch ───────────────────────────────────────────────────────
 const _nearDist = new Float32Array(LIGHT_POOL);
 const _nearIdx  = new Int32Array(LIGHT_POOL);
 
-// ─── Render scratch ───────────────────────────────────────────────────────────
-const _dummy   = new THREE.Object3D();
-const _offPos  = new THREE.Vector3(0, 0, -999);
+// ─── Shared render scratch ────────────────────────────────────────────────────
+const _dummy  = new THREE.Object3D();
+const _offPos = new THREE.Vector3(0, 0, -999);
+const _col    = new THREE.Color();
+
+// ─── Burst colors: gold / orange-gold / white / bright-yellow ────────────────
+const _burstColors = [
+  new THREE.Color("#ffd700"),
+  new THREE.Color("#ff9900"),
+  new THREE.Color("#ffffff"),
+  new THREE.Color("#ffee44"),
+];
+
+// ─── Module-level geometries (never mutated, safe to share) ──────────────────
+const _sparkGeo = new THREE.SphereGeometry(1, 5, 3);
+const _ringGeo  = new THREE.RingGeometry(0.82, 1.0, 36);
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export function StarFlowVFX() {
@@ -93,27 +113,46 @@ export function StarFlowVFX() {
   }), []);
   useEffect(() => () => { starMat.dispose(); }, [starMat]);
 
+  // Burst particle material — additive, per-instance color
   const sparkMat = useMemo(() => new THREE.MeshBasicMaterial({
-    color: "#ffe066", transparent: true, opacity: 1,
+    color: "#ffffff",
+    transparent: true,
+    opacity: 0.92,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
   }), []);
   useEffect(() => () => { sparkMat.dispose(); }, [sparkMat]);
 
-  // Live-count refs — pools themselves are module-level Float32Arrays
+  // Ring material — additive, per-instance color fades to black = transparent
+  const ringMat = useMemo(() => new THREE.MeshBasicMaterial({
+    color: "#ffffff",
+    transparent: true,
+    opacity: 0.85,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+  }), []);
+  useEffect(() => () => { ringMat.dispose(); }, [ringMat]);
+
+  // Live counts
   const pLive  = useRef(0);
   const sLive  = useRef(0);
+  const rLive  = useRef(0);
+
   const seenEvents       = useRef(new Set<string>());
   const meshRef          = useRef<THREE.InstancedMesh>(null);
   const sparkMeshRef     = useRef<THREE.InstancedMesh>(null);
+  const ringMeshRef      = useRef<THREE.InstancedMesh>(null);
   const lightRefs        = useRef<(THREE.PointLight | null)[]>(
     Array.from({ length: LIGHT_POOL }, () => null),
   );
-  const absorbLightRef   = useRef<THREE.PointLight>(null);
-  const absorbLightIntensity = useRef(0);
+  const absorbLightRef        = useRef<THREE.PointLight>(null);
+  const absorbLightIntensity  = useRef(0);
 
-  // Reset pool live counts on unmount (avoids stale particles on remount)
   useEffect(() => () => {
     pLive.current = 0;
     sLive.current = 0;
+    rLive.current = 0;
     seenEvents.current.clear();
   }, []);
 
@@ -136,31 +175,28 @@ export function StarFlowVFX() {
       for (let i = 0; i < evt.count; i++) {
         if (pLive.current >= MAX_PARTICLES) break;
         const off = pLive.current * P_STRIDE;
-        // Burst velocity: boss uses explosion-debris scatter; standard uses uniform radial ring
         let bvx: number, bvy: number;
         if (evt.isBoss) {
-          // Explosion debris: fully random directions, wide speed range for scatter depth
           const angle = Math.random() * Math.PI * 2;
           const spd   = BOSS_BURST_SPEED_MIN + Math.random() * (BOSS_BURST_SPEED_MAX - BOSS_BURST_SPEED_MIN);
           bvx = Math.cos(angle) * spd;
           bvy = Math.sin(angle) * spd;
         } else {
-          // Standard: evenly-distributed ring with slight jitter, uniform speed
           const angle = (i / evt.count) * Math.PI * 2 + Math.random() * 0.9;
           bvx = Math.cos(angle) * BURST_SPEED;
           bvy = Math.sin(angle) * BURST_SPEED;
         }
-        _pPool[off + 0] = fx;                                             // px — spawn at origin
-        _pPool[off + 1] = fy;                                             // py
-        _pPool[off + 2] = fz;                                             // pz
-        _pPool[off + 3] = Math.random() * Math.PI * 2;                   // ry
-        _pPool[off + 4] = (Math.random() < 0.5 ? 1 : -1) * (2 + Math.random() * 3); // vrY
-        _pPool[off + 5] = 0;                                              // age
-        _pPool[off + 6] = 0.184 + Math.random() * 0.115;                  // size (+15%)
-        _pPool[off + 7] = coinsPerStar;                                   // coinsPerStar
-        _pPool[off + 8]  = bvx;                                            // bvx
-        _pPool[off + 9]  = bvy;                                            // bvy
-        _pPool[off + 10] = evt.isBoss ? 1 : 0;                            // boss flag
+        _pPool[off + 0] = fx;
+        _pPool[off + 1] = fy;
+        _pPool[off + 2] = fz;
+        _pPool[off + 3] = Math.random() * Math.PI * 2;
+        _pPool[off + 4] = (Math.random() < 0.5 ? 1 : -1) * (2 + Math.random() * 3);
+        _pPool[off + 5] = 0;
+        _pPool[off + 6] = 0.184 + Math.random() * 0.115;
+        _pPool[off + 7] = coinsPerStar;
+        _pPool[off + 8] = bvx;
+        _pPool[off + 9] = bvy;
+        _pPool[off + 10] = evt.isBoss ? 1 : 0;
         pLive.current++;
       }
       removeStarFlowEvent(evt.id);
@@ -177,85 +213,104 @@ export function StarFlowVFX() {
 
       // Absorbed?
       if (dx * dx + dy * dy < ABSORB_DIST_SQ) {
-        useShop.getState().addCoins(_pPool[off + 7]); // coinsPerStar
+        useShop.getState().addCoins(_pPool[off + 7]);
 
-        // Burst sparks at player position
-        if (sLive.current + SPARKS_PER_ABSORB <= MAX_SPARKS) {
-          for (let k = 0; k < SPARKS_PER_ABSORB; k++) {
-            const angle = (k / SPARKS_PER_ABSORB) * Math.PI * 2 + Math.random() * 0.8;
-            const spd   = SPARK_SPEED_MIN + Math.random() * (SPARK_SPEED_MAX - SPARK_SPEED_MIN);
-            const soff  = sLive.current * S_STRIDE;
-            _sPool[soff + 0] = ppx + (Math.random() - 0.5) * 0.05; // px
-            _sPool[soff + 1] = ppy + (Math.random() - 0.5) * 0.05; // py
-            _sPool[soff + 2] = ppz;                                  // pz
-            _sPool[soff + 3] = Math.cos(angle) * spd;               // vx
-            _sPool[soff + 4] = Math.sin(angle) * spd;               // vy
-            _sPool[soff + 5] = SPARK_LIFE * (0.8 + Math.random() * 0.4); // life
-            _sPool[soff + 6] = SPARK_SIZE_MIN + Math.random() * (SPARK_SIZE_MAX - SPARK_SIZE_MIN); // size
-            sLive.current++;
-          }
+        // ── AAA burst: 36 sphere particles in full 3D spread ─────────────────
+        for (let k = 0; k < SPARKS_PER_ABSORB; k++) {
+          if (sLive.current >= MAX_SPARKS) break;
+          // Full sphere spread
+          const phi   = Math.acos(2 * Math.random() - 1);
+          const theta = Math.random() * Math.PI * 2;
+          const spd   = SPARK_SPEED_MIN + Math.random() * (SPARK_SPEED_MAX - SPARK_SPEED_MIN);
+          const soff  = sLive.current * S_STRIDE;
+          _sPool[soff + 0] = ppx + (Math.random() - 0.5) * 0.10;
+          _sPool[soff + 1] = ppy + (Math.random() - 0.5) * 0.10;
+          _sPool[soff + 2] = ppz;
+          _sPool[soff + 3] = Math.sin(phi) * Math.cos(theta) * spd;   // vx
+          _sPool[soff + 4] = Math.sin(phi) * Math.sin(theta) * spd;   // vy
+          _sPool[soff + 5] = Math.cos(phi) * spd * 0.55;              // vz (partial Z)
+          _sPool[soff + 6] = SPARK_LIFE * (0.65 + Math.random() * 0.35); // life
+          _sPool[soff + 7] = SPARK_SIZE_MIN + Math.random() * (SPARK_SIZE_MAX - SPARK_SIZE_MIN);
+          _sPool[soff + 8] = Math.floor(Math.random() * 4);           // colorIdx
+          sLive.current++;
         }
 
-        // Pulse the absorption light
+        // ── Shockwave ring ────────────────────────────────────────────────────
+        if (rLive.current < MAX_RINGS) {
+          const roff = rLive.current * R_STRIDE;
+          _ringPool[roff + 0] = ppx;
+          _ringPool[roff + 1] = ppy;
+          _ringPool[roff + 2] = ppz;
+          _ringPool[roff + 3] = 0;
+          rLive.current++;
+        }
+
+        // ── Absorption light flash ────────────────────────────────────────────
         absorbLightIntensity.current = Math.min(
           ABSORB_LIGHT_PEAK,
-          absorbLightIntensity.current + 1.2,
+          absorbLightIntensity.current + ABSORB_LIGHT_PEAK * 0.6,
         );
-        continue; // absorbed — don't compact into live slot
+        continue;
       }
 
       const age = _pPool[off + 5] + delta;
-      _pPool[off + 5] = age;                   // age
-      _pPool[off + 3] += _pPool[off + 4] * delta; // ry += vrY * delta
+      _pPool[off + 5] = age;
+      _pPool[off + 3] += _pPool[off + 4] * delta;
 
       if (age < BURST_DURATION) {
-        // ── Burst phase: fly outward, decelerate ──────────────────────────────
         const dragCoeff = _pPool[off + 10] > 0 ? BOSS_BURST_DRAG : BURST_DRAG;
         const drag = Math.exp(-dragCoeff * delta);
-        _pPool[off + 8] *= drag;               // bvx decelerates
-        _pPool[off + 9] *= drag;               // bvy decelerates
-        _pPool[off + 0] += _pPool[off + 8] * delta; // px
-        _pPool[off + 1] += _pPool[off + 9] * delta; // py
+        _pPool[off + 8] *= drag;
+        _pPool[off + 9] *= drag;
+        _pPool[off + 0] += _pPool[off + 8] * delta;
+        _pPool[off + 1] += _pPool[off + 9] * delta;
         _pPool[off + 2]  = ppz;
       } else {
-        // ── Home phase: chase player, speed up as distance shrinks ────────────
         const dist = Math.sqrt(dx * dx + dy * dy) + 1e-6;
-        // Pull factor: asymptotic — smooth at range, snappy up close
         const speedMult = 1.0 + HOME_PULL / (dist + 0.5);
         const step = Math.min(HOME_SPEED * speedMult * delta, dist);
-        _pPool[off + 0] += (dx / dist) * step; // px
-        _pPool[off + 1] += (dy / dist) * step; // py
+        _pPool[off + 0] += (dx / dist) * step;
+        _pPool[off + 1] += (dy / dist) * step;
         _pPool[off + 2]  = ppz;
       }
 
-      // Compact: pack alive particles toward front
-      if (live !== i) {
-        _pPool.copyWithin(live * P_STRIDE, off, off + P_STRIDE);
-      }
+      if (live !== i) _pPool.copyWithin(live * P_STRIDE, off, off + P_STRIDE);
       live++;
     }
     pLive.current = live;
 
-    // ── Update sparks ────────────────────────────────────────────────────────
+    // ── Update burst particles ────────────────────────────────────────────────
     let sLiveNext = 0;
 
     for (let i = 0; i < sLive.current; i++) {
       const off = i * S_STRIDE;
-      _sPool[off + 5] -= delta; // life
-      if (_sPool[off + 5] <= 0) continue;
+      _sPool[off + 6] -= delta;   // life countdown
+      if (_sPool[off + 6] <= 0) continue;
 
-      _sPool[off + 0] += _sPool[off + 3] * delta; // px += vx * dt
-      _sPool[off + 1] += _sPool[off + 4] * delta; // py += vy * dt
-      const drag = 1 - 6 * delta;
-      _sPool[off + 3] *= drag;  // vx drag
-      _sPool[off + 4] *= drag;  // vy drag
+      const drag = Math.exp(-5.5 * delta);
+      _sPool[off + 0] += _sPool[off + 3] * delta;  // px
+      _sPool[off + 1] += _sPool[off + 4] * delta;  // py
+      _sPool[off + 2] += _sPool[off + 5] * delta;  // pz
+      _sPool[off + 3] *= drag;
+      _sPool[off + 4] *= drag;
+      _sPool[off + 5] *= drag;
 
-      if (sLiveNext !== i) {
-        _sPool.copyWithin(sLiveNext * S_STRIDE, off, off + S_STRIDE);
-      }
+      if (sLiveNext !== i) _sPool.copyWithin(sLiveNext * S_STRIDE, off, off + S_STRIDE);
       sLiveNext++;
     }
     sLive.current = sLiveNext;
+
+    // ── Update rings ──────────────────────────────────────────────────────────
+    let rLiveNext = 0;
+
+    for (let i = 0; i < rLive.current; i++) {
+      const roff = i * R_STRIDE;
+      _ringPool[roff + 3] += delta;
+      if (_ringPool[roff + 3] >= RING_LIFE) continue;
+      if (rLiveNext !== i) _ringPool.copyWithin(rLiveNext * R_STRIDE, roff, roff + R_STRIDE);
+      rLiveNext++;
+    }
+    rLive.current = rLiveNext;
 
     // ── Decay absorption light ───────────────────────────────────────────────
     absorbLightIntensity.current = Math.max(
@@ -269,14 +324,12 @@ export function StarFlowVFX() {
     }
 
     // ── Assign float lights to nearest LIGHT_POOL stars ──────────────────────
-    // O(n·LIGHT_POOL) partial-min scan — no sort, no allocation.
     const lights = lightRefs.current;
     if (live === 0) {
       for (let l = 0; l < LIGHT_POOL; l++) {
         const lt = lights[l]; if (lt) lt.position.copy(_offPos);
       }
     } else {
-      // Initialise scratch buffers
       _nearDist.fill(Infinity);
       _nearIdx.fill(-1);
       let maxSlot = 0;
@@ -290,7 +343,6 @@ export function StarFlowVFX() {
         if (d2 < maxVal) {
           _nearDist[maxSlot] = d2;
           _nearIdx[maxSlot]  = i;
-          // Find new worst slot
           maxVal = 0;
           for (let l = 0; l < LIGHT_POOL; l++) {
             if (_nearDist[l] > maxVal) { maxVal = _nearDist[l]; maxSlot = l; }
@@ -313,7 +365,7 @@ export function StarFlowVFX() {
     if (mesh) {
       for (let i = 0; i < live; i++) {
         const off    = i * P_STRIDE;
-        const fadeIn = Math.min(1, _pPool[off + 5] / 0.12); // age / 0.12s
+        const fadeIn = Math.min(1, _pPool[off + 5] / 0.12);
         const worldSz = Math.max(1e-4, _pPool[off + 6] * normalScale * fadeIn);
         _dummy.position.set(_pPool[off + 0], _pPool[off + 1], _pPool[off + 2]);
         _dummy.rotation.set(0.3, _pPool[off + 3], 0.2);
@@ -329,26 +381,61 @@ export function StarFlowVFX() {
       mesh.instanceMatrix.needsUpdate = true;
     }
 
-    // ── Render: spark instances ───────────────────────────────────────────────
+    // ── Render: burst particle instances ─────────────────────────────────────
     const sparkMesh = sparkMeshRef.current;
     if (sparkMesh) {
       for (let i = 0; i < sLiveNext; i++) {
-        const off    = i * S_STRIDE;
-        const t      = 1 - _sPool[off + 5] / SPARK_LIFE; // 0→1 over life
-        const fadeOut = 1 - t * t;
-        const worldSz = Math.max(1e-4, _sPool[off + 6] * normalScale * fadeOut);
+        const off     = i * S_STRIDE;
+        // Size: start full, fade with sqrt for longer brightness
+        const lifeFrac = _sPool[off + 6] / SPARK_LIFE;
+        const worldSz  = Math.max(1e-4, _sPool[off + 7] * Math.pow(lifeFrac, 0.55));
         _dummy.position.set(_sPool[off + 0], _sPool[off + 1], _sPool[off + 2]);
-        _dummy.rotation.set(0, _sPool[off + 5] * 8, 0.3);
+        _dummy.rotation.set(0, 0, 0);
         _dummy.scale.setScalar(worldSz);
         _dummy.updateMatrix();
         sparkMesh.setMatrixAt(i, _dummy.matrix);
+        // Per-instance color
+        const ci = Math.min(3, Math.max(0, _sPool[off + 8] | 0));
+        _col.copy(_burstColors[ci]).multiplyScalar(lifeFrac * 1.4 + 0.2);
+        sparkMesh.setColorAt(i, _col);
       }
       _dummy.position.copy(_offPos);
       _dummy.scale.setScalar(1e-4);
       _dummy.updateMatrix();
-      for (let i = sLiveNext; i < MAX_SPARKS; i++) sparkMesh.setMatrixAt(i, _dummy.matrix);
+      for (let i = sLiveNext; i < MAX_SPARKS; i++) {
+        sparkMesh.setMatrixAt(i, _dummy.matrix);
+      }
       sparkMesh.count = MAX_SPARKS;
       sparkMesh.instanceMatrix.needsUpdate = true;
+      if (sparkMesh.instanceColor) sparkMesh.instanceColor.needsUpdate = true;
+    }
+
+    // ── Render: ring instances ────────────────────────────────────────────────
+    const ringMesh = ringMeshRef.current;
+    if (ringMesh) {
+      for (let i = 0; i < rLiveNext; i++) {
+        const roff = i * R_STRIDE;
+        const t    = _ringPool[roff + 3] / RING_LIFE;          // 0→1
+        const r    = RING_MAX_R * (1 - Math.pow(1 - t, 1.8)); // ease-out expansion
+        const fade = 1 - t * t;                                // quadratic fade
+        _dummy.position.set(_ringPool[roff + 0], _ringPool[roff + 1], _ringPool[roff + 2]);
+        _dummy.rotation.set(0, 0, 0);
+        _dummy.scale.setScalar(Math.max(1e-4, r));
+        _dummy.updateMatrix();
+        ringMesh.setMatrixAt(i, _dummy.matrix);
+        // Fade via instance color (black = invisible with additive)
+        _col.setHex(0xffd700).multiplyScalar(fade * 1.2);
+        ringMesh.setColorAt(i, _col);
+      }
+      _dummy.position.copy(_offPos);
+      _dummy.scale.setScalar(1e-4);
+      _dummy.updateMatrix();
+      for (let i = rLiveNext; i < MAX_RINGS; i++) {
+        ringMesh.setMatrixAt(i, _dummy.matrix);
+      }
+      ringMesh.count = MAX_RINGS;
+      ringMesh.instanceMatrix.needsUpdate = true;
+      if (ringMesh.instanceColor) ringMesh.instanceColor.needsUpdate = true;
     }
   });
 
@@ -362,20 +449,28 @@ export function StarFlowVFX() {
         frustumCulled={false}
       />
 
-      {/* Absorption spark instances */}
+      {/* Absorption burst particles */}
       <instancedMesh
         ref={sparkMeshRef}
-        args={[starGeo, sparkMat, MAX_SPARKS]}
+        args={[_sparkGeo, sparkMat, MAX_SPARKS]}
+        renderOrder={12}
+        frustumCulled={false}
+      />
+
+      {/* Shockwave rings */}
+      <instancedMesh
+        ref={ringMeshRef}
+        args={[_ringGeo, ringMat, MAX_RINGS]}
         renderOrder={11}
         frustumCulled={false}
       />
 
-      {/* Absorption pulse light */}
+      {/* Absorption flash light */}
       <pointLight
         ref={absorbLightRef}
-        color="#ffdd44"
+        color="#ffd700"
         intensity={0}
-        distance={3.5}
+        distance={5.5}
         decay={2}
         position={[0, 0, -999]}
       />
