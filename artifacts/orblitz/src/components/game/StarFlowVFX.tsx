@@ -22,6 +22,12 @@ const MAX_PARTICLES   = 700;
 const HOME_SPEED      = 3.5;
 const ABSORB_DIST_SQ  = 0.4 * 0.4;
 
+// Burst-phase: stars fly outward before homing
+const BURST_DURATION  = 0.35;   // seconds of outward travel
+const BURST_SPEED_MIN = 3.0;    // units/s
+const BURST_SPEED_MAX = 6.5;    // units/s
+const BURST_DRAG      = 8.0;    // exponential drag coefficient during burst
+
 const LIGHT_POOL      = 16;
 const LIGHT_RANGE     = 2.8;
 const LIGHT_INTENSITY = 2.2;
@@ -40,7 +46,8 @@ const ABSORB_LIGHT_DECAY = 18;
 // ─── Float32Array particle pool ───────────────────────────────────────────────
 // Layout per particle (P_STRIDE floats):
 //   [0] px  [1] py  [2] pz  [3] ry  [4] vrY  [5] age  [6] size  [7] coinsPerStar
-const P_STRIDE = 8;
+//   [8] bvx  [9] bvy   (burst-phase velocity; zeroed out after BURST_DURATION)
+const P_STRIDE = 10;
 const _pPool   = new Float32Array(MAX_PARTICLES * P_STRIDE);
 
 // ─── Float32Array spark pool ──────────────────────────────────────────────────
@@ -119,19 +126,23 @@ export function StarFlowVFX() {
       const fy = evt.fromPos[1];
       const fz = evt.fromPos[2];
       const coinsPerStar = evt.coinsPerStar ?? 1;
-      const spread = evt.count > 10 ? 3.5 : 1.2;
 
       for (let i = 0; i < evt.count; i++) {
         if (pLive.current >= MAX_PARTICLES) break;
         const off = pLive.current * P_STRIDE;
-        _pPool[off + 0] = fx + (Math.random() - 0.5) * spread;           // px
-        _pPool[off + 1] = fy + (Math.random() - 0.5) * spread;           // py
+        // Burst velocity: random radial direction, random speed
+        const angle = (i / evt.count) * Math.PI * 2 + Math.random() * 0.9;
+        const spd   = BURST_SPEED_MIN + Math.random() * (BURST_SPEED_MAX - BURST_SPEED_MIN);
+        _pPool[off + 0] = fx;                                             // px — spawn at origin
+        _pPool[off + 1] = fy;                                             // py
         _pPool[off + 2] = fz;                                             // pz
         _pPool[off + 3] = Math.random() * Math.PI * 2;                   // ry
         _pPool[off + 4] = (Math.random() < 0.5 ? 1 : -1) * (2 + Math.random() * 3); // vrY
         _pPool[off + 5] = 0;                                              // age
         _pPool[off + 6] = 0.16 + Math.random() * 0.10;                   // size
         _pPool[off + 7] = coinsPerStar;                                   // coinsPerStar
+        _pPool[off + 8] = Math.cos(angle) * spd;                         // bvx
+        _pPool[off + 9] = Math.sin(angle) * spd;                         // bvy
         pLive.current++;
       }
       removeStarFlowEvent(evt.id);
@@ -175,14 +186,28 @@ export function StarFlowVFX() {
         continue; // absorbed — don't compact into live slot
       }
 
-      // Float toward player
-      const dist = Math.sqrt(dx * dx + dy * dy) + 1e-6;
-      const step = Math.min(HOME_SPEED * delta, dist);
-      _pPool[off + 0] += (dx / dist) * step;  // px
-      _pPool[off + 1] += (dy / dist) * step;  // py
-      _pPool[off + 2]  = ppz;                  // pz
+      const age = _pPool[off + 5] + delta;
+      _pPool[off + 5] = age;                   // age
       _pPool[off + 3] += _pPool[off + 4] * delta; // ry += vrY * delta
-      _pPool[off + 5] += delta;                // age
+
+      if (age < BURST_DURATION) {
+        // ── Burst phase: fly outward, decelerate ──────────────────────────────
+        const drag = Math.exp(-BURST_DRAG * delta);
+        _pPool[off + 8] *= drag;               // bvx decelerates
+        _pPool[off + 9] *= drag;               // bvy decelerates
+        _pPool[off + 0] += _pPool[off + 8] * delta; // px
+        _pPool[off + 1] += _pPool[off + 9] * delta; // py
+        _pPool[off + 2]  = ppz;
+      } else {
+        // ── Home phase: chase player ──────────────────────────────────────────
+        const dist = Math.sqrt(dx * dx + dy * dy) + 1e-6;
+        // Accelerate homing speed the longer the star has been alive
+        const speedMult = 1 + (age - BURST_DURATION) * 1.5;
+        const step = Math.min(HOME_SPEED * speedMult * delta, dist);
+        _pPool[off + 0] += (dx / dist) * step; // px
+        _pPool[off + 1] += (dy / dist) * step; // py
+        _pPool[off + 2]  = ppz;
+      }
 
       // Compact: pack alive particles toward front
       if (live !== i) {
