@@ -20,6 +20,7 @@ import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { SubBlasterOrb } from "./SubBlasterOrb";
 import { StarFlowVFX } from "./StarFlowVFX";
 import { useShop } from "@/lib/stores/useShop";
+import { World1FireBackground } from "./World1FireBackground";
 
 // ── Renderer configuration ────────────────────────────────────────────────────
 function RendererSetup() {
@@ -228,6 +229,7 @@ export function GameScene() {
 
         {/* Game scene objects */}
         <Background />
+        <World1FireBackground />
         <PlayerOrb />
         <DarkOrbs />
         <Boss />
