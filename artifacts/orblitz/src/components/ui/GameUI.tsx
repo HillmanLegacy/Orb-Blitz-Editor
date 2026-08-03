@@ -5,6 +5,7 @@ import { useAudio } from "@/lib/stores/useAudio";
 import { useShop } from "@/lib/stores/useShop";
 import { useOrbTransition } from "@/lib/stores/useOrbTransition";
 import { StarHUDIcon } from "./StarHUDIcon";
+import { HealthBar } from "./HealthBar";
 
 // ── Design primitives — matches main menu aesthetic ────────────────────────────
 const SCANLINES = "repeating-linear-gradient(0deg,transparent,transparent 4px,rgba(255,255,255,0.012) 4px,rgba(255,255,255,0.012) 5px)";
@@ -162,34 +163,6 @@ export function GameUI() {
   const distortCooldownPct    = hasDistort ? (1 - distortCooldown / distortMaxCooldown) * 100 : 0;
   const teletransferCooldownPct = hasTeletransfer ? (1 - teletransferCooldown / teletransferMaxCooldown) * 100 : 0;
 
-  // ── Health orbs ──────────────────────────────────────────────────────────────
-  const healthOrbs = [];
-  for (let i = 0; i < maxHealth; i++) {
-    const alive = i < health;
-    healthOrbs.push(
-      <motion.div
-        key={i}
-        className="w-5 h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 rounded-full"
-        style={alive ? {
-          background: "radial-gradient(circle at 35% 30%, #88ffff, #00ccff, #0077cc)",
-          border: "1.5px solid #00ffff88",
-          boxShadow: "0 0 8px #00ffff88, inset 0 0 4px #ffffff44",
-        } : {
-          background: "rgba(4,4,18,0.8)",
-          border: "1.5px solid #00ffff18",
-        }}
-        animate={alive ? {
-          boxShadow: [
-            "0 0 6px #00ffff66, inset 0 0 4px #ffffff44",
-            "0 0 14px #00ffff99, inset 0 0 6px #ffffff55",
-            "0 0 6px #00ffff66, inset 0 0 4px #ffffff44",
-          ],
-        } : {}}
-        transition={{ duration: 1.8, repeat: Infinity }}
-      />
-    );
-  }
-
   // ── Minute:second timer string ─────────────────────────────────────────────
   const timerStr = `${Math.floor(gameTime / 60)}:${String(Math.floor(gameTime % 60)).padStart(2, "0")}`;
 
@@ -205,11 +178,8 @@ export function GameUI() {
         {/* LEFT: health + active power-up banners */}
         <div className="flex flex-col gap-2 pointer-events-auto">
 
-          {/* Health orbs */}
-          <div className="flex gap-1.5 md:gap-2 px-2 py-1.5 md:px-2.5 md:py-2" style={pnl("#00ffff")}>
-            <TA color="#00ffff" /><SL />
-            {healthOrbs}
-          </div>
+          {/* Health bar */}
+          <HealthBar />
 
           {/* Power-up banners */}
           <AnimatePresence>
