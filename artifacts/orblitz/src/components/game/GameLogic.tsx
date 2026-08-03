@@ -7,6 +7,7 @@ import { useAudio } from "@/lib/stores/useAudio";
 
 const orbShapes: OrbShape[] = ["sphere", "cube", "tetrahedron", "octahedron", "dodecahedron"];
 const allOrbShapes: OrbShape[] = ["sphere", "cube", "tetrahedron", "octahedron", "dodecahedron", "circle", "star", "arrow", "triangle", "trapezoid", "lightning", "tentacle", "monster", "bird"];
+const worldOrbShapes: OrbShape[] = ["circle", "star", "triangle", "trapezoid", "cube", "lightning", "arrow", "tentacle", "monster"];
 const movementPatterns: MovementPattern[] = ["direct", "zigzag", "spiral", "wave", "orbit"];
 
 const getWorldShape = (worldLevel: number): OrbShape => {
@@ -242,9 +243,12 @@ export function GameLogic() {
       shape = getWorldShape(worldLevel);
       pattern = movementPatterns[Math.floor(Math.random() * movementPatterns.length)];
     } else if (mode === "chill") {
-      shape = orbShapes[Math.floor(Math.random() * orbShapes.length)];
+      shape = worldOrbShapes[Math.floor(Math.random() * worldOrbShapes.length)];
       pattern = movementPatterns[Math.floor(Math.random() * movementPatterns.length)];
-    } else if (mode === "survival" || mode === "gauntlet") {
+    } else if (mode === "survival") {
+      shape = worldOrbShapes[Math.floor(Math.random() * worldOrbShapes.length)];
+      pattern = movementPatterns[Math.floor(Math.random() * movementPatterns.length)];
+    } else if (mode === "gauntlet") {
       shape = allOrbShapes[Math.floor(Math.random() * allOrbShapes.length)];
       pattern = movementPatterns[Math.floor(Math.random() * movementPatterns.length)];
     } else {
