@@ -29,8 +29,9 @@ const BURST_DRAG      = 8.0;    // exponential drag coefficient during burst
 const HOME_PULL       = 3.0;    // proximity pull factor — higher = more speed-up near player
 
 // Boss explosion-debris burst — chaotic scatter with wide speed range
-const BOSS_BURST_SPEED_MIN = 4.0;
-const BOSS_BURST_SPEED_MAX = 14.0;
+const BOSS_BURST_SPEED_MIN = 8.0;
+const BOSS_BURST_SPEED_MAX = 26.0;
+const BOSS_BURST_DRAG      = 4.5;   // lower drag → more distance before homing
 
 const LIGHT_POOL      = 16;
 const LIGHT_RANGE     = 2.8;
@@ -50,8 +51,9 @@ const ABSORB_LIGHT_DECAY = 18;
 // ─── Float32Array particle pool ───────────────────────────────────────────────
 // Layout per particle (P_STRIDE floats):
 //   [0] px  [1] py  [2] pz  [3] ry  [4] vrY  [5] age  [6] size  [7] coinsPerStar
-//   [8] bvx  [9] bvy   (burst-phase velocity; zeroed out after BURST_DURATION)
-const P_STRIDE = 10;
+//   [8] bvx  [9] bvy   (burst-phase velocity)
+//   [10] boss  (1 = boss debris burst, 0 = standard)
+const P_STRIDE = 11;
 const _pPool   = new Float32Array(MAX_PARTICLES * P_STRIDE);
 
 // ─── Float32Array spark pool ──────────────────────────────────────────────────
@@ -156,8 +158,9 @@ export function StarFlowVFX() {
         _pPool[off + 5] = 0;                                              // age
         _pPool[off + 6] = 0.184 + Math.random() * 0.115;                  // size (+15%)
         _pPool[off + 7] = coinsPerStar;                                   // coinsPerStar
-        _pPool[off + 8] = bvx;                                            // bvx
-        _pPool[off + 9] = bvy;                                            // bvy
+        _pPool[off + 8]  = bvx;                                            // bvx
+        _pPool[off + 9]  = bvy;                                            // bvy
+        _pPool[off + 10] = evt.isBoss ? 1 : 0;                            // boss flag
         pLive.current++;
       }
       removeStarFlowEvent(evt.id);
@@ -207,7 +210,8 @@ export function StarFlowVFX() {
 
       if (age < BURST_DURATION) {
         // ── Burst phase: fly outward, decelerate ──────────────────────────────
-        const drag = Math.exp(-BURST_DRAG * delta);
+        const dragCoeff = _pPool[off + 10] > 0 ? BOSS_BURST_DRAG : BURST_DRAG;
+        const drag = Math.exp(-dragCoeff * delta);
         _pPool[off + 8] *= drag;               // bvx decelerates
         _pPool[off + 9] *= drag;               // bvy decelerates
         _pPool[off + 0] += _pPool[off + 8] * delta; // px
