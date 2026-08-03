@@ -23,7 +23,7 @@ const HOME_SPEED      = 3.5;
 const ABSORB_DIST_SQ  = 0.4 * 0.4;
 
 // Burst-phase: stars fly outward before homing
-const BURST_DURATION  = 0.35;   // seconds of outward travel
+const BURST_DURATION  = 0.55;   // seconds of outward travel
 const BURST_SPEED_MIN = 3.0;    // units/s
 const BURST_SPEED_MAX = 6.5;    // units/s
 const BURST_DRAG      = 8.0;    // exponential drag coefficient during burst
