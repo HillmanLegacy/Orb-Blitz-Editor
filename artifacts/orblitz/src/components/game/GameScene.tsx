@@ -32,6 +32,46 @@ function RendererSetup() {
   return null;
 }
 
+// ── FPS scheduler ─────────────────────────────────────────────────────────────
+// Drives the canvas in `frameloop="demand"` mode so the render loop only fires
+// when we explicitly schedule it.  This frees the JS thread for React event
+// handling (hover states, clicks) when no rendering is needed.
+//
+//  • Menu / mode-select screens  → 15 fps  (background orbs animate lightly)
+//  • Everything else             → 30 fps  (gameplay, transitions, pause, etc.)
+//
+// 30 fps gives each frame ~33 ms of budget — roughly 2× more headroom than
+// 60 fps — so heavy scenes (many orbs, particles, effects) stutter less.
+function RenderScheduler() {
+  const { invalidate } = useThree();
+
+  useEffect(() => {
+    let handle: ReturnType<typeof setInterval> | null = null;
+
+    const schedule = (fps: number) => {
+      if (handle !== null) clearInterval(handle);
+      handle = setInterval(invalidate, 1000 / fps);
+    };
+
+    // Fire immediately so the canvas starts rendering right away
+    const unsubscribe = useMagicOrb.subscribe(
+      (s) => s.phase,
+      (phase) => {
+        const isMenuOnly = phase === "menu" || phase === "modeSelect";
+        schedule(isMenuOnly ? 15 : 30);
+      },
+      { fireImmediately: true },
+    );
+
+    return () => {
+      if (handle !== null) clearInterval(handle);
+      unsubscribe();
+    };
+  }, [invalidate]);
+
+  return null;
+}
+
 // ── Shader pre-compilation (prewarm) ─────────────────────────────────────────
 // Compiles all GPU shader programs while the loading screen is visible so the
 // first gameplay frame never stalls on shader compilation.
@@ -205,6 +245,7 @@ export function GameScene() {
     <Canvas
       camera={{ position: [0, 0, 10], fov: 60, near: 0.1, far: 100 }}
       dpr={[1, 1.5]}
+      frameloop="demand"
       gl={{
         powerPreference: "high-performance",
         antialias: false,
@@ -220,6 +261,7 @@ export function GameScene() {
       }}
     >
       <Suspense fallback={null}>
+        <RenderScheduler />
         <RendererSetup />
         <ShaderPrewarm />
         <CameraController />
