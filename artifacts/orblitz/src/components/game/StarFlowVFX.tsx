@@ -69,11 +69,13 @@ export function StarFlowVFX() {
       seenEvents.current.add(evt.id);
       const [fx, fy, fz] = evt.fromPos;
       const coinsPerStar  = evt.coinsPerStar ?? 1;
+      // Larger counts (boss) get a wider spawn scatter so particles are visually distinct
+      const spread = evt.count > 10 ? 3.5 : 1.2;
       for (let i = 0; i < evt.count; i++) {
         if (particles.current.length >= MAX_PARTICLES) break;
         particles.current.push({
-          px: fx + (Math.random() - 0.5) * 0.3,
-          py: fy + (Math.random() - 0.5) * 0.3,
+          px: fx + (Math.random() - 0.5) * spread,
+          py: fy + (Math.random() - 0.5) * spread,
           pz: fz,
           ry:  Math.random() * Math.PI * 2,
           vrY: (Math.random() < 0.5 ? 1 : -1) * (5 + Math.random() * 7),

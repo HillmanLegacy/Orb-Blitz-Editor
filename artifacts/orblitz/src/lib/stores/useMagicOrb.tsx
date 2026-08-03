@@ -1141,7 +1141,7 @@ export const useMagicOrb = create<MagicOrbState>()(
           darkOrbs: defeatedOrbs,
           bossDefeating: true,
         });
-        // 500 gold stars stream from the boss to the player; each absorbed star awards a coin
+        // 500 gold stars stream from the boss to the player; each absorbed star awards 1 coin
         get().addStarFlowEvent(
           [boss.position[0], boss.position[1], boss.position[2]],
           500,
