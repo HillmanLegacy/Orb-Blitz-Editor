@@ -1,12 +1,10 @@
 /**
  * Central asset preload manifest.
  *
- * Importing this module fires all useGLTF.preload() calls immediately —
- * before any React component renders — so Drei's GLTF cache is primed
- * as early as possible.
- *
- * Call preloadAllAssets() once on startup to also fetch audio and FBX
- * files into the browser's HTTP cache, eliminating first-play hitches.
+ * Importing this module no longer fires side-effects.
+ * Call prewarmGLTFCache() and preloadAllAssets() explicitly after the
+ * startup loading screen has faded so heavy network traffic does not
+ * compete with the initial render.
  */
 import { useGLTF } from "@react-three/drei";
 
@@ -40,13 +38,19 @@ const AUDIO_ASSETS: string[] = [
 // ─── Non-GLTF binary assets (FBX + audio) ────────────────────────────────────
 const HTTP_ASSETS = ["/models/player.fbx", ...AUDIO_ASSETS];
 
-// Kick off GLTF cache population at module-import time (side-effect)
-GLTF_MODELS.forEach((url) => useGLTF.preload(url));
+/**
+ * Prime Drei's GLTF cache for all game 3D models.
+ * Call this AFTER the startup loading screen fades out (player is in menu)
+ * so it doesn't compete with initial page render bandwidth.
+ */
+export function prewarmGLTFCache(): void {
+  GLTF_MODELS.forEach((url) => useGLTF.preload(url));
+}
 
 /**
  * Fetches all audio and FBX assets into the browser HTTP cache.
- * Call once on startup; the returned Promise resolves when every
- * asset has been downloaded (errors are suppressed — non-critical).
+ * Call once on startup (after the loading screen); the returned Promise
+ * resolves when every asset has been downloaded (errors are suppressed).
  */
 export function preloadAllAssets(): Promise<void> {
   const fetches = HTTP_ASSETS.map((url) =>

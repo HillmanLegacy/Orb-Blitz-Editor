@@ -307,16 +307,16 @@ export function StartupAnimation({
         backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,255,255,0.011) 3px,rgba(0,255,255,0.011) 4px)",
       }} />
 
-      {/* Orbs */}
+      {/* Orbs — no per-element CSS blur (avoids 30 separate GPU compositor layers).
+           Soft glow is achieved via enlarged radial-gradient + low-opacity outer stop. */}
       {orbDefs.map((orb, i) => (
         <motion.div key={i} className="absolute rounded-full pointer-events-none" style={{
-          width: orb.size, height: orb.size,
+          width: orb.size * 2.8, height: orb.size * 2.8,
           left: "50%", top: "50%",
-          marginLeft: -orb.size / 2, marginTop: -orb.size / 2,
-          background: `radial-gradient(circle at 38% 32%, ${orb.color}ff, ${orb.color}88 45%, transparent 75%)`,
-          filter: `blur(${orb.blur}px)`,
-          boxShadow: `0 0 ${orb.size * 1.2}px ${orb.color}44`,
+          marginLeft: -(orb.size * 2.8) / 2, marginTop: -(orb.size * 2.8) / 2,
+          background: `radial-gradient(circle at 38% 32%, ${orb.color}ee 0%, ${orb.color}66 35%, ${orb.color}22 60%, transparent 80%)`,
           zIndex: 2,
+          willChange: "transform, opacity",
         }}
           animate={getOrbTarget(orb, animPhase)}
           transition={getOrbTransition(animPhase, orb.delay)}
@@ -353,15 +353,11 @@ export function StartupAnimation({
             {/* Letters clickable in menu phase for dev-mode easter egg */}
             {showMenu ? (
               <motion.h1
-                className="font-black tracking-widest flex items-center justify-center"
-                style={{ fontSize: "clamp(3.5rem, 11vw, 7rem)", lineHeight: 1 }}
-                animate={{ filter: devFlash
-                  ? "drop-shadow(0 0 30px #ffff00) drop-shadow(0 0 60px #ffaa00)"
-                  : ["drop-shadow(0 0 18px rgba(0,255,255,0.55)) drop-shadow(0 0 36px rgba(255,0,255,0.25))",
-                     "drop-shadow(0 0 28px rgba(255,0,255,0.6)) drop-shadow(0 0 56px rgba(0,255,255,0.3))",
-                     "drop-shadow(0 0 18px rgba(0,255,255,0.55)) drop-shadow(0 0 36px rgba(255,0,255,0.25))"],
+                className="font-black tracking-widest flex items-center justify-center orb-title-glow"
+                style={{ fontSize: "clamp(3.5rem, 11vw, 7rem)", lineHeight: 1,
+                  filter: devFlash ? "drop-shadow(0 0 30px #ffff00) drop-shadow(0 0 60px #ffaa00)" : undefined,
+                  transition: devFlash ? "filter 0.1s" : undefined,
                 }}
-                transition={{ duration: devFlash ? 0.1 : 2.2, repeat: devFlash ? 0 : Infinity, ease: "easeInOut" }}
               >
                 {TITLE_LETTERS.map((letter, idx) => (
                   <motion.span key={idx} className="cursor-pointer"
@@ -377,16 +373,10 @@ export function StartupAnimation({
                 ))}
               </motion.h1>
             ) : (
-              <motion.h1 className="font-black tracking-widest text-transparent bg-clip-text pointer-events-none"
+              <h1 className="font-black tracking-widest text-transparent bg-clip-text pointer-events-none orb-title-glow"
                 style={{ fontSize: "clamp(3.5rem, 11vw, 7rem)", lineHeight: 1,
                   backgroundImage: "linear-gradient(135deg,#00ffff 0%,#aa00ff 45%,#ff00ff 75%,#ffff00 100%)" }}
-                animate={{ filter: [
-                  "drop-shadow(0 0 18px rgba(0,255,255,0.55)) drop-shadow(0 0 36px rgba(255,0,255,0.25))",
-                  "drop-shadow(0 0 28px rgba(255,0,255,0.6)) drop-shadow(0 0 56px rgba(0,255,255,0.3))",
-                  "drop-shadow(0 0 18px rgba(0,255,255,0.55)) drop-shadow(0 0 36px rgba(255,0,255,0.25))",
-                ]}}
-                transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-              >ORBLITZ</motion.h1>
+              >ORBLITZ</h1>
             )}
 
             {/* Underline */}

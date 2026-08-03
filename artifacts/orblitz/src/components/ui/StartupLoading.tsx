@@ -58,38 +58,37 @@ export function StartupLoading({ onComplete }: Props) {
       onClick={tryStartAudio}
       onTouchStart={tryStartAudio}
     >
-      {/* Ambient drifting orbs */}
+      {/* Ambient drifting orbs — no per-element blur (avoids 18 separate compositor layers) */}
       {ambientOrbs.map((orb, i) => (
         <motion.div
           key={i}
           className="absolute rounded-full pointer-events-none"
           style={{
-            width: orb.size,
-            height: orb.size,
-            background: `radial-gradient(circle, ${orb.color}, transparent 70%)`,
-            filter: "blur(5px)",
+            width: orb.size * 3,
+            height: orb.size * 3,
+            background: `radial-gradient(circle, ${orb.color}99 0%, ${orb.color}33 45%, transparent 75%)`,
             left: "50%",
             top: "50%",
-            marginLeft: -orb.size / 2,
-            marginTop: -orb.size / 2,
+            marginLeft: -(orb.size * 3) / 2,
+            marginTop: -(orb.size * 3) / 2,
+            willChange: "transform, opacity",
           }}
           animate={{
             x: [orb.x * 0.88, orb.x * 1.06, orb.x * 0.92, orb.x * 0.88],
             y: [orb.y * 0.88, orb.y * 1.06, orb.y * 0.92, orb.y * 0.88],
-            opacity: [0.25, 0.6, 0.3, 0.25],
+            opacity: [0.22, 0.55, 0.28, 0.22],
           }}
           transition={{ duration: orb.duration, repeat: Infinity, delay: orb.delay, ease: "easeInOut" }}
         />
       ))}
 
-      {/* Subtle radial glow behind logo */}
+      {/* Subtle radial glow behind logo — pure CSS gradient, no blur filter */}
       <div
         className="absolute rounded-full pointer-events-none"
         style={{
-          width: 420,
-          height: 200,
-          background: "radial-gradient(ellipse, rgba(0,255,255,0.04) 0%, rgba(170,0,255,0.03) 50%, transparent 70%)",
-          filter: "blur(30px)",
+          width: 560,
+          height: 260,
+          background: "radial-gradient(ellipse, rgba(0,255,255,0.07) 0%, rgba(170,0,255,0.05) 40%, transparent 70%)",
         }}
       />
 

@@ -147,10 +147,20 @@ function CameraController() {
 }
 
 // ── Dynamic post-processing ───────────────────────────────────────────────────
-// IMPORTANT: do NOT call useMagicOrb() here. Every Zustand state change would
-// cause EffectComposer to re-render and rebuild its WebGL effect pipeline,
-// throwing a rendering error. Use getState() inside useFrame instead.
-function PostProcessing() {
+// PostProcessingWrapper reads phase via a selector so it re-renders only on
+// phase transitions (menu→loading→playing etc.), not on every frame. This means
+// EffectComposer is rebuilt only a handful of times per session — acceptable.
+// Heavy effects (SMAA, ChromaticAberration, full Bloom) are skipped in menus.
+function PostProcessingWrapper() {
+  const phase = useMagicOrb(s => s.phase);
+  const isMenu = phase === "menu" || phase === "loading";
+  return <PostProcessing isMenu={isMenu} />;
+}
+
+// IMPORTANT: PostProcessing itself must NOT call useMagicOrb(). The per-frame
+// chromatic aberration offset is driven via getState() inside useFrame so that
+// no Zustand subscription is created here — which would rebuild the pipeline.
+function PostProcessing({ isMenu }: { isMenu: boolean }) {
   // Pre-allocated Vector2 — mutated each frame via getState() in useFrame.
   // Postprocessing reads it through the uniform reference on each render tick.
   const abOffset = useRef(new THREE.Vector2(0.0006, 0.0004));
@@ -171,19 +181,19 @@ function PostProcessing() {
   return (
     <EffectComposer multisampling={0}>
       <Bloom
-        intensity={0.62}
-        luminanceThreshold={0.28}
+        intensity={isMenu ? 0.18 : 0.62}
+        luminanceThreshold={isMenu ? 0.5 : 0.28}
         luminanceSmoothing={0.82}
-        mipmapBlur
+        mipmapBlur={!isMenu}
         radius={0.72}
       />
       {/* Pass the same Vector2 object every render — uniform stores the ref,
           so mutations in useFrame are reflected without re-mounting the effect.
           Do NOT pass a `ref` prop: in React 19 refs are regular props and get
           spread into the effect constructor causing unexpected behaviour. */}
-      <ChromaticAberration offset={abOffset.current} />
+      {!isMenu && <ChromaticAberration offset={abOffset.current} />}
       <Vignette eskil={false} offset={0.28} darkness={0.78} />
-      <SMAA />
+      {!isMenu && <SMAA />}
     </EffectComposer>
   );
 }
@@ -193,7 +203,7 @@ export function GameScene() {
   return (
     <Canvas
       camera={{ position: [0, 0, 10], fov: 60, near: 0.1, far: 100 }}
-      dpr={IS_MOBILE ? [1, 1.5] : [1, 2]}
+      dpr={[1, 1.5]}
       gl={{
         powerPreference: "high-performance",
         antialias: false,
@@ -234,7 +244,7 @@ export function GameScene() {
         <GameLogic />
 
         {/* Post-processing stack */}
-        <PostProcessing />
+        <PostProcessingWrapper />
       </Suspense>
     </Canvas>
   );
