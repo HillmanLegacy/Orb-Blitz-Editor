@@ -1,9 +1,8 @@
 /**
  * StarFlowVFX
- * Spawns 3-D mini star models at kill positions.
- * Each star floats slowly toward the player orb.
- * On arrival it calls addCoins(coinsPerStar) — counter ticks up one star at a time.
- * A pool of point lights samples across live particles to cast warm gold light on the scene.
+ * - Stars float toward player, award a coin each on arrival.
+ * - On each absorption: 8 tiny gold sparks burst from the player position
+ *   and a point light pulses briefly for the warm gold glow.
  */
 
 import { useRef, useMemo, useEffect } from "react";
@@ -14,18 +13,30 @@ import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const MAX_PARTICLES  = 700;
-const HOME_SPEED     = 3.5;          // slow, satisfying float toward player
-const ABSORB_DIST_SQ = 0.4 * 0.4;
-const LIGHT_POOL     = 16;           // point lights shared across all particles
-const LIGHT_RANGE    = 2.8;
+const MAX_PARTICLES   = 700;
+const HOME_SPEED      = 3.5;
+const ABSORB_DIST_SQ  = 0.4 * 0.4;
+
+const LIGHT_POOL      = 16;    // ambient float lights sampled across particles
+const LIGHT_RANGE     = 2.8;
 const LIGHT_INTENSITY = 2.2;
+
+const SPARKS_PER_ABSORB = 8;
+const MAX_SPARKS        = 128;  // 8 × 16 simultaneous absorptions comfortably
+const SPARK_LIFE        = 0.28;
+const SPARK_SPEED_MIN   = 1.8;
+const SPARK_SPEED_MAX   = 4.0;
+const SPARK_SIZE_MIN    = 0.04;
+const SPARK_SIZE_MAX    = 0.09;
+
+const ABSORB_LIGHT_PEAK  = 5.0;   // intensity at the moment of absorption
+const ABSORB_LIGHT_DECAY = 18;    // how fast it falls off per second
 
 // ─── Scratch ──────────────────────────────────────────────────────────────────
 const _dummy = new THREE.Object3D();
-const _off   = new THREE.Vector3(0, 0, -999);
+const _offPos = new THREE.Vector3(0, 0, -999);
 
-// ─── Particle ─────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface StarParticle {
   px: number; py: number; pz: number;
   ry: number; vrY: number;
@@ -34,6 +45,14 @@ interface StarParticle {
   coinsPerStar: number;
 }
 
+interface Spark {
+  px: number; py: number; pz: number;
+  vx: number; vy: number;
+  life: number;
+  size: number;
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 export function StarFlowVFX() {
   const { scene } = useGLTF("/models/star_pickup.glb");
 
@@ -51,28 +70,35 @@ export function StarFlowVFX() {
   }, [scene]);
 
   const starMat = useMemo(() => new THREE.MeshStandardMaterial({
-    color: "#ffd700",
-    emissive: "#ff9900",
-    emissiveIntensity: 1.6,
-    metalness: 0.65,
-    roughness: 0.18,
+    color: "#ffd700", emissive: "#ff9900", emissiveIntensity: 1.6,
+    metalness: 0.65, roughness: 0.18,
   }), []);
   useEffect(() => () => { starMat.dispose(); }, [starMat]);
 
-  const particles  = useRef<StarParticle[]>([]);
-  const seenEvents = useRef<Set<string>>(new Set());
-  const meshRef    = useRef<THREE.InstancedMesh>(null);
+  // Spark material — brighter, additive feel
+  const sparkMat = useMemo(() => new THREE.MeshBasicMaterial({
+    color: "#ffe066",
+    transparent: true,
+    opacity: 1,
+  }), []);
+  useEffect(() => () => { sparkMat.dispose(); }, [sparkMat]);
 
-  // Pool of point-light refs — repositioned each frame to sampled particle positions
-  const lightRefs = useRef<(THREE.PointLight | null)[]>(
+  const particles       = useRef<StarParticle[]>([]);
+  const sparks          = useRef<Spark[]>([]);
+  const seenEvents      = useRef<Set<string>>(new Set());
+  const meshRef         = useRef<THREE.InstancedMesh>(null);
+  const sparkMeshRef    = useRef<THREE.InstancedMesh>(null);
+  const lightRefs       = useRef<(THREE.PointLight | null)[]>(
     Array.from({ length: LIGHT_POOL }, () => null)
   );
+  const absorbLightRef  = useRef<THREE.PointLight>(null);
+  const absorbLightIntensity = useRef(0);
 
   useFrame((_, delta) => {
     const { starFlowEvents, removeStarFlowEvent, playerPosition } = useMagicOrb.getState();
     const [ppx, ppy, ppz] = playerPosition;
 
-    // ── Spawn ────────────────────────────────────────────────────────────────
+    // ── Spawn stars ──────────────────────────────────────────────────────────
     for (const evt of starFlowEvents) {
       if (seenEvents.current.has(evt.id)) continue;
       seenEvents.current.add(evt.id);
@@ -95,7 +121,7 @@ export function StarFlowVFX() {
       removeStarFlowEvent(evt.id);
     }
 
-    // ── Update ───────────────────────────────────────────────────────────────
+    // ── Update stars ─────────────────────────────────────────────────────────
     const mesh = meshRef.current;
     let live = 0;
 
@@ -105,11 +131,38 @@ export function StarFlowVFX() {
 
       const dx = ppx - p.px;
       const dy = ppy - p.py;
+
       if (dx * dx + dy * dy < ABSORB_DIST_SQ) {
+        // ── Absorbed ── award coin + burst sparks + pulse light ─────────────
         useShop.getState().addCoins(p.coinsPerStar);
+
+        // Spark burst at player position
+        if (sparks.current.length + SPARKS_PER_ABSORB <= MAX_SPARKS) {
+          for (let k = 0; k < SPARKS_PER_ABSORB; k++) {
+            const angle = (k / SPARKS_PER_ABSORB) * Math.PI * 2 + Math.random() * 0.8;
+            const spd   = SPARK_SPEED_MIN + Math.random() * (SPARK_SPEED_MAX - SPARK_SPEED_MIN);
+            sparks.current.push({
+              px: ppx + (Math.random() - 0.5) * 0.05,
+              py: ppy + (Math.random() - 0.5) * 0.05,
+              pz: ppz,
+              vx: Math.cos(angle) * spd,
+              vy: Math.sin(angle) * spd,
+              life: SPARK_LIFE * (0.8 + Math.random() * 0.4),
+              size: SPARK_SIZE_MIN + Math.random() * (SPARK_SIZE_MAX - SPARK_SIZE_MIN),
+            });
+          }
+        }
+
+        // Pulse the absorption light
+        absorbLightIntensity.current = Math.min(
+          ABSORB_LIGHT_PEAK,
+          absorbLightIntensity.current + 1.2,
+        );
+
         continue;
       }
 
+      // Float toward player
       const dist = Math.sqrt(dx * dx + dy * dy) + 1e-6;
       const step = Math.min(HOME_SPEED * delta, dist);
       p.px += (dx / dist) * step;
@@ -122,60 +175,124 @@ export function StarFlowVFX() {
     }
     particles.current.length = live;
 
-    // ── Reposition point lights across live particles ─────────────────────
+    // ── Update sparks ────────────────────────────────────────────────────────
+    const sparkMesh = sparkMeshRef.current;
+    let liveSparks  = 0;
+
+    for (let i = 0; i < sparks.current.length; i++) {
+      const s = sparks.current[i];
+      s.life -= delta;
+      if (s.life <= 0) continue;
+      s.px += s.vx * delta;
+      s.py += s.vy * delta;
+      // Drag
+      s.vx *= 1 - 6 * delta;
+      s.vy *= 1 - 6 * delta;
+      if (liveSparks !== i) sparks.current[liveSparks] = s;
+      liveSparks++;
+    }
+    sparks.current.length = liveSparks;
+
+    // ── Decay absorption light ───────────────────────────────────────────────
+    absorbLightIntensity.current = Math.max(
+      0,
+      absorbLightIntensity.current - ABSORB_LIGHT_DECAY * delta,
+    );
+    const al = absorbLightRef.current;
+    if (al) {
+      al.intensity = absorbLightIntensity.current;
+      al.position.set(ppx, ppy, ppz + 0.5);
+    }
+
+    // ── Reposition float light pool ──────────────────────────────────────────
     const lights = lightRefs.current;
     if (live === 0) {
-      // Park all lights off-screen
       for (let l = 0; l < LIGHT_POOL; l++) {
         const lt = lights[l];
-        if (lt) lt.position.copy(_off);
+        if (lt) lt.position.copy(_offPos);
       }
     } else {
-      // Evenly sample LIGHT_POOL positions from the live particle array
       for (let l = 0; l < LIGHT_POOL; l++) {
         const lt = lights[l];
         if (!lt) continue;
         const idx = Math.floor((l / LIGHT_POOL) * live);
         const p   = particles.current[idx];
         lt.position.set(p.px, p.py, p.pz);
-        // Fade intensity in with age so newly-spawned lights don't pop
         lt.intensity = LIGHT_INTENSITY * Math.min(1, p.age / 0.2);
       }
     }
 
-    // ── Render instances ──────────────────────────────────────────────────
-    if (!mesh) return;
-
-    for (let i = 0; i < live; i++) {
-      const p = particles.current[i];
-      const fadeIn  = Math.min(1, p.age / 0.12);
-      const worldSz = p.size * normalScale * fadeIn;
-
-      _dummy.position.set(p.px, p.py, p.pz);
-      _dummy.rotation.set(0.3, p.ry, 0.2);
-      _dummy.scale.setScalar(Math.max(1e-4, worldSz));
+    // ── Render: star instances ────────────────────────────────────────────────
+    if (mesh) {
+      for (let i = 0; i < live; i++) {
+        const p       = particles.current[i];
+        const fadeIn  = Math.min(1, p.age / 0.12);
+        const worldSz = p.size * normalScale * fadeIn;
+        _dummy.position.set(p.px, p.py, p.pz);
+        _dummy.rotation.set(0.3, p.ry, 0.2);
+        _dummy.scale.setScalar(Math.max(1e-4, worldSz));
+        _dummy.updateMatrix();
+        mesh.setMatrixAt(i, _dummy.matrix);
+      }
+      _dummy.position.copy(_offPos);
+      _dummy.scale.setScalar(1e-4);
       _dummy.updateMatrix();
-      mesh.setMatrixAt(i, _dummy.matrix);
+      for (let i = live; i < MAX_PARTICLES; i++) mesh.setMatrixAt(i, _dummy.matrix);
+      mesh.count = MAX_PARTICLES;
+      mesh.instanceMatrix.needsUpdate = true;
     }
 
-    _dummy.position.copy(_off);
-    _dummy.scale.setScalar(1e-4);
-    _dummy.updateMatrix();
-    for (let i = live; i < MAX_PARTICLES; i++) mesh.setMatrixAt(i, _dummy.matrix);
-
-    mesh.count = MAX_PARTICLES;
-    mesh.instanceMatrix.needsUpdate = true;
+    // ── Render: spark instances ───────────────────────────────────────────────
+    if (sparkMesh) {
+      for (let i = 0; i < liveSparks; i++) {
+        const s      = sparks.current[i];
+        const t      = 1 - s.life / SPARK_LIFE;   // 0→1 over spark lifetime
+        const fadeOut = 1 - t * t;                 // ease-out fade
+        const worldSz = s.size * normalScale * fadeOut;
+        _dummy.position.set(s.px, s.py, s.pz);
+        _dummy.rotation.set(0, s.life * 8, 0.3);
+        _dummy.scale.setScalar(Math.max(1e-4, worldSz));
+        _dummy.updateMatrix();
+        sparkMesh.setMatrixAt(i, _dummy.matrix);
+      }
+      _dummy.position.copy(_offPos);
+      _dummy.scale.setScalar(1e-4);
+      _dummy.updateMatrix();
+      for (let i = liveSparks; i < MAX_SPARKS; i++) sparkMesh.setMatrixAt(i, _dummy.matrix);
+      sparkMesh.count = MAX_SPARKS;
+      sparkMesh.instanceMatrix.needsUpdate = true;
+    }
   });
 
   return (
     <>
+      {/* Floating star instances */}
       <instancedMesh
         ref={meshRef}
         args={[starGeo, starMat, MAX_PARTICLES]}
         renderOrder={10}
         frustumCulled={false}
       />
-      {/* Point-light pool — each light tracks a sampled particle position */}
+
+      {/* Absorption spark instances */}
+      <instancedMesh
+        ref={sparkMeshRef}
+        args={[starGeo, sparkMat, MAX_SPARKS]}
+        renderOrder={11}
+        frustumCulled={false}
+      />
+
+      {/* Absorption point light — pulses at player position on each absorbed star */}
+      <pointLight
+        ref={absorbLightRef}
+        color="#ffdd44"
+        intensity={0}
+        distance={3.5}
+        decay={2}
+        position={[0, 0, -999]}
+      />
+
+      {/* Float-light pool — tracks sampled particle positions */}
       {Array.from({ length: LIGHT_POOL }, (_, i) => (
         <pointLight
           key={i}
