@@ -28,6 +28,10 @@ const BURST_SPEED     = 6.0;    // units/s — uniform for all stars
 const BURST_DRAG      = 8.0;    // exponential drag coefficient during burst
 const HOME_PULL       = 3.0;    // proximity pull factor — higher = more speed-up near player
 
+// Boss explosion-debris burst — chaotic scatter with wide speed range
+const BOSS_BURST_SPEED_MIN = 4.0;
+const BOSS_BURST_SPEED_MAX = 14.0;
+
 const LIGHT_POOL      = 16;
 const LIGHT_RANGE     = 2.8;
 const LIGHT_INTENSITY = 2.2;
@@ -130,9 +134,20 @@ export function StarFlowVFX() {
       for (let i = 0; i < evt.count; i++) {
         if (pLive.current >= MAX_PARTICLES) break;
         const off = pLive.current * P_STRIDE;
-        // Burst velocity: random radial direction, uniform speed
-        const angle = (i / evt.count) * Math.PI * 2 + Math.random() * 0.9;
-        const spd   = BURST_SPEED;
+        // Burst velocity: boss uses explosion-debris scatter; standard uses uniform radial ring
+        let bvx: number, bvy: number;
+        if (evt.isBoss) {
+          // Explosion debris: fully random directions, wide speed range for scatter depth
+          const angle = Math.random() * Math.PI * 2;
+          const spd   = BOSS_BURST_SPEED_MIN + Math.random() * (BOSS_BURST_SPEED_MAX - BOSS_BURST_SPEED_MIN);
+          bvx = Math.cos(angle) * spd;
+          bvy = Math.sin(angle) * spd;
+        } else {
+          // Standard: evenly-distributed ring with slight jitter, uniform speed
+          const angle = (i / evt.count) * Math.PI * 2 + Math.random() * 0.9;
+          bvx = Math.cos(angle) * BURST_SPEED;
+          bvy = Math.sin(angle) * BURST_SPEED;
+        }
         _pPool[off + 0] = fx;                                             // px — spawn at origin
         _pPool[off + 1] = fy;                                             // py
         _pPool[off + 2] = fz;                                             // pz
@@ -141,8 +156,8 @@ export function StarFlowVFX() {
         _pPool[off + 5] = 0;                                              // age
         _pPool[off + 6] = 0.184 + Math.random() * 0.115;                  // size (+15%)
         _pPool[off + 7] = coinsPerStar;                                   // coinsPerStar
-        _pPool[off + 8] = Math.cos(angle) * spd;                         // bvx
-        _pPool[off + 9] = Math.sin(angle) * spd;                         // bvy
+        _pPool[off + 8] = bvx;                                            // bvx
+        _pPool[off + 9] = bvy;                                            // bvy
         pLive.current++;
       }
       removeStarFlowEvent(evt.id);

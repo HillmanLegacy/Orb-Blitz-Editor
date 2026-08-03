@@ -148,6 +148,7 @@ export interface StarFlowEvent {
   fromPos: [number, number, number];
   count: number;          // number of star particles to spawn
   coinsPerStar: number;   // coins awarded when each particle is absorbed by the player
+  isBoss?: boolean;       // use explosion-debris burst pattern instead of radial ring
 }
 
 export interface LaserBeam {
@@ -300,7 +301,7 @@ interface MagicOrbState {
   
   addImpactEffect: (effect: ImpactEffect) => void;
   updateImpactEffects: (effects: ImpactEffect[]) => void;
-  addStarFlowEvent: (pos: [number, number, number], count: number) => void;
+  addStarFlowEvent: (pos: [number, number, number], count: number, isBoss?: boolean) => void;
   removeStarFlowEvent: (id: string) => void;
   
   addLaserBeam: (beam: LaserBeam) => void;
@@ -1141,10 +1142,11 @@ export const useMagicOrb = create<MagicOrbState>()(
           darkOrbs: defeatedOrbs,
           bossDefeating: true,
         });
-        // 500 gold stars stream from the boss to the player; each absorbed star awards 1 coin
+        // 500 gold stars burst from the boss to the player; each absorbed star awards 1 coin
         get().addStarFlowEvent(
           [boss.position[0], boss.position[1], boss.position[2]],
           500,
+          true, // isBoss — use explosion-debris burst pattern
         );
         return true;
       } else {
@@ -1744,12 +1746,12 @@ export const useMagicOrb = create<MagicOrbState>()(
     
     updateImpactEffects: (effects) => set({ impactEffects: effects }),
 
-    addStarFlowEvent: (pos, count) => {
+    addStarFlowEvent: (pos, count, isBoss = false) => {
       const coinsPerStar = get().hasDoubleCoins ? 2 : 1;
       set((state) => ({
         starFlowEvents: [
           ...state.starFlowEvents,
-          { id: `sf-${Date.now()}-${Math.random()}`, fromPos: pos, count, coinsPerStar },
+          { id: `sf-${Date.now()}-${Math.random()}`, fromPos: pos, count, coinsPerStar, isBoss },
         ],
       }));
     },
