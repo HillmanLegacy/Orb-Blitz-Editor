@@ -179,10 +179,11 @@ const MAGMA_FRAG = /* glsl */`
     // Global emissive scale
     col *= 0.74 + 0.56 * uIntensity;
 
-    // Heat-variable alpha: dark/obsidian areas nearly transparent so space
-    // orbs and nebula show through; hot lava veins and ridge crests glow visibly.
-    // This blends fire-in-space rather than replacing the starfield backdrop.
-    float heatAlpha = mix(0.05, 0.52, heat);
+    // Galaxy-patch alpha: fire only shows in concentrated hot spots, fading to
+    // fully transparent in cooler areas so the space background dominates.
+    // Below heat=0.38 → invisible; above → power-curve up to ~28% max opacity.
+    float patch    = max(0.0, heat - 0.38) / 0.62;
+    float heatAlpha = pow(patch, 1.6) * 0.28;
     fragColor = vec4(col, vEdge * heatAlpha);
   }
 `;
