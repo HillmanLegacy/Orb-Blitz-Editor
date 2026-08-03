@@ -260,7 +260,7 @@ export function GameLogic() {
       position: [x, y, z],
       direction: [dirX, dirY, 0],
       speed,
-      size: 0.3 + Math.random() * 0.2,
+      size: 0.48 + Math.random() * 0.32,
       seed: Math.random(),
       shape,
       pattern,
