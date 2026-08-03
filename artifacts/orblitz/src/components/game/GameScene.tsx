@@ -57,8 +57,14 @@ function RenderScheduler() {
     const unsubscribe = useMagicOrb.subscribe(
       (s) => s.phase,
       (phase) => {
-        const isMenuOnly = phase === "menu" || phase === "modeSelect";
-        schedule(isMenuOnly ? 15 : 30);
+        // Menu screens: 15 fps — frees the JS thread for button hover/click events.
+        // Active gameplay: 60 fps — fluid fire shaders and particle animations need it.
+        // Everything else (pause, transitions, game-over): 30 fps is plenty.
+        const fps =
+          phase === "menu" || phase === "modeSelect" ? 15 :
+          phase === "playing" ? 60 :
+          30;
+        schedule(fps);
       },
       { fireImmediately: true },
     );
