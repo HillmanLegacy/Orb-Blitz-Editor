@@ -32,6 +32,9 @@ import {
   playWarningSound,
   playHealSound,
   playSparkleExplosionSound,
+  createMenuMusicNode,
+  createGameplayMusicNode,
+  createBossMusicNode,
 } from "@/lib/audio/SynthSounds";
 
 // ── Arcade BGM shuffle playlist ──────────────────────────────────────────────

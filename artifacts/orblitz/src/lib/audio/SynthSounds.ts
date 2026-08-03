@@ -73,14 +73,14 @@ function rev(): AudioNode | null {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /** Soft-clip waveshaper — adds harmonic saturation without harsh clipping. */
-function _distCurve(amount: number): Float32Array {
+function _distCurve(amount: number): Float32Array<ArrayBuffer> {
   const n = 256;
   const curve = new Float32Array(n);
   for (let i = 0; i < n; i++) {
     const x = (i * 2) / n - 1;
     curve[i] = ((Math.PI + amount) * x) / (Math.PI + amount * Math.abs(x));
   }
-  return curve;
+  return curve as Float32Array<ArrayBuffer>;
 }
 
 /** Exponentially-decaying stereo noise — works as a convolution reverb IR. */

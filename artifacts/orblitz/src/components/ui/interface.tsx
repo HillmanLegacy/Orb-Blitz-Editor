@@ -25,6 +25,7 @@ export function Interface() {
       window.addEventListener("click", handleClick);
       return () => window.removeEventListener("click", handleClick);
     }
+    return undefined;
   }, [phase]);
 
   return (

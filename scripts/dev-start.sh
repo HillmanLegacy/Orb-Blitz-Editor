@@ -17,7 +17,7 @@ kill_port 3000
 kill_port 8080
 
 echo "Starting API server..."
-pnpm --filter @workspace/api-server run dev &
+PORT=8080 pnpm --filter @workspace/api-server run dev &
 API_PID=$!
 
 echo "Starting Orblitz dev server..."
