@@ -179,11 +179,13 @@ const MAGMA_FRAG = /* glsl */`
     // Global emissive scale
     col *= 0.74 + 0.56 * uIntensity;
 
-    // Galaxy-patch alpha: fire only shows in concentrated hot spots, fading to
-    // fully transparent in cooler areas so the space background dominates.
-    // Below heat=0.38 → invisible; above → power-curve up to ~28% max opacity.
-    float patch    = max(0.0, heat - 0.38) / 0.62;
-    float heatAlpha = pow(patch, 1.6) * 0.28;
+    // Galaxy-patch alpha: drive visibility from raw fBm noise (not the NdV
+    // angle term) so patches appear consistently across the whole plane.
+    // Below vNoise=0.40 → fully transparent (deep space shows through).
+    // Above that → steep power-curve up to 34% max so patches look like
+    // concentrated nebulae rather than a uniform wash.
+    float noiseRamp = max(0.0, vNoise - 0.40) / 0.60;
+    float heatAlpha = pow(noiseRamp, 1.8) * 0.34;
     fragColor = vec4(col, vEdge * heatAlpha);
   }
 `;
