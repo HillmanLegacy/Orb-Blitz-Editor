@@ -179,8 +179,11 @@ const MAGMA_FRAG = /* glsl */`
     // Global emissive scale
     col *= 0.74 + 0.56 * uIntensity;
 
-    // Edge fade: blend to transparent at plane borders
-    fragColor = vec4(col, vEdge * 0.93);
+    // Heat-variable alpha: dark/obsidian areas nearly transparent so space
+    // orbs and nebula show through; hot lava veins and ridge crests glow visibly.
+    // This blends fire-in-space rather than replacing the starfield backdrop.
+    float heatAlpha = mix(0.05, 0.52, heat);
+    fragColor = vec4(col, vEdge * heatAlpha);
   }
 `;
 
@@ -470,11 +473,13 @@ function World1FireScene() {
 
   return (
     <>
-      {/* Magma backdrop plane — positioned behind gameplay at z=-23 */}
+      {/* Magma backdrop plane — positioned at z=-26, behind all space particles
+          (dust: z -10..-24, streams: z -11..-23, sparks: z -9..-17).
+          Embers at z -14..-23 interleave with space particles in front of it. */}
       <mesh
         geometry={magmaGeo}
         material={magmaMat}
-        position={[0, 0, -23]}
+        position={[0, 0, -26]}
         frustumCulled={false}
       />
 
