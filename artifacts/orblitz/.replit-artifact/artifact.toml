@@ -1,31 +1,28 @@
 kind = "web"
 previewPath = "/"
 title = "Orblitz"
+description = "Orblitz is a 3D arcade browser game built with React Three Fiber. Players control an orb and battle through waves of enemies and bosses across multiple worlds."
 version = "1.0.0"
 id = "artifacts/orblitz"
 router = "path"
 
-[[integratedSkills]]
-name = "react-vite"
-version = "1.0.0"
-
 [[services]]
 name = "web"
 paths = [ "/" ]
-localPort = 3000
+localPort = 24865
 
 [services.development]
 run = "pnpm --filter @workspace/orblitz run dev"
 
 [services.production]
 build = [ "pnpm", "--filter", "@workspace/orblitz", "run", "build" ]
-publicDir = "artifacts/orblitz/dist/public"
 serve = "static"
+publicDir = "artifacts/orblitz/dist/public"
 
 [[services.production.rewrites]]
 from = "/*"
 to = "/index.html"
 
 [services.env]
-PORT = "3000"
+PORT = "24865"
 BASE_PATH = "/"
