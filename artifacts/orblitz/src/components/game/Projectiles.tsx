@@ -182,14 +182,12 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: 
   skinColors: { core: string; glow: string; emissive: string; accent: string; particles: string[] };
   equippedSkin: string;
 }) {
-  const spawnTime     = useRef(time);
-  const spawnProgress = Math.min(1, (time - spawnTime.current) * 6);
   const isCharged     = projectile.isCharged;
   const isRainbow     = (skinColors as any).isRainbow === true;
 
   // 1/5th of the player orb base scale (now 0.72)
   const projScale  = isCharged ? 0.216 : 0.144;
-  const groupScale = 0.2 + spawnProgress * 0.8;
+  const groupScale = 1;
 
   return (
     <group position={projectile.position}>
