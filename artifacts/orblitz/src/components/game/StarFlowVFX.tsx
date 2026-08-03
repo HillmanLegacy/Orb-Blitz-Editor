@@ -23,9 +23,8 @@ const HOME_SPEED      = 3.5;
 const ABSORB_DIST_SQ  = 0.4 * 0.4;
 
 // Burst-phase: stars fly outward before homing
-const BURST_DURATION  = 0.55;   // seconds of outward travel
-const BURST_SPEED_MIN = 3.9;    // units/s
-const BURST_SPEED_MAX = 8.45;   // units/s
+const BURST_DURATION  = 1.0;    // seconds of outward travel
+const BURST_SPEED     = 6.0;    // units/s — uniform for all stars
 const BURST_DRAG      = 8.0;    // exponential drag coefficient during burst
 
 const LIGHT_POOL      = 16;
@@ -130,9 +129,9 @@ export function StarFlowVFX() {
       for (let i = 0; i < evt.count; i++) {
         if (pLive.current >= MAX_PARTICLES) break;
         const off = pLive.current * P_STRIDE;
-        // Burst velocity: random radial direction, random speed
+        // Burst velocity: random radial direction, uniform speed
         const angle = (i / evt.count) * Math.PI * 2 + Math.random() * 0.9;
-        const spd   = BURST_SPEED_MIN + Math.random() * (BURST_SPEED_MAX - BURST_SPEED_MIN);
+        const spd   = BURST_SPEED;
         _pPool[off + 0] = fx;                                             // px — spawn at origin
         _pPool[off + 1] = fy;                                             // py
         _pPool[off + 2] = fz;                                             // pz
