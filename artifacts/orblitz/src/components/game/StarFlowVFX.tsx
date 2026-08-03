@@ -26,6 +26,7 @@ const ABSORB_DIST_SQ  = 0.4 * 0.4;
 const BURST_DURATION  = 1.0;    // seconds of outward travel
 const BURST_SPEED     = 6.0;    // units/s — uniform for all stars
 const BURST_DRAG      = 8.0;    // exponential drag coefficient during burst
+const HOME_PULL       = 3.0;    // proximity pull factor — higher = more speed-up near player
 
 const LIGHT_POOL      = 16;
 const LIGHT_RANGE     = 2.8;
@@ -198,10 +199,10 @@ export function StarFlowVFX() {
         _pPool[off + 1] += _pPool[off + 9] * delta; // py
         _pPool[off + 2]  = ppz;
       } else {
-        // ── Home phase: chase player ──────────────────────────────────────────
+        // ── Home phase: chase player, speed up as distance shrinks ────────────
         const dist = Math.sqrt(dx * dx + dy * dy) + 1e-6;
-        // Accelerate homing speed the longer the star has been alive
-        const speedMult = 1 + (age - BURST_DURATION) * 1.5;
+        // Pull factor: asymptotic — smooth at range, snappy up close
+        const speedMult = 1.0 + HOME_PULL / (dist + 0.5);
         const step = Math.min(HOME_SPEED * speedMult * delta, dist);
         _pPool[off + 0] += (dx / dist) * step; // px
         _pPool[off + 1] += (dy / dist) * step; // py
