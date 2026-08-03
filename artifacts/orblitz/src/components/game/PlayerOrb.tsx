@@ -248,17 +248,17 @@ export function PlayerGlow({
 
     if (innerRef.current) {
       const mat = innerRef.current.material as THREE.MeshBasicMaterial;
-      mat.opacity = 0.16 + pulse * 0.14;
+      mat.opacity = 0.55 + pulse * 0.30;
       if (isRainbow) mat.color.setHSL(t * 0.15 % 1, 1, 0.6);
     }
     if (midRef.current) {
       const mat = midRef.current.material as THREE.MeshBasicMaterial;
-      mat.opacity = 0.08 + pulse * 0.07;
+      mat.opacity = 0.35 + pulse * 0.15;
       if (isRainbow) mat.color.setHSL((t * 0.15 + 0.33) % 1, 1, 0.6);
     }
     if (outerRef.current) {
       const mat = outerRef.current.material as THREE.MeshBasicMaterial;
-      mat.opacity = 0.04 + pulse * 0.03;
+      mat.opacity = 0.18 + pulse * 0.08;
       if (isRainbow) mat.color.setHSL((t * 0.15 + 0.66) % 1, 1, 0.6);
     }
   });
@@ -268,17 +268,17 @@ export function PlayerGlow({
       {/* Inner glow — tight halo, core colour */}
       <mesh ref={innerRef} scale={scale * 1.15}>
         <sphereGeometry args={[1, 16, 12]} />
-        <meshBasicMaterial color={coreColor} transparent opacity={0.22} depthWrite={false} />
+        <meshBasicMaterial color={coreColor} transparent opacity={0.7} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
       {/* Mid glow — wider, glow colour */}
       <mesh ref={midRef} scale={scale * 1.45}>
         <sphereGeometry args={[1, 14, 10]} />
-        <meshBasicMaterial color={glowColor} transparent opacity={0.11} depthWrite={false} />
+        <meshBasicMaterial color={glowColor} transparent opacity={0.4} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
       {/* Outer glow — soft far corona */}
       <mesh ref={outerRef} scale={scale * 1.85}>
         <sphereGeometry args={[1, 10, 8]} />
-        <meshBasicMaterial color={glowColor} transparent opacity={0.05} depthWrite={false} />
+        <meshBasicMaterial color={glowColor} transparent opacity={0.2} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
     </>
   );
@@ -1176,6 +1176,14 @@ export function PlayerOrb() {
         />
       </Suspense>
 
+
+      {/* Point light + glow halos for default luminous skin */}
+      {isLuminous && (
+        <>
+          <pointLight color={glowColor} intensity={4} distance={8} decay={2} />
+          <PlayerGlow scale={scale} coreColor={coreColor} glowColor={glowColor} isRainbow={false} />
+        </>
+      )}
 
       {/* Heal aura — expanding green rings + rising sparkles */}
       {healAnimTimer > 0 && <HealAura scale={scale} healAnimTimer={healAnimTimer} />}
