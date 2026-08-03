@@ -53,19 +53,6 @@ export function GameLogic() {
     addDarkOrb,
     addProjectile,
     addPowerUp,
-    updateGameTime,
-    updateDifficulty,
-    updateChargeBeamTimer,
-    updateHealAnimTimer,
-    updateShieldDisintTimer,
-    updateShieldFormTimer,
-    updateDamageTimer,
-    updateDeathTimer,
-    updateBackgroundEffects,
-    updateOrbaniteBeamCooldown,
-    updateDistortCooldown,
-    updateDistortTimer,
-    updateTeletransferCooldown,
     spawnRate,
     difficultyMultiplier,
     hasChargeBeam,
@@ -116,11 +103,6 @@ export function GameLogic() {
   
   const hasRapidFire = useMagicOrb((s) => s.hasRapidFire);
   const isStaggered = useMagicOrb((s) => s.isStaggered);
-  const updateDoubleCoinsTimer = useMagicOrb((s) => s.updateDoubleCoinsTimer);
-  const updateRapidFireTimer = useMagicOrb((s) => s.updateRapidFireTimer);
-  const updateStaggerTimer = useMagicOrb((s) => s.updateStaggerTimer);
-  const updateTimeDifficulty = useMagicOrb((s) => s.updateTimeDifficulty);
-  const updateSurvivalBossTimer = useMagicOrb((s) => s.updateSurvivalBossTimer);
   
   const { camera, gl } = useThree();
   const lastOrbSpawn = useRef(0);
@@ -648,32 +630,8 @@ export function GameLogic() {
   useFrame((state, delta) => {
     if (phaseRef.current !== "playing") return;
     
-    updateGameTime(delta);
-    if (gameMode === "survival") {
-      updateDifficulty();
-      updateSurvivalBossTimer(delta);
-    }
-    updateChargeBeamTimer(delta);
-    updateHealAnimTimer(delta);
-    updateShieldDisintTimer(delta);
-    updateShieldFormTimer(delta);
-    updateDamageTimer(delta);
-    updateBackgroundEffects(delta);
-    updateDeathTimer(delta);
-    updateOrbaniteBeamCooldown(delta);
-    updateDistortCooldown(delta);
-    updateDistortTimer(delta);
-    updateTeletransferCooldown(delta);
-    
-    const updatePulseShieldCooldown = useMagicOrb.getState().updatePulseShieldCooldown;
-    const updateSpatialRelocationCooldown = useMagicOrb.getState().updateSpatialRelocationCooldown;
-    updatePulseShieldCooldown(delta);
-    updateSpatialRelocationCooldown(delta);
-    
-    updateDoubleCoinsTimer(delta);
-    updateRapidFireTimer(delta);
-    updateStaggerTimer(delta);
-    updateTimeDifficulty();
+    // Single batched timer tick — replaces ~17 individual set() calls
+    useMagicOrb.getState().tickGameTimers(delta);
     
     if (isPointerDown.current && !isDying && !isStaggered && selectedWeapon === "normal" && !hasSpiralBlasterRef.current) {
       const now = performance.now();
@@ -693,9 +651,6 @@ export function GameLogic() {
         useMagicOrb.setState({ health: Math.min(health + 1, maxHealth) });
       }
     }
-    
-    const updateMagiOrbTimers = useMagicOrb.getState().updateMagiOrbTimers;
-    updateMagiOrbTimers(delta);
     
     if (hasMagiOrb1Ref.current && !isDying) {
       magiOrb1Angle.current += delta * 1.5;
@@ -730,10 +685,11 @@ export function GameLogic() {
             !orb.destroying
           );
           if (onScreenOrbs.length > 0) {
+            // Use squared distance to avoid sqrt per candidate
             const closest = onScreenOrbs.reduce((min, orb) => {
-              const dist = Math.sqrt((orb.position[0] - magiOrb8Position[0]) ** 2 + (orb.position[1] - magiOrb8Position[1]) ** 2);
-              const minDist = Math.sqrt((min.position[0] - magiOrb8Position[0]) ** 2 + (min.position[1] - magiOrb8Position[1]) ** 2);
-              return dist < minDist ? orb : min;
+              const dist2 = (orb.position[0] - magiOrb8Position[0]) ** 2 + (orb.position[1] - magiOrb8Position[1]) ** 2;
+              const minDist2 = (min.position[0] - magiOrb8Position[0]) ** 2 + (min.position[1] - magiOrb8Position[1]) ** 2;
+              return dist2 < minDist2 ? orb : min;
             });
             const dirX = closest.position[0] - magiOrb8Position[0];
             const dirY = closest.position[1] - magiOrb8Position[1];

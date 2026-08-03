@@ -399,6 +399,8 @@ interface MagicOrbState {
   activateMagiOrb4: (direction: number) => void;
   activateMagiOrb7: () => void;
   updateMagiOrbTimers: (delta: number) => void;
+  /** Single batched timer tick — replaces ~17 individual set() calls per frame */
+  tickGameTimers: (delta: number) => void;
   damageMagiOrb5: () => boolean;
   damageMagiOrb8: () => void;
   initMagiOrbs: () => void;
@@ -2065,6 +2067,161 @@ export const useMagicOrb = create<MagicOrbState>()(
       }
     },
     
+    tickGameTimers: (delta: number) => {
+      const s = get();
+      const updates: Partial<MagicOrbState> = {};
+
+      // --- gameTime + survival score ---
+      const newGameTime = s.gameTime + delta;
+      updates.gameTime = newGameTime;
+      if (s.gameMode === "survival") {
+        updates.score = Math.floor(newGameTime);
+        // difficulty scaling
+        updates.difficultyMultiplier = Math.min(1 + (newGameTime / 30) * 0.5, 5);
+        updates.spawnRate = Math.max(0.5, 2 - (newGameTime / 60));
+      }
+
+      // --- chargeBeam ---
+      if (s.chargeGatherTimer > 0) {
+        const ng = s.chargeGatherTimer - delta;
+        if (ng <= 0) {
+          updates.chargeGatherTimer = 0;
+          updates.hasChargeBeam = true;
+          updates.chargeBeamTimer = 10;
+        } else {
+          updates.chargeGatherTimer = ng;
+        }
+      } else if (s.hasChargeBeam) {
+        const nt = s.chargeBeamTimer - delta;
+        updates.hasChargeBeam = nt > 0;
+        updates.chargeBeamTimer = Math.max(0, nt);
+      }
+
+      // --- simple timers (only tick when active) ---
+      if (s.healAnimTimer > 0)
+        updates.healAnimTimer = Math.max(0, s.healAnimTimer - delta);
+      if (s.shieldDisintTimer > 0)
+        updates.shieldDisintTimer = Math.max(0, s.shieldDisintTimer - delta);
+      if (s.shieldFormTimer > 0)
+        updates.shieldFormTimer = Math.max(0, s.shieldFormTimer - delta);
+      if (s.orbaniteBeamCooldown > 0)
+        updates.orbaniteBeamCooldown = Math.max(0, s.orbaniteBeamCooldown - delta);
+      if (s.distortCooldown > 0)
+        updates.distortCooldown = Math.max(0, s.distortCooldown - delta);
+      if (s.teletransferCooldown > 0)
+        updates.teletransferCooldown = Math.max(0, s.teletransferCooldown - delta);
+      if (s.spatialRelocationCooldown > 0)
+        updates.spatialRelocationCooldown = Math.max(0, s.spatialRelocationCooldown - delta);
+      if (s.pulseShieldCooldown > 0)
+        updates.pulseShieldCooldown = Math.max(0, s.pulseShieldCooldown - delta);
+
+      // --- damageTimer ---
+      if (s.isDamaged) {
+        const nt = s.damageTimer - delta;
+        if (nt <= 0) { updates.isDamaged = false; updates.damageTimer = 0; }
+        else { updates.damageTimer = nt; }
+      }
+
+      // --- backgroundEffects (always runs) ---
+      const minShake = (s.health === 1 && s.phase === "playing") ? 0.22 : 0;
+      updates.backgroundPulse = Math.max(0, s.backgroundPulse - delta * 2);
+      updates.backgroundShake = Math.max(minShake, s.backgroundShake - delta * 2);
+      updates.cameraOnlyShake = Math.max(0, s.cameraOnlyShake - delta * 6);
+
+      // --- pulseShieldActive ---
+      if (s.pulseShieldActive) {
+        const nt = s.pulseShieldTimer - delta;
+        if (nt <= 0) { updates.pulseShieldActive = false; updates.pulseShieldTimer = 0; }
+        else { updates.pulseShieldTimer = nt; }
+      }
+
+      // --- doubleCoins ---
+      if (s.hasDoubleCoins) {
+        const nt = s.doubleCoinsTimer - delta;
+        if (nt <= 0) { updates.hasDoubleCoins = false; updates.doubleCoinsTimer = 0; }
+        else { updates.doubleCoinsTimer = nt; }
+      }
+
+      // --- rapidFire ---
+      if (s.hasRapidFire) {
+        const nt = s.rapidFireTimer - delta;
+        if (nt <= 0) { updates.hasRapidFire = false; updates.rapidFireTimer = 0; }
+        else { updates.rapidFireTimer = nt; }
+      }
+
+      // --- stagger ---
+      if (s.isStaggered) {
+        const nt = s.staggerTimer - delta;
+        if (nt <= 0) { updates.isStaggered = false; updates.staggerTimer = 0; }
+        else { updates.staggerTimer = nt; }
+      }
+
+      // --- timeDifficulty (arcade + survival, not during distort) ---
+      if ((s.gameMode === "arcade" || s.gameMode === "survival") && !s.distortActive) {
+        if (newGameTime - s.lastDifficultyTick >= 10) {
+          updates.timeDifficultyBonus = s.timeDifficultyBonus + 0.5;
+          updates.lastDifficultyTick = newGameTime;
+        }
+      }
+
+      // --- magiOrb timers ---
+      if (s.magiOrb2Cooldown > 0)
+        updates.magiOrb2Cooldown = Math.max(0, s.magiOrb2Cooldown - delta);
+      if (s.magiOrb3Cooldown > 0)
+        updates.magiOrb3Cooldown = Math.max(0, s.magiOrb3Cooldown - delta);
+      if (s.magiOrb4Cooldown > 0)
+        updates.magiOrb4Cooldown = Math.max(0, s.magiOrb4Cooldown - delta);
+      if (s.magiOrb4Timer > 0) {
+        const t = Math.max(0, s.magiOrb4Timer - delta);
+        updates.magiOrb4Timer = t;
+        if (t === 0) updates.magiOrb4Active = false;
+      }
+      if (s.magiOrb7Cooldown > 0)
+        updates.magiOrb7Cooldown = Math.max(0, s.magiOrb7Cooldown - delta);
+      if (s.magiOrb7Timer > 0) {
+        const t = Math.max(0, s.magiOrb7Timer - delta);
+        updates.magiOrb7Timer = t;
+        if (t === 0) updates.magiOrb7Active = false;
+      }
+
+      // Single set() for all the above ↑
+      set(updates);
+
+      // --- side-effecting timers (need extra set() only when they trigger) ---
+
+      // deathTimer → endGame
+      if (s.isDying) {
+        const nt = s.deathTimer - delta;
+        if (nt <= 0) { get().endGame(); }
+        else { set({ deathTimer: nt }); }
+      }
+
+      // distortTimer → unfreezeAllOrbs
+      if (s.distortActive) {
+        const nt = s.distortTimer - delta;
+        if (nt <= 0) {
+          set({ distortActive: false, distortTimer: 0 });
+          get().unfreezeAllOrbs();
+        } else {
+          set({ distortTimer: nt });
+        }
+      }
+
+      // survivalBossTimer (survival only)
+      if (s.gameMode === "survival" && !s.boss) {
+        const newTimer = s.survivalBossTimer + delta;
+        const pending = s.survivalBossPending || newTimer >= 60;
+        if (!s.survivalBossPending && newTimer >= 60) {
+          set({ survivalBossPending: true, survivalBossTimer: newTimer });
+        } else if (pending && s.darkOrbs.filter((o) => !o.destroying).length === 0) {
+          set({ survivalBossTimer: newTimer });
+          get().spawnSurvivalBoss();
+        } else {
+          set({ survivalBossTimer: newTimer });
+        }
+      }
+    },
+
     damageMagiOrb5: () => {
       const { magiOrb5HP } = get();
       if (magiOrb5HP > 0) {
