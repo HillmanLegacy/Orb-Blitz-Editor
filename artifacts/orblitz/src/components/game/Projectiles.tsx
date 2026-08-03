@@ -196,7 +196,7 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: 
       {/* Point light matching player skin colour */}
       <pointLight
         color={skinColors.glow}
-        intensity={isCharged ? 4 : 2.5}
+        intensity={1.6}
         distance={isCharged ? 6 : 4}
         decay={2}
       />
@@ -772,7 +772,7 @@ function RapidBlasterProjectileMesh({
     <group position={projectile.position}>
       {/* Point light — tight, matches skin colour */}
       <pointLight color={skinColors.glow}
-        intensity={isCharged ? 5.5 : 3.5}
+        intensity={1.6}
         distance={isCharged ? 4.5 : 3}
         decay={2} />
 
@@ -960,7 +960,7 @@ function HomingProjectileMesh({ projectile }: { projectile: Projectile }) {
   return (
     <group position={projectile.position}>
       <pointLight color="#22eedd"
-        intensity={isCharged ? 7.5 : 5}
+        intensity={1.6}
         distance={isCharged ? 6 : 4}
         decay={2} />
       <mesh ref={flashRef} geometry={_hmCoreGeo} material={flashMatRef.current} scale={0.34} />
@@ -1136,7 +1136,7 @@ function ScattershotProjectileMesh({ projectile }: { projectile: Projectile }) {
   return (
     <group position={projectile.position}>
       <pointLight color="#ff9900"
-        intensity={isCharged ? 7.5 : 5}
+        intensity={1.6}
         distance={isCharged ? 6 : 4}
         decay={2} />
       <mesh ref={flashRef} geometry={_scFlashGeo} material={flashMatRef.current} scale={0.32} />
@@ -1262,8 +1262,8 @@ function OverchargedProjectileMesh({
       <mesh geometry={ribbonGeo} material={ribbonMat} />
       {/* Scale-in group: everything below grows from 0.05 → 1.0 on spawn */}
       <group scale={spawnScale}>
-        <pointLight color="#55aaff" intensity={10 + pulse * 6} distance={9} decay={2} />
-        <pointLight color="#ffffff" intensity={4}              distance={3} decay={2} />
+        <pointLight color="#55aaff" intensity={1.6} distance={9} decay={2} />
+        <pointLight color="#ffffff" intensity={1.6} distance={3} decay={2} />
         <mesh geometry={_ocProjCoreGeo} material={_ocProjCoreMat} scale={coreScale} />
         <group rotation={[r1, 0, r2 * 0.6]}>
           <mesh geometry={_ocRingGeo} material={_ocRingMat}  scale={1.72} />
@@ -1411,7 +1411,7 @@ function SpiralBundleMesh({
   return (
     <group position={projectile.position}>
       {/* Central point light */}
-      <pointLight color="#aaddff" intensity={3.5} distance={7} decay={2} />
+      <pointLight color="#aaddff" intensity={1.6} distance={7} decay={2} />
 
       {/* Helix ribbon trails */}
       {ribbonGeos.map((geo, i) => (
@@ -1433,7 +1433,7 @@ function SpiralBundleMesh({
       {/* 3 orbiting sub-sphere orbs — player model scaled to 75% */}
       {[0, 1, 2].map(si => (
         <group key={`sub-${si}`} ref={subGrpRefs[si]}>
-          <pointLight color={SPIRAL_COLORS_HEX[si]} intensity={3.2} distance={4} decay={2} />
+          <pointLight color={SPIRAL_COLORS_HEX[si]} intensity={1.6} distance={4} decay={2} />
           <Suspense fallback={null}>
             <PlayerModel
               scale={SPIRAL_SUB_SCALE}
