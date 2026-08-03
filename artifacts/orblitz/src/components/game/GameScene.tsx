@@ -31,6 +31,30 @@ function RendererSetup() {
   return null;
 }
 
+// ── Shader pre-compilation (prewarm) ─────────────────────────────────────────
+// Compiles all GPU shader programs while the loading screen is visible so the
+// first gameplay frame never stalls on shader compilation.
+function ShaderPrewarm() {
+  const { gl, scene, camera } = useThree();
+  const done = useRef(false);
+
+  useEffect(() => {
+    if (done.current) return;
+    done.current = true;
+    // Use idle callback so all Suspense'd meshes have had a chance to mount
+    const run = () => (gl as THREE.WebGLRenderer).compile(scene, camera);
+    if (typeof requestIdleCallback !== "undefined") {
+      const id = requestIdleCallback(run, { timeout: 2000 });
+      return () => cancelIdleCallback(id);
+    } else {
+      const id = setTimeout(run, 300);
+      return () => clearTimeout(id);
+    }
+  }, [gl, scene, camera]);
+
+  return null;
+}
+
 // ── Dynamic point light tethered to player position ───────────────────────────
 function PlayerLight() {
   const lightRef = useRef<THREE.PointLight>(null);
@@ -186,6 +210,7 @@ export function GameScene() {
     >
       <Suspense fallback={null}>
         <RendererSetup />
+        <ShaderPrewarm />
         <CameraController />
 
         {/* Dynamic light tethered to the player */}

@@ -5,8 +5,14 @@ import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
 import { useAudio } from "@/lib/stores/useAudio";
 import { useOrbTransition } from "@/lib/stores/useOrbTransition";
+import { preloadAllAssets } from "@/lib/preloadAssets";
 import { GameScene } from "@/components/game/GameScene";
 import { SoundManager } from "@/components/game/SoundManager";
+
+// Start fetching all audio + FBX into the browser HTTP cache immediately,
+// before any React component renders.  The Promise is reused in the loading
+// gate below so finishLoading() never fires before assets are ready.
+const _assetPreload = preloadAllAssets();
 import { GameUI } from "@/components/ui/GameUI";
 import { GameOver } from "@/components/ui/GameOver";
 import { Shop } from "@/components/ui/Shop";
@@ -62,7 +68,12 @@ function App() {
     }
 
     const finishTimer = window.setTimeout(() => {
-      useMagicOrb.getState().finishLoading();
+      // Gate on asset preload — if it's already done this resolves instantly;
+      // if still in progress we wait a little longer (never blocks > ~100 ms
+      // in practice since preloading started at module-import time).
+      _assetPreload.then(() => {
+        useMagicOrb.getState().finishLoading();
+      });
     }, 1800);
 
     return () => window.clearTimeout(finishTimer);
