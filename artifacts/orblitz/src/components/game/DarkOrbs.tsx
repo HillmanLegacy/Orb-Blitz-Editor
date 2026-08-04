@@ -679,6 +679,21 @@ function OrbRouter({ orb, arcadeLevel, gameMode }: { orb: DarkOrb; arcadeLevel: 
     if (p) overlayRef.current.position.set(p.position[0], p.position[1], p.position[2]);
   });
 
+  const worldMeshFromShape = (o: DarkOrb): React.ReactNode => {
+    switch (o.shape) {
+      case "circle":    return <World1EnemyMesh orb={o} />;
+      case "star":      return <World2EnemyMesh orb={o} />;
+      case "triangle":  return <World3EnemyMesh orb={o} />;
+      case "trapezoid": return <World4EnemyMesh orb={o} />;
+      case "cube":      return <World5EnemyMesh orb={o} />;
+      case "lightning": return <World6EnemyMesh orb={o} />;
+      case "arrow":     return <World7EnemyMesh orb={o} />;
+      case "tentacle":  return <World8EnemyMesh orb={o} />;
+      case "monster":   return <World9EnemyMesh orb={o} />;
+      default:          return <UnifiedDarkOrbMesh orb={o} />;
+    }
+  };
+
   let mesh: React.ReactNode;
   if (orb.isBossOrb) {
     mesh = <BossOrbMesh orb={orb} />;
@@ -700,6 +715,8 @@ function OrbRouter({ orb, arcadeLevel, gameMode }: { orb: DarkOrb; arcadeLevel: 
     mesh = <World8EnemyMesh orb={orb} />;
   } else if (gameMode === "arcade" && Math.floor(arcadeLevel) === 9) {
     mesh = <World9EnemyMesh orb={orb} />;
+  } else if (gameMode === "chill" || gameMode === "survival") {
+    mesh = worldMeshFromShape(orb);
   } else {
     mesh = <UnifiedDarkOrbMesh orb={orb} />;
   }
