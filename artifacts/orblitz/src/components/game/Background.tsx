@@ -244,23 +244,23 @@ const CORONA_FRAG = /* glsl */`
 
 // ── Star field — InstancedMesh: 1 draw call instead of 150 ────────────────────
 // Module-level Float32Arrays — zero per-frame allocation, initialized once.
-const STAR_N  = 150;
-const _sX     = new Float32Array(STAR_N);
-const _sY     = new Float32Array(STAR_N);
-const _sZ     = new Float32Array(STAR_N);
-const _sSc    = new Float32Array(STAR_N); // pre-baked: scale² so per-frame does one multiply
-const _sTw    = new Float32Array(STAR_N); // twinkle frequency
-const _sPh    = new Float32Array(STAR_N); // twinkle phase
-const _sMat4  = new THREE.Matrix4();       // reused every frame, no allocation
+const STAR_N   = 150;
+const _stX     = new Float32Array(STAR_N);
+const _stY     = new Float32Array(STAR_N);
+const _stZ     = new Float32Array(STAR_N);
+const _stSc    = new Float32Array(STAR_N); // pre-baked: scale² so per-frame does one multiply
+const _stTw    = new Float32Array(STAR_N); // twinkle frequency
+const _stPh    = new Float32Array(STAR_N); // twinkle phase
+const _stMat4  = new THREE.Matrix4();       // reused every frame, no allocation
 (() => {
   for (let i = 0; i < STAR_N; i++) {
-    _sX[i]  = (Math.random() - 0.5) * 96;
-    _sY[i]  = (Math.random() - 0.5) * 70;
-    _sZ[i]  = -28 - Math.random() * 22;
+    _stX[i]  = (Math.random() - 0.5) * 96;
+    _stY[i]  = (Math.random() - 0.5) * 70;
+    _stZ[i]  = -28 - Math.random() * 22;
     const sc = 0.016 + Math.random() * 0.052;
-    _sSc[i]  = sc * sc;                   // geometry=1, effective radius = sc*sc*(0.28..1)
-    _sTw[i]  = 1.2 + Math.random() * 4.5;
-    _sPh[i]  = Math.random() * Math.PI * 2;
+    _stSc[i]  = sc * sc;                   // geometry=1, effective radius = sc*sc*(0.28..1)
+    _stTw[i]  = 1.2 + Math.random() * 4.5;
+    _stPh[i]  = Math.random() * Math.PI * 2;
   }
 })();
 
@@ -272,14 +272,14 @@ function StarField() {
     if (!mesh) return;
     const t = clock.elapsedTime;
     for (let i = 0; i < STAR_N; i++) {
-      const tw = Math.sin(t * _sTw[i] + _sPh[i]) * 0.5 + 0.5;
-      const sc = _sSc[i] * (0.28 + tw * 0.72);
+      const tw = Math.sin(t * _stTw[i] + _stPh[i]) * 0.5 + 0.5;
+      const sc = _stSc[i] * (0.28 + tw * 0.72);
       // Build scale+translation matrix without any new allocations
-      _sMat4.makeScale(sc, sc, sc);
-      _sMat4.elements[12] = _sX[i];
-      _sMat4.elements[13] = _sY[i];
-      _sMat4.elements[14] = _sZ[i];
-      mesh.setMatrixAt(i, _sMat4);
+      _stMat4.makeScale(sc, sc, sc);
+      _stMat4.elements[12] = _stX[i];
+      _stMat4.elements[13] = _stY[i];
+      _stMat4.elements[14] = _stZ[i];
+      mesh.setMatrixAt(i, _stMat4);
     }
     mesh.instanceMatrix.needsUpdate = true;
   });
