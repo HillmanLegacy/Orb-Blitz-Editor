@@ -4,3 +4,4 @@
 - [Orblitz background particle system](orblitz-background-particles.md) — Three particle types + HD instanced orbs; addExplosionImpulse ring buffer export; shader/instancing conventions.
 - [Orblitz ring system](orblitz-ring-system.md) — 10 new ring components in OrbitalRings.tsx; r=scale*2 convention; shared vs per-component material disposal rules; ZeroTesla imperative line pattern.
 - [Orblitz World1FireBackground](orblitz-world1-fire-bg.md) — fBm magma plane + 500 GPU embers + 300 surge sparks; InstancedBufferGeometry pattern; module-level surge API; single-coordinator useFrame.
+- [Orblitz DarkOrbs imperative refactor](orblitz-darkorbs-imperative.md) — orbPhysicsMap pattern; selective Zustand updates; memo comparator; DarkOrbsClock priority trick.

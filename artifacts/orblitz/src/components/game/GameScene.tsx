@@ -4,7 +4,7 @@ import { IS_MOBILE } from "@/lib/isMobile";
 import { EffectComposer, Bloom, SMAA, ChromaticAberration, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { PlayerOrb } from "./PlayerOrb";
-import { DarkOrbs } from "./DarkOrbs";
+import { DarkOrbs, DarkOrbsClock } from "./DarkOrbs";
 import { Projectiles } from "./Projectiles";
 import { PowerUps } from "./PowerUps";
 import { Particles } from "./Particles";
@@ -279,6 +279,7 @@ export function GameScene() {
         <Background />
         <World1FireBackground />
         <PlayerOrb />
+        <DarkOrbsClock />
         <DarkOrbs />
         <Boss />
         <Projectiles />
