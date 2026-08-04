@@ -21,8 +21,9 @@ import { MiniMechaOrb } from "./MiniMechaOrb";
 import { MiniMonsterOrb } from "./MiniMonsterOrb";
 import { addExplosionImpulse } from "./Background";
 
-const DISTORT_FIELD_RADIUS = 7.125;
-const HURT_FLASH_DURATION  = 0.15;
+const DISTORT_FIELD_RADIUS    = 7.125;
+const DISTORT_FIELD_RADIUS_SQ = DISTORT_FIELD_RADIUS * DISTORT_FIELD_RADIUS; // 50.77
+const HURT_FLASH_DURATION     = 0.15;
 
 // ── Module-level physics map — updated imperatively every frame, never via React ─
 // Stores mutable position/direction/speed/age for each live orb by ID.
@@ -898,8 +899,8 @@ export function DarkOrbs() {
       // Barrier (magiOrb4) check
       if (magiOrb4Active) {
         const relX = x - playerX, relY = y - playerY;
-        const dtp2 = Math.sqrt(relX * relX + relY * relY);
-        if (dtp2 < 3.5 && dtp2 > 0.5) {
+        const dtp2sq = relX * relX + relY * relY;
+        if (dtp2sq < 12.25 && dtp2sq > 0.25) { // 3.5²=12.25, 0.5²=0.25
           const orbAngle = Math.atan2(relY, relX);
           let angleDiff = orbAngle - magiOrb4Direction;
           while (angleDiff >  Math.PI) angleDiff -= Math.PI * 2;
@@ -922,8 +923,8 @@ export function DarkOrbs() {
 
       // Player collision
       const hitRadius = orb.isBossOrb ? 1.2 : orb.size * 0.8 + 0.5;
-      const dtp3 = Math.sqrt((x - playerX) ** 2 + (y - playerY) ** 2);
-      if (dtp3 < hitRadius) {
+      const dxP = x - playerX, dyP = y - playerY;
+      if (dxP * dxP + dyP * dyP < hitRadius * hitRadius) {
         addImpactEffect({ id: `impact-${Date.now()}-${Math.random()}`, position: [x, y, 0], timer: 0.5, maxTimer: 0.5, seed: Math.random() });
         if (hasShield) {
           consumeShield();
@@ -937,15 +938,15 @@ export function DarkOrbs() {
       }
 
       // Distort field freeze
-      const distToCenter = Math.sqrt(x * x + y * y);
-      const inDistortField = distortActive && distToCenter < DISTORT_FIELD_RADIUS;
+      const inDistortField = distortActive && (x * x + y * y < DISTORT_FIELD_RADIUS_SQ);
 
       // Projectile hit (skip if already hurting)
       let hit = false;
       if ((orb.hurtTimer || 0) <= 0) {
+        const projHitR2 = (orb.size * 0.8 + 0.3) * (orb.size * 0.8 + 0.3); // hoisted out of inner loop
         for (const proj of projectiles) {
-          const pd = Math.sqrt((x - proj.position[0]) ** 2 + (y - proj.position[1]) ** 2);
-          if (pd < orb.size * 0.8 + 0.3) { hit = true; break; }
+          const pdx = x - proj.position[0], pdy = y - proj.position[1];
+          if (pdx * pdx + pdy * pdy < projHitR2) { hit = true; break; }
         }
       }
 

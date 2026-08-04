@@ -242,35 +242,54 @@ const CORONA_FRAG = /* glsl */`
   }
 `;
 
-// ── Star field ─────────────────────────────────────────────────────────────────
-function StarField() {
-  const refs  = useRef<(THREE.Mesh | null)[]>([]);
-  const stars = useMemo(() => Array.from({ length: 150 }, () => ({
-    pos:   [(Math.random() - 0.5) * 96, (Math.random() - 0.5) * 70, -28 - Math.random() * 22] as [number, number, number],
-    scale: 0.016 + Math.random() * 0.052,
-    tw:    1.2 + Math.random() * 4.5,
-    ph:    Math.random() * Math.PI * 2,
-  })), []);
+// ── Star field — InstancedMesh: 1 draw call instead of 150 ────────────────────
+// Module-level Float32Arrays — zero per-frame allocation, initialized once.
+const STAR_N  = 150;
+const _sX     = new Float32Array(STAR_N);
+const _sY     = new Float32Array(STAR_N);
+const _sZ     = new Float32Array(STAR_N);
+const _sSc    = new Float32Array(STAR_N); // pre-baked: scale² so per-frame does one multiply
+const _sTw    = new Float32Array(STAR_N); // twinkle frequency
+const _sPh    = new Float32Array(STAR_N); // twinkle phase
+const _sMat4  = new THREE.Matrix4();       // reused every frame, no allocation
+(() => {
+  for (let i = 0; i < STAR_N; i++) {
+    _sX[i]  = (Math.random() - 0.5) * 96;
+    _sY[i]  = (Math.random() - 0.5) * 70;
+    _sZ[i]  = -28 - Math.random() * 22;
+    const sc = 0.016 + Math.random() * 0.052;
+    _sSc[i]  = sc * sc;                   // geometry=1, effective radius = sc*sc*(0.28..1)
+    _sTw[i]  = 1.2 + Math.random() * 4.5;
+    _sPh[i]  = Math.random() * Math.PI * 2;
+  }
+})();
 
-  useFrame(state => {
-    const t = state.clock.getElapsedTime();
-    refs.current.forEach((m, i) => {
-      if (!m) return;
-      const s  = stars[i];
-      const tw = Math.sin(t * s.tw + s.ph) * 0.5 + 0.5;
-      m.scale.setScalar(s.scale * (0.28 + tw * 0.72));
-      (m.material as THREE.MeshBasicMaterial).opacity = 0.2 + tw * 0.78;
-    });
+function StarField() {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+
+  useFrame(({ clock }) => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const t = clock.elapsedTime;
+    for (let i = 0; i < STAR_N; i++) {
+      const tw = Math.sin(t * _sTw[i] + _sPh[i]) * 0.5 + 0.5;
+      const sc = _sSc[i] * (0.28 + tw * 0.72);
+      // Build scale+translation matrix without any new allocations
+      _sMat4.makeScale(sc, sc, sc);
+      _sMat4.elements[12] = _sX[i];
+      _sMat4.elements[13] = _sY[i];
+      _sMat4.elements[14] = _sZ[i];
+      mesh.setMatrixAt(i, _sMat4);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
   });
 
-  return (<>
-    {stars.map((s, i) => (
-      <mesh key={i} ref={el => { refs.current[i] = el; }} position={s.pos}>
-        <octahedronGeometry args={[s.scale, 0]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.6} blending={THREE.AdditiveBlending} depthWrite={false} />
-      </mesh>
-    ))}
-  </>);
+  return (
+    <instancedMesh ref={meshRef} args={[undefined, undefined, STAR_N]}>
+      <octahedronGeometry args={[1, 0]} />
+      <meshBasicMaterial color="#ffffff" transparent opacity={0.6} blending={THREE.AdditiveBlending} depthWrite={false} />
+    </instancedMesh>
+  );
 }
 
 // ── HD Shooting Orbs (InstancedMesh, priority -1) ──────────────────────────────

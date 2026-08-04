@@ -1682,21 +1682,21 @@ export function Projectiles() {
         const homingBoundary = 12;
         // Inline the filter into the closest-orb search (single pass, no allocation).
         let closestTarget: { position: [number, number, number] } | null = null;
-        let closestDist = Infinity;
-        
+        let closestDist2 = Infinity; // compare squared distances — no sqrt needed for selection
+
         for (const orb of darkOrbs) {
           if (orb.destroying || Math.abs(orb.position[0]) > homingBoundary || Math.abs(orb.position[1]) > homingBoundary) continue;
-          const d = Math.sqrt((orb.position[0] - px) ** 2 + (orb.position[1] - py) ** 2);
-          if (d < closestDist) {
-            closestDist = d;
+          const d2 = (orb.position[0] - px) ** 2 + (orb.position[1] - py) ** 2;
+          if (d2 < closestDist2) {
+            closestDist2 = d2;
             closestTarget = orb;
           }
         }
-        
+
         if (boss && !boss.destroying && !boss.shieldActive) {
-          const bossDist = Math.sqrt((boss.position[0] - px) ** 2 + (boss.position[1] - py) ** 2);
-          if (bossDist < closestDist) {
-            closestDist = bossDist;
+          const bossDist2 = (boss.position[0] - px) ** 2 + (boss.position[1] - py) ** 2;
+          if (bossDist2 < closestDist2) {
+            closestDist2 = bossDist2;
             closestTarget = boss;
           }
         }
@@ -1960,10 +1960,9 @@ export function Projectiles() {
         }
       } else if (boss && boss.shieldActive && proj.type !== "overcharged") {
         const [bx, by, bz] = boss.position;
-        const dist = Math.sqrt((px - bx) ** 2 + (py - by) ** 2 + ((bz || 0) - pz) ** 2);
-        const shieldRadius = 3.5;
-        
-        if (dist < shieldRadius) {
+        const _dxB = px - bx, _dyB = py - by, _dzB = (bz || 0) - pz;
+
+        if (_dxB * _dxB + _dyB * _dyB + _dzB * _dzB < 12.25) { // 3.5²
           hitSomething = true;
           addImpactEffect({
             id: `impact-${impactIdCounter++}`,
@@ -1982,15 +1981,18 @@ export function Projectiles() {
         const orbScreenBoundary = 12;
         if (Math.abs(ox) > orbScreenBoundary || Math.abs(oy) > orbScreenBoundary) continue;
         
-        const projHits = projectileOrbHits.current.get(proj.id) || new Set();
-        if (proj.piercing && projHits.has(orb.id)) continue;
-        const dist = Math.sqrt((px - ox) ** 2 + (py - oy) ** 2 + (pz - oz) ** 2);
+        if (proj.piercing) {
+          const _ph = projectileOrbHits.current.get(proj.id);
+          if (_ph && _ph.has(orb.id)) continue;
+        }
+        const dxO = px - ox, dyO = py - oy, dzO = pz - oz;
+        const dist2 = dxO * dxO + dyO * dyO + dzO * dzO;
         const bossOrbHitBonus = orb.isBossOrb ? 0.6 : 0;
         const effectiveRadius = proj.type === "overcharged"
           ? hitRadius * (proj.size ?? 1) * 2.8
           : (proj.isCharged ? hitRadius * 1.8 : hitRadius) + bossOrbHitBonus;
-        
-        if (dist < effectiveRadius &&
+
+        if (dist2 < effectiveRadius * effectiveRadius &&
             (proj.type !== "overcharged" || (proj.spawnScale ?? 1) >= 0.8)) {
           hitOrbsThisFrame.current.add(orb.id);
           markOrbDestroying(orb.id);
@@ -2017,14 +2019,14 @@ export function Projectiles() {
           
           if (proj.type === "overcharged") {
             // Unlimited pierce — destroy orb, keep flying
-            const projHits = projectileOrbHits.current.get(proj.id) || new Set();
-            projHits.add(orb.id);
-            projectileOrbHits.current.set(proj.id, projHits);
+            let _ph = projectileOrbHits.current.get(proj.id);
+            if (!_ph) { _ph = new Set(); projectileOrbHits.current.set(proj.id, _ph); }
+            _ph.add(orb.id);
           } else if (proj.piercing && proj.hitCount && proj.hitCount > 1) {
             proj.hitCount--;
-            const projHits = projectileOrbHits.current.get(proj.id) || new Set();
-            projHits.add(orb.id);
-            projectileOrbHits.current.set(proj.id, projHits);
+            let _ph2 = projectileOrbHits.current.get(proj.id);
+            if (!_ph2) { _ph2 = new Set(); projectileOrbHits.current.set(proj.id, _ph2); }
+            _ph2.add(orb.id);
           } else {
             projectileOrbHits.current.delete(proj.id);
             hitSomething = true;
@@ -2037,10 +2039,10 @@ export function Projectiles() {
       for (const powerUp of powerUps) {
         if (hitPowerUpsThisFrame.current.has(powerUp.id) || powerUp.collected || powerUp.destroying || powerUp.hurtTimer) continue;
         
-        const [pux, puy, puz] = powerUp.position;
-        const dist = Math.sqrt((px - pux) ** 2 + (py - puy) ** 2);
-        
-        if (dist < 1.5) {
+        const [pux, puy] = powerUp.position;
+        const dxPU = px - pux, dyPU = py - puy;
+
+        if (dxPU * dxPU + dyPU * dyPU < 2.25) { // 1.5²
           hitPowerUpsThisFrame.current.add(powerUp.id);
           hurtPowerUp(powerUp.id);
           hitSomething = true;

@@ -2226,9 +2226,14 @@ export const useMagicOrb = create<MagicOrbState>()(
         const pending = s.survivalBossPending || newTimer >= 60;
         if (!s.survivalBossPending && newTimer >= 60) {
           set({ survivalBossPending: true, survivalBossTimer: newTimer });
-        } else if (pending && s.darkOrbs.filter((o) => !o.destroying).length === 0) {
+        } else if (pending) {
+          // Early-exit scan: stop as soon as one active orb is found (avoids full filter allocation)
+          let hasActiveOrb = false;
+          for (let _i = 0; _i < s.darkOrbs.length; _i++) {
+            if (!s.darkOrbs[_i].destroying) { hasActiveOrb = true; break; }
+          }
           set({ survivalBossTimer: newTimer });
-          get().spawnSurvivalBoss();
+          if (!hasActiveOrb) get().spawnSurvivalBoss();
         } else {
           set({ survivalBossTimer: newTimer });
         }
