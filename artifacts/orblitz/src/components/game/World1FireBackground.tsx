@@ -39,7 +39,7 @@ export function magmaSurge(): void {
 }
 
 // ─── Pre-allocated particle seed buffers (initialized once at module load) ──────
-const EMBER_N = 500;
+const EMBER_N = 200;
 const SURGE_N = 300;
 
 // Ember birth positions (world-space, spread across background area)
@@ -112,7 +112,7 @@ const MAGMA_VERT = /* glsl */`
     vNoise      = h;
 
     // Vertex displacement — ridges swell toward camera along +Z
-    float disp  = 3.2 * uIntensity;
+    float disp  = 1.4 * uIntensity;
     vec3  pos   = position;
     pos.z      += h * disp;
 
