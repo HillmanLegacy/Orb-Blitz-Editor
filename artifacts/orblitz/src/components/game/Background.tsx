@@ -41,22 +41,33 @@ const _orbPosY = new Float32Array(SHOOT_COUNT);
 const _orbVelX = new Float32Array(SHOOT_COUNT);
 const _orbVelY = new Float32Array(SHOOT_COUNT);
 
-// ── Spatial grid ───────────────────────────────────────────────────────────────
-const CELL    = 5;
-const GX_MIN  = -62;
-const GY_MIN  = -46;
-const GW      = 25;
-const GH      = 19;
-const _gridCells: number[][] = Array.from({ length: GW * GH }, () => []);
+// ── Spatial grid — zero-GC typed-array implementation ─────────────────────────
+// Previously used number[][] whose push()/length=0 cycle churn the GC every frame.
+// Int16Array + Uint8Array are pre-allocated once and written with indexed stores.
+const CELL         = 5;
+const GX_MIN       = -62;
+const GY_MIN       = -46;
+const GW           = 25;
+const GH           = 19;
+const MAX_PER_CELL = 12; // 120 orbs / 475 cells → avg 0.25; 12 is a generous cap
+const _gridData    = new Int16Array(GW * GH * MAX_PER_CELL); // orb indices
+const _gridCount   = new Uint8Array(GW * GH);                 // live count per cell
 
 function _buildGrid(): void {
-  for (let c = 0; c < _gridCells.length; c++) _gridCells[c].length = 0;
+  _gridCount.fill(0); // typed-array fill: no per-element JS objects, no GC
   for (let j = 0; j < SHOOT_COUNT; j++) {
     const cx = Math.floor((_orbPosX[j] - GX_MIN) / CELL);
     const cy = Math.floor((_orbPosY[j] - GY_MIN) / CELL);
-    if (cx >= 0 && cx < GW && cy >= 0 && cy < GH) _gridCells[cy * GW + cx].push(j);
+    if (cx >= 0 && cx < GW && cy >= 0 && cy < GH) {
+      const c = cy * GW + cx;
+      const n = _gridCount[c];
+      if (n < MAX_PER_CELL) { _gridData[c * MAX_PER_CELL + n] = j; _gridCount[c] = n + 1; }
+    }
   }
 }
+
+// Frame counter shared by ParticleSystem — drives grid throttle + dust interleave
+let _bgFrame = 0;
 
 // ── Interaction radii (squared) ────────────────────────────────────────────────
 const ORB_R2     = 20.25; // 4.5²
@@ -348,7 +359,10 @@ function ShootingOrbs() {
   useFrame((state, delta) => {
     const t = state.clock.getElapsedTime();
     orbMat.uniforms.uTime.value = t;
-    // coronaMat has no time-based uniforms
+
+    // Cache refs outside loop — avoids 120 optional-chain evaluations per frame
+    const orbMesh    = orbRef.current;
+    const coronaMesh = coronaRef.current;
 
     for (let i = 0; i < SHOOT_COUNT; i++) {
       const p = pos.current[i];
@@ -368,14 +382,14 @@ function ShootingOrbs() {
       _dummy.position.set(p.x, p.y, o.z);
       _dummy.scale.setScalar(sc);
       _dummy.updateMatrix();
-      orbRef.current?.setMatrixAt(i, _dummy.matrix);
+      orbMesh?.setMatrixAt(i, _dummy.matrix);
 
       _dummy.scale.setScalar(sc * 1.72);
       _dummy.updateMatrix();
-      coronaRef.current?.setMatrixAt(i, _dummy.matrix);
+      coronaMesh?.setMatrixAt(i, _dummy.matrix);
     }
-    if (orbRef.current)    orbRef.current.instanceMatrix.needsUpdate    = true;
-    if (coronaRef.current) coronaRef.current.instanceMatrix.needsUpdate = true;
+    if (orbMesh)    orbMesh.instanceMatrix.needsUpdate    = true;
+    if (coronaMesh) coronaMesh.instanceMatrix.needsUpdate = true;
   }, -1); // priority -1 → writes orb positions before ParticleSystem reads them
 
   return (<>
@@ -436,8 +450,11 @@ function ParticleSystem() {
   useFrame((state, delta) => {
     const dt = Math.min(delta, 0.05);
     const t  = state.clock.getElapsedTime();
+    _bgFrame++;
 
-    _buildGrid();
+    // Rebuild spatial grid every other frame.  Background orbs travel ~0.2–0.4 u/frame;
+    // the cell is 5 u wide, so no orb jumps a cell boundary between rebuilds.
+    if ((_bgFrame & 1) === 0) _buildGrid();
 
     // Snapshot impulse ring for this frame — no allocation, just primitives
     const IC    = _impSize;
@@ -448,8 +465,13 @@ function ParticleSystem() {
     const sparkMesh  = sparkRef.current;
 
     // ── TYPE 1: Nebula Dust ───────────────────────────────────────────────────
+    // Interleave: update the first half on even frames, second half on odd frames.
+    // Each particle gets full physics every 2 frames — unnoticeable for dim background dust.
+    const dustStart = (_bgFrame & 1) === 0 ? 0 : (DUST_N >> 1);
+    const dustEnd   = (_bgFrame & 1) === 0 ? (DUST_N >> 1) : DUST_N;
+
     if (dustMesh) {
-      for (let i = 0; i < DUST_N; i++) {
+      for (let i = dustStart; i < dustEnd; i++) {
         const px = _dX[i], py = _dY[i];
         let ax = (_dBX[i] - px) * 2.0;
         let ay = (_dBY[i] - py) * 2.0;
@@ -461,9 +483,11 @@ function ParticleSystem() {
           const nx = pcx + dcx; if (nx < 0 || nx >= GW) continue;
           for (let dcy = -1; dcy <= 1; dcy++) {
             const ny = pcy + dcy; if (ny < 0 || ny >= GH) continue;
-            const cell = _gridCells[ny * GW + nx];
-            for (let ci = 0; ci < cell.length; ci++) {
-              const j = cell[ci];
+            const c = ny * GW + nx;
+            const n = _gridCount[c];
+            const cbase = c * MAX_PER_CELL;
+            for (let ci = 0; ci < n; ci++) {
+              const j = _gridData[cbase + ci];
               const dx = px - _orbPosX[j], dy = py - _orbPosY[j];
               const d2 = dx * dx + dy * dy;
               if (d2 < ORB_R2 && d2 > 0.0001) {
@@ -526,9 +550,11 @@ function ParticleSystem() {
           const nx = pcx + dcx; if (nx < 0 || nx >= GW) continue;
           for (let dcy = -1; dcy <= 1; dcy++) {
             const ny = pcy + dcy; if (ny < 0 || ny >= GH) continue;
-            const cell = _gridCells[ny * GW + nx];
-            for (let ci = 0; ci < cell.length; ci++) {
-              const j = cell[ci];
+            const c = ny * GW + nx;
+            const n = _gridCount[c];
+            const cbase = c * MAX_PER_CELL;
+            for (let ci = 0; ci < n; ci++) {
+              const j = _gridData[cbase + ci];
               const dx = px - _orbPosX[j], dy = py - _orbPosY[j];
               const d2 = dx * dx + dy * dy;
               if (d2 < ORB_R2 && d2 > 0.0001) {
@@ -580,9 +606,11 @@ function ParticleSystem() {
           const nx = pcx + dcx; if (nx < 0 || nx >= GW) continue;
           for (let dcy = -1; dcy <= 1; dcy++) {
             const ny = pcy + dcy; if (ny < 0 || ny >= GH) continue;
-            const cell = _gridCells[ny * GW + nx];
-            for (let ci = 0; ci < cell.length; ci++) {
-              const j = cell[ci];
+            const c = ny * GW + nx;
+            const n = _gridCount[c];
+            const cbase = c * MAX_PER_CELL;
+            for (let ci = 0; ci < n; ci++) {
+              const j = _gridData[cbase + ci];
               const dx = px - _orbPosX[j], dy = py - _orbPosY[j];
               const d2 = dx * dx + dy * dy;
               if (d2 < ORB_R2 && d2 > 0.0001) {
