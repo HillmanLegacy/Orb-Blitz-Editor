@@ -92,16 +92,16 @@ function BossOrbMesh({ orb }: { orb: DarkOrb }) {
     );
   }
 
-  if (bossType === "circle")   return <group ref={groupRef}><pointLight color="#ff6600" intensity={2} distance={5} decay={2} /><MiniFireOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
-  if (bossType === "star")     return <group ref={groupRef}><MiniStarOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
-  if (bossType === "triangle") return <group ref={groupRef}><MiniCrystalOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
-  if (bossType === "arrow")    return <group ref={groupRef}><MiniRainbowOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
-  if (bossType === "cloud")    return <group ref={groupRef}><MiniDiamondOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
-  if (bossType === "cube")     return <group ref={groupRef}><MiniPlasmaOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
-  if (bossType === "tentacle") return <group ref={groupRef}><pointLight color="#33aaff" intensity={1.8} distance={5} decay={2} /><MiniMechaOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
-  if (bossType === "monster")  return <group ref={groupRef}><MiniMonsterOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
+  if (bossType === "circle")   return <group ref={groupRef} position={orb.position!}><pointLight color="#ff6600" intensity={2} distance={5} decay={2} /><MiniFireOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
+  if (bossType === "star")     return <group ref={groupRef} position={orb.position!}><MiniStarOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
+  if (bossType === "triangle") return <group ref={groupRef} position={orb.position!}><MiniCrystalOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
+  if (bossType === "arrow")    return <group ref={groupRef} position={orb.position!}><MiniRainbowOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
+  if (bossType === "cloud")    return <group ref={groupRef} position={orb.position!}><MiniDiamondOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
+  if (bossType === "cube")     return <group ref={groupRef} position={orb.position!}><MiniPlasmaOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
+  if (bossType === "tentacle") return <group ref={groupRef} position={orb.position!}><pointLight color="#33aaff" intensity={1.8} distance={5} decay={2} /><MiniMechaOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
+  if (bossType === "monster")  return <group ref={groupRef} position={orb.position!}><MiniMonsterOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
   // trapezoid / bird / default
-  return <group ref={groupRef}><MiniToxicOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
+  return <group ref={groupRef} position={orb.position!}><MiniToxicOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
 }
 
 // ── Unified dark orb mesh — fully imperative, zero re-renders per frame ───────
@@ -455,7 +455,7 @@ function UnifiedDarkOrbMesh({ orb }: { orb: DarkOrb }) {
   };
 
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} position={orb.position!}>
       <Suspense fallback={
         <mesh scale={1}>
           <circleGeometry args={[1, 32]} />
@@ -490,7 +490,7 @@ function World1EnemyMesh({ orb }: { orb: DarkOrb }) {
       </group>
     );
   }
-  return <group ref={groupRef}><pointLight color="#ff6600" intensity={1.6} distance={4.5} decay={2} /><MiniFireOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
+  return <group ref={groupRef} position={orb.position!}><pointLight color="#ff6600" intensity={1.6} distance={4.5} decay={2} /><MiniFireOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
 }
 
 function World2EnemyMesh({ orb }: { orb: DarkOrb }) {
@@ -512,7 +512,7 @@ function World2EnemyMesh({ orb }: { orb: DarkOrb }) {
       </group>
     );
   }
-  return <group ref={groupRef}><MiniStarOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
+  return <group ref={groupRef} position={orb.position!}><MiniStarOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
 }
 
 function World3EnemyMesh({ orb }: { orb: DarkOrb }) {
@@ -534,7 +534,7 @@ function World3EnemyMesh({ orb }: { orb: DarkOrb }) {
       </group>
     );
   }
-  return <group ref={groupRef}><MiniCrystalOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
+  return <group ref={groupRef} position={orb.position!}><MiniCrystalOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
 }
 
 function World4EnemyMesh({ orb }: { orb: DarkOrb }) {
@@ -556,7 +556,7 @@ function World4EnemyMesh({ orb }: { orb: DarkOrb }) {
       </group>
     );
   }
-  return <group ref={groupRef}><MiniToxicOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
+  return <group ref={groupRef} position={orb.position!}><MiniToxicOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
 }
 
 function World5EnemyMesh({ orb }: { orb: DarkOrb }) {
@@ -578,7 +578,7 @@ function World5EnemyMesh({ orb }: { orb: DarkOrb }) {
       </group>
     );
   }
-  return <group ref={groupRef}><MiniPlasmaOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
+  return <group ref={groupRef} position={orb.position!}><MiniPlasmaOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
 }
 
 function World6EnemyMesh({ orb }: { orb: DarkOrb }) {
@@ -600,7 +600,7 @@ function World6EnemyMesh({ orb }: { orb: DarkOrb }) {
       </group>
     );
   }
-  return <group ref={groupRef}><MiniDiamondOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
+  return <group ref={groupRef} position={orb.position!}><MiniDiamondOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
 }
 
 function World7EnemyMesh({ orb }: { orb: DarkOrb }) {
@@ -622,7 +622,7 @@ function World7EnemyMesh({ orb }: { orb: DarkOrb }) {
       </group>
     );
   }
-  return <group ref={groupRef}><MiniRainbowOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
+  return <group ref={groupRef} position={orb.position!}><MiniRainbowOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
 }
 
 function World8EnemyMesh({ orb }: { orb: DarkOrb }) {
@@ -644,7 +644,7 @@ function World8EnemyMesh({ orb }: { orb: DarkOrb }) {
       </group>
     );
   }
-  return <group ref={groupRef}><pointLight color="#33aaff" intensity={1.8} distance={4.5} decay={2} /><MiniMechaOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
+  return <group ref={groupRef} position={orb.position!}><pointLight color="#33aaff" intensity={1.8} distance={4.5} decay={2} /><MiniMechaOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
 }
 
 function World9EnemyMesh({ orb }: { orb: DarkOrb }) {
@@ -666,7 +666,7 @@ function World9EnemyMesh({ orb }: { orb: DarkOrb }) {
       </group>
     );
   }
-  return <group ref={groupRef}><MiniMonsterOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
+  return <group ref={groupRef} position={orb.position!}><MiniMonsterOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
 }
 
 // ── Router: picks mesh component + drives frozen overlay imperatively ──────────

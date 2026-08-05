@@ -94,45 +94,39 @@ const MAGMA_VERT = /* glsl */`
     return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
   }
 
-  // 5-octave fBm with domain rotation to break axis-aligned artifacts
+  // 3-octave fBm (reduced from 5) — large-scale lava topology preserved at ~40%
+  // less vertex-shader cost. The two dropped high-frequency octaves were only
+  // visible at close range on a background plane, making this trade-off free.
   float fbm(vec2 p) {
     float v = 0.0, a = 0.5;
-    mat2 R = mat2(1.7, 1.2, -1.2, 1.7);  // 35° rotation + slight scale
-    for (int i = 0; i < 5; i++) { v += a * vn(p); p = R * p; a *= 0.5; }
+    mat2 R = mat2(1.7, 1.2, -1.2, 1.7);
+    for (int i = 0; i < 3; i++) { v += a * vn(p); p = R * p; a *= 0.5; }
     return v;
   }
 
   void main() {
     vUv = uv;
 
-    // Two-layer scrolled noise: primary slow roll + secondary faster churn
     vec2 scroll = vec2(uTime * 0.055 * uIntensity, uTime * 0.038 * uIntensity);
     vec2 sc     = uv * 2.8 + scroll;
     float h     = fbm(sc);
     vNoise      = h;
 
-    // Vertex displacement — ridges swell toward camera along +Z
     float disp  = 1.4 * uIntensity;
     vec3  pos   = position;
     pos.z      += h * disp;
 
-    // Edge alpha fade so the plane blends with surrounding space background
     float ex = min(uv.x, 1.0 - uv.x) * 2.0;
     float ey = min(uv.y, 1.0 - uv.y) * 2.0;
     vEdge    = clamp(min(ex, ey) * 4.0, 0.0, 1.0);
 
-    // Displaced surface normal via finite-difference fBm gradient
-    float eps = 0.015;
-    float hx  = fbm(sc + vec2(eps, 0.0));
-    float hy  = fbm(sc + vec2(0.0, eps));
-    vec3  T1  = normalize(vec3(1.0, 0.0, (hx - h) * disp / eps));
-    vec3  T2  = normalize(vec3(0.0, 1.0, (hy - h) * disp / eps));
-    vec3  dN  = normalize(cross(T1, T2));
-
-    // N·V: displaced normal vs view direction (identifies hot ridge crests)
+    // Approximate vNdV from the base-plane normal (0,0,1) instead of computing
+    // displaced normals via two extra fbm() samples (hx, hy). This removes
+    // ~67% of the original vertex-shader cost. The plane's gentle displacement
+    // (max 1.4 u on a 160×105 surface) makes the approximation imperceptible.
     vec4 mv      = modelViewMatrix * vec4(pos, 1.0);
     vec3 viewDir = normalize(-mv.xyz);
-    vec3 vN      = normalize(mat3(normalMatrix) * dN);
+    vec3 vN      = normalize(mat3(normalMatrix) * vec3(0.0, 0.0, 1.0));
     vNdV         = clamp(dot(vN, viewDir), 0.0, 1.0);
 
     gl_Position  = projectionMatrix * mv;
@@ -356,8 +350,11 @@ function World1FireScene() {
     uSurge:     { value: 0.0 },
   }), []);
 
+  // Reduced from (100, 70) → (40, 28): 7,171 → 1,189 vertices (6× fewer).
+  // The 3-octave fBm displacement has large wavelengths; the lower mesh density
+  // is invisible at gameplay distance and prevents GPU vertex-shader overload.
   const magmaGeo = useMemo(() =>
-    new THREE.PlaneGeometry(160, 105, 100, 70), []);
+    new THREE.PlaneGeometry(160, 105, 40, 28), []);
 
   const magmaMat = useMemo(() => new THREE.ShaderMaterial({
     vertexShader:   MAGMA_VERT,
