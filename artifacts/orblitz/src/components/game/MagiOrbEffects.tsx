@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
@@ -33,20 +33,20 @@ const makeDP = (): DustP   => ({ x:0, y:0, vx:0, vy:0, life:0, maxLife:1.0 });
 
 export function MagiOrbEffects() {
   const { equippedMagiOrb } = useShop();
-  const {
-    playerPosition,
-    magiOrb2Active,
-    magiOrb2TargetPositions,
-    boss,
-    magiOrb4Active,
-    magiOrb4Direction,
-    magiOrb5HP,
-    magiOrb5MaxHP,
-    magiOrb8Position,
-    magiOrb8HP,
-    pulseShieldActive,
-    pulseShieldTimer,
-  } = useMagicOrb();
+  // Use individual selectors so unrelated store updates (e.g. playerPosition at 60fps)
+  // don't force a full React re-render of this component.
+  // playerPosition is read inside useFrame via getState() instead.
+  const magiOrb2Active          = useMagicOrb(s => s.magiOrb2Active);
+  const magiOrb2TargetPositions = useMagicOrb(s => s.magiOrb2TargetPositions);
+  const boss                    = useMagicOrb(s => s.boss);
+  const magiOrb4Active          = useMagicOrb(s => s.magiOrb4Active);
+  const magiOrb4Direction       = useMagicOrb(s => s.magiOrb4Direction);
+  const magiOrb5HP              = useMagicOrb(s => s.magiOrb5HP);
+  const magiOrb5MaxHP           = useMagicOrb(s => s.magiOrb5MaxHP);
+  const magiOrb8Position        = useMagicOrb(s => s.magiOrb8Position);
+  const magiOrb8HP              = useMagicOrb(s => s.magiOrb8HP);
+  const pulseShieldActive       = useMagicOrb(s => s.pulseShieldActive);
+  const pulseShieldTimer        = useMagicOrb(s => s.pulseShieldTimer);
 
   // ── Existing magi-orb refs ─────────────────────────────────────────────────
   const barrierRef    = useRef<THREE.Group>(null);
@@ -105,6 +105,13 @@ export function MagiOrbEffects() {
     depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
   }));
 
+  // Dispose all materials on unmount to prevent GPU VRAM leaks
+  useEffect(() => () => {
+    m2MatA.dispose(); m2MatB.dispose(); m2DustMat.dispose(); m2ShockMat.dispose();
+    m2AbsorbMat.dispose(); m2FlashMat.dispose();
+    m2BossMat1.dispose(); m2BossMat2.dispose(); m2BossMat3.dispose();
+  }, [m2MatA, m2MatB, m2DustMat, m2ShockMat, m2AbsorbMat, m2FlashMat, m2BossMat1, m2BossMat2, m2BossMat3]);
+
   // Mesh refs
   const m2RefA        = useRef<THREE.InstancedMesh>(null);
   const m2RefB        = useRef<THREE.InstancedMesh>(null);
@@ -133,6 +140,8 @@ export function MagiOrbEffects() {
   // ── useFrame ───────────────────────────────────────────────────────────────
   useFrame((state, delta) => {
     const time = state.clock.getElapsedTime();
+    // Read playerPosition directly each frame to avoid subscribing React to a 60fps value
+    const playerPosition = useMagicOrb.getState().playerPosition;
 
     // ── Magi-Orb 4: barrier ────────────────────────────────────────────────
     if (barrierRef.current && magiOrb4Active) {

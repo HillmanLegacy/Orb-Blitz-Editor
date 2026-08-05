@@ -46,29 +46,27 @@ const sharedPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 const sharedHitPoint = new THREE.Vector3();
 
 export function GameLogic() {
-  const { 
-    phase,
-    gameMode,
-    arcadeLevel,
-    boss,
-    addDarkOrb,
-    addProjectile,
-    addPowerUp,
-    spawnRate,
-    difficultyMultiplier,
-    hasChargeBeam,
-    isDying,
-    selectedWeapon,
-    setSelectedWeapon,
-    fireOrbaniteBeam,
-    activateDistortField,
-    updateLaserBeams,
-    laserBeams,
-    hasDistort,
-    orbaniteBeamCooldown,
-    distortCooldown,
-    distortActive,
-  } = useMagicOrb();
+  const phase                 = useMagicOrb(s => s.phase);
+  const gameMode              = useMagicOrb(s => s.gameMode);
+  const arcadeLevel           = useMagicOrb(s => s.arcadeLevel);
+  const boss                  = useMagicOrb(s => s.boss);
+  const addDarkOrb            = useMagicOrb(s => s.addDarkOrb);
+  const addProjectile         = useMagicOrb(s => s.addProjectile);
+  const addPowerUp            = useMagicOrb(s => s.addPowerUp);
+  const spawnRate             = useMagicOrb(s => s.spawnRate);
+  const difficultyMultiplier  = useMagicOrb(s => s.difficultyMultiplier);
+  const hasChargeBeam         = useMagicOrb(s => s.hasChargeBeam);
+  const isDying               = useMagicOrb(s => s.isDying);
+  const selectedWeapon        = useMagicOrb(s => s.selectedWeapon);
+  const setSelectedWeapon     = useMagicOrb(s => s.setSelectedWeapon);
+  const fireOrbaniteBeam      = useMagicOrb(s => s.fireOrbaniteBeam);
+  const activateDistortField  = useMagicOrb(s => s.activateDistortField);
+  const updateLaserBeams      = useMagicOrb(s => s.updateLaserBeams);
+  const laserBeams            = useMagicOrb(s => s.laserBeams);
+  const hasDistort            = useMagicOrb(s => s.hasDistort);
+  const orbaniteBeamCooldown  = useMagicOrb(s => s.orbaniteBeamCooldown);
+  const distortCooldown       = useMagicOrb(s => s.distortCooldown);
+  const distortActive         = useMagicOrb(s => s.distortActive);
   
   const { playShoot } = useAudio();
   

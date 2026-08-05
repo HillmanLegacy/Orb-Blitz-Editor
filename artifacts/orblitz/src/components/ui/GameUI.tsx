@@ -89,35 +89,33 @@ const IconHP      = () => <svg {..._s}><path d="M12 20C12 20 4 13 4 8a4 4 0 018 
 const IconSlow    = () => <svg {..._s}><circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="1.5"/><path d="M12 7V12L15 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 
 export function GameUI() {
-  const { 
-    health, 
-    maxHealth, 
-    score, 
-    hasShield, 
-    hasChargeBeam, 
-    chargeBeamTimer, 
-    gameTime,
-    hasDistort,
-    distortCooldown,
-    distortMaxCooldown,
-    distortActive,
-    distortTimer,
-    hasDoubleCoins,
-    doubleCoinsTimer,
-    hasRapidFire,
-    rapidFireTimer,
-    selectedWeapon,
-    setSelectedWeapon,
-    pauseGame,
-    activateDistortField,
-    gameMode,
-    arcadeLevel,
-    orbsDestroyedInLevel,
-    orbsRequiredForLevel,
-    boss,
-    teletransferCooldown,
-    teletransferMaxCooldown,
-  } = useMagicOrb();
+  const health                  = useMagicOrb(s => s.health);
+  const maxHealth               = useMagicOrb(s => s.maxHealth);
+  const score                   = useMagicOrb(s => s.score);
+  const hasShield               = useMagicOrb(s => s.hasShield);
+  const hasChargeBeam           = useMagicOrb(s => s.hasChargeBeam);
+  const chargeBeamTimer         = useMagicOrb(s => s.chargeBeamTimer);
+  const gameTime                = useMagicOrb(s => s.gameTime);
+  const hasDistort              = useMagicOrb(s => s.hasDistort);
+  const distortCooldown         = useMagicOrb(s => s.distortCooldown);
+  const distortMaxCooldown      = useMagicOrb(s => s.distortMaxCooldown);
+  const distortActive           = useMagicOrb(s => s.distortActive);
+  const distortTimer            = useMagicOrb(s => s.distortTimer);
+  const hasDoubleCoins          = useMagicOrb(s => s.hasDoubleCoins);
+  const doubleCoinsTimer        = useMagicOrb(s => s.doubleCoinsTimer);
+  const hasRapidFire            = useMagicOrb(s => s.hasRapidFire);
+  const rapidFireTimer          = useMagicOrb(s => s.rapidFireTimer);
+  const selectedWeapon          = useMagicOrb(s => s.selectedWeapon);
+  const setSelectedWeapon       = useMagicOrb(s => s.setSelectedWeapon);
+  const pauseGame               = useMagicOrb(s => s.pauseGame);
+  const activateDistortField    = useMagicOrb(s => s.activateDistortField);
+  const gameMode                = useMagicOrb(s => s.gameMode);
+  const arcadeLevel             = useMagicOrb(s => s.arcadeLevel);
+  const orbsDestroyedInLevel    = useMagicOrb(s => s.orbsDestroyedInLevel);
+  const orbsRequiredForLevel    = useMagicOrb(s => s.orbsRequiredForLevel);
+  const boss                    = useMagicOrb(s => s.boss);
+  const teletransferCooldown    = useMagicOrb(s => s.teletransferCooldown);
+  const teletransferMaxCooldown = useMagicOrb(s => s.teletransferMaxCooldown);
   const { toggleMute, isMuted, playPause, playMenuSelect } = useAudio();
   const { coins: shopStars, equippedWeapon, equippedDefenses, equippedMagiOrb } = useShop();
 

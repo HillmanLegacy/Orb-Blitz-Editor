@@ -1502,34 +1502,32 @@ function ImpactEffectMesh({ effect, skinColors }: {
 let impactIdCounter = 0;
 
 export function Projectiles() {
-  const { 
-    projectiles, 
-    updateProjectiles, 
-    darkOrbs, 
-    markOrbDestroying,
-    powerUps,
-    markPowerUpCollected,
-    removePowerUp,
-    hurtPowerUp,
-    activateShield,
-    activateChargeBeam,
-    heal,
-    activateDoubleCoins,
-    activateRapidFire,
-    addScore, 
-    addParticles,
-    impactEffects,
-    updateImpactEffects,
-    addImpactEffect,
-    phase,
-    boss,
-    damageBoss,
-    incrementOrbsDestroyed,
-    gameMode,
-    registerMissedShot,
-    incrementGauntletOrbs,
-    addStarFlowEvent,
-  } = useMagicOrb();
+  const projectiles            = useMagicOrb(s => s.projectiles);
+  const updateProjectiles      = useMagicOrb(s => s.updateProjectiles);
+  const darkOrbs               = useMagicOrb(s => s.darkOrbs);
+  const markOrbDestroying      = useMagicOrb(s => s.markOrbDestroying);
+  const powerUps               = useMagicOrb(s => s.powerUps);
+  const markPowerUpCollected   = useMagicOrb(s => s.markPowerUpCollected);
+  const removePowerUp          = useMagicOrb(s => s.removePowerUp);
+  const hurtPowerUp            = useMagicOrb(s => s.hurtPowerUp);
+  const activateShield         = useMagicOrb(s => s.activateShield);
+  const activateChargeBeam     = useMagicOrb(s => s.activateChargeBeam);
+  const heal                   = useMagicOrb(s => s.heal);
+  const activateDoubleCoins    = useMagicOrb(s => s.activateDoubleCoins);
+  const activateRapidFire      = useMagicOrb(s => s.activateRapidFire);
+  const addScore               = useMagicOrb(s => s.addScore);
+  const addParticles           = useMagicOrb(s => s.addParticles);
+  const impactEffects          = useMagicOrb(s => s.impactEffects);
+  const updateImpactEffects    = useMagicOrb(s => s.updateImpactEffects);
+  const addImpactEffect        = useMagicOrb(s => s.addImpactEffect);
+  const phase                  = useMagicOrb(s => s.phase);
+  const boss                   = useMagicOrb(s => s.boss);
+  const damageBoss             = useMagicOrb(s => s.damageBoss);
+  const incrementOrbsDestroyed = useMagicOrb(s => s.incrementOrbsDestroyed);
+  const gameMode               = useMagicOrb(s => s.gameMode);
+  const registerMissedShot     = useMagicOrb(s => s.registerMissedShot);
+  const incrementGauntletOrbs  = useMagicOrb(s => s.incrementGauntletOrbs);
+  const addStarFlowEvent       = useMagicOrb(s => s.addStarFlowEvent);
   
   const { playHit, playSuccess, playSparkleExplosion } = useAudio();
   const { equippedTrail, equippedSkin } = useShop();

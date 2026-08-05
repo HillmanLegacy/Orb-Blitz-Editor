@@ -1,4 +1,4 @@
-import { useRef, useMemo, useState } from "react";
+import { useRef, useMemo, useState, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
@@ -219,6 +219,10 @@ export function DefenseOrbs() {
     color: "#00E5FF", transparent: true, depthWrite: false,
     blending: THREE.AdditiveBlending,
   }));
+
+  // Dispose materials on unmount to prevent GPU VRAM leaks
+  useEffect(() => () => { goldMat.dispose(); blueMat.dispose(); }, [goldMat, blueMat]);
+
   const goldRef   = useRef<THREE.InstancedMesh>(null);
   const blueRef   = useRef<THREE.InstancedMesh>(null);
   const shardsRef = useRef<Shard[]>(Array.from({ length: N_SHARDS }, makeShard));

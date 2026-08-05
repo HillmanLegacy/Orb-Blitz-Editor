@@ -53,6 +53,9 @@ export function DistortField() {
   const [sparkMat]  = useState(() => new THREE.MeshBasicMaterial({ color: "#FFFFFF", transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
   const [pulseMat]  = useState(() => new THREE.MeshBasicMaterial({ color: "#FFFFFF", transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
 
+  // Dispose materials on unmount to prevent GPU VRAM leaks
+  useEffect(() => () => { fieldMat.dispose(); sparkMat.dispose(); pulseMat.dispose(); }, [fieldMat, sparkMat, pulseMat]);
+
   const fieldRef      = useRef<THREE.InstancedMesh>(null);
   const sparkRef      = useRef<THREE.InstancedMesh>(null);
   const pulseRef      = useRef<THREE.InstancedMesh>(null);

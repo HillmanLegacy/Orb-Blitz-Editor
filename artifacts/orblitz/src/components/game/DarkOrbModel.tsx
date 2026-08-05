@@ -261,6 +261,14 @@ export function DarkOrbModel({ frozen = false, opacity = 1 }: DarkOrbModelProps)
     [vortexColor],
   );
 
+  // Dispose geometries and materials on unmount / when deps change to prevent GPU VRAM leaks
+  useEffect(() => () => { sphereGeo.dispose(); instGeo.dispose(); }, [sphereGeo, instGeo]);
+  useEffect(() => () => tendrilMat.dispose(), [tendrilMat]);
+  useEffect(() => () => ring0Mat.dispose(),   [ring0Mat]);
+  useEffect(() => () => ring1Mat.dispose(),   [ring1Mat]);
+  useEffect(() => () => ring2Mat.dispose(),   [ring2Mat]);
+  useEffect(() => () => vortexMat.dispose(),  [vortexMat]);
+
   return (
     <>
       {/* FBX model body — dark purple-black, barely visible through gas */}

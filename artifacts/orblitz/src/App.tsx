@@ -20,7 +20,7 @@ import { ArcadeComplete } from "@/components/ui/ArcadeComplete";
 import { OrbSweepOverlay } from "@/components/ui/OrbSweepOverlay";
 
 function App() {
-  const { phase } = useMagicOrb();
+  const phase = useMagicOrb(s => s.phase);
   const { addCoins, shopOpen, inventoryOpen } = useShop();
   const { brightness } = useAudio();
   // Transition state — drives render gates for pause menu and menu screen
