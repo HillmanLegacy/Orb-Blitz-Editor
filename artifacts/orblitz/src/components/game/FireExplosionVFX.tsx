@@ -9,7 +9,7 @@
  *  0.50 – 1.00  Residual ember drift
  */
 
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
@@ -69,6 +69,22 @@ export function FireExplosionVFX({ progress, scale = 3.0 }: Props) {
   const miniOrbRef   = useRef<THREE.InstancedMesh>(null);
   const coronaRef    = useRef<THREE.InstancedMesh>(null);
   const flashRef     = useRef<THREE.Mesh>(null);
+
+  // ── GPU cleanup on unmount ─────────────────────────────────────────────────
+  // R3F does not reliably dispose InstancedMesh children on unmount.
+  // Explicit disposal prevents GPU buffer leaks across repeated boss kills.
+  useEffect(() => {
+    return () => {
+      for (const r of [mainRef, emberRef, miniOrbRef, coronaRef, flashRef]) {
+        const m = r.current;
+        if (!m) continue;
+        m.geometry?.dispose();
+        const mat = m.material;
+        if (Array.isArray(mat)) mat.forEach(x => x.dispose());
+        else (mat as THREE.Material)?.dispose();
+      }
+    };
+  }, []);
 
   // ── Static particle data ───────────────────────────────────────────────────
   const particles = useMemo<ParticleDatum[]>(() => {

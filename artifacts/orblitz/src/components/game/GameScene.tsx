@@ -245,6 +245,35 @@ function PostProcessing({ isMenu }: { isMenu: boolean }) {
   );
 }
 
+// ── Gameplay systems — only mounted outside menu/loading ──────────────────────
+// All heavy gameplay GPU allocations (InstancedMesh buffers, particle typed
+// arrays, physics maps, useFrame loops) live here.  Keeping them unmounted
+// during menu and loading phases reclaims the majority of idle GPU + RAM.
+// They mount at modeSelect so ShaderPrewarm can compile shaders before play.
+function GameplayScene() {
+  const phase = useMagicOrb(s => s.phase);
+  if (phase === "menu" || phase === "loading") return null;
+  return (
+    <>
+      <PlayerOrb />
+      <DarkOrbsClock />
+      <DarkOrbs />
+      <Boss />
+      <Projectiles />
+      <PowerUps />
+      <Particles />
+      <LaserBeams />
+      <DistortField />
+      <SubBlasterOrb />
+      <DefenseOrbs />
+      <MagiOrbEffects />
+      <ScreenEffects />
+      <StarFlowVFX />
+      <GameLogic />
+    </>
+  );
+}
+
 // ── Scene ─────────────────────────────────────────────────────────────────────
 export function GameScene() {
   return (
@@ -275,24 +304,12 @@ export function GameScene() {
         {/* Dynamic light tethered to the player */}
         <PlayerLight />
 
-        {/* Game scene objects */}
+        {/* Always-on background — visible during menu and gameplay */}
         <Background />
         <World1FireBackground />
-        <PlayerOrb />
-        <DarkOrbsClock />
-        <DarkOrbs />
-        <Boss />
-        <Projectiles />
-        <PowerUps />
-        <Particles />
-        <LaserBeams />
-        <DistortField />
-        <SubBlasterOrb />
-        <DefenseOrbs />
-        <MagiOrbEffects />
-        <ScreenEffects />
-        <StarFlowVFX />
-        <GameLogic />
+
+        {/* Gameplay systems — unmounted during menu/loading (see GameplayScene) */}
+        <GameplayScene />
 
         {/* Post-processing stack */}
         <PostProcessingWrapper />

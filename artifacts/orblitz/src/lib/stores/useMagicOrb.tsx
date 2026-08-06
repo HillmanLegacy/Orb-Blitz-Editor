@@ -1684,8 +1684,10 @@ export const useMagicOrb = create<MagicOrbState>()(
       darkOrbs: state.darkOrbs.map((orb) => ({ ...orb, frozen: false }))
     })),
     
-    addDarkOrb: (orb) => set((state) => ({ 
-      darkOrbs: [...state.darkOrbs, orb] 
+    addDarkOrb: (orb) => set((state) => ({
+      // Cap active orbs to prevent unbounded GPU instance-buffer growth.
+      // Each dark orb mounts a DarkOrbModel with 5 InstancedMeshes (174 slots).
+      darkOrbs: state.darkOrbs.length >= 20 ? state.darkOrbs : [...state.darkOrbs, orb],
     })),
     
     removeDarkOrb: (id) => set((state) => ({ 

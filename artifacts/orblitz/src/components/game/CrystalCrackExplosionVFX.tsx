@@ -14,7 +14,7 @@
  *  0.50 – 1.00  Residual cyan point light fades out
  */
 
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
@@ -166,6 +166,23 @@ export function CrystalCrackExplosionVFX({ progress, scale = 1 }: Props) {
     geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(CRACK_COUNT * 12), 3));
     return geo;
   }, []);
+
+  // ── GPU cleanup on unmount ─────────────────────────────────────────────────
+  // crackGeo is imperative (useMemo new BufferGeometry) — R3F never disposes it.
+  // All other geometries are JSX children but we dispose explicitly to be safe.
+  useEffect(() => {
+    return () => {
+      crackGeo.dispose();
+      for (const r of [bodyMeshRef, flashRef, chunksRef, dustRef, sparkRef, ring1Ref, ring2Ref, ring3Ref]) {
+        const m = r.current;
+        if (!m) continue;
+        m.geometry?.dispose();
+        const mat = m.material;
+        if (Array.isArray(mat)) mat.forEach(x => x.dispose());
+        else (mat as THREE.Material)?.dispose();
+      }
+    };
+  }, [crackGeo]);
 
   const crackData = useMemo<CrackDatum[]>(() => (
     Array.from({ length: CRACK_COUNT }, (_, i) => {

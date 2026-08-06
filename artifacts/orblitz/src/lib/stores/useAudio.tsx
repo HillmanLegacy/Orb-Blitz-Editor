@@ -108,12 +108,28 @@ function _playNextArcadeTrack(targetVol: number) {
   _fadeArcade(0, Math.min(1, targetVol), 1800);
 }
 
-// ── WAV sound effect player ───────────────────────────────────────────────────
+// ── WAV sound effect player — rotating pool ───────────────────────────────────
+// Pre-allocates POOL_SIZE Audio elements per sound path on first use, then
+// cycles through them.  Prevents `new Audio()` allocation on every trigger —
+// the single biggest source of abandoned HTMLAudioElement accumulation.
+const WAV_POOL_SIZE = 6;
+const _wavPools = new Map<string, { els: HTMLAudioElement[]; idx: number }>();
+
 function playWav(path: string, volume = 0.6) {
   try {
-    const a = new Audio(path);
-    a.volume = volume;
-    a.play().catch(() => {});
+    let pool = _wavPools.get(path);
+    if (!pool) {
+      pool = {
+        els: Array.from({ length: WAV_POOL_SIZE }, () => new Audio(path)),
+        idx: 0,
+      };
+      _wavPools.set(path, pool);
+    }
+    const el = pool.els[pool.idx % WAV_POOL_SIZE];
+    pool.idx++;
+    el.currentTime = 0;
+    el.volume = Math.max(0, Math.min(1, volume));
+    el.play().catch(() => {});
   } catch {}
 }
 
