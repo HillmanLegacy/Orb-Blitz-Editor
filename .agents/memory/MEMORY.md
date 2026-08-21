@@ -6,3 +6,4 @@
 - [Orblitz World1FireBackground](orblitz-world1-fire-bg.md) — fBm magma plane + 500 GPU embers + 300 surge sparks; InstancedBufferGeometry pattern; module-level surge API; single-coordinator useFrame.
 - [Orblitz DarkOrbs imperative refactor](orblitz-darkorbs-imperative.md) — orbPhysicsMap pattern; selective Zustand updates; memo comparator; DarkOrbsClock priority trick.
 - [Orblitz gameplay mount boundary](orblitz-gameplay-mount-boundary.md) — mount heavy gameplay systems only during loading/playing; keep menu rendering limited to lightweight background/postprocessing.
+- [Orblitz weapon input guard](orblitz-weapon-input-guard.md) — selectedWeapon is an action selector and defaults to normal; check shop equippedWeapon before raycasting or spawning.

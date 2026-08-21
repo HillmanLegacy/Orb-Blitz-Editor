@@ -123,6 +123,7 @@ export function GameLogic() {
   const hasOverchargedBlasterRef = useRef(hasOverchargedBlaster);
   const hasHomingBlasterRef = useRef(hasHomingBlaster);
   const hasSubBlasterRef = useRef(hasSubBlaster);
+  const equippedWeaponRef = useRef(equippedWeapon);
   const hasTeletransferRef = useRef(hasTeletransfer);
   const hasDistortDefenseRef = useRef(hasDistortDefense);
   const hasPulseShieldRef = useRef(hasPulseShield);
@@ -181,6 +182,7 @@ export function GameLogic() {
   hasOverchargedBlasterRef.current = hasOverchargedBlaster;
   hasHomingBlasterRef.current = hasHomingBlaster;
   hasSubBlasterRef.current = hasSubBlaster;
+  equippedWeaponRef.current = equippedWeapon;
   hasTeletransferRef.current = hasTeletransfer;
   hasDistortDefenseRef.current = hasDistortDefense;
   hasPulseShieldRef.current = hasPulseShield;
@@ -315,6 +317,9 @@ export function GameLogic() {
   
   const fireProjectile = useCallback((clientX: number, clientY: number) => {
     if (phaseRef.current !== "playing" || isDyingRef.current || isStaggeredRef.current) return;
+    // selectedWeapon defaults to "normal" even when the shop has no weapon.
+    // Check the actual equipment before doing raycasting or creating state.
+    if (equippedWeaponRef.current === "none") return;
     
     const canvas = gl.domElement;
     const rect = canvas.getBoundingClientRect();
@@ -635,7 +640,8 @@ export function GameLogic() {
     // Single batched timer tick — replaces ~17 individual set() calls
     useMagicOrb.getState().tickGameTimers(delta);
     
-    if (isPointerDown.current && !isDying && !isStaggered && selectedWeapon === "normal" && !hasSpiralBlasterRef.current) {
+    if (isPointerDown.current && equippedWeaponRef.current !== "none" &&
+        !isDying && !isStaggered && selectedWeapon === "normal" && !hasSpiralBlasterRef.current) {
       const now = performance.now();
       const elapsed = (now - lastFireTime.current) / 1000;
       if (elapsed >= getFireInterval()) {
