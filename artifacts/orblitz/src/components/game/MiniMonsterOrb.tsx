@@ -257,9 +257,11 @@ function MiniVoidSmoke({ radius, count = MINI_SMOKE_COUNT }: { radius: number; c
 interface MiniMonsterOrbProps {
   radius?: number;
   particleCount?: number;
+  showParticles?: boolean;
+  showLight?: boolean;
 }
 
-export function MiniMonsterOrb({ radius = 1, particleCount = MINI_PARTICLE_COUNT }: MiniMonsterOrbProps) {
+export function MiniMonsterOrb({ radius = 1, particleCount = MINI_PARTICLE_COUNT, showParticles = true, showLight = true }: MiniMonsterOrbProps) {
   const groupRef     = useRef<THREE.Group>(null);
   const materialsRef = useRef<THREE.MeshBasicMaterial[]>([]);
 
@@ -326,16 +328,16 @@ export function MiniMonsterOrb({ radius = 1, particleCount = MINI_PARTICLE_COUNT
 
   return (
     <group>
-      <pointLight color="#8800ff" intensity={1.8} distance={4.5} decay={2} />
+      {showLight && <pointLight color="#8800ff" intensity={1.8} distance={4.5} decay={2} />}
       {/* Ambient void smoke */}
-      <MiniVoidSmoke
+      {showParticles && <MiniVoidSmoke
         radius={radius}
         count={Math.max(1, Math.floor(particleCount * MINI_SMOKE_COUNT / MINI_PARTICLE_COUNT))}
-      />
+      />}
       {/* GLB texture body */}
       <group ref={groupRef} />
       {/* Swirling void particle cloud */}
-      <MiniVoidCloud radius={radius} count={particleCount} />
+      {showParticles && <MiniVoidCloud radius={radius} count={particleCount} />}
       {/* Fresnel purple rim */}
       <MiniFresnelRim radius={radius} />
     </group>

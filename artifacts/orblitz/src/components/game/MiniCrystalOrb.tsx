@@ -79,9 +79,10 @@ const fragmentShader = /* glsl */ `
 export interface MiniCrystalOrbProps {
   radius?: number;
   healthPercent?: number;
+  showLight?: boolean;
 }
 
-export function MiniCrystalOrb({ radius = 1 }: MiniCrystalOrbProps) {
+export function MiniCrystalOrb({ radius = 1, showLight = true }: MiniCrystalOrbProps) {
   const matRef   = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
 
@@ -97,7 +98,7 @@ export function MiniCrystalOrb({ radius = 1 }: MiniCrystalOrbProps) {
 
   return (
     <group ref={groupRef}>
-      <pointLight color="#88ddff" intensity={1.5} distance={4} decay={2} />
+      {showLight && <pointLight color="#88ddff" intensity={1.5} distance={4} decay={2} />}
       <mesh>
         <sphereGeometry args={[radius, 28, 20]} />
         <shaderMaterial

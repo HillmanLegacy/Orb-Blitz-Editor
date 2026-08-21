@@ -170,12 +170,16 @@ export interface MiniFireOrbProps {
   /** 0–1 health fraction — triggers anger flash below 0.3. Default 1. */
   healthPercent?: number;
   particleCount?: number;
+  showParticles?: boolean;
+  showLight?: boolean;
 }
 
 export function MiniFireOrb({
   radius        = 1,
   healthPercent = 1,
   particleCount = CORONA_COUNT,
+  showParticles = true,
+  showLight = true,
 }: MiniFireOrbProps) {
   const matRef   = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -200,6 +204,7 @@ export function MiniFireOrb({
 
   return (
     <group ref={groupRef}>
+      {showLight && <pointLight color="#ff6600" intensity={1.5} distance={4} decay={2} />}
       {/* Fire shader sphere — identical shader to FireBoss */}
       <mesh>
         <sphereGeometry args={[radius, 40, 32]} />
@@ -212,7 +217,7 @@ export function MiniFireOrb({
       </mesh>
 
       {/* Ember corona — same system as FireBoss, radius-scaled */}
-      <MiniFireCorona radius={radius} count={particleCount} />
+      {showParticles && <MiniFireCorona radius={radius} count={particleCount} />}
     </group>
   );
 }

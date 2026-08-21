@@ -159,9 +159,11 @@ export interface MiniStarOrbProps {
   radius?: number;
   healthPercent?: number;
   particleCount?: number;
+  showParticles?: boolean;
+  showLight?: boolean;
 }
 
-export function MiniStarOrb({ radius = 1, healthPercent = 1, particleCount = MINI_SPARKLE_COUNT }: MiniStarOrbProps) {
+export function MiniStarOrb({ radius = 1, healthPercent = 1, particleCount = MINI_SPARKLE_COUNT, showParticles = true, showLight = true }: MiniStarOrbProps) {
   const matRef   = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
 
@@ -177,7 +179,7 @@ export function MiniStarOrb({ radius = 1, healthPercent = 1, particleCount = MIN
 
   return (
     <group ref={groupRef}>
-      <pointLight color="#ffdd44" intensity={1.5} distance={4} decay={2} />
+      {showLight && <pointLight color="#ffdd44" intensity={1.5} distance={4} decay={2} />}
       <mesh>
         <sphereGeometry args={[radius, 28, 20]} />
         <shaderMaterial
@@ -187,7 +189,7 @@ export function MiniStarOrb({ radius = 1, healthPercent = 1, particleCount = MIN
           fragmentShader={fragmentShader}
         />
       </mesh>
-      <MiniSparkles radius={radius} count={particleCount} />
+      {showParticles && <MiniSparkles radius={radius} count={particleCount} />}
     </group>
   );
 }

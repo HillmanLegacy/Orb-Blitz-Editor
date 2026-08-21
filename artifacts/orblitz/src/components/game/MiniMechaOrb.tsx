@@ -11,9 +11,10 @@ import * as THREE            from "three";
 
 interface MiniMechaOrbProps {
   radius?: number;
+  showLight?: boolean;
 }
 
-export function MiniMechaOrb({ radius = 1 }: MiniMechaOrbProps) {
+export function MiniMechaOrb({ radius = 1, showLight = true }: MiniMechaOrbProps) {
   const groupRef     = useRef<THREE.Group>(null);
   const materialsRef = useRef<THREE.MeshBasicMaterial[]>([]);
 
@@ -80,7 +81,7 @@ export function MiniMechaOrb({ radius = 1 }: MiniMechaOrbProps) {
 
   return (
     <group>
-      <pointLight color="#44bbff" intensity={1.4} distance={4} decay={2} />
+      {showLight && <pointLight color="#44bbff" intensity={1.4} distance={4} decay={2} />}
       <group ref={groupRef} />
     </group>
   );

@@ -179,9 +179,11 @@ function MiniRainbowParticles({ radius, count = PARTICLE_COUNT }: { radius: numb
 export interface MiniRainbowOrbProps {
   radius?: number;
   particleCount?: number;
+  showParticles?: boolean;
+  showLight?: boolean;
 }
 
-export function MiniRainbowOrb({ radius = 1, particleCount = PARTICLE_COUNT }: MiniRainbowOrbProps) {
+export function MiniRainbowOrb({ radius = 1, particleCount = PARTICLE_COUNT, showParticles = true, showLight = true }: MiniRainbowOrbProps) {
   const matRef   = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
   const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
@@ -196,7 +198,7 @@ export function MiniRainbowOrb({ radius = 1, particleCount = PARTICLE_COUNT }: M
   return (
     <group ref={groupRef}>
       {/* Hue-cycling fill light */}
-      <pointLight ref={lightRef} intensity={2.5} distance={5} decay={2} />
+      {showLight && <pointLight ref={lightRef} intensity={2.5} distance={5} decay={2} />}
       {/* Spectral aura shell */}
       <mesh scale={radius * 1.08}>
         <sphereGeometry args={[1, 36, 36]} />
@@ -223,7 +225,7 @@ export function MiniRainbowOrb({ radius = 1, particleCount = PARTICLE_COUNT }: M
         />
       </mesh>
       {/* Rainbow light particles */}
-      <MiniRainbowParticles radius={radius} count={particleCount} />
+      {showParticles && <MiniRainbowParticles radius={radius} count={particleCount} />}
     </group>
   );
 }

@@ -173,9 +173,11 @@ function MiniElectricTendrils({ radius, count = TENDRIL_COUNT }: { radius: numbe
 export interface MiniPlasmaOrbProps {
   radius?: number;
   particleCount?: number;
+  showParticles?: boolean;
+  showLight?: boolean;
 }
 
-export function MiniPlasmaOrb({ radius = 1, particleCount = TENDRIL_COUNT }: MiniPlasmaOrbProps) {
+export function MiniPlasmaOrb({ radius = 1, particleCount = TENDRIL_COUNT, showParticles = true, showLight = true }: MiniPlasmaOrbProps) {
   const matRef   = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
   const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
@@ -188,8 +190,8 @@ export function MiniPlasmaOrb({ radius = 1, particleCount = TENDRIL_COUNT }: Min
   return (
     <group ref={groupRef}>
       {/* Electric-blue & violet fill lights */}
-      <pointLight color="#4488ff" intensity={3}   distance={6} decay={2} position={[0, 0,  2]} />
-      <pointLight color="#aa44ff" intensity={2.5} distance={6} decay={2} position={[0, 0, -2]} />
+      {showLight && <pointLight color="#4488ff" intensity={3} distance={6} decay={2} position={[0, 0, 2]} />}
+      {showLight && <pointLight color="#aa44ff" intensity={2.5} distance={6} decay={2} position={[0, 0, -2]} />}
       {/* Electric arc shell */}
       <mesh scale={radius * 1.06}>
         <sphereGeometry args={[1, 36, 36]} />
@@ -216,7 +218,7 @@ export function MiniPlasmaOrb({ radius = 1, particleCount = TENDRIL_COUNT }: Min
         />
       </mesh>
       {/* Lightning tendrils */}
-      <MiniElectricTendrils radius={radius} count={particleCount} />
+      {showParticles && <MiniElectricTendrils radius={radius} count={particleCount} />}
     </group>
   );
 }

@@ -177,9 +177,11 @@ function MiniToxicDroplets({ radius, count = DRIP_COUNT }: { radius: number; cou
 export interface MiniToxicOrbProps {
   radius?: number;
   particleCount?: number;
+  showParticles?: boolean;
+  showLight?: boolean;
 }
 
-export function MiniToxicOrb({ radius = 1, particleCount = DRIP_COUNT }: MiniToxicOrbProps) {
+export function MiniToxicOrb({ radius = 1, particleCount = DRIP_COUNT, showParticles = true, showLight = true }: MiniToxicOrbProps) {
   const matRef   = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
   const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
@@ -193,8 +195,8 @@ export function MiniToxicOrb({ radius = 1, particleCount = DRIP_COUNT }: MiniTox
   return (
     <group ref={groupRef}>
       {/* Green fill lights matching the boss */}
-      <pointLight color="#44ff22" intensity={3}   distance={6} decay={2} position={[0, 0,  2]} />
-      <pointLight color="#44ff22" intensity={2.5} distance={6} decay={2} position={[0, 0, -2]} />
+      {showLight && <pointLight color="#44ff22" intensity={3} distance={6} decay={2} position={[0, 0, 2]} />}
+      {showLight && <pointLight color="#44ff22" intensity={2.5} distance={6} decay={2} position={[0, 0, -2]} />}
       {/* Drip surface — same shader as the boss body */}
       <mesh scale={radius * 1.04}>
         <sphereGeometry args={[1, 36, 36]} />
@@ -220,7 +222,7 @@ export function MiniToxicOrb({ radius = 1, particleCount = DRIP_COUNT }: MiniTox
         />
       </mesh>
       {/* Falling toxic droplets */}
-      <MiniToxicDroplets radius={radius} count={particleCount} />
+      {showParticles && <MiniToxicDroplets radius={radius} count={particleCount} />}
     </group>
   );
 }

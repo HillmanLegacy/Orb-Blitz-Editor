@@ -176,9 +176,11 @@ function MiniDiamondShards({ radius, count = SHARD_COUNT }: { radius: number; co
 export interface MiniDiamondOrbProps {
   radius?: number;
   particleCount?: number;
+  showParticles?: boolean;
+  showLight?: boolean;
 }
 
-export function MiniDiamondOrb({ radius = 1, particleCount = SHARD_COUNT }: MiniDiamondOrbProps) {
+export function MiniDiamondOrb({ radius = 1, particleCount = SHARD_COUNT, showParticles = true, showLight = true }: MiniDiamondOrbProps) {
   const matRef   = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
   const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
@@ -191,8 +193,8 @@ export function MiniDiamondOrb({ radius = 1, particleCount = SHARD_COUNT }: Mini
   return (
     <group ref={groupRef}>
       {/* Icy fill lights */}
-      <pointLight color="#ffffff" intensity={3.5} distance={6} decay={2} position={[0, 0,  2]} />
-      <pointLight color="#aaddff" intensity={3}   distance={6} decay={2} position={[0, 0, -2]} />
+      {showLight && <pointLight color="#ffffff" intensity={3.5} distance={6} decay={2} position={[0, 0, 2]} />}
+      {showLight && <pointLight color="#aaddff" intensity={3} distance={6} decay={2} position={[0, 0, -2]} />}
       {/* Prismatic shimmer shell */}
       <mesh scale={radius * 1.07}>
         <sphereGeometry args={[1, 36, 36]} />
@@ -219,7 +221,7 @@ export function MiniDiamondOrb({ radius = 1, particleCount = SHARD_COUNT }: Mini
         />
       </mesh>
       {/* Orbiting mini shards */}
-      <MiniDiamondShards radius={radius} count={particleCount} />
+      {showParticles && <MiniDiamondShards radius={radius} count={particleCount} />}
     </group>
   );
 }
