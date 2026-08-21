@@ -2,6 +2,7 @@ import { useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
+import { getProjectileMotion } from "./ProjectilePhysics";
 
 interface TrailData {
   positions: Float32Array;
@@ -15,7 +16,7 @@ interface TrailData {
 const MAX_TRAIL_LENGTH = 12;
 
 export function ProjectileTrails() {
-  const { projectiles } = useMagicOrb();
+  const projectiles = useMagicOrb(s => s.projectiles);
   const trailsRef = useRef<Map<string, TrailData>>(new Map());
   const groupRef = useRef<THREE.Group>(null);
   // Pre-allocated Set — cleared and refilled each frame instead of reallocating
@@ -81,9 +82,10 @@ export function ProjectileTrails() {
       }
       
       const idx = trail.writeIndex * 3;
-      trail.positions[idx] = proj.position[0];
-      trail.positions[idx + 1] = proj.position[1];
-      trail.positions[idx + 2] = proj.position[2];
+       const motion = getProjectileMotion(proj);
+       trail.positions[idx] = motion.position[0];
+       trail.positions[idx + 1] = motion.position[1];
+       trail.positions[idx + 2] = motion.position[2];
       
       trail.writeIndex = (trail.writeIndex + 1) % MAX_TRAIL_LENGTH;
       if (trail.count < MAX_TRAIL_LENGTH) {

@@ -245,16 +245,18 @@ function PostProcessing({ isMenu }: { isMenu: boolean }) {
   );
 }
 
-// ── Gameplay systems — only mounted outside menu/loading ──────────────────────
+// ── Gameplay systems — mounted only during gameplay loading/playing ────────────
 // All heavy gameplay GPU allocations (InstancedMesh buffers, particle typed
 // arrays, physics maps, useFrame loops) live here.  Keeping them unmounted
-// during menu and loading phases reclaims the majority of idle GPU + RAM.
-// They mount at modeSelect so ShaderPrewarm can compile shaders before play.
+// outside loading and playing phases reclaims the majority of idle GPU + RAM.
+// They mount during the gameplay loading phase, then stay mounted through play.
 function GameplayScene() {
   const phase = useMagicOrb(s => s.phase);
-  if (phase === "menu" || phase === "loading") return null;
+  if (phase !== "loading" && phase !== "playing") return null;
   return (
     <>
+      <PlayerLight />
+      <World1FireBackground />
       <PlayerOrb />
       <DarkOrbsClock />
       <DarkOrbs />
@@ -301,14 +303,10 @@ export function GameScene() {
         <ShaderPrewarm />
         <CameraController />
 
-        {/* Dynamic light tethered to the player */}
-        <PlayerLight />
-
-        {/* Always-on background — visible during menu and gameplay */}
+        {/* Lightweight background — gameplay GPU systems mount below only when needed */}
         <Background />
-        <World1FireBackground />
 
-        {/* Gameplay systems — unmounted during menu/loading (see GameplayScene) */}
+        {/* Gameplay systems — unmounted outside gameplay loading/playing */}
         <GameplayScene />
 
         {/* Post-processing stack */}

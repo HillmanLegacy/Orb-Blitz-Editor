@@ -8,6 +8,7 @@ import { getSkinColors, PlayerGlow } from "./PlayerOrb";
 import { PlayerModel } from "./PlayerModel";
 import { PlayerParticles } from "./PlayerParticles";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
+import { getProjectileMotion, projectilePhysicsMap } from "./ProjectilePhysics";
 
 const TRAIL_CONFIGS: Record<TrailEffect, { colors: string[]; particleCount: number; spread: number; glow: boolean }> = {
   none:           { colors: [],                                                                             particleCount: 0,  spread: 0.00, glow: false },
@@ -182,6 +183,7 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: 
   skinColors: { core: string; glow: string; emissive: string; accent: string; particles: string[] };
   equippedSkin: string;
 }) {
+  const groupRef = useRef<THREE.Group>(null);
   const isCharged     = projectile.isCharged;
   const isRainbow     = (skinColors as any).isRainbow === true;
 
@@ -189,8 +191,13 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: 
   const projScale  = isCharged ? 0.216 : 0.144;
   const groupScale = 1;
 
+  useFrame(() => {
+    const motion = getProjectileMotion(projectile);
+    if (groupRef.current && motion) groupRef.current.position.set(...motion.position);
+  });
+
   return (
-    <group position={projectile.position}>
+    <group ref={groupRef} position={projectile.position}>
       {/* Point light matching player skin colour */}
       <pointLight
         color={skinColors.glow}
@@ -199,7 +206,7 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: 
         decay={2}
       />
       {/* Trail */}
-      {trailType !== "none" && trailType !== "particle_swarm" && spawnProgress >= 0.4 && (
+      {trailType !== "none" && trailType !== "particle_swarm" && (
         <MemoizedHDTrailEffect
           trailType={trailType}
           time={time}
@@ -553,6 +560,7 @@ const _sbCoreMat = new THREE.MeshBasicMaterial({
 });
 
 function SubblasterProjectileMesh({ projectile }: { projectile: Projectile }) {
+  const groupRef = useRef<THREE.Group>(null);
   const ribbonGeo = useMemo(() => {
     const geo  = new THREE.BufferGeometry();
     const N    = _SB_TRAIL_N;
@@ -623,8 +631,13 @@ function SubblasterProjectileMesh({ projectile }: { projectile: Projectile }) {
     ribbonGeo.computeBoundingSphere();
   });
 
+  useFrame(() => {
+    const motion = getProjectileMotion(projectile);
+    if (groupRef.current && motion) groupRef.current.position.set(...motion.position);
+  });
+
   return (
-    <group position={projectile.position}>
+    <group ref={groupRef} position={projectile.position}>
       <pointLight color="#22ddff" intensity={8} distance={2.5} decay={2} />
       <mesh geometry={ribbonGeo} material={ribbonMat} />
       <mesh geometry={_sbCoreGeo} material={_sbCoreMat} scale={0.075} />
@@ -665,6 +678,7 @@ function RapidBlasterProjectileMesh({
   projectile: Projectile;
   skinColors: { core: string; glow: string };
 }) {
+  const groupRef = useRef<THREE.Group>(null);
   const bornRef   = useRef<number | null>(null);
   const flashRef  = useRef<THREE.Mesh>(null);
 
@@ -766,8 +780,13 @@ function RapidBlasterProjectileMesh({
   const isCharged = projectile.isCharged;
   const projScale = isCharged ? 0.165 : 0.11; // 1.5× when charge beam active
 
+  useFrame(() => {
+    const motion = getProjectileMotion(projectile);
+    if (groupRef.current && motion) groupRef.current.position.set(...motion.position);
+  });
+
   return (
-    <group position={projectile.position}>
+    <group ref={groupRef} position={projectile.position}>
       {/* Point light — tight, matches skin colour */}
       <pointLight color={skinColors.glow}
         intensity={isCharged ? 12 : 8}
@@ -858,6 +877,7 @@ function HomingLockRing({
 }
 
 function HomingProjectileMesh({ projectile }: { projectile: Projectile }) {
+  const groupRef = useRef<THREE.Group>(null);
   const bornRef     = useRef<number | null>(null);
   const flashRef    = useRef<THREE.Mesh>(null);
   const flashMatRef = useRef(new THREE.MeshBasicMaterial({
@@ -955,8 +975,13 @@ function HomingProjectileMesh({ projectile }: { projectile: Projectile }) {
   const isCharged = projectile.isCharged;
   const projScale = isCharged ? 0.195 : 0.13; // 1.5× when charge beam active
 
+  useFrame(() => {
+    const motion = getProjectileMotion(projectile);
+    if (groupRef.current && motion) groupRef.current.position.set(...motion.position);
+  });
+
   return (
-    <group position={projectile.position}>
+    <group ref={groupRef} position={projectile.position}>
       <pointLight color="#22eedd"
         intensity={isCharged ? 12 : 8}
         distance={isCharged ? 6 : 4}
@@ -1034,6 +1059,7 @@ function ScatterMuzzleArc({
 }
 
 function ScattershotProjectileMesh({ projectile }: { projectile: Projectile }) {
+  const groupRef = useRef<THREE.Group>(null);
   const bornRef    = useRef<number | null>(null);
   const flashRef   = useRef<THREE.Mesh>(null);
   const flashMatRef = useRef(new THREE.MeshBasicMaterial({
@@ -1131,8 +1157,13 @@ function ScattershotProjectileMesh({ projectile }: { projectile: Projectile }) {
   const isCharged = projectile.isCharged;
   const projScale = isCharged ? 0.195 : 0.13; // 1.5× when charge beam active
 
+  useFrame(() => {
+    const motion = getProjectileMotion(projectile);
+    if (groupRef.current && motion) groupRef.current.position.set(...motion.position);
+  });
+
   return (
-    <group position={projectile.position}>
+    <group ref={groupRef} position={projectile.position}>
       <pointLight color="#ff9900"
         intensity={isCharged ? 12 : 8}
         distance={isCharged ? 6 : 4}
@@ -1165,6 +1196,7 @@ function OverchargedProjectileMesh({
 }: {
   projectile: Projectile; time: number; spawnScale: number; travelTimer?: number;
 }) {
+  const groupRef = useRef<THREE.Group>(null);
   // Charge-up urgency in the last 0.5 s before detonation
   const chargeT  = travelTimer !== undefined ? Math.max(0, (travelTimer - (OC_TRAVEL_TIME - 0.5)) / 0.5) : 0;
   const pulseHz  = 4.5 + chargeT * 18;           // 4.5 → 22.5 Hz as detonation nears
@@ -1213,7 +1245,10 @@ function OverchargedProjectileMesh({
   useFrame(() => {
     const proj = projRef.current;
     const ss   = spawnScaleRef.current;
-    const [wx, wy, wz] = proj.position;
+    const motion = projectilePhysicsMap.get(proj.id);
+    if (groupRef.current && motion) groupRef.current.position.set(...motion.position);
+    const visualScale = motion?.spawnScale ?? ss;
+    const [wx, wy, wz] = motion?.position ?? proj.position;
 
     // Push position into history (most-recent at index 0)
     const N   = _RIBBON_N;
@@ -1227,7 +1262,7 @@ function OverchargedProjectileMesh({
     if (len < 2) return;
 
     // Perpendicular to fire direction (for ribbon width)
-    const [fdx, fdy] = proj.direction;
+    const [fdx, fdy] = motion?.direction ?? proj.direction;
     const fl = Math.sqrt(fdx*fdx + fdy*fdy) || 1;
     const px_ = -fdy / fl, py_ = fdx / fl;
 
@@ -1238,12 +1273,12 @@ function OverchargedProjectileMesh({
 
     for (let i = 0; i < len; i++) {
       const t  = i / (len - 1);
-      const hw = _RIBBON_HW * (1 - t) * ss;
+      const hw = _RIBBON_HW * (1 - t) * visualScale;
       const rx = hist[i*3] - wx, ry = hist[i*3+1] - wy, rz = hist[i*3+2] - wz;
       const vi = i * 6;
       pA[vi]   = rx + px_*hw; pA[vi+1] = ry + py_*hw; pA[vi+2] = rz;
       pA[vi+3] = rx - px_*hw; pA[vi+4] = ry - py_*hw; pA[vi+5] = rz;
-      const alpha = (1 - t) * 0.65 * Math.min(ss * 2, 1);
+      const alpha = (1 - t) * 0.65 * Math.min(visualScale * 2, 1);
       const ci = i * 8;
       cA[ci]   = 0.2; cA[ci+1] = 0.55; cA[ci+2] = 1.0; cA[ci+3] = alpha;
       cA[ci+4] = 0.2; cA[ci+5] = 0.55; cA[ci+6] = 1.0; cA[ci+7] = alpha;
@@ -1255,7 +1290,7 @@ function OverchargedProjectileMesh({
   });
 
   return (
-    <group position={projectile.position}>
+    <group ref={groupRef} position={projectile.position}>
       {/* Trailing ribbon rendered behind the spawn-scale group */}
       <mesh geometry={ribbonGeo} material={ribbonMat} />
       {/* Scale-in group: everything below grows from 0.05 → 1.0 on spawn */}
@@ -1283,6 +1318,7 @@ function SpiralBundleMesh({
   projectile: Projectile;
   skinColors: { core: string; glow: string };
 }) {
+  const groupRef = useRef<THREE.Group>(null);
   const projRef   = useRef(projectile);
   projRef.current = projectile;
 
@@ -1326,10 +1362,12 @@ function SpiralBundleMesh({
 
   useFrame((_, delta) => {
     const proj = projRef.current;
-    const [cx, cy, cz] = proj.position;
-    const [fdx, fdy]   = proj.direction;
-    const phase        = proj.spiralAngle ?? 0;
-    const alive        = proj.subSphereAlive ?? [true, true, true];
+    const motion = projectilePhysicsMap.get(proj.id);
+    if (groupRef.current && motion) groupRef.current.position.set(...motion.position);
+    const [cx, cy, cz] = motion?.position ?? proj.position;
+    const [fdx, fdy]   = motion?.direction ?? proj.direction;
+    const phase        = motion?.spiralAngle ?? proj.spiralAngle ?? 0;
+    const alive        = motion?.subSphereAlive ?? proj.subSphereAlive ?? [true, true, true];
 
     // Detect newly-dead sub-spheres → start flash timer
     for (let si = 0; si < 3; si++) {
@@ -1407,7 +1445,7 @@ function SpiralBundleMesh({
   });
 
   return (
-    <group position={projectile.position}>
+    <group ref={groupRef} position={projectile.position}>
       {/* Central point light */}
       <pointLight color="#aaddff" intensity={8} distance={7} decay={2} />
 
@@ -1564,6 +1602,10 @@ export function Projectiles() {
     id: string; pos: [number,number,number]; dirX: number; dirY: number;
   }>>([]);
   const scatterArcTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  useEffect(() => () => {
+    projectilePhysicsMap.clear();
+  }, []);
   
   const skinColors = useMemo(() => getSkinColors(equippedSkin, 3), [equippedSkin]);
   const projectileColor = skinColors.projectile;
@@ -1653,7 +1695,13 @@ export function Projectiles() {
     
     if (projectiles.length === 0) return;
     
-    const updatedProjectiles: Projectile[] = [];
+    const removedProjectileIds = new Set<string>();
+    let structuralChanged = false;
+    const activeProjectileIds = new Set(projectiles.map(proj => proj.id));
+    for (const proj of projectiles) getProjectileMotion(proj);
+    for (const id of projectilePhysicsMap.keys()) {
+      if (!activeProjectileIds.has(id)) projectilePhysicsMap.delete(id);
+    }
     hitOrbsThisFrame.current.clear();
     hitPowerUpsThisFrame.current.clear();
     spiralBossHit.current.clear();
@@ -1667,14 +1715,15 @@ export function Projectiles() {
     }
     
     for (const proj of projectiles) {
+      const motion = getProjectileMotion(proj);
       if (proj.volleyId && !volleyProjectileCounts.current.has(proj.volleyId)) {
         const volleySize = projectiles.filter(p => p.volleyId === proj.volleyId).length;
         volleyProjectileCounts.current.set(proj.volleyId, volleySize);
         volleyRemainingCounts.current.set(proj.volleyId, volleySize);
       }
       
-      let [px, py, pz] = proj.position;
-      let [dx, dy, dz] = proj.direction;
+      let [px, py, pz] = motion.position;
+      let [dx, dy, dz] = motion.direction;
       
       if (proj.homing) {
         const homingBoundary = 12;
@@ -1783,6 +1832,8 @@ export function Projectiles() {
         }
         
         projectileOrbHits.current.delete(proj.id);
+        removedProjectileIds.add(proj.id);
+        structuralChanged = true;
         continue;
       }
       
@@ -1892,7 +1943,10 @@ export function Projectiles() {
           }
         }
 
-        proj.subSphereAlive = _subAlive;
+        if (motion.subSphereAlive !== _subAlive) {
+          motion.subSphereAlive = [..._subAlive] as [boolean, boolean, boolean];
+          structuralChanged = true;
+        }
         if (!_subAlive.some(Boolean)) hitSomething = true;
       }
 
@@ -1905,7 +1959,7 @@ export function Projectiles() {
         if (dist < bossHitRadius && !spiralBossHit.current.has(proj.id) &&
             (proj.type !== "overcharged" || (proj.spawnScale ?? 1) >= 0.8)) {
           const isOvercharged = proj.type === "overcharged";
-          const isSpiralPiercing = proj.type === "spiral" && proj.hitCount !== undefined && proj.hitCount > 1;
+           const isSpiralPiercing = proj.hitCount !== undefined && proj.hitCount > 1;
 
           if (isOvercharged) {
             // Overcharged passes through the boss — track so it only hits once per pass
@@ -2051,31 +2105,42 @@ export function Projectiles() {
       }
       
       if (!hitSomething) {
-        updatedProjectiles.push({ 
-          ...proj, 
-          position: [px, py, pz], 
-          direction: [dx, dy, dz],
-          hitCount: proj.hitCount,
-          spiralAngle: newSpiralAngle,
-          spawnScale: newSpawnScale,
-          spawnScaleTimer: newSpawnScaleTimer,
-          subSphereAlive: proj.subSphereAlive,
-          travelTimer: newTravelTimer,
-        });
+        motion.position = [px, py, pz];
+        motion.direction = [dx, dy, dz];
+        motion.spiralAngle = newSpiralAngle;
+        motion.spawnScale = newSpawnScale;
+        motion.spawnScaleTimer = newSpawnScaleTimer;
+        motion.travelTimer = newTravelTimer;
       } else {
         projectileOrbHits.current.delete(proj.id);
+        removedProjectileIds.add(proj.id);
+        structuralChanged = true;
       }
     }
     
     // Iterate the Map directly — avoids Array.from() allocation; safe to delete
     // the current key during Map iteration per the ECMAScript spec.
     for (const projId of projectileOrbHits.current.keys()) {
-      if (!updatedProjectiles.find(p => p.id === projId)) {
-        projectileOrbHits.current.delete(projId);
-      }
+      if (removedProjectileIds.has(projId)) projectileOrbHits.current.delete(projId);
     }
     
-    updateProjectiles(updatedProjectiles);
+    if (structuralChanged) {
+      updateProjectiles(projectiles
+        .filter(proj => !removedProjectileIds.has(proj.id))
+        .map(proj => {
+          const motion = getProjectileMotion(proj);
+          return {
+            ...proj,
+            position: [...motion.position] as [number, number, number],
+            direction: [...motion.direction] as [number, number, number],
+            spiralAngle: motion.spiralAngle,
+            spawnScale: motion.spawnScale,
+            spawnScaleTimer: motion.spawnScaleTimer,
+            subSphereAlive: motion.subSphereAlive,
+            travelTimer: motion.travelTimer,
+          };
+        }));
+    }
   });
   
   return (
