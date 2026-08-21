@@ -124,12 +124,12 @@ function makeDrop(radius: number): Drop {
   };
 }
 
-function MiniToxicDroplets({ radius }: { radius: number }) {
+function MiniToxicDroplets({ radius, count = DRIP_COUNT }: { radius: number; count?: number }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy   = useMemo(() => new THREE.Object3D(), []);
   const colRef  = useRef(new THREE.Color());
   const drops   = useRef<Drop[]>(
-    Array.from({ length: DRIP_COUNT }, () => makeDrop(radius))
+    Array.from({ length: count }, () => makeDrop(radius))
   );
 
   useFrame((_, delta) => {
@@ -165,7 +165,7 @@ function MiniToxicDroplets({ radius }: { radius: number }) {
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, DRIP_COUNT]}>
+    <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
       <sphereGeometry args={[1, 6, 6]} />
       <meshBasicMaterial transparent depthWrite={false} blending={THREE.NormalBlending} />
     </instancedMesh>
@@ -176,9 +176,10 @@ function MiniToxicDroplets({ radius }: { radius: number }) {
 
 export interface MiniToxicOrbProps {
   radius?: number;
+  particleCount?: number;
 }
 
-export function MiniToxicOrb({ radius = 1 }: MiniToxicOrbProps) {
+export function MiniToxicOrb({ radius = 1, particleCount = DRIP_COUNT }: MiniToxicOrbProps) {
   const matRef   = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
   const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
@@ -219,7 +220,7 @@ export function MiniToxicOrb({ radius = 1 }: MiniToxicOrbProps) {
         />
       </mesh>
       {/* Falling toxic droplets */}
-      <MiniToxicDroplets radius={radius} />
+      <MiniToxicDroplets radius={radius} count={particleCount} />
     </group>
   );
 }

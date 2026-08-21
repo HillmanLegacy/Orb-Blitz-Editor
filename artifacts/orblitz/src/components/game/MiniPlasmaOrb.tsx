@@ -102,15 +102,15 @@ interface Tendril {
   hue: number;
 }
 
-function MiniElectricTendrils({ radius }: { radius: number }) {
+function MiniElectricTendrils({ radius, count = TENDRIL_COUNT }: { radius: number; count?: number }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy   = useMemo(() => new THREE.Object3D(), []);
   const up      = useMemo(() => new THREE.Vector3(0, 1, 0), []);
   const colRef  = useRef(new THREE.Color());
 
   const tendrils = useMemo<Tendril[]>(() =>
-    Array.from({ length: TENDRIL_COUNT }, (_, i) => {
-      const theta = (i / TENDRIL_COUNT) * Math.PI * 2 + Math.random() * 0.4;
+    Array.from({ length: count }, (_, i) => {
+      const theta = (i / count) * Math.PI * 2 + Math.random() * 0.4;
       const phi   = Math.acos(2 * Math.random() - 1);
       return {
         dir: new THREE.Vector3(
@@ -157,7 +157,7 @@ function MiniElectricTendrils({ radius }: { radius: number }) {
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, TENDRIL_COUNT]}>
+    <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
       <cylinderGeometry args={[1, 0.2, 1, 4]} />
       <meshBasicMaterial
         transparent
@@ -172,9 +172,10 @@ function MiniElectricTendrils({ radius }: { radius: number }) {
 
 export interface MiniPlasmaOrbProps {
   radius?: number;
+  particleCount?: number;
 }
 
-export function MiniPlasmaOrb({ radius = 1 }: MiniPlasmaOrbProps) {
+export function MiniPlasmaOrb({ radius = 1, particleCount = TENDRIL_COUNT }: MiniPlasmaOrbProps) {
   const matRef   = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
   const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
@@ -215,7 +216,7 @@ export function MiniPlasmaOrb({ radius = 1 }: MiniPlasmaOrbProps) {
         />
       </mesh>
       {/* Lightning tendrils */}
-      <MiniElectricTendrils radius={radius} />
+      <MiniElectricTendrils radius={radius} count={particleCount} />
     </group>
   );
 }

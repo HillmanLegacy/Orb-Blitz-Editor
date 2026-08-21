@@ -120,12 +120,12 @@ function makeParticle(index: number, total: number, radius: number): Particle {
   };
 }
 
-function MiniRainbowParticles({ radius }: { radius: number }) {
+function MiniRainbowParticles({ radius, count = PARTICLE_COUNT }: { radius: number; count?: number }) {
   const meshRef   = useRef<THREE.InstancedMesh>(null);
   const dummy     = useMemo(() => new THREE.Object3D(), []);
   const colRef    = useRef(new THREE.Color());
   const particles = useRef<Particle[]>(
-    Array.from({ length: PARTICLE_COUNT }, (_, i) => makeParticle(i, PARTICLE_COUNT, radius))
+    Array.from({ length: count }, (_, i) => makeParticle(i, count, radius))
   );
 
   useFrame((state, delta) => {
@@ -135,7 +135,7 @@ function MiniRainbowParticles({ radius }: { radius: number }) {
     particles.current.forEach((p, i) => {
       p.life -= delta;
       if (p.life <= 0) {
-        const fresh = makeParticle(i, PARTICLE_COUNT, radius);
+        const fresh = makeParticle(i, count, radius);
         fresh.life  = fresh.maxLife;
         particles.current[i] = fresh;
         return;
@@ -167,7 +167,7 @@ function MiniRainbowParticles({ radius }: { radius: number }) {
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, PARTICLE_COUNT]}>
+    <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
       <sphereGeometry args={[1, 5, 5]} />
       <meshBasicMaterial transparent depthWrite={false} blending={THREE.AdditiveBlending} />
     </instancedMesh>
@@ -178,9 +178,10 @@ function MiniRainbowParticles({ radius }: { radius: number }) {
 
 export interface MiniRainbowOrbProps {
   radius?: number;
+  particleCount?: number;
 }
 
-export function MiniRainbowOrb({ radius = 1 }: MiniRainbowOrbProps) {
+export function MiniRainbowOrb({ radius = 1, particleCount = PARTICLE_COUNT }: MiniRainbowOrbProps) {
   const matRef   = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
   const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
@@ -222,7 +223,7 @@ export function MiniRainbowOrb({ radius = 1 }: MiniRainbowOrbProps) {
         />
       </mesh>
       {/* Rainbow light particles */}
-      <MiniRainbowParticles radius={radius} />
+      <MiniRainbowParticles radius={radius} count={particleCount} />
     </group>
   );
 }

@@ -106,16 +106,16 @@ interface Shard {
 
 function fract(x: number) { return x - Math.floor(x); }
 
-function MiniDiamondShards({ radius }: { radius: number }) {
+function MiniDiamondShards({ radius, count = SHARD_COUNT }: { radius: number; count?: number }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy   = useMemo(() => new THREE.Object3D(), []);
   const colRef  = useRef(new THREE.Color());
 
   const shards = useMemo<Shard[]>(() =>
-    Array.from({ length: SHARD_COUNT }, (_, i) => ({
+    Array.from({ length: count }, (_, i) => ({
       orbitRadius: radius * (1.18 + Math.random() * 0.4),
       orbitSpeed:  0.8 + Math.random() * 1.4,
-      orbitPhase:  (i / SHARD_COUNT) * Math.PI * 2,
+      orbitPhase:  (i / count) * Math.PI * 2,
       tiltAxis:    new THREE.Vector3(
         Math.random() - 0.5,
         Math.random() - 0.5,
@@ -157,7 +157,7 @@ function MiniDiamondShards({ radius }: { radius: number }) {
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, SHARD_COUNT]}>
+    <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
       <octahedronGeometry args={[1, 0]} />
       <meshStandardMaterial
         transparent
@@ -175,9 +175,10 @@ function MiniDiamondShards({ radius }: { radius: number }) {
 
 export interface MiniDiamondOrbProps {
   radius?: number;
+  particleCount?: number;
 }
 
-export function MiniDiamondOrb({ radius = 1 }: MiniDiamondOrbProps) {
+export function MiniDiamondOrb({ radius = 1, particleCount = SHARD_COUNT }: MiniDiamondOrbProps) {
   const matRef   = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
   const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
@@ -218,7 +219,7 @@ export function MiniDiamondOrb({ radius = 1 }: MiniDiamondOrbProps) {
         />
       </mesh>
       {/* Orbiting mini shards */}
-      <MiniDiamondShards radius={radius} />
+      <MiniDiamondShards radius={radius} count={particleCount} />
     </group>
   );
 }

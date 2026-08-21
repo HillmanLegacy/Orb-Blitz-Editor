@@ -92,9 +92,9 @@ const fragmentShader = /* glsl */ `
 
 // ── Fire corona — same logic as FireBoss, scaled to radius ───────────────────
 
-const CORONA_COUNT = 40; // half of boss count — right density for a mini orb
+const CORONA_COUNT = 40; // default boss/projectile corona density
 
-function MiniFireCorona({ radius }: { radius: number }) {
+function MiniFireCorona({ radius, count = CORONA_COUNT }: { radius: number; count?: number }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy   = useMemo(() => new THREE.Object3D(), []);
 
@@ -105,8 +105,8 @@ function MiniFireCorona({ radius }: { radius: number }) {
   }
 
   const embers = useRef<Ember[]>(
-    Array.from({ length: CORONA_COUNT }, (_, i) => ({
-      angle:     (i / CORONA_COUNT) * Math.PI * 2,
+    Array.from({ length: count }, (_, i) => ({
+      angle:     (i / count) * Math.PI * 2,
       elevation: (Math.random() - 0.5) * Math.PI * 0.6,
       dist:      radius * (1.05 + Math.random() * 0.35),
       speed:     0.4 + Math.random() * 0.8,
@@ -150,7 +150,7 @@ function MiniFireCorona({ radius }: { radius: number }) {
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, CORONA_COUNT]}>
+    <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
       <sphereGeometry args={[1, 4, 4]} />
       <meshBasicMaterial
         transparent
@@ -169,11 +169,13 @@ export interface MiniFireOrbProps {
   radius?: number;
   /** 0–1 health fraction — triggers anger flash below 0.3. Default 1. */
   healthPercent?: number;
+  particleCount?: number;
 }
 
 export function MiniFireOrb({
   radius        = 1,
   healthPercent = 1,
+  particleCount = CORONA_COUNT,
 }: MiniFireOrbProps) {
   const matRef   = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -210,7 +212,7 @@ export function MiniFireOrb({
       </mesh>
 
       {/* Ember corona — same system as FireBoss, radius-scaled */}
-      <MiniFireCorona radius={radius} />
+      <MiniFireCorona radius={radius} count={particleCount} />
     </group>
   );
 }

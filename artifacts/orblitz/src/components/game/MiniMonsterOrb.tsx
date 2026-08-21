@@ -107,13 +107,13 @@ interface VoidParticle {
   size: number; colorT: number;
 }
 
-function MiniVoidCloud({ radius }: { radius: number }) {
+function MiniVoidCloud({ radius, count = MINI_PARTICLE_COUNT }: { radius: number; count?: number }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy   = useMemo(() => new THREE.Object3D(), []);
   const colBuf  = useRef(new THREE.Color());
 
   const particles = useRef<VoidParticle[]>(
-    Array.from({ length: MINI_PARTICLE_COUNT }, () => ({
+    Array.from({ length: count }, () => ({
       theta:   Math.random() * Math.PI * 2,
       phi:     Math.acos(2 * Math.random() - 1),
       r:       0.92 + Math.random() * 0.18,
@@ -176,7 +176,7 @@ function MiniVoidCloud({ radius }: { radius: number }) {
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, MINI_PARTICLE_COUNT]}>
+    <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
       <sphereGeometry args={[1, 4, 4]} />
       <meshBasicMaterial transparent opacity={0.88} blending={THREE.AdditiveBlending} depthWrite={false} />
     </instancedMesh>
@@ -192,13 +192,13 @@ interface SmokeParticle {
   life: number; maxLife: number; size: number;
 }
 
-function MiniVoidSmoke({ radius }: { radius: number }) {
+function MiniVoidSmoke({ radius, count = MINI_SMOKE_COUNT }: { radius: number; count?: number }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy   = useMemo(() => new THREE.Object3D(), []);
   const colBuf  = useRef(new THREE.Color());
 
   const smoke = useRef<SmokeParticle[]>(
-    Array.from({ length: MINI_SMOKE_COUNT }, () => ({
+    Array.from({ length: count }, () => ({
       theta:   Math.random() * Math.PI * 2,
       phi:     Math.acos(2 * Math.random() - 1),
       r:       1.0 + Math.random() * 0.3,
@@ -246,7 +246,7 @@ function MiniVoidSmoke({ radius }: { radius: number }) {
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, MINI_SMOKE_COUNT]}>
+    <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
       <sphereGeometry args={[1, 5, 5]} />
       <meshBasicMaterial transparent opacity={0.45} blending={THREE.AdditiveBlending} depthWrite={false} />
     </instancedMesh>
@@ -256,9 +256,10 @@ function MiniVoidSmoke({ radius }: { radius: number }) {
 // ── Main component ────────────────────────────────────────────────────────────
 interface MiniMonsterOrbProps {
   radius?: number;
+  particleCount?: number;
 }
 
-export function MiniMonsterOrb({ radius = 1 }: MiniMonsterOrbProps) {
+export function MiniMonsterOrb({ radius = 1, particleCount = MINI_PARTICLE_COUNT }: MiniMonsterOrbProps) {
   const groupRef     = useRef<THREE.Group>(null);
   const materialsRef = useRef<THREE.MeshBasicMaterial[]>([]);
 
@@ -327,11 +328,14 @@ export function MiniMonsterOrb({ radius = 1 }: MiniMonsterOrbProps) {
     <group>
       <pointLight color="#8800ff" intensity={1.8} distance={4.5} decay={2} />
       {/* Ambient void smoke */}
-      <MiniVoidSmoke radius={radius} />
+      <MiniVoidSmoke
+        radius={radius}
+        count={Math.max(1, Math.floor(particleCount * MINI_SMOKE_COUNT / MINI_PARTICLE_COUNT))}
+      />
       {/* GLB texture body */}
       <group ref={groupRef} />
       {/* Swirling void particle cloud */}
-      <MiniVoidCloud radius={radius} />
+      <MiniVoidCloud radius={radius} count={particleCount} />
       {/* Fresnel purple rim */}
       <MiniFresnelRim radius={radius} />
     </group>

@@ -7,3 +7,4 @@
 - [Orblitz DarkOrbs imperative refactor](orblitz-darkorbs-imperative.md) — orbPhysicsMap pattern; selective Zustand updates; memo comparator; DarkOrbsClock priority trick.
 - [Orblitz gameplay mount boundary](orblitz-gameplay-mount-boundary.md) — mount heavy gameplay systems only during loading/playing; keep menu rendering limited to lightweight background/postprocessing.
 - [Orblitz weapon input guard](orblitz-weapon-input-guard.md) — selectedWeapon is an action selector and defaults to normal; check shop equippedWeapon before raycasting or spawning.
+- [Orblitz enemy particle budgets](orblitz-enemy-particle-budgets.md) — shared mini-orb visuals need optional particle counts so standard enemies can be reduced without changing boss defaults.

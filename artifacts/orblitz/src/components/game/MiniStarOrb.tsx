@@ -87,14 +87,14 @@ interface Sparkle {
   orbitSpeed: number;
 }
 
-function MiniSparkles({ radius }: { radius: number }) {
+function MiniSparkles({ radius, count = MINI_SPARKLE_COUNT }: { radius: number; count?: number }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy   = useMemo(() => new THREE.Object3D(), []);
   const colRef  = useRef(new THREE.Color());
 
   const sparkles = useRef<Sparkle[]>(
-    Array.from({ length: MINI_SPARKLE_COUNT }, (_, i) => ({
-      angle:      (i / MINI_SPARKLE_COUNT) * Math.PI * 2,
+    Array.from({ length: count }, (_, i) => ({
+      angle:      (i / count) * Math.PI * 2,
       elevation:  (Math.random() - 0.5) * Math.PI,
       dist:       radius * (0.9 + Math.random() * 0.55),
       life:       Math.random(),
@@ -141,7 +141,7 @@ function MiniSparkles({ radius }: { radius: number }) {
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, MINI_SPARKLE_COUNT]}>
+    <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
       <octahedronGeometry args={[1, 0]} />
       <meshBasicMaterial
         transparent
@@ -158,9 +158,10 @@ export interface MiniStarOrbProps {
   /** Local-space sphere radius. Parent group scale drives world size. */
   radius?: number;
   healthPercent?: number;
+  particleCount?: number;
 }
 
-export function MiniStarOrb({ radius = 1, healthPercent = 1 }: MiniStarOrbProps) {
+export function MiniStarOrb({ radius = 1, healthPercent = 1, particleCount = MINI_SPARKLE_COUNT }: MiniStarOrbProps) {
   const matRef   = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
 
@@ -186,7 +187,7 @@ export function MiniStarOrb({ radius = 1, healthPercent = 1 }: MiniStarOrbProps)
           fragmentShader={fragmentShader}
         />
       </mesh>
-      <MiniSparkles radius={radius} />
+      <MiniSparkles radius={radius} count={particleCount} />
     </group>
   );
 }
