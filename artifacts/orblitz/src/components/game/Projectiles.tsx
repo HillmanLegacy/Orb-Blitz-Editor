@@ -591,7 +591,9 @@ function SubblasterProjectileMesh({ projectile }: { projectile: Projectile }) {
 
   useFrame(() => {
     const proj   = projRef.current;
-    const [wx, wy, wz] = proj.position;
+    const motion = getProjectileMotion(proj);
+    if (groupRef.current) groupRef.current.position.set(...motion.position);
+    const [wx, wy, wz] = motion.position;
     const N   = _SB_TRAIL_N;
     const len = Math.min(histLenRef.current + 1, N);
     histLenRef.current = len;
@@ -602,7 +604,7 @@ function SubblasterProjectileMesh({ projectile }: { projectile: Projectile }) {
     hist[0] = wx; hist[1] = wy; hist[2] = wz;
     if (len < 2) return;
 
-    const [fdx, fdy] = proj.direction;
+    const [fdx, fdy] = motion.direction;
     const fl  = Math.sqrt(fdx*fdx + fdy*fdy) || 1;
     const px_ = -fdy / fl, py_ = fdx / fl;
 
@@ -717,7 +719,9 @@ function RapidBlasterProjectileMesh({
 
   useFrame(({ clock }) => {
     const proj = projRef.current;
-    const [wx, wy, wz] = proj.position;
+    const motion = getProjectileMotion(proj);
+    if (groupRef.current) groupRef.current.position.set(...motion.position);
+    const [wx, wy, wz] = motion.position;
 
     // Record born time once on first frame
     if (bornRef.current === null) bornRef.current = clock.getElapsedTime();
@@ -743,7 +747,7 @@ function RapidBlasterProjectileMesh({
     if (len < 2) return;
 
     // Perpendicular to fire direction (ribbon width axis)
-    const [fdx, fdy] = proj.direction;
+    const [fdx, fdy] = motion.direction;
     const fl  = Math.sqrt(fdx*fdx + fdy*fdy) || 1;
     const px_ = -fdy / fl, py_ = fdx / fl;
 
@@ -917,7 +921,9 @@ function HomingProjectileMesh({ projectile }: { projectile: Projectile }) {
 
   useFrame(({ clock }) => {
     const proj   = projRef.current;
-    const [wx, wy, wz] = proj.position;
+    const motion = getProjectileMotion(proj);
+    if (groupRef.current) groupRef.current.position.set(...motion.position);
+    const [wx, wy, wz] = motion.position;
     if (bornRef.current === null) bornRef.current = clock.getElapsedTime();
     const age = clock.getElapsedTime() - bornRef.current;
 
@@ -940,7 +946,7 @@ function HomingProjectileMesh({ projectile }: { projectile: Projectile }) {
     hist[0] = wx; hist[1] = wy; hist[2] = wz;
     if (len < 2) return;
 
-    const [fdx, fdy] = proj.direction;
+    const [fdx, fdy] = motion.direction;
     const fl  = Math.sqrt(fdx*fdx + fdy*fdy) || 1;
     const px_ = -fdy / fl, py_ = fdx / fl; // perpendicular
 
@@ -1099,7 +1105,9 @@ function ScattershotProjectileMesh({ projectile }: { projectile: Projectile }) {
 
   useFrame(({ clock }, delta) => {
     const proj   = projRef.current;
-    const [wx, wy, wz] = proj.position;
+    const motion = getProjectileMotion(proj);
+    if (groupRef.current) groupRef.current.position.set(...motion.position);
+    const [wx, wy, wz] = motion.position;
     if (bornRef.current === null) bornRef.current = clock.getElapsedTime();
 
     // Muzzle flash (0.07 s)
@@ -1122,7 +1130,7 @@ function ScattershotProjectileMesh({ projectile }: { projectile: Projectile }) {
     hist[0] = wx; hist[1] = wy; hist[2] = wz;
     if (len < 2) return;
 
-    const [fdx, fdy] = proj.direction;
+    const [fdx, fdy] = motion.direction;
     const fl  = Math.sqrt(fdx*fdx + fdy*fdy) || 1;
     const px_ = -fdy / fl, py_ = fdx / fl;
 
