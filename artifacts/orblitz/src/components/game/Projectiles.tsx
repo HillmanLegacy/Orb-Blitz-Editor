@@ -91,18 +91,17 @@ interface TrailParticleData {
 
 function HDTrailEffect({ 
   trailType, 
-  time, 
-  direction, 
+  projectile,
   baseScale,
   projectileColor 
 }: { 
   trailType: TrailEffect; 
-  time: number; 
-  direction: [number, number, number]; 
+  projectile: Projectile;
   baseScale: number;
   projectileColor: string;
 }) {
   const config = TRAIL_CONFIGS[trailType];
+  const particleRefs = useRef<Array<THREE.Mesh | null>>([]);
   if (!config || config.particleCount === 0) return null;
 
   const particles = useMemo<TrailParticleData[]>(() => {
@@ -119,6 +118,28 @@ function HDTrailEffect({
     return result;
   }, [config.particleCount, config.colors.length, config.spread]);
 
+  // Projectile transforms live outside React state. Update trail offsets from
+  // the same live direction the collision loop uses so steering never leaves
+  // a visual trail pointing away from the actual shot.
+  useFrame(({ clock }) => {
+    const direction = getProjectileMotion(projectile).direction;
+    const time = clock.getElapsedTime();
+    for (let i = 0; i < particles.length; i++) {
+      const mesh = particleRefs.current[i];
+      if (!mesh) continue;
+      const p = particles[i];
+      const trailDist = p.offset * 1.6;
+      const wobbleX = Math.sin(time * 3.2 + p.wobble) * config.spread * baseScale;
+      const wobbleY = Math.cos(time * 2.7 + p.wobble) * config.spread * baseScale;
+      const wobbleZ = Math.sin(time * 4.1 + p.wobble * 1.7) * config.spread * baseScale * 0.6;
+      mesh.position.set(
+        -direction[0] * trailDist + wobbleX,
+        -direction[1] * trailDist + wobbleY,
+        wobbleZ,
+      );
+    }
+  });
+
   return (
     <group>
       {particles.map((p, i) => {
@@ -134,9 +155,10 @@ function HDTrailEffect({
         return (
           <mesh
             key={i}
+            ref={(mesh) => { particleRefs.current[i] = mesh; }}
             position={[
-              -direction[0] * trailDist + wobbleX,
-              -direction[1] * trailDist + wobbleY,
+              -projectile.direction[0] * trailDist + wobbleX,
+              -projectile.direction[1] * trailDist + wobbleY,
               wobbleZ,
             ]}
             scale={scale}
@@ -226,9 +248,8 @@ function ProjectileChargeAura({ projScale }: { projScale: number }) {
 
 // SpiralBraidMesh removed — replaced by the full OrbitalSpiralBlaster SpiralBundleMesh below
 
-function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: {
+function ProjectileMesh({ projectile, trailType, skinColor, skinColors }: {
   projectile: Projectile;
-  time: number;
   trailType: TrailEffect;
   skinColor: string;
   skinColors: { core: string; glow: string; emissive: string; accent: string; particles: string[] };
@@ -242,13 +263,15 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: 
   const projScale  = isCharged ? 0.216 : 0.144;
   const groupScale = 1;
 
+  const initialMotion = getProjectileMotion(projectile);
+
   useFrame(() => {
     const motion = getProjectileMotion(projectile);
     if (groupRef.current && motion) groupRef.current.position.set(...motion.position);
   });
 
   return (
-    <group ref={groupRef} position={projectile.position}>
+    <group ref={groupRef} position={initialMotion.position}>
       {/* Point light matching player skin colour */}
       <pointLight
         color={skinColors.glow}
@@ -260,8 +283,7 @@ function ProjectileMesh({ projectile, time, trailType, skinColor, skinColors }: 
       {trailType !== "none" && trailType !== "particle_swarm" && (
         <MemoizedHDTrailEffect
           trailType={trailType}
-          time={time}
-          direction={projectile.direction}
+          projectile={projectile}
           baseScale={projScale * groupScale}
           projectileColor={skinColor}
         />
@@ -1820,9 +1842,12 @@ export function Projectiles() {
       
       let [px, py, pz] = motion.position;
       let [dx, dy, dz] = motion.direction;
-      const previousProjectileX = px;
-      const previousProjectileY = py;
-      const previousProjectileZ = pz;
+      motion.previousPosition[0] = px;
+      motion.previousPosition[1] = py;
+      motion.previousPosition[2] = pz;
+      const previousProjectileX = motion.previousPosition[0];
+      const previousProjectileY = motion.previousPosition[1];
+      const previousProjectileZ = motion.previousPosition[2];
       
       if (proj.homing) {
         const homingBoundary = 12;
@@ -2323,7 +2348,6 @@ export function Projectiles() {
           <ProjectileMesh
             key={proj.id}
             projectile={proj}
-            time={clockRef.current}
             trailType={equippedTrail}
             skinColor={projectileColor}
             skinColors={skinColors}

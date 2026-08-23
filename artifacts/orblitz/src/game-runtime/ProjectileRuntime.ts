@@ -4,6 +4,7 @@ export type RuntimeProjectile = {
   id: string;
   slot: RuntimeSlot;
   position: [number, number, number];
+  previousPosition: [number, number, number];
   direction: [number, number, number];
   spiralAngle?: number;
   spawnScale?: number;
@@ -45,6 +46,7 @@ export class ProjectileRuntime implements RuntimePool {
       id: source.id,
       slot,
       position: [source.position[0], source.position[1], source.position[2]],
+      previousPosition: [source.position[0], source.position[1], source.position[2]],
       direction: [source.direction[0], source.direction[1], source.direction[2]],
       spiralAngle: source.spiralAngle,
       spawnScale: source.spawnScale,
