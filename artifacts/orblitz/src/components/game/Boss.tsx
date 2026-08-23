@@ -17,6 +17,7 @@ import { FireExplosionVFX } from "./FireExplosionVFX";
 import { StarSupernovaVFX } from "./StarSupernovaVFX";
 import { StarBossTeleportVFX, StarTeleportVFXState } from "./StarBossTeleportVFX";
 import { CrystalCrackExplosionVFX } from "./CrystalCrackExplosionVFX";
+import { gameRuntime } from "@/game-runtime/GameRuntime";
 
 
 const MIN_PLAYER_DISTANCE = 7;
@@ -198,7 +199,10 @@ export function Boss() {
   };
   
   useFrame((state, delta) => {
-    if (!boss) return;
+    if (!boss) {
+      gameRuntime.boss.reset();
+      return;
+    }
     
     const time = state.clock.getElapsedTime();
     
@@ -276,6 +280,7 @@ export function Boss() {
         (boss.position[0] !== 0 || boss.position[1] !== 0)) {
       bossPosRef.current = [boss.position[0], boss.position[1], boss.position[2] || 0];
     }
+    gameRuntime.boss.beginFrame(boss.id, bossPosRef.current);
     // Derive a single local angle value seeded from Zustand on first frame.
     // All switch cases and the outer increment read this so angle never
     // under-accumulates on frames where the Zustand write is throttled.
@@ -900,6 +905,7 @@ export function Boss() {
         // Commit position imperatively.
         bossPosRef.current = [bx, by, 0];
         meshRef.current.position.set(bx, by, 0);
+        gameRuntime.boss.commit(boss.id, bossPosRef.current);
 
         // Throttled Zustand write.
         frameCountRef.current++;
@@ -1163,6 +1169,7 @@ export function Boss() {
       }
 
       meshRef.current.position.set(finalX, finalY, 0);
+      gameRuntime.boss.commit(boss.id, [finalX, finalY, 0]);
 
       // Star boss: hide mesh during brief invisible transit between teleport phases
       if (bossType === "star") {

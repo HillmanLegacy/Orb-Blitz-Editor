@@ -586,6 +586,19 @@ export function GameLogic() {
     const stopFiring = () => {
       isPointerDown.current = false;
     };
+
+    let moveFrame: number | null = null;
+    let pendingX = 0;
+    let pendingY = 0;
+    const flushPointerMove = () => {
+      moveFrame = null;
+      if (isPointerDown.current) {
+        // One update per animation frame keeps high-frequency pointer devices
+        // from doing work that cannot affect firing any sooner.
+        pointerPosition.current.x = pendingX;
+        pointerPosition.current.y = pendingY;
+      }
+    };
     
     const onPointerDown = (e: PointerEvent) => {
       if (isUIElement(e.target)) return;
@@ -598,9 +611,9 @@ export function GameLogic() {
     
     const onPointerMove = (e: PointerEvent) => {
       if (isPointerDown.current) {
-        // Mutate in-place — avoids one { x, y } object allocation per pointer event
-        pointerPosition.current.x = e.clientX;
-        pointerPosition.current.y = e.clientY;
+        pendingX = e.clientX;
+        pendingY = e.clientY;
+        if (moveFrame === null) moveFrame = requestAnimationFrame(flushPointerMove);
       }
     };
     
@@ -612,9 +625,10 @@ export function GameLogic() {
       stopFiring();
     };
     
+    const previousTouchAction = document.body.style.touchAction;
     document.body.style.touchAction = "none";
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerdown", onPointerDown, { passive: false });
+    document.addEventListener("pointermove", onPointerMove, { passive: true });
     window.addEventListener("pointerup", onPointerUp);
     window.addEventListener("pointercancel", onPointerUp);
     window.addEventListener("blur", onBlur);
@@ -625,6 +639,8 @@ export function GameLogic() {
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointercancel", onPointerUp);
       window.removeEventListener("blur", onBlur);
+      if (moveFrame !== null) cancelAnimationFrame(moveFrame);
+      document.body.style.touchAction = previousTouchAction;
       isPointerDown.current = false;
     };
   }, [phase, gl, fireProjectile]);

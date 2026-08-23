@@ -1,3 +1,4 @@
+import { BossRuntime } from "./BossRuntime";
 import { EnemyRuntime } from "./EnemyRuntime";
 import { ParticleRuntime } from "./ParticleRuntime";
 import { ProjectileRuntime } from "./ProjectileRuntime";
@@ -8,6 +9,7 @@ import { runtimeDiagnostics } from "./RuntimeDiagnostics";
 /** Single owner for live, non-React gameplay data. */
 export class GameRuntime {
   readonly clock = new RuntimeClock();
+  readonly boss = new BossRuntime();
   readonly projectiles = new ProjectileRuntime();
   readonly enemies = new EnemyRuntime();
   readonly particles = new ParticleRuntime();
@@ -15,6 +17,7 @@ export class GameRuntime {
 
   reset(): void {
     this.clock.reset();
+    this.boss.reset();
     this.projectiles.reset();
     this.enemies.reset();
     this.particles.reset();

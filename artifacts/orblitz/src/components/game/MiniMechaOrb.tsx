@@ -13,7 +13,6 @@ interface MiniMechaOrbProps {
   radius?: number;
   showLight?: boolean;
 }
-
 export function MiniMechaOrb({ radius = 1, showLight = true }: MiniMechaOrbProps) {
   const groupRef     = useRef<THREE.Group>(null);
   const materialsRef = useRef<THREE.MeshBasicMaterial[]>([]);
@@ -86,5 +85,3 @@ export function MiniMechaOrb({ radius = 1, showLight = true }: MiniMechaOrbProps
     </group>
   );
 }
-
-useGLTF.preload("/models/boss_orb_8_mecha_texture.glb");

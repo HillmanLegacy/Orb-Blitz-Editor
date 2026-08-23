@@ -22,6 +22,45 @@ function liveOrbPosition(orb: DarkOrb): [number, number, number] {
   return gameRuntime.enemies.get(orb.id)?.position ?? orb.position;
 }
 
+/**
+ * Finds where a moving point enters a moving sphere during one render frame.
+ * Using relative motion makes collision robust to low FPS and fast projectiles.
+ */
+function sweptSphereHit(
+  startX: number,
+  startY: number,
+  startZ: number,
+  endX: number,
+  endY: number,
+  endZ: number,
+  sphereStartX: number,
+  sphereStartY: number,
+  sphereStartZ: number,
+  sphereEndX: number,
+  sphereEndY: number,
+  sphereEndZ: number,
+  radius: number,
+): number | null {
+  const relStartX = startX - sphereStartX;
+  const relStartY = startY - sphereStartY;
+  const relStartZ = startZ - sphereStartZ;
+  const relDeltaX = (endX - startX) - (sphereEndX - sphereStartX);
+  const relDeltaY = (endY - startY) - (sphereEndY - sphereStartY);
+  const relDeltaZ = (endZ - startZ) - (sphereEndZ - sphereStartZ);
+  const radiusSquared = radius * radius;
+  const c = relStartX * relStartX + relStartY * relStartY + relStartZ * relStartZ - radiusSquared;
+  if (c <= 0) return 0;
+
+  const a = relDeltaX * relDeltaX + relDeltaY * relDeltaY + relDeltaZ * relDeltaZ;
+  if (a < 1e-8) return null;
+  const b = 2 * (relStartX * relDeltaX + relStartY * relDeltaY + relStartZ * relDeltaZ);
+  const discriminant = b * b - 4 * a * c;
+  if (discriminant < 0) return null;
+
+  const hitT = (-b - Math.sqrt(discriminant)) / (2 * a);
+  return hitT >= 0 && hitT <= 1 ? hitT : null;
+}
+
 const TRAIL_CONFIGS: Record<TrailEffect, { colors: string[]; particleCount: number; spread: number; glow: boolean }> = {
   none:           { colors: [],                                                                             particleCount: 0,  spread: 0.00, glow: false },
   sparkle:        { colors: ["#ffffff", "#ffff88", "#ffffcc", "#88ffff"],                                  particleCount: 8,  spread: 0.15, glow: true  },
@@ -1605,6 +1644,7 @@ export function Projectiles() {
   const volleyRemainingCounts = useRef<Map<string, number>>(new Map());
   const removedProjectileIds = useRef<Set<string>>(new Set());
   const activeProjectileIds = useRef<Set<string>>(new Set());
+  const activeVolleyCounts = useRef<Map<string, number>>(new Map());
 
   // ── Overcharged shockwave rings ───────────────────────────────────────────
   const knownOcIds   = useRef<Set<string>>(new Set());
@@ -1629,6 +1669,22 @@ export function Projectiles() {
 
   useEffect(() => () => {
     resetProjectileMotion();
+    for (const timeout of swTimeoutsRef.current.values()) clearTimeout(timeout);
+    for (const timeout of ocExpTimeoutsRef.current.values()) clearTimeout(timeout);
+    for (const timeout of hmRingTimeoutsRef.current.values()) clearTimeout(timeout);
+    for (const timeout of scatterArcTimeoutsRef.current.values()) clearTimeout(timeout);
+    swTimeoutsRef.current.clear();
+    ocExpTimeoutsRef.current.clear();
+    hmRingTimeoutsRef.current.clear();
+    scatterArcTimeoutsRef.current.clear();
+    knownOcIds.current.clear();
+    knownHomingIds.current.clear();
+    knownScatterVolleys.current.clear();
+    spiralBossHit.current.clear();
+    projectileOrbHits.current.clear();
+    volleyHits.current.clear();
+    volleyProjectileCounts.current.clear();
+    volleyRemainingCounts.current.clear();
   }, []);
   
   const skinColors = useMemo(() => getSkinColors(equippedSkin, 3), [equippedSkin]);
@@ -1731,14 +1787,20 @@ export function Projectiles() {
     let structuralChanged = false;
     const activeIds = activeProjectileIds.current;
     activeIds.clear();
-    for (const proj of projectiles) activeIds.add(proj.id);
+    const frameVolleyCounts = activeVolleyCounts.current;
+    frameVolleyCounts.clear();
+    for (const proj of projectiles) {
+      activeIds.add(proj.id);
+      if (proj.volleyId) {
+        frameVolleyCounts.set(proj.volleyId, (frameVolleyCounts.get(proj.volleyId) ?? 0) + 1);
+      }
+    }
     for (const proj of projectiles) getProjectileMotion(proj);
     for (const id of projectilePhysicsMap.keys()) {
       if (!activeIds.has(id)) releaseProjectileMotion(id);
     }
     hitOrbsThisFrame.current.clear();
     hitPowerUpsThisFrame.current.clear();
-    spiralBossHit.current.clear();
     
     for (const orb of darkOrbs) {
       if (orb.destroying) {
@@ -1751,13 +1813,16 @@ export function Projectiles() {
     for (const proj of projectiles) {
       const motion = getProjectileMotion(proj);
       if (proj.volleyId && !volleyProjectileCounts.current.has(proj.volleyId)) {
-        const volleySize = projectiles.filter(p => p.volleyId === proj.volleyId).length;
+        const volleySize = frameVolleyCounts.get(proj.volleyId) ?? 1;
         volleyProjectileCounts.current.set(proj.volleyId, volleySize);
         volleyRemainingCounts.current.set(proj.volleyId, volleySize);
       }
       
       let [px, py, pz] = motion.position;
       let [dx, dy, dz] = motion.direction;
+      const previousProjectileX = px;
+      const previousProjectileY = py;
+      const previousProjectileZ = pz;
       
       if (proj.homing) {
         const homingBoundary = 12;
@@ -1776,10 +1841,11 @@ export function Projectiles() {
         }
 
         if (boss && !boss.destroying && !boss.shieldActive) {
-          const bossDist2 = (boss.position[0] - px) ** 2 + (boss.position[1] - py) ** 2;
+          const bossPosition = gameRuntime.boss.get(boss.id)?.position ?? boss.position;
+          const bossDist2 = (bossPosition[0] - px) ** 2 + (bossPosition[1] - py) ** 2;
           if (bossDist2 < closestDist2) {
             closestDist2 = bossDist2;
-            closestTargetPosition = boss.position;
+            closestTargetPosition = bossPosition;
           }
         }
         
@@ -1892,7 +1958,7 @@ export function Projectiles() {
           playSparkleExplosion();
 
           if (boss && !boss.destroying) {
-            const [bx, by, bz] = boss.position;
+            const [bx, by, bz] = gameRuntime.boss.get(boss.id)?.position ?? boss.position;
             if (Math.sqrt((px-bx)**2+(py-by)**2+((bz||0)-pz)**2) < OC_EXPLODE_RADIUS + 1.65) {
               const bossKilled = damageBoss(8);
               addScore(25); playHit();
@@ -1934,7 +2000,8 @@ export function Projectiles() {
         const _phase = motion.spiralAngle ?? 0;
 
         if (boss && !boss.destroying && !boss.shieldActive) {
-          const [bx, by, bz] = boss.position;
+          const liveBoss = gameRuntime.boss.get(boss.id);
+          const [bx, by, bz] = liveBoss?.position ?? boss.position;
           for (let si = 0; si < 3; si++) {
             if (!_subAlive[si]) continue;
             const _sk = `${proj.id}-b${si}`;
@@ -1984,11 +2051,21 @@ export function Projectiles() {
 
       if (!hitSomething && proj.type !== "spiral") {
       if (boss && !boss.destroying && !boss.shieldActive) {
-        const [bx, by, bz] = boss.position;
-        const dist = Math.sqrt((px - bx) ** 2 + (py - by) ** 2 + ((bz || 0) - pz) ** 2);
+        const liveBoss = gameRuntime.boss.get(boss.id);
+        const [bx, by, bz] = liveBoss?.position ?? boss.position;
+        const [previousBossX, previousBossY, previousBossZ] =
+          liveBoss?.previousPosition ?? [bx, by, bz];
         const bossHitRadius = 1.65;
         
-        if (dist < bossHitRadius && !spiralBossHit.current.has(proj.id) &&
+        if (
+            sweptSphereHit(
+              previousProjectileX, previousProjectileY, previousProjectileZ,
+              px, py, pz,
+              previousBossX, previousBossY, previousBossZ || 0,
+              bx, by, bz || 0,
+              bossHitRadius,
+            ) !== null &&
+            !spiralBossHit.current.has(proj.id) &&
             (proj.type !== "overcharged" || (motion.spawnScale ?? 1) >= 0.8)) {
           const isOvercharged = proj.type === "overcharged";
            const isSpiralPiercing = motion.hitCount !== undefined && motion.hitCount > 1;
@@ -2043,10 +2120,18 @@ export function Projectiles() {
           }
         }
       } else if (boss && boss.shieldActive && proj.type !== "overcharged") {
-        const [bx, by, bz] = boss.position;
-        const _dxB = px - bx, _dyB = py - by, _dzB = (bz || 0) - pz;
+        const liveBoss = gameRuntime.boss.get(boss.id);
+        const [bx, by, bz] = liveBoss?.position ?? boss.position;
+        const [previousBossX, previousBossY, previousBossZ] =
+          liveBoss?.previousPosition ?? [bx, by, bz];
 
-        if (_dxB * _dxB + _dyB * _dyB + _dzB * _dzB < 12.25) { // 3.5²
+        if (sweptSphereHit(
+          previousProjectileX, previousProjectileY, previousProjectileZ,
+          px, py, pz,
+          previousBossX, previousBossY, previousBossZ || 0,
+          bx, by, bz || 0,
+          3.5,
+        ) !== null) {
           hitSomething = true;
           addImpactEffect({
             id: `impact-${impactIdCounter++}`,
@@ -2069,14 +2154,21 @@ export function Projectiles() {
           const _ph = projectileOrbHits.current.get(proj.id);
           if (_ph && _ph.has(orb.id)) continue;
         }
-        const dxO = px - ox, dyO = py - oy, dzO = pz - oz;
-        const dist2 = dxO * dxO + dyO * dyO + dzO * dzO;
         const bossOrbHitBonus = orb.isBossOrb ? 0.6 : 0;
         const effectiveRadius = proj.type === "overcharged"
           ? hitRadius * (proj.size ?? 1) * 2.8
           : (proj.isCharged ? hitRadius * 1.8 : hitRadius) + bossOrbHitBonus;
+        const enemyMotion = gameRuntime.enemies.get(orb.id);
+        const previousEnemyPosition = enemyMotion?.previousPosition ?? [ox, oy, oz] as [number, number, number];
 
-        if (dist2 < effectiveRadius * effectiveRadius &&
+        if (
+            sweptSphereHit(
+              previousProjectileX, previousProjectileY, previousProjectileZ,
+              px, py, pz,
+              previousEnemyPosition[0], previousEnemyPosition[1], previousEnemyPosition[2],
+              ox, oy, oz,
+              effectiveRadius,
+            ) !== null &&
             (proj.type !== "overcharged" || (motion.spawnScale ?? 1) >= 0.8)) {
           hitOrbsThisFrame.current.add(orb.id);
           markOrbDestroying(orb.id, [ox, oy, oz]);
@@ -2123,10 +2215,15 @@ export function Projectiles() {
       for (const powerUp of powerUps) {
         if (hitPowerUpsThisFrame.current.has(powerUp.id) || powerUp.collected || powerUp.destroying || powerUp.hurtTimer) continue;
         
-        const [pux, puy] = powerUp.position;
-        const dxPU = px - pux, dyPU = py - puy;
-
-        if (dxPU * dxPU + dyPU * dyPU < 2.25) { // 1.5²
+        if (
+            sweptSphereHit(
+              previousProjectileX, previousProjectileY, previousProjectileZ,
+              px, py, pz,
+              powerUp.position[0], powerUp.position[1], powerUp.position[2],
+              powerUp.position[0], powerUp.position[1], powerUp.position[2],
+              1.5,
+            ) !== null
+        ) {
           hitPowerUpsThisFrame.current.add(powerUp.id);
           hurtPowerUp(powerUp.id);
           hitSomething = true;
@@ -2158,6 +2255,21 @@ export function Projectiles() {
     // the current key during Map iteration per the ECMAScript spec.
     for (const projId of projectileOrbHits.current.keys()) {
       if (removedIds.has(projId)) projectileOrbHits.current.delete(projId);
+    }
+    for (const hitKey of spiralBossHit.current) {
+      if (activeIds.has(hitKey)) continue;
+      const subSphereSuffix = hitKey.lastIndexOf("-b");
+      const ownerId = subSphereSuffix > 0 ? hitKey.slice(0, subSphereSuffix) : hitKey;
+      if (!activeIds.has(ownerId) || removedIds.has(ownerId)) spiralBossHit.current.delete(hitKey);
+    }
+    for (const projId of knownOcIds.current) {
+      if (!activeIds.has(projId)) knownOcIds.current.delete(projId);
+    }
+    for (const projId of knownHomingIds.current) {
+      if (!activeIds.has(projId)) knownHomingIds.current.delete(projId);
+    }
+    for (const volleyId of knownScatterVolleys.current) {
+      if (!frameVolleyCounts.has(volleyId)) knownScatterVolleys.current.delete(volleyId);
     }
     
     if (structuralChanged) {

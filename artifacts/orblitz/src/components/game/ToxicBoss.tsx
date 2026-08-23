@@ -132,7 +132,6 @@ function ToxicDripSurface({ radius }: { radius: number }) {
     </mesh>
   );
 }
-
 // ── Falling droplet instances ──────────────────────────────────────────────────
 
 const DRIP_COUNT = 28;
@@ -338,5 +337,3 @@ export function ToxicBoss({ radius = 1.44, healthPercent = 1 }: ToxicBossProps) 
     </group>
   );
 }
-
-useGLTF.preload("/models/boss_orb_4_toxic_texture.glb");

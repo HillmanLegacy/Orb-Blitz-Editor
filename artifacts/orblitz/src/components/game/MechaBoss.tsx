@@ -49,7 +49,6 @@ function HurtOverlay({ radius, healthPercent }: { radius: number; healthPercent:
     </mesh>
   );
 }
-
 // ── Pulsing boss light ────────────────────────────────────────────────────────
 function MechaLight({ healthPercent }: { healthPercent: number }) {
   const ref = useRef<THREE.PointLight>(null);
@@ -175,5 +174,3 @@ export function MechaBoss({ radius = 1.44, healthPercent = 1 }: MechaBossProps) 
     </group>
   );
 }
-
-useGLTF.preload("/models/boss_orb_8_mecha_texture.glb");

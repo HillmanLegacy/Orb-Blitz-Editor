@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Suspense } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useAudio } from "@/lib/stores/useAudio";
 import { useShop } from "@/lib/stores/useShop";
@@ -9,6 +10,13 @@ import { HealthBar } from "./HealthBar";
 
 // ── Design primitives — matches main menu aesthetic ────────────────────────────
 const SCANLINES = "repeating-linear-gradient(0deg,transparent,transparent 4px,rgba(255,255,255,0.012) 4px,rgba(255,255,255,0.012) 5px)";
+const UI_TIMER_FREQUENCY = 20;
+
+// Gameplay timers continue to advance at frame cadence in the store. The HUD only
+// needs a smooth visual sample, so avoid re-rendering the full overlay for every
+// sub-frame timer change while retaining 50 ms countdown accuracy.
+const selectUiTimer = (value: number) =>
+  value <= 0 ? 0 : Math.ceil(value * UI_TIMER_FREQUENCY) / UI_TIMER_FREQUENCY;
 
 /** Scanline texture overlay */
 const SL = () => (
@@ -89,35 +97,51 @@ const IconHP      = () => <svg {..._s}><path d="M12 20C12 20 4 13 4 8a4 4 0 018 
 const IconSlow    = () => <svg {..._s}><circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="1.5"/><path d="M12 7V12L15 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 
 export function GameUI() {
-  const health                  = useMagicOrb(s => s.health);
-  const maxHealth               = useMagicOrb(s => s.maxHealth);
-  const score                   = useMagicOrb(s => s.score);
-  const hasShield               = useMagicOrb(s => s.hasShield);
-  const hasChargeBeam           = useMagicOrb(s => s.hasChargeBeam);
-  const chargeBeamTimer         = useMagicOrb(s => s.chargeBeamTimer);
-  const gameTime                = useMagicOrb(s => s.gameTime);
-  const hasDistort              = useMagicOrb(s => s.hasDistort);
-  const distortCooldown         = useMagicOrb(s => s.distortCooldown);
-  const distortMaxCooldown      = useMagicOrb(s => s.distortMaxCooldown);
-  const distortActive           = useMagicOrb(s => s.distortActive);
-  const distortTimer            = useMagicOrb(s => s.distortTimer);
-  const hasDoubleCoins          = useMagicOrb(s => s.hasDoubleCoins);
-  const doubleCoinsTimer        = useMagicOrb(s => s.doubleCoinsTimer);
-  const hasRapidFire            = useMagicOrb(s => s.hasRapidFire);
-  const rapidFireTimer          = useMagicOrb(s => s.rapidFireTimer);
-  const selectedWeapon          = useMagicOrb(s => s.selectedWeapon);
-  const setSelectedWeapon       = useMagicOrb(s => s.setSelectedWeapon);
-  const pauseGame               = useMagicOrb(s => s.pauseGame);
-  const activateDistortField    = useMagicOrb(s => s.activateDistortField);
-  const gameMode                = useMagicOrb(s => s.gameMode);
-  const arcadeLevel             = useMagicOrb(s => s.arcadeLevel);
-  const orbsDestroyedInLevel    = useMagicOrb(s => s.orbsDestroyedInLevel);
-  const orbsRequiredForLevel    = useMagicOrb(s => s.orbsRequiredForLevel);
-  const boss                    = useMagicOrb(s => s.boss);
-  const teletransferCooldown    = useMagicOrb(s => s.teletransferCooldown);
-  const teletransferMaxCooldown = useMagicOrb(s => s.teletransferMaxCooldown);
-  const { toggleMute, isMuted, playPause, playMenuSelect } = useAudio();
-  const { coins: shopStars, equippedWeapon, equippedDefenses, equippedMagiOrb } = useShop();
+  const {
+    score, hasShield, hasChargeBeam, chargeBeamTimer,
+    gameTime, hasDistort, distortCooldown, distortMaxCooldown, distortActive,
+    distortTimer, hasDoubleCoins, doubleCoinsTimer, hasRapidFire, rapidFireTimer,
+    selectedWeapon, setSelectedWeapon, pauseGame, activateDistortField, gameMode,
+    arcadeLevel, orbsDestroyedInLevel, orbsRequiredForLevel, hasBoss, bossHealth,
+    bossMaxHealth, teletransferCooldown, teletransferMaxCooldown, pulseShieldCooldown,
+    pulseShieldMaxCooldown, activatePulseShield, magiOrb2Active,
+    magiOrb2Cooldown, magiOrb2MaxCooldown, activateMagiOrb2, magiOrb3Cooldown,
+    magiOrb3MaxCooldown, activateMagiOrb3, magiOrb4Active, magiOrb4Cooldown,
+    magiOrb4MaxCooldown, activateMagiOrb4, magiOrb5HP, magiOrb5MaxHP,
+    magiOrb7Active, magiOrb7Cooldown, magiOrb7MaxCooldown, activateMagiOrb7,
+  } = useMagicOrb(useShallow((s) => ({
+    score: s.score, hasShield: s.hasShield,
+    hasChargeBeam: s.hasChargeBeam, chargeBeamTimer: selectUiTimer(s.chargeBeamTimer),
+    gameTime: Math.floor(s.gameTime), hasDistort: s.hasDistort,
+    distortCooldown: selectUiTimer(s.distortCooldown), distortMaxCooldown: s.distortMaxCooldown,
+    distortActive: s.distortActive, distortTimer: selectUiTimer(s.distortTimer),
+    hasDoubleCoins: s.hasDoubleCoins, doubleCoinsTimer: selectUiTimer(s.doubleCoinsTimer),
+    hasRapidFire: s.hasRapidFire, rapidFireTimer: selectUiTimer(s.rapidFireTimer),
+    selectedWeapon: s.selectedWeapon, setSelectedWeapon: s.setSelectedWeapon,
+    pauseGame: s.pauseGame, activateDistortField: s.activateDistortField,
+    gameMode: s.gameMode, arcadeLevel: s.arcadeLevel,
+    orbsDestroyedInLevel: s.orbsDestroyedInLevel, orbsRequiredForLevel: s.orbsRequiredForLevel,
+    hasBoss: s.boss !== null, bossHealth: s.boss?.health ?? 0, bossMaxHealth: s.boss?.maxHealth ?? 0,
+    teletransferCooldown: selectUiTimer(s.teletransferCooldown),
+    teletransferMaxCooldown: s.teletransferMaxCooldown,
+    pulseShieldCooldown: selectUiTimer(s.pulseShieldCooldown),
+    pulseShieldMaxCooldown: s.pulseShieldMaxCooldown, activatePulseShield: s.activatePulseShield,
+    magiOrb2Active: s.magiOrb2Active,
+    magiOrb2Cooldown: selectUiTimer(s.magiOrb2Cooldown), magiOrb2MaxCooldown: s.magiOrb2MaxCooldown,
+    activateMagiOrb2: s.activateMagiOrb2, magiOrb3Cooldown: selectUiTimer(s.magiOrb3Cooldown),
+    magiOrb3MaxCooldown: s.magiOrb3MaxCooldown, activateMagiOrb3: s.activateMagiOrb3,
+    magiOrb4Active: s.magiOrb4Active, magiOrb4Cooldown: selectUiTimer(s.magiOrb4Cooldown),
+    magiOrb4MaxCooldown: s.magiOrb4MaxCooldown, activateMagiOrb4: s.activateMagiOrb4,
+    magiOrb5HP: s.magiOrb5HP, magiOrb5MaxHP: s.magiOrb5MaxHP,
+    magiOrb7Active: s.magiOrb7Active, magiOrb7Cooldown: selectUiTimer(s.magiOrb7Cooldown),
+    magiOrb7MaxCooldown: s.magiOrb7MaxCooldown, activateMagiOrb7: s.activateMagiOrb7,
+  })));
+  const { toggleMute, isMuted, playPause } = useAudio(useShallow((s) => ({
+    toggleMute: s.toggleMute, isMuted: s.isMuted, playPause: s.playPause,
+  })));
+  const { coins: shopStars, equippedWeapon, equippedDefenses, equippedMagiOrb } = useShop(useShallow((s) => ({
+    coins: s.coins, equippedWeapon: s.equippedWeapon, equippedDefenses: s.equippedDefenses, equippedMagiOrb: s.equippedMagiOrb,
+  })));
 
   const hasRapidBlaster = equippedWeapon === "orbital_rapid_blaster";
   const hasTeletransfer = equippedDefenses[0] === "orbital_teletransfer" || equippedDefenses[1] === "orbital_teletransfer";
@@ -125,38 +149,14 @@ export function GameUI() {
   const hasPulseShield = equippedDefenses[0] === "pulse_shield" || equippedDefenses[1] === "pulse_shield";
   const hasSpatialRelocation = equippedDefenses[0] === "spatial_relocation" || equippedDefenses[1] === "spatial_relocation";
   
-  const pulseShieldCooldown    = useMagicOrb((s) => s.pulseShieldCooldown);
-  const pulseShieldMaxCooldown = useMagicOrb((s) => s.pulseShieldMaxCooldown);
-  const activatePulseShield    = useMagicOrb((s) => s.activatePulseShield);
-  const spatialRelocationCooldown    = useMagicOrb((s) => s.spatialRelocationCooldown);
-  const spatialRelocationMaxCooldown = useMagicOrb((s) => s.spatialRelocationMaxCooldown);
-  const useSpatialRelocation         = useMagicOrb((s) => s.useSpatialRelocation);
-  
-  const magiOrb2Active      = useMagicOrb((s) => s.magiOrb2Active);
-  const magiOrb2Cooldown    = useMagicOrb((s) => s.magiOrb2Cooldown);
-  const magiOrb2MaxCooldown = useMagicOrb((s) => s.magiOrb2MaxCooldown);
-  const activateMagiOrb2    = useMagicOrb((s) => s.activateMagiOrb2);
-  const magiOrb3Cooldown    = useMagicOrb((s) => s.magiOrb3Cooldown);
-  const magiOrb3MaxCooldown = useMagicOrb((s) => s.magiOrb3MaxCooldown);
-  const activateMagiOrb3    = useMagicOrb((s) => s.activateMagiOrb3);
-  const magiOrb4Active      = useMagicOrb((s) => s.magiOrb4Active);
-  const magiOrb4Cooldown    = useMagicOrb((s) => s.magiOrb4Cooldown);
-  const magiOrb4MaxCooldown = useMagicOrb((s) => s.magiOrb4MaxCooldown);
-  const activateMagiOrb4    = useMagicOrb((s) => s.activateMagiOrb4);
-  const magiOrb5HP          = useMagicOrb((s) => s.magiOrb5HP);
-  const magiOrb5MaxHP       = useMagicOrb((s) => s.magiOrb5MaxHP);
-  const magiOrb7Active      = useMagicOrb((s) => s.magiOrb7Active);
-  const magiOrb7Cooldown    = useMagicOrb((s) => s.magiOrb7Cooldown);
-  const magiOrb7MaxCooldown = useMagicOrb((s) => s.magiOrb7MaxCooldown);
-  const activateMagiOrb7    = useMagicOrb((s) => s.activateMagiOrb7);
-  
   const hasMagiOrb2 = equippedMagiOrb === "magi_orb_2";
   const hasMagiOrb3 = equippedMagiOrb === "magi_orb_3";
   const hasMagiOrb4 = equippedMagiOrb === "magi_orb_4";
   const hasMagiOrb5 = equippedMagiOrb === "magi_orb_5";
   const hasMagiOrb7 = equippedMagiOrb === "magi_orb_7";
   
-  const isBossLevel = boss !== null;
+  const boss = hasBoss ? { health: bossHealth, maxHealth: bossMaxHealth } : null;
+  const isBossLevel = hasBoss;
 
   const distortCooldownPct    = hasDistort ? (1 - distortCooldown / distortMaxCooldown) * 100 : 0;
   const teletransferCooldownPct = hasTeletransfer ? (1 - teletransferCooldown / teletransferMaxCooldown) * 100 : 0;

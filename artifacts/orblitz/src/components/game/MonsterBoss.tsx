@@ -108,7 +108,6 @@ function FresnelRimShell({ radius }: { radius: number }) {
     </mesh>
   );
 }
-
 // ── Void particle cloud ────────────────────────────────────────────────────────
 // 500 instanced particles swirling on/near the surface via curl-like flow.
 
@@ -478,5 +477,3 @@ export function MonsterBoss({ radius = 1.44, healthPercent = 1 }: MonsterBossPro
     </group>
   );
 }
-
-useGLTF.preload("/models/boss_orb_9_shadow_texture.glb");

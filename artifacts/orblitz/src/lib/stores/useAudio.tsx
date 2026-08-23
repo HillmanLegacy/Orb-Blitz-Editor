@@ -60,6 +60,7 @@ let _arcadeActive = false;
 let _arcadeShuffled: string[] = [];
 let _arcadeIdx = 0;
 let _arcadeFadeTimer: number | null = null;
+let _arcadeGeneration = 0;
 
 function _shuffleArcade(): string[] {
   const a = [...ARCADE_TRACKS];
@@ -70,15 +71,27 @@ function _shuffleArcade(): string[] {
   return a;
 }
 
-function _fadeArcade(from: number, to: number, ms: number, onDone?: () => void) {
+function _unloadAudio(el: HTMLAudioElement) {
+  el.onended = null;
+  el.pause();
+  el.removeAttribute("src");
+  el.load();
+}
+
+function _fadeArcade(el: HTMLAudioElement, from: number, to: number, ms: number, onDone?: () => void) {
   if (_arcadeFadeTimer) { clearInterval(_arcadeFadeTimer); _arcadeFadeTimer = null; }
-  if (!_arcadeEl) { onDone?.(); return; }
-  const el = _arcadeEl;
+  if (_arcadeEl !== el) return;
+  const generation = _arcadeGeneration;
   const steps = 40;
   const step_ms = ms / steps;
   let s = 0;
   el.volume = Math.max(0, Math.min(1, from));
   _arcadeFadeTimer = window.setInterval(() => {
+    if (_arcadeEl !== el || generation !== _arcadeGeneration) {
+      if (_arcadeFadeTimer) clearInterval(_arcadeFadeTimer);
+      _arcadeFadeTimer = null;
+      return;
+    }
     s++;
     const t = s / steps;
     const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
@@ -100,12 +113,17 @@ function _playNextArcadeTrack(targetVol: number) {
     _arcadeIdx = 0;
   }
   const src = _arcadeShuffled[_arcadeIdx++];
-  if (_arcadeEl) { _arcadeEl.onended = null; _arcadeEl.pause(); }
-  _arcadeEl = new Audio(src);
-  _arcadeEl.volume = 0;
-  _arcadeEl.onended = () => _playNextArcadeTrack(targetVol);
-  _arcadeEl.play().catch(() => {});
-  _fadeArcade(0, Math.min(1, targetVol), 1800);
+  const previous = _arcadeEl;
+  _arcadeGeneration++;
+  if (previous) _unloadAudio(previous);
+  const el = new Audio(src);
+  _arcadeEl = el;
+  el.volume = 0;
+  el.onended = () => {
+    if (_arcadeEl === el && _arcadeActive) _playNextArcadeTrack(targetVol);
+  };
+  el.play().catch(() => {});
+  _fadeArcade(el, 0, Math.min(1, targetVol), 1800);
 }
 
 // ── WAV sound effect player — rotating pool ───────────────────────────────────
@@ -113,16 +131,33 @@ function _playNextArcadeTrack(targetVol: number) {
 // cycles through them.  Prevents `new Audio()` allocation on every trigger —
 // the single biggest source of abandoned HTMLAudioElement accumulation.
 const WAV_POOL_SIZE = 6;
+const MAX_WAV_POOLS = 8;
 const _wavPools = new Map<string, { els: HTMLAudioElement[]; idx: number }>();
+
+function _unloadWavPool(pool: { els: HTMLAudioElement[] }) {
+  pool.els.forEach(_unloadAudio);
+}
 
 function playWav(path: string, volume = 0.6) {
   try {
     let pool = _wavPools.get(path);
     if (!pool) {
+      // Map insertion order is our deterministic least-recently-used order.
+      // Move entries on use below, so the first entry is always the eviction target.
+      if (_wavPools.size >= MAX_WAV_POOLS) {
+        const oldest = _wavPools.entries().next().value as [string, { els: HTMLAudioElement[]; idx: number }] | undefined;
+        if (oldest) {
+          _unloadWavPool(oldest[1]);
+          _wavPools.delete(oldest[0]);
+        }
+      }
       pool = {
         els: Array.from({ length: WAV_POOL_SIZE }, () => new Audio(path)),
         idx: 0,
       };
+      _wavPools.set(path, pool);
+    } else {
+      _wavPools.delete(path);
       _wavPools.set(path, pool);
     }
     const el = pool.els[pool.idx % WAV_POOL_SIZE];
@@ -346,7 +381,7 @@ export const useAudio = create<AudioState>((set, get) => ({
       synthBossMusic?.fadeOut();
       // Fade out arcade BGM without stopping the playlist advance flag
       if (_arcadeEl && !_arcadeEl.paused) {
-        _fadeArcade(_arcadeEl.volume, 0, 800);
+        _fadeArcade(_arcadeEl, _arcadeEl.volume, 0, 800);
       }
     } else {
       if (currentMusicType === "menu") {
@@ -359,7 +394,7 @@ export const useAudio = create<AudioState>((set, get) => ({
       // Resume arcade BGM if the playlist is still active
       if (_arcadeActive && _arcadeEl) {
         _arcadeEl.play().catch(() => {});
-        _fadeArcade(0, Math.min(1, 0.65 * volume), 800);
+        _fadeArcade(_arcadeEl, 0, Math.min(1, 0.65 * volume), 800);
       } else if (_arcadeActive) {
         _playNextArcadeTrack(0.65 * volume);
       }
@@ -450,7 +485,13 @@ export const useAudio = create<AudioState>((set, get) => ({
     if (_arcadeEl) {
       _arcadeEl.onended = null;         // prevent next-track advance after fade
       const el = _arcadeEl;
-      _fadeArcade(el.volume, 0, 1200, () => { _arcadeEl = null; });
+      _fadeArcade(el, el.volume, 0, 1200, () => {
+        if (_arcadeEl === el) {
+          _arcadeEl = null;
+          _arcadeGeneration++;
+          _unloadAudio(el);
+        }
+      });
     }
   },
   

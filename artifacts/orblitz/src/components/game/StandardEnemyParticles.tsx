@@ -2,6 +2,7 @@ import { useMagicOrb, DarkOrb } from "@/lib/stores/useMagicOrb";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
+import { gameRuntime } from "@/game-runtime/GameRuntime";
 
 const PARTICLES_PER_ENEMY = 12;
 const MAX_PARTICLES = 512;
@@ -31,6 +32,7 @@ export function StandardEnemyParticles() {
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const color = useMemo(() => new THREE.Color(), []);
   const seedRef = useRef(new Map<string, number>());
+  const activeEnemyIdsRef = useRef(new Set<string>());
 
   useFrame((state) => {
     const mesh = meshRef.current;
@@ -43,12 +45,19 @@ export function StandardEnemyParticles() {
 
     const t = state.clock.elapsedTime;
     let write = 0;
+    const activeEnemyIds = activeEnemyIdsRef.current;
+    activeEnemyIds.clear();
 
     for (const orb of darkOrbs) {
-      if (orb.isBossOrb || orb.destroying || !orb.position || write >= MAX_PARTICLES) continue;
-      const seed = seedRef.current.get(orb.id) ?? Math.random() * Math.PI * 2;
+      if (orb.isBossOrb || orb.destroying || write >= MAX_PARTICLES) continue;
+      activeEnemyIds.add(orb.id);
+      const seed = seedRef.current.get(orb.id) ??
+        ((Math.abs(orb.seed) * 12.9898) % 1) * Math.PI * 2;
       seedRef.current.set(orb.id, seed);
-      const [x, y, z] = orb.position;
+      // Enemy transforms are updated imperatively. Structural store positions
+      // intentionally remain snapshots, so particles must follow the runtime.
+      const position = gameRuntime.enemies.get(orb.id)?.position ?? orb.position;
+      const [x, y, z] = position;
       const radius = Math.max(0.22, orb.size * 0.9);
 
       for (let j = 0; j < PARTICLES_PER_ENEMY && write < MAX_PARTICLES; j++) {
@@ -77,9 +86,9 @@ export function StandardEnemyParticles() {
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 
-    // Remove stale seeds after enemies leave the scene.
+    // Particle state belongs to the live enemy and is released with it.
     for (const id of seedRef.current.keys()) {
-      if (!darkOrbs.some((orb) => orb.id === id)) seedRef.current.delete(id);
+      if (!activeEnemyIds.has(id)) seedRef.current.delete(id);
     }
   });
 

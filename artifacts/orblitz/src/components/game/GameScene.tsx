@@ -1,28 +1,12 @@
-import { Suspense, useEffect, useRef } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
-import { IS_MOBILE } from "@/lib/isMobile";
 import { EffectComposer, Bloom, SMAA, ChromaticAberration, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
-import { PlayerOrb } from "./PlayerOrb";
-import { DarkOrbs } from "./DarkOrbs";
-import { Projectiles } from "./Projectiles";
-import { PowerUps } from "./PowerUps";
-import { Particles } from "./Particles";
-import { GameLogic } from "./GameLogic";
 import { Background } from "./Background";
-import { LaserBeams } from "./LaserBeams";
-import { DistortField } from "./DistortField";
-import { Boss } from "./Boss";
-import { DefenseOrbs } from "./DefenseOrbs";
-import { MagiOrbEffects } from "./MagiOrbEffects";
-import { ScreenEffects } from "./ScreenEffects";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
-import { SubBlasterOrb } from "./SubBlasterOrb";
-import { StarFlowVFX } from "./StarFlowVFX";
-import { useShop } from "@/lib/stores/useShop";
-import { World1FireBackground } from "./World1FireBackground";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
-import { runtimeDiagnostics } from "@/game-runtime/RuntimeDiagnostics";
+
+const GameplayScene = lazy(() => import("./GameplayScene"));
 
 // ── Renderer configuration ────────────────────────────────────────────────────
 function RendererSetup() {
@@ -102,27 +86,6 @@ function ShaderPrewarm() {
   }, [gl, scene, camera]);
 
   return null;
-}
-
-// ── Dynamic point light tethered to player position ───────────────────────────
-function PlayerLight() {
-  const lightRef = useRef<THREE.PointLight>(null);
-
-  useFrame(() => {
-    if (!lightRef.current) return;
-    const pos = useMagicOrb.getState().playerPosition;
-    lightRef.current.position.set(pos[0], pos[1], 1.5);
-  });
-
-  return (
-    <pointLight
-      ref={lightRef}
-      intensity={4.5}
-      distance={14}
-      decay={2}
-      color="#ffffff"
-    />
-  );
 }
 
 // ── Camera smooth-follow + screen shake ───────────────────────────────────────
@@ -228,7 +191,7 @@ function PostProcessing({ isMenu }: { isMenu: boolean }) {
   });
 
   return (
-    <EffectComposer multisampling={0}>
+    <EffectComposer multisampling={0} depthBuffer={false} stencilBuffer={false}>
       <Bloom
         intensity={isMenu ? 0.18 : 0.62}
         luminanceThreshold={isMenu ? 0.5 : 0.28}
@@ -252,30 +215,10 @@ function PostProcessing({ isMenu }: { isMenu: boolean }) {
 // arrays, physics maps, useFrame loops) live here.  Keeping them unmounted
 // outside loading and playing phases reclaims the majority of idle GPU + RAM.
 // They mount during the gameplay loading phase, then stay mounted through play.
-function GameplayScene() {
+function GameplayGate() {
   const phase = useMagicOrb(s => s.phase);
   if (phase !== "loading" && phase !== "playing") return null;
-  return (
-    <>
-      <GameRuntimeCoordinator />
-      <PlayerLight />
-      <World1FireBackground />
-      <PlayerOrb />
-      <DarkOrbs />
-      <Boss />
-      <Projectiles />
-      <PowerUps />
-      <Particles />
-      <LaserBeams />
-      <DistortField />
-      <SubBlasterOrb />
-      <DefenseOrbs />
-      <MagiOrbEffects />
-      <ScreenEffects />
-      <StarFlowVFX />
-      <GameLogic />
-    </>
-  );
+  return <GameplayScene />;
 }
 
 /** Clears live slots when a run is definitively over, without wiping a pause. */
@@ -302,20 +245,6 @@ function GameRuntimeLifecycle() {
     target.__orblitzRuntimeDiagnostics = () => gameRuntime.diagnosticsSnapshot();
     return () => { delete target.__orblitzRuntimeDiagnostics; };
   }, []);
-
-  return null;
-}
-
-/** Advances and tears down live game data independently of React render state. */
-function GameRuntimeCoordinator() {
-  useFrame((_, delta) => {
-    runtimeDiagnostics.beginFrame();
-    gameRuntime.clock.tick(delta);
-  }, -2);
-
-  useFrame(() => {
-    runtimeDiagnostics.endFrame();
-  }, 100);
 
   return null;
 }
@@ -352,7 +281,7 @@ export function GameScene() {
         <Background />
 
         {/* Gameplay systems — unmounted outside gameplay loading/playing */}
-        <GameplayScene />
+        <GameplayGate />
 
         {/* Post-processing stack */}
         <PostProcessingWrapper />

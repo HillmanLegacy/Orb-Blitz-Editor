@@ -13,7 +13,17 @@ export function Interface() {
   // Handle clicks on the interface in the ready phase to start the game
   useEffect(() => {
     if (phase === "ready") {
-      const handleClick = () => {
+      const handleClick = (event: MouseEvent) => {
+        const target = event.target;
+        // The ready-state shortcut belongs to the game surface, not to settings,
+        // links, form fields, or any other overlay that happens to be visible.
+        if (
+          event.defaultPrevented ||
+          (target instanceof Element &&
+            target.closest("button, a, input, select, textarea, label, [role='button'], [data-ui], .pointer-events-auto"))
+        ) {
+          return;
+        }
         const activeElement = document.activeElement;
         if (activeElement && 'blur' in activeElement) {
           (activeElement as HTMLElement).blur();

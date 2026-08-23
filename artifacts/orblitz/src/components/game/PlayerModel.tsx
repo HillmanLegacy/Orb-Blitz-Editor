@@ -11,7 +11,6 @@ interface PlayerModelProps {
   rotationSpeedX?: number;
   rotationSpeedY?: number;
 }
-
 export function PlayerModel({
   scale,
   isRainbow = false,
@@ -95,5 +94,3 @@ export function PlayerModel({
 
   return <group ref={modelGroupRef} />;
 }
-
-useGLTF.preload("/models/player_orb_texture.glb");

@@ -7,7 +7,6 @@ interface BossOrbModelProps {
   scale?: number;
   healthPercent?: number;
 }
-
 export function BossOrbModel({ scale = 2.5, healthPercent = 1 }: BossOrbModelProps) {
   const groupRef = useRef<THREE.Group>(null);
   const materialsRef = useRef<THREE.MeshBasicMaterial[]>([]);
@@ -92,6 +91,3 @@ export function BossOrbModel({ scale = 2.5, healthPercent = 1 }: BossOrbModelPro
 
   return <group ref={groupRef} />;
 }
-
-useGLTF.preload("/models/boss_orb_1.glb");
-useGLTF.preload("/models/boss_orb_1_texture.glb");

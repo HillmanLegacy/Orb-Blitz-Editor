@@ -94,7 +94,6 @@ function MiniFresnelRim({ radius }: { radius: number }) {
     </mesh>
   );
 }
-
 // ── Mini void particle cloud ──────────────────────────────────────────────────
 // 100 particles — same curl-noise swirl as boss, tuned for projectile scale.
 
@@ -343,5 +342,3 @@ export function MiniMonsterOrb({ radius = 1, particleCount = MINI_PARTICLE_COUNT
     </group>
   );
 }
-
-useGLTF.preload("/models/boss_orb_9_shadow_texture.glb");

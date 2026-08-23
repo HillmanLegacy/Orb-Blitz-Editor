@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
+import { useShallow } from "zustand/react/shallow";
 import "@fontsource/inter";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
 import { useAudio } from "@/lib/stores/useAudio";
 import { useOrbTransition } from "@/lib/stores/useOrbTransition";
-import { preloadAllAssets, prewarmGLTFCache } from "@/lib/preloadAssets";
+import { preloadImminentGameAssets, preloadMenuAssets } from "@/lib/preloadAssets";
 import { GameScene } from "@/components/game/GameScene";
 import { SoundManager } from "@/components/game/SoundManager";
 import { GameUI } from "@/components/ui/GameUI";
@@ -21,25 +22,31 @@ import { OrbSweepOverlay } from "@/components/ui/OrbSweepOverlay";
 
 function App() {
   const phase = useMagicOrb(s => s.phase);
-  const { addCoins, shopOpen, inventoryOpen } = useShop();
-  const { brightness } = useAudio();
+  const gameMode = useMagicOrb(s => s.gameMode);
+  const pendingLevel = useMagicOrb(s => s.pendingLevel);
+  const { addCoins, shopOpen, inventoryOpen } = useShop(useShallow(s => ({
+    addCoins: s.addCoins,
+    shopOpen: s.shopOpen,
+    inventoryOpen: s.inventoryOpen,
+  })));
+  const brightness = useAudio(s => s.brightness);
   // Transition state — drives render gates for pause menu and menu screen
-  const { isActive, isMidpointPassed, pauseMenuVisible } = useOrbTransition();
+  const { isActive, isMidpointPassed, pauseMenuVisible } = useOrbTransition(useShallow(s => ({
+    isActive: s.isActive,
+    isMidpointPassed: s.isMidpointPassed,
+    pauseMenuVisible: s.pauseMenuVisible,
+  })));
 
   const [showStartupLoading, setShowStartupLoading] = useState(true);
   const [skipIntro, setSkipIntro] = useState(false);
   const [initialMenuState, setInitialMenuState] = useState<MenuState>("root");
   const musicFiredRef = useRef(false);
-  // Asset preload promise — created lazily after startup screen fades so it
-  // doesn't compete with initial page render bandwidth.
-  const assetPreloadRef = useRef<Promise<void>>(Promise.resolve());
-
   const handleStartupLoadingComplete = useCallback(() => {
     setShowStartupLoading(false);
-    // Start all heavy asset downloads now — the player is on the menu,
-    // giving 5-10 seconds of background load time before they hit PLAY.
-    prewarmGLTFCache();
-    assetPreloadRef.current = preloadAllAssets();
+    // Menu sounds are small and immediately useful. Gameplay assets wait until
+    // the player has chosen a mode/level, avoiding speculative music and boss
+    // downloads during menu browsing.
+    void preloadMenuAssets();
   }, []);
   const handleMenuReady = useCallback(() => { setSkipIntro(true); }, []);
 
@@ -69,19 +76,18 @@ function App() {
 
     if (!musicFiredRef.current) {
       musicFiredRef.current = true;
+      // Start the selected run's critical requests at the transition boundary.
+      // Do not gate gameplay on a background cache warmup: a slow or failed
+      // optional request must never leave the transition screen stuck.
+      void preloadImminentGameAssets({ gameMode, level: pendingLevel });
     }
 
     const finishTimer = window.setTimeout(() => {
-      // Gate on asset preload — if already done this resolves instantly;
-      // if still in progress we wait (assets started loading at menu entry,
-      // so there are several seconds of menu time before the player hits PLAY).
-      assetPreloadRef.current.then(() => {
-        useMagicOrb.getState().finishLoading();
-      });
+      useMagicOrb.getState().finishLoading();
     }, 1800);
 
     return () => window.clearTimeout(finishTimer);
-  }, [phase]);
+  }, [gameMode, pendingLevel, phase]);
 
   const handleShowLevelSelect = useCallback(() => setInitialMenuState("worlds"), []);
   const handleShowMainMenu    = useCallback(() => setInitialMenuState("root"),   []);

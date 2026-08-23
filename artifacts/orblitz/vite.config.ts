@@ -28,6 +28,28 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "dist"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          // Keep peer-dependent rendering packages together. This creates a
+          // one-way dependency on React rather than splitting related Three
+          // modules across chunks (which can produce circular chunk warnings).
+          if (id.includes("/react/") || id.includes("/react-dom/") || id.includes("/scheduler/")) {
+            return "vendor-react";
+          }
+          if (
+            id.includes("/three/") ||
+            id.includes("/@react-three/") ||
+            id.includes("/postprocessing/")
+          ) {
+            return "vendor-three";
+          }
+          if (id.includes("/framer-motion/")) return "vendor-motion";
+          if (id.includes("/@radix-ui/")) return "vendor-radix";
+        },
+      },
+    },
   },
   server: {
     allowedHosts: true,

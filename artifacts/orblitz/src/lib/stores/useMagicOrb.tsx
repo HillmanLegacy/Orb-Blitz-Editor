@@ -2206,47 +2206,56 @@ export const useMagicOrb = create<MagicOrbState>()(
         if (t === 0) updates.magiOrb7Active = false;
       }
 
-      // Single set() for all the above ↑
-      set(updates);
-
-      // --- side-effecting timers (need extra set() only when they trigger) ---
+      // --- side-effecting timers ---
 
       // deathTimer → endGame
+      let shouldEndGame = false;
       if (s.isDying) {
         const nt = s.deathTimer - delta;
-        if (nt <= 0) { get().endGame(); }
-        else { set({ deathTimer: nt }); }
+        if (nt <= 0) { shouldEndGame = true; }
+        else { updates.deathTimer = nt; }
       }
 
       // distortTimer → unfreezeAllOrbs
+      let shouldUnfreezeOrbs = false;
       if (s.distortActive) {
         const nt = s.distortTimer - delta;
         if (nt <= 0) {
-          set({ distortActive: false, distortTimer: 0 });
-          get().unfreezeAllOrbs();
+          updates.distortActive = false;
+          updates.distortTimer = 0;
+          shouldUnfreezeOrbs = true;
         } else {
-          set({ distortTimer: nt });
+          updates.distortTimer = nt;
         }
       }
 
       // survivalBossTimer (survival only)
+      let shouldSpawnSurvivalBoss = false;
       if (s.gameMode === "survival" && !s.boss) {
         const newTimer = s.survivalBossTimer + delta;
         const pending = s.survivalBossPending || newTimer >= 60;
         if (!s.survivalBossPending && newTimer >= 60) {
-          set({ survivalBossPending: true, survivalBossTimer: newTimer });
+          updates.survivalBossPending = true;
+          updates.survivalBossTimer = newTimer;
         } else if (pending) {
           // Early-exit scan: stop as soon as one active orb is found (avoids full filter allocation)
           let hasActiveOrb = false;
           for (let _i = 0; _i < s.darkOrbs.length; _i++) {
             if (!s.darkOrbs[_i].destroying) { hasActiveOrb = true; break; }
           }
-          set({ survivalBossTimer: newTimer });
-          if (!hasActiveOrb) get().spawnSurvivalBoss();
+          updates.survivalBossTimer = newTimer;
+          shouldSpawnSurvivalBoss = !hasActiveOrb;
         } else {
-          set({ survivalBossTimer: newTimer });
+          updates.survivalBossTimer = newTimer;
         }
       }
+
+      // Publish all timer state once per frame; side effects run after the
+      // committed timer transition so their mechanics keep the same boundary.
+      set(updates);
+      if (shouldEndGame) get().endGame();
+      if (shouldUnfreezeOrbs) get().unfreezeAllOrbs();
+      if (shouldSpawnSurvivalBoss) get().spawnSurvivalBoss();
     },
 
     damageMagiOrb5: () => {

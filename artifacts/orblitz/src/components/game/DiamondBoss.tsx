@@ -151,7 +151,6 @@ function ShimmerShell({ radius }: { radius: number }) {
     </mesh>
   );
 }
-
 // ── Orbiting diamond shards ───────────────────────────────────────────────────
 // Faceted octahedra that orbit the boss at varying speeds and radii,
 // each catching light differently for that prismatic shard look.
@@ -357,5 +356,3 @@ export function DiamondBoss({ radius = 1.44, healthPercent = 1 }: DiamondBossPro
     </group>
   );
 }
-
-useGLTF.preload("/models/boss_orb_6_diamond_texture.glb");

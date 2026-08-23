@@ -490,5 +490,3 @@ export function StarFlowVFX() {
     </>
   );
 }
-
-useGLTF.preload("/models/star_pickup.glb");

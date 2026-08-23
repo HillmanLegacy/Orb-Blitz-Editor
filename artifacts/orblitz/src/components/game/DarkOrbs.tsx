@@ -837,6 +837,9 @@ export function DarkOrbs() {
       const phy = orbPhysicsMap.get(orb.id)!;
       let [x, y, z]    = phy.position;
       let [dx, dy, dz] = phy.direction;
+      phy.previousPosition[0] = x;
+      phy.previousPosition[1] = y;
+      phy.previousPosition[2] = z;
       const patPhase   = orb.patternPhase || 0;
 
       // Lazy-float speed ramp

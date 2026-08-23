@@ -16,6 +16,22 @@ import { create } from "zustand";
 
 type SweepMode = "fast" | "loading";
 
+let transitionTimers: number[] = [];
+let transitionRun = 0;
+
+function clearTransitionTimers() {
+  transitionTimers.forEach((timer) => window.clearTimeout(timer));
+  transitionTimers = [];
+}
+
+function scheduleTransition(run: number, delay: number, callback: () => void) {
+  const timer = window.setTimeout(() => {
+    transitionTimers = transitionTimers.filter((id) => id !== timer);
+    if (run === transitionRun) callback();
+  }, delay);
+  transitionTimers.push(timer);
+}
+
 interface OrbTransitionState {
   isActive:         boolean;
   sweepKey:         number;
@@ -45,48 +61,58 @@ export const useOrbTransition = create<OrbTransitionState>((set, get) => ({
 
   fastSweep: (onMidpoint) => {
     if (get().isActive) return;
+    clearTransitionTimers();
+    const run = ++transitionRun;
     set((s) => ({
       isActive: true, sweepKey: s.sweepKey + 1,
       mode: "fast", isMidpointPassed: false, pauseMenuVisible: true,
     }));
     // 480 ms: backdrop fully opaque; fire the state-change callback
-    window.setTimeout(() => {
+    scheduleTransition(run, 480, () => {
       onMidpoint();
-      set({ isMidpointPassed: true });
-    }, 480);
+      if (run === transitionRun) set({ isMidpointPassed: true });
+    });
     // worst-case last orb: max stagger (330 ms) + max duration (960 ms) = 1 290 ms → pad
-    window.setTimeout(() => get()._done(), 1420);
+    scheduleTransition(run, 1420, () => get()._done());
   },
 
   pauseSweep: () => {
     if (get().isActive) return;
+    clearTransitionTimers();
+    const run = ++transitionRun;
     set((s) => ({
       isActive: true, sweepKey: s.sweepKey + 1,
       mode: "fast", isMidpointPassed: false,
       // Hide PauseMenu immediately so frozen game is the visible frame during sweep-in
       pauseMenuVisible: false,
     }));
-    window.setTimeout(() => {
+    scheduleTransition(run, 480, () => {
       // Reveal PauseMenu while still hidden under the opaque backdrop
       set({ isMidpointPassed: true, pauseMenuVisible: true });
-    }, 480);
-    window.setTimeout(() => get()._done(), 1420);
+    });
+    scheduleTransition(run, 1420, () => get()._done());
   },
 
   loadingSweep: (onMidpoint) => {
     if (get().isActive) return;
+    clearTransitionTimers();
+    const run = ++transitionRun;
     set((s) => ({
       isActive: true, sweepKey: s.sweepKey + 1,
       mode: "loading", isMidpointPassed: false, pauseMenuVisible: true,
     }));
     // 550 ms: backdrop fully opaque (0.15 × 3 100 ms = 465 ms) + 85 ms buffer
-    window.setTimeout(() => {
+    scheduleTransition(run, 550, () => {
       onMidpoint?.();
-      set({ isMidpointPassed: true });
-    }, 550);
+      if (run === transitionRun) set({ isMidpointPassed: true });
+    });
     // worst-case: max stagger (1 730 ms) + max duration (1 220 ms) = 2 950 ms → pad
-    window.setTimeout(() => get()._done(), 3200);
+    scheduleTransition(run, 3200, () => get()._done());
   },
 
-  _done: () => set({ isActive: false, isMidpointPassed: false, pauseMenuVisible: true }),
+  _done: () => {
+    ++transitionRun;
+    clearTransitionTimers();
+    set({ isActive: false, isMidpointPassed: false, pauseMenuVisible: true });
+  },
 }));

@@ -147,7 +147,6 @@ function ElectricAuraShell({ radius }: { radius: number }) {
     </mesh>
   );
 }
-
 // ── Electric tendrils ──────────────────────────────────────────────────────────
 // Instanced thin cylinders that shoot outward from random surface points,
 // flickering like real lightning discharge.
@@ -346,5 +345,3 @@ export function PlasmaBoss({ radius = 1.44, healthPercent = 1 }: PlasmaBossProps
     </group>
   );
 }
-
-useGLTF.preload("/models/boss_orb_5_plasma_texture.glb");

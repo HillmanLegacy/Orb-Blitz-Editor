@@ -126,7 +126,6 @@ function RainbowAuraShell({ radius }: { radius: number }) {
     </mesh>
   );
 }
-
 function fract(x: number) { return x - Math.floor(x); }
 
 // ── Rainbow swirl particles ────────────────────────────────────────────────────
@@ -364,5 +363,3 @@ export function RainbowBoss({ radius = 1.44, healthPercent = 1 }: RainbowBossPro
     </group>
   );
 }
-
-useGLTF.preload("/models/boss_orb_7_rainbow_texture.glb");

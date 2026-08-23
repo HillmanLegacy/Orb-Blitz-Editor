@@ -126,6 +126,25 @@ const _elecDpGeo = new THREE.SphereGeometry(1, 24, 16);
 // ── Shared vertexColors material (used by SingularityEvent, VoidTendril, etc.) 
 const _mat_vc = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, vertexColors: true });
 
+type ArcBatch = {
+  geometry: THREE.BufferGeometry;
+  line: THREE.LineSegments;
+  positions: Float32Array;
+  offset: number;
+};
+
+function appendArcSegments(batch: ArcBatch, source: Float32Array, pointCount: number) {
+  for (let point = 0; point < pointCount - 1; point++) {
+    const from = point * 3;
+    batch.positions[batch.offset++] = source[from];
+    batch.positions[batch.offset++] = source[from + 1];
+    batch.positions[batch.offset++] = source[from + 2];
+    batch.positions[batch.offset++] = source[from + 3];
+    batch.positions[batch.offset++] = source[from + 4];
+    batch.positions[batch.offset++] = source[from + 5];
+  }
+}
+
 // ── Module-level intensity state + public API ─────────────────────────────────
 const _elecState = { intensity: 1.0, burstTimer: 0.0, whiteHotTimer: 0.0, shockwave: false };
 export function setElecIntensity(factor: number) {
@@ -187,32 +206,38 @@ function ElectrifiedAura({ scale }: RingProps) {
       return [Math.sin(phi)*Math.cos(theta), Math.sin(phi)*Math.sin(theta), Math.cos(phi)];
     });
     const mains = Array.from({ length: _N_ARCS }, (_, i) => {
-      const geo = new THREE.BufferGeometry();
       const pos = new Float32Array(_ARC_PTS * 3);
-      geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-      return { line: new THREE.Line(geo, mats[i % 4]), geo, pos,
+      return { pos, materialIndex: i % 4,
                a0: anchors[i], a1: anchors[i + _N_ARCS],
                phase: Math.sin(i * 7.3) * Math.PI * 2, snapSeed: Math.random() * 65536 };
     });
     const branches = Array.from({ length: _N_BRANCHES }, (_, i) => {
-      const geo = new THREE.BufferGeometry();
       const pos = new Float32Array(_BRANCH_PTS * 3);
-      geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-      return { line: new THREE.Line(geo, mats[1 + (i % 3)]), geo, pos,
+      return { pos, materialIndex: 1 + (i % 3),
                parentIdx: i % _N_ARCS, branchT: 0.25 + (i % 4) * 0.15,
                phase: Math.cos(i * 3.7) * Math.PI * 2, snapSeed: Math.random() * 65536 };
     });
-    return { mains, branches, mats };
+    const floatsByMaterial = mats.map((_, materialIndex) =>
+      (mains.filter(arc => arc.materialIndex === materialIndex).length * (_ARC_PTS - 1) +
+       branches.filter(arc => arc.materialIndex === materialIndex).length * (_BRANCH_PTS - 1)) * 6,
+    );
+    const batches = mats.map((material, materialIndex) => {
+      const positions = new Float32Array(floatsByMaterial[materialIndex]);
+      const geometry = new THREE.BufferGeometry();
+      const attribute = new THREE.BufferAttribute(positions, 3);
+      attribute.setUsage(THREE.DynamicDrawUsage);
+      geometry.setAttribute("position", attribute);
+      return { geometry, line: new THREE.LineSegments(geometry, material), positions, offset: 0 };
+    });
+    return { mains, branches, mats, batches };
   }, []);
 
   useEffect(() => {
     const g = groupRef.current;
     if (!g) return;
-    arcData.mains.forEach(({ line }) => g.add(line));
-    arcData.branches.forEach(({ line }) => g.add(line));
+    arcData.batches.forEach(({ line }) => g.add(line));
     return () => {
-      arcData.mains.forEach(({ line, geo }) => { g.remove(line); geo.dispose(); });
-      arcData.branches.forEach(({ line, geo }) => { g.remove(line); geo.dispose(); });
+      arcData.batches.forEach(({ line, geometry }) => { g.remove(line); geometry.dispose(); });
       arcData.mats.forEach(m => m.dispose());
     };
   }, [arcData]);
@@ -269,7 +294,7 @@ function ElectrifiedAura({ scale }: RingProps) {
 
     // ── Main arc network ──────────────────────────────────────────────────────
     for (let ai = 0; ai < _N_ARCS; ai++) {
-      const { geo, pos, a0, a1, phase, snapSeed } = arcData.mains[ai];
+      const { pos, a0, a1, phase, snapSeed, materialIndex } = arcData.mains[ai];
       const sx = a0[0]*burstR, sy = a0[1]*burstR, sz = a0[2]*burstR;
       const ex = a1[0]*burstR, ey = a1[1]*burstR, ez = a1[2]*burstR;
       const dx = ex-sx, dy = ey-sy, dz = ez-sz;
@@ -291,14 +316,14 @@ function ElectrifiedAura({ scale }: RingProps) {
         pos[s*3+2] = sz+dz*f+p1z*j1+(p2z/p2L)*j2;
       }
       pos[(_ARC_PTS-1)*3] = ex; pos[(_ARC_PTS-1)*3+1] = ey; pos[(_ARC_PTS-1)*3+2] = ez;
-      (geo.attributes.position as THREE.BufferAttribute).needsUpdate = true;
-      (arcData.mains[ai].line.material as THREE.LineBasicMaterial).opacity =
+      appendArcSegments(arcData.batches[materialIndex], pos, _ARC_PTS);
+      arcData.mats[materialIndex].opacity =
         Math.min(1.0, (0.55 + Math.sin(t*45+phase)*0.40)*inten*(1+whiteHot));
     }
 
     // ── Branch tendrils ────────────────────────────────────────────────────────
     for (let bi = 0; bi < _N_BRANCHES; bi++) {
-      const { geo, pos, parentIdx, branchT, phase, snapSeed } = arcData.branches[bi];
+      const { pos, parentIdx, branchT, phase, snapSeed, materialIndex } = arcData.branches[bi];
       const pPos = arcData.mains[parentIdx].pos;
       const pPt  = Math.min(Math.floor(branchT*(_ARC_PTS-1)), _ARC_PTS-2);
       const bx = pPos[pPt*3], by = pPos[pPt*3+1], bz = pPos[pPt*3+2];
@@ -314,9 +339,13 @@ function ElectrifiedAura({ scale }: RingProps) {
         pos[s*3+1] = by+(endY-by)*f+j*0.8;
         pos[s*3+2] = bz+(endZ-bz)*f+j*0.6;
       }
-      (geo.attributes.position as THREE.BufferAttribute).needsUpdate = true;
-      (arcData.branches[bi].line.material as THREE.LineBasicMaterial).opacity =
+      appendArcSegments(arcData.batches[materialIndex], pos, _BRANCH_PTS);
+      arcData.mats[materialIndex].opacity =
         (0.28 + Math.sin(t*62+phase)*0.28) * inten;
+    }
+    for (const batch of arcData.batches) {
+      (batch.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+      batch.offset = 0;
     }
 
     // ── Impact burst (isDamaged rising edge OR shockwave flag) ─────────────────
