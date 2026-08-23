@@ -4,7 +4,7 @@ import { IS_MOBILE } from "@/lib/isMobile";
 import { EffectComposer, Bloom, SMAA, ChromaticAberration, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { PlayerOrb } from "./PlayerOrb";
-import { DarkOrbs, DarkOrbsClock } from "./DarkOrbs";
+import { DarkOrbs } from "./DarkOrbs";
 import { Projectiles } from "./Projectiles";
 import { PowerUps } from "./PowerUps";
 import { Particles } from "./Particles";
@@ -21,6 +21,8 @@ import { SubBlasterOrb } from "./SubBlasterOrb";
 import { StarFlowVFX } from "./StarFlowVFX";
 import { useShop } from "@/lib/stores/useShop";
 import { World1FireBackground } from "./World1FireBackground";
+import { gameRuntime } from "@/game-runtime/GameRuntime";
+import { runtimeDiagnostics } from "@/game-runtime/RuntimeDiagnostics";
 
 // ── Renderer configuration ────────────────────────────────────────────────────
 function RendererSetup() {
@@ -255,10 +257,10 @@ function GameplayScene() {
   if (phase !== "loading" && phase !== "playing") return null;
   return (
     <>
+      <GameRuntimeCoordinator />
       <PlayerLight />
       <World1FireBackground />
       <PlayerOrb />
-      <DarkOrbsClock />
       <DarkOrbs />
       <Boss />
       <Projectiles />
@@ -274,6 +276,48 @@ function GameplayScene() {
       <GameLogic />
     </>
   );
+}
+
+/** Clears live slots when a run is definitively over, without wiping a pause. */
+function GameRuntimeLifecycle() {
+  const phase = useMagicOrb(s => s.phase);
+
+  useEffect(() => {
+    if (
+      phase === "menu" ||
+      phase === "modeSelect" ||
+      phase === "gameOver" ||
+      phase === "levelComplete" ||
+      phase === "arcadeComplete"
+    ) {
+      gameRuntime.reset();
+    }
+  }, [phase]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const target = window as Window & {
+      __orblitzRuntimeDiagnostics?: () => ReturnType<typeof gameRuntime.diagnosticsSnapshot>;
+    };
+    target.__orblitzRuntimeDiagnostics = () => gameRuntime.diagnosticsSnapshot();
+    return () => { delete target.__orblitzRuntimeDiagnostics; };
+  }, []);
+
+  return null;
+}
+
+/** Advances and tears down live game data independently of React render state. */
+function GameRuntimeCoordinator() {
+  useFrame((_, delta) => {
+    runtimeDiagnostics.beginFrame();
+    gameRuntime.clock.tick(delta);
+  }, -2);
+
+  useFrame(() => {
+    runtimeDiagnostics.endFrame();
+  }, 100);
+
+  return null;
 }
 
 // ── Scene ─────────────────────────────────────────────────────────────────────
@@ -299,6 +343,7 @@ export function GameScene() {
     >
       <Suspense fallback={null}>
         <RenderScheduler />
+        <GameRuntimeLifecycle />
         <RendererSetup />
         <ShaderPrewarm />
         <CameraController />

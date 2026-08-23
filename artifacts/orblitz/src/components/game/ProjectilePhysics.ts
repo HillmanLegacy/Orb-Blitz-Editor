@@ -1,36 +1,40 @@
 import type { Projectile } from "@/lib/stores/useMagicOrb";
+import { gameRuntime } from "@/game-runtime/GameRuntime";
+import type { RuntimeProjectile } from "@/game-runtime/ProjectileRuntime";
 
-export type ProjectileMotion = {
-  position: [number, number, number];
-  direction: [number, number, number];
-  spiralAngle?: number;
-  spawnScale?: number;
-  spawnScaleTimer?: number;
-  subSphereAlive?: [boolean, boolean, boolean];
-  travelTimer?: number;
-};
+export type ProjectileMotion = RuntimeProjectile;
 
-export const projectilePhysicsMap = new Map<string, ProjectileMotion>();
+/**
+ * Compatibility export for existing visual components. This is not a second
+ * physics map: it is the runtime's authoritative live-motion registry.
+ */
+export const projectilePhysicsMap = gameRuntime.projectiles.byId;
 
 export function motionFromProjectile(projectile: Projectile): ProjectileMotion {
-  return {
-    position: [...projectile.position] as [number, number, number],
-    direction: [...projectile.direction] as [number, number, number],
+  return gameRuntime.projectiles.getOrCreate({
+    id: projectile.id,
+    position: projectile.position,
+    direction: projectile.direction,
+    speed: projectile.speed,
     spiralAngle: projectile.spiralAngle,
     spawnScale: projectile.spawnScale,
     spawnScaleTimer: projectile.spawnScaleTimer,
     subSphereAlive: projectile.subSphereAlive
-      ? [...projectile.subSphereAlive] as [boolean, boolean, boolean]
+      ? [projectile.subSphereAlive[0], projectile.subSphereAlive[1], projectile.subSphereAlive[2]]
       : undefined,
     travelTimer: projectile.travelTimer,
-  };
+    hitCount: projectile.hitCount,
+  });
 }
 
 export function getProjectileMotion(projectile: Projectile): ProjectileMotion {
-  let motion = projectilePhysicsMap.get(projectile.id);
-  if (!motion) {
-    motion = motionFromProjectile(projectile);
-    projectilePhysicsMap.set(projectile.id, motion);
-  }
-  return motion;
+  return motionFromProjectile(projectile);
+}
+
+export function releaseProjectileMotion(id: string): void {
+  gameRuntime.projectiles.release(id);
+}
+
+export function resetProjectileMotion(): void {
+  gameRuntime.projectiles.reset();
 }

@@ -3,11 +3,11 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { getProjectileMotion } from "./ProjectilePhysics";
+import { gameRuntime } from "@/game-runtime/GameRuntime";
+import type { RuntimeTrail } from "@/game-runtime/TrailRuntime";
 
 interface TrailData {
-  positions: Float32Array;
-  writeIndex: number;
-  count: number;
+  runtimeTrail: RuntimeTrail;
   geometry: THREE.BufferGeometry;
   material: THREE.LineBasicMaterial;
   line: THREE.Line;
@@ -30,6 +30,7 @@ export function ProjectileTrails() {
         trail.material.dispose();
       }
       trails.clear();
+      gameRuntime.trails.reset();
     };
   }, []);
   
@@ -48,6 +49,7 @@ export function ProjectileTrails() {
         trail.geometry.dispose();
         trail.material.dispose();
         trails.delete(id);
+        gameRuntime.trails.release(id);
       }
     }
     
@@ -69,11 +71,9 @@ export function ProjectileTrails() {
         
         const line = new THREE.Line(geometry, material);
         groupRef.current.add(line);
-        
+        const runtimeTrail = gameRuntime.trails.getOrCreate(proj.id, MAX_TRAIL_LENGTH);
         trail = {
-          positions,
-          writeIndex: 0,
-          count: 0,
+          runtimeTrail,
           geometry,
           material,
           line,
@@ -81,30 +81,31 @@ export function ProjectileTrails() {
         trails.set(proj.id, trail);
       }
       
-      const idx = trail.writeIndex * 3;
-       const motion = getProjectileMotion(proj);
-       trail.positions[idx] = motion.position[0];
-       trail.positions[idx + 1] = motion.position[1];
-       trail.positions[idx + 2] = motion.position[2];
+      const history = trail.runtimeTrail;
+      const idx = history.writeIndex * 3;
+      const motion = getProjectileMotion(proj);
+      history.positions[idx] = motion.position[0];
+      history.positions[idx + 1] = motion.position[1];
+      history.positions[idx + 2] = motion.position[2];
       
-      trail.writeIndex = (trail.writeIndex + 1) % MAX_TRAIL_LENGTH;
-      if (trail.count < MAX_TRAIL_LENGTH) {
-        trail.count++;
+      history.writeIndex = (history.writeIndex + 1) % MAX_TRAIL_LENGTH;
+      if (history.count < MAX_TRAIL_LENGTH) {
+        history.count++;
       }
       
       const posAttr = trail.geometry.getAttribute("position") as THREE.BufferAttribute;
       const renderPositions = posAttr.array as Float32Array;
       
-      for (let i = 0; i < trail.count; i++) {
-        const srcIdx = ((trail.writeIndex - trail.count + i + MAX_TRAIL_LENGTH) % MAX_TRAIL_LENGTH) * 3;
+      for (let i = 0; i < history.count; i++) {
+        const srcIdx = ((history.writeIndex - history.count + i + MAX_TRAIL_LENGTH) % MAX_TRAIL_LENGTH) * 3;
         const dstIdx = i * 3;
-        renderPositions[dstIdx] = trail.positions[srcIdx];
-        renderPositions[dstIdx + 1] = trail.positions[srcIdx + 1];
-        renderPositions[dstIdx + 2] = trail.positions[srcIdx + 2];
+        renderPositions[dstIdx] = history.positions[srcIdx];
+        renderPositions[dstIdx + 1] = history.positions[srcIdx + 1];
+        renderPositions[dstIdx + 2] = history.positions[srcIdx + 2];
       }
       
       posAttr.needsUpdate = true;
-      trail.geometry.setDrawRange(0, trail.count);
+      trail.geometry.setDrawRange(0, history.count);
     }
   });
   

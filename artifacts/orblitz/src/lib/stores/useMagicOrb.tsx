@@ -282,7 +282,7 @@ interface MagicOrbState {
   addDarkOrb: (orb: DarkOrb) => void;
   removeDarkOrb: (id: string) => void;
   updateDarkOrbs: (orbs: DarkOrb[]) => void;
-  markOrbDestroying: (id: string) => void;
+  markOrbDestroying: (id: string, position?: [number, number, number]) => void;
   freezeAllOrbs: () => void;
   unfreezeAllOrbs: () => void;
   
@@ -1696,10 +1696,17 @@ export const useMagicOrb = create<MagicOrbState>()(
     
     updateDarkOrbs: (orbs) => set({ darkOrbs: orbs }),
     
-    markOrbDestroying: (id) => {
+    markOrbDestroying: (id, position) => {
       set((state) => ({
         darkOrbs: state.darkOrbs.map((o) => 
-          o.id === id ? { ...o, destroying: true, destroyTimer: 0.6 } : o
+          o.id === id
+            ? {
+                ...o,
+                position: position ? [position[0], position[1], position[2]] : o.position,
+                destroying: true,
+                destroyTimer: 0.6,
+              }
+            : o
         )
       }));
       get().triggerBackgroundPulse();

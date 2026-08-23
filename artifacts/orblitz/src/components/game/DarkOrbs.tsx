@@ -21,20 +21,16 @@ import { MiniMechaOrb } from "./MiniMechaOrb";
 import { MiniMonsterOrb } from "./MiniMonsterOrb";
 import { StandardEnemyParticles } from "./StandardEnemyParticles";
 import { addExplosionImpulse } from "./Background";
+import { gameRuntime } from "@/game-runtime/GameRuntime";
+import { runtimeDiagnostics } from "@/game-runtime/RuntimeDiagnostics";
 
 const DISTORT_FIELD_RADIUS    = 7.125;
 const DISTORT_FIELD_RADIUS_SQ = DISTORT_FIELD_RADIUS * DISTORT_FIELD_RADIUS; // 50.77
 const HURT_FLASH_DURATION     = 0.15;
 
-// ── Module-level physics map — updated imperatively every frame, never via React ─
-// Stores mutable position/direction/speed/age for each live orb by ID.
-// Reading this inside useFrame is safe; it never triggers React renders.
-const orbPhysicsMap = new Map<string, {
-  position: [number, number, number];
-  direction: [number, number, number];
-  speed: number;
-  age: number;
-}>();
+// Compatibility alias for world-specific renderers. The shared game runtime is
+// the only owner of these mutable transforms.
+const orbPhysicsMap = gameRuntime.enemies.byId;
 
 const BOSS_ORB_COLORS: Record<BossType, { primary: string; secondary: string; glow: string }> = {
   circle:    { primary: "#6a2a8a", secondary: "#aa44cc", glow: "#8844aa" },
@@ -104,7 +100,6 @@ function BossOrbMesh({ orb }: { orb: DarkOrb }) {
   // trapezoid / bird / default
   return <group ref={groupRef} position={orb.position!}><MiniToxicOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
 }
-
 // ── Unified dark orb mesh — fully imperative, zero re-renders per frame ───────
 function UnifiedDarkOrbMesh({ orb }: { orb: DarkOrb }) {
   const groupRef = useRef<THREE.Group>(null);
@@ -470,7 +465,6 @@ function UnifiedDarkOrbMesh({ orb }: { orb: DarkOrb }) {
     </group>
   );
 }
-
 // ── World enemy meshes — all use groupRef + useFrame, no time prop ─────────────
 function World1EnemyMesh({ orb }: { orb: DarkOrb }) {
   const groupRef = useRef<THREE.Group>(null);
@@ -769,13 +763,12 @@ export function DarkOrbs() {
   const bossOrbDeathSoundedRef = useRef(new Set<string>());
 
   // Clean up physics map when component unmounts (e.g. game restart)
-  useEffect(() => () => { orbPhysicsMap.clear(); }, []);
+  useEffect(() => () => { gameRuntime.enemies.reset(); }, []);
 
   useFrame((_, delta) => {
     const {
       darkOrbs: currentOrbs,
       updateDarkOrbs,
-      projectiles,
       playerPosition,
       hasShield,
       takeDamage,
@@ -795,7 +788,7 @@ export function DarkOrbs() {
     } = useMagicOrb.getState();
 
     if (phase !== "playing") {
-      if (orbPhysicsMap.size > 0 && currentOrbs.length === 0) orbPhysicsMap.clear();
+      if (orbPhysicsMap.size > 0 && currentOrbs.length === 0) gameRuntime.enemies.reset();
       return;
     }
     if (currentOrbs.length === 0) return;
@@ -808,15 +801,8 @@ export function DarkOrbs() {
 
     for (const orb of currentOrbs) {
       // ── Initialize physics for newly spawned orbs ───────────────────────────
-      if (!orbPhysicsMap.has(orb.id)) {
-        if (!orb.position || !orb.direction) continue;
-        orbPhysicsMap.set(orb.id, {
-          position:  [orb.position[0],  orb.position[1],  orb.position[2]],
-          direction: [orb.direction[0], orb.direction[1], orb.direction[2]],
-          speed:     orb.speed,
-          age:       orb.age ?? 0,
-        });
-      }
+      if (!orb.position || !orb.direction) continue;
+      gameRuntime.enemies.getOrCreate(orb);
 
       // ── Destroying orbs: count down timer, then remove ──────────────────────
       if (orb.destroying) {
@@ -830,7 +816,7 @@ export function DarkOrbs() {
           const phy = orbPhysicsMap.get(orb.id);
           if (phy) addExplosionImpulse(phy.position[0], phy.position[1], 10);
           else if (orb.position) addExplosionImpulse(orb.position[0], orb.position[1], 10);
-          orbPhysicsMap.delete(orb.id);
+          gameRuntime.enemies.release(orb.id);
           structuralChanged = true;
           continue; // remove from array
         }
@@ -874,7 +860,7 @@ export function DarkOrbs() {
       const distToP = Math.sqrt(toPX * toPX + toPY * toPY);
       if (distToP > 0.1) { dx = toPX / distToP; dy = toPY / distToP; }
 
-      const t = _clockTime; // set below in a separate fast useFrame at priority -1
+      const t = gameRuntime.clock.elapsed;
       switch (orb.pattern) {
         case "zigzag":         { const z2 = Math.sin(t * 4 + patPhase) * 2; x += dx * speed * delta; y += dy * speed * delta + z2 * delta; break; }
         case "spiral":         { const sa = t * 2 + patPhase; x += (dx * speed + Math.cos(sa) * 0.5) * delta; y += (dy * speed + Math.sin(sa) * 0.5) * delta; break; }
@@ -892,7 +878,7 @@ export function DarkOrbs() {
 
       // Cull out-of-bounds
       if (Math.abs(x) > 28 || Math.abs(y) > 18) {
-        orbPhysicsMap.delete(orb.id);
+        gameRuntime.enemies.release(orb.id);
         structuralChanged = true;
         continue;
       }
@@ -914,7 +900,7 @@ export function DarkOrbs() {
               if (orbsDestroyedInLevel + 1 >= orbsRequiredForLevel) completeLevel();
             }
             // Write back position so VFX spawns at right place
-            phy.position = [x, y, z];
+            phy.position[0] = x; phy.position[1] = y; phy.position[2] = z;
             newOrbs.push({ ...orb, position: [x, y, z] as [number,number,number], direction: [dx,dy,dz] as [number,number,number], destroying: true, destroyTimer: 0.6 });
             structuralChanged = true;
             continue;
@@ -932,7 +918,7 @@ export function DarkOrbs() {
         } else {
           takeDamage();
         }
-        phy.position = [x, y, z];
+        phy.position[0] = x; phy.position[1] = y; phy.position[2] = z;
         newOrbs.push({ ...orb, position: [x, y, z] as [number,number,number], direction: [dx,dy,dz] as [number,number,number], destroying: true, destroyTimer: 0.6 });
         structuralChanged = true;
         continue;
@@ -941,40 +927,11 @@ export function DarkOrbs() {
       // Distort field freeze
       const inDistortField = distortActive && (x * x + y * y < DISTORT_FIELD_RADIUS_SQ);
 
-      // Projectile hit (skip if already hurting)
-      let hit = false;
-      if ((orb.hurtTimer || 0) <= 0) {
-        const projHitR2 = (orb.size * 0.8 + 0.3) * (orb.size * 0.8 + 0.3); // hoisted out of inner loop
-        for (const proj of projectiles) {
-          const pdx = x - proj.position[0], pdy = y - proj.position[1];
-          if (pdx * pdx + pdy * pdy < projHitR2) { hit = true; break; }
-        }
-      }
-
-      if (hit) {
-        addImpactEffect({ id: `impact-${Date.now()}-${Math.random()}`, position: [x, y, 0], timer: 0.5, maxTimer: 0.5, seed: Math.random() });
-        addScore(10);
-        addStarFlowEvent([x, y, z], 5);
-        if (gm === "arcade" && !orb.isBossOrb) {
-          if (orbsDestroyedInLevel + 1 >= orbsRequiredForLevel) completeLevel();
-        }
-        const isFireOrb = orb.shape === "circle" || orb.bossType === "circle";
-        phy.position = [x, y, z];
-        newOrbs.push({
-          ...orb,
-          position: [x, y, z] as [number,number,number],
-          direction: [dx, dy, dz] as [number,number,number],
-          ...(isFireOrb ? { hurtTimer: HURT_FLASH_DURATION } : { destroying: true, destroyTimer: 0.6 }),
-        });
-        structuralChanged = true;
-        continue;
-      }
-
       // Hurt-timer countdown → transition to destroying
       const newHurtTimer = Math.max(0, (orb.hurtTimer || 0) - delta);
       if ((orb.hurtTimer || 0) > 0 && newHurtTimer <= 0) {
         addStarFlowEvent([x, y, z], 5);
-        phy.position = [x, y, z];
+        phy.position[0] = x; phy.position[1] = y; phy.position[2] = z;
         newOrbs.push({ ...orb, position: [x, y, z] as [number,number,number], direction: [dx,dy,dz] as [number,number,number], hurtTimer: 0, destroying: true, destroyTimer: 0.6 });
         structuralChanged = true;
         continue;
@@ -984,15 +941,14 @@ export function DarkOrbs() {
       const newFrozen     = inDistortField;
       const frozenChanged = newFrozen !== !!orb.frozen;
       const hurtChanged   = newHurtTimer !== (orb.hurtTimer || 0);
-      const speedChanged  = orb.lazyFloat && (currentSpeed !== phy.speed);
 
       // Write updated physics back to the map (no Zustand involved)
-      phy.position  = [x, y, z];
-      phy.direction = [dx, dy, dz];
+      phy.position[0] = x; phy.position[1] = y; phy.position[2] = z;
+      phy.direction[0] = dx; phy.direction[1] = dy; phy.direction[2] = dz;
       phy.speed     = currentSpeed;
       phy.age       = newAge;
 
-      if (frozenChanged || hurtChanged || speedChanged) {
+      if (frozenChanged || hurtChanged) {
         structuralChanged = true;
         newOrbs.push({
           ...orb,
@@ -1001,7 +957,6 @@ export function DarkOrbs() {
           direction: [dx,dy,dz] as [number,number,number],
           frozen:    newFrozen,
           ...(hurtChanged  ? { hurtTimer: newHurtTimer }   : {}),
-          ...(speedChanged ? { speed: currentSpeed, age: newAge } : {}),
         });
       } else {
         newOrbs.push(orb); // SAME reference — memo sees no change
@@ -1011,9 +966,11 @@ export function DarkOrbs() {
     // Only write to Zustand when the array structure or structural fields changed
     if (structuralChanged) {
       updateDarkOrbs(newOrbs);
+      runtimeDiagnostics.noteStoreWrite();
     }
   });
 
+  runtimeDiagnostics.noteEnemyRender();
   return (
     <>
       {darkOrbs.map((orb) => (
@@ -1024,11 +981,3 @@ export function DarkOrbs() {
   );
 }
 
-// ── Clock helper: one cheap useFrame at priority -1 writes the global time ────
-// All pattern cases in the physics loop read `_clockTime` rather than
-// calling state.clock.getElapsedTime() per-orb inside the same frame.
-let _clockTime = 0;
-export function DarkOrbsClock() {
-  useFrame((state) => { _clockTime = state.clock.elapsedTime; }, -1);
-  return null;
-}

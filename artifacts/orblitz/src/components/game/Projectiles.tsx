@@ -1,14 +1,26 @@
 import { useRef, useMemo, memo, Suspense, useState, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { useMagicOrb, Projectile, Particle, ImpactEffect } from "@/lib/stores/useMagicOrb";
+import { useMagicOrb, DarkOrb, Projectile, Particle, ImpactEffect } from "@/lib/stores/useMagicOrb";
 import { useAudio } from "@/lib/stores/useAudio";
 import { useShop, TrailEffect } from "@/lib/stores/useShop";
 import { getSkinColors, PlayerGlow } from "./PlayerOrb";
 import { PlayerModel } from "./PlayerModel";
 import { PlayerParticles } from "./PlayerParticles";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
-import { getProjectileMotion, projectilePhysicsMap } from "./ProjectilePhysics";
+import {
+  getProjectileMotion,
+  projectilePhysicsMap,
+  releaseProjectileMotion,
+  resetProjectileMotion,
+} from "./ProjectilePhysics";
+import { runtimeDiagnostics } from "@/game-runtime/RuntimeDiagnostics";
+import { gameRuntime } from "@/game-runtime/GameRuntime";
+
+/** Projectile collision always reads live enemy transforms, never store snapshots. */
+function liveOrbPosition(orb: DarkOrb): [number, number, number] {
+  return gameRuntime.enemies.get(orb.id)?.position ?? orb.position;
+}
 
 const TRAIL_CONFIGS: Record<TrailEffect, { colors: string[]; particleCount: number; spread: number; glow: boolean }> = {
   none:           { colors: [],                                                                             particleCount: 0,  spread: 0.00, glow: false },
@@ -1205,6 +1217,7 @@ function OverchargedProjectileMesh({
   projectile: Projectile; time: number; spawnScale: number; travelTimer?: number;
 }) {
   const groupRef = useRef<THREE.Group>(null);
+  const spawnGroupRef = useRef<THREE.Group>(null);
   // Charge-up urgency in the last 0.5 s before detonation
   const chargeT  = travelTimer !== undefined ? Math.max(0, (travelTimer - (OC_TRAVEL_TIME - 0.5)) / 0.5) : 0;
   const pulseHz  = 4.5 + chargeT * 18;           // 4.5 → 22.5 Hz as detonation nears
@@ -1256,6 +1269,7 @@ function OverchargedProjectileMesh({
     const motion = projectilePhysicsMap.get(proj.id);
     if (groupRef.current && motion) groupRef.current.position.set(...motion.position);
     const visualScale = motion?.spawnScale ?? ss;
+    if (spawnGroupRef.current) spawnGroupRef.current.scale.setScalar(visualScale);
     const [wx, wy, wz] = motion?.position ?? proj.position;
 
     // Push position into history (most-recent at index 0)
@@ -1302,7 +1316,7 @@ function OverchargedProjectileMesh({
       {/* Trailing ribbon rendered behind the spawn-scale group */}
       <mesh geometry={ribbonGeo} material={ribbonMat} />
       {/* Scale-in group: everything below grows from 0.05 → 1.0 on spawn */}
-      <group scale={spawnScale}>
+      <group ref={spawnGroupRef} scale={spawnScale}>
         <pointLight color="#55aaff" intensity={8 + pulse * 4} distance={9} decay={2} />
         <pointLight color="#ffffff" intensity={4}              distance={3} decay={2} />
         <mesh geometry={_ocProjCoreGeo} material={_ocProjCoreMat} scale={coreScale} />
@@ -1589,6 +1603,8 @@ export function Projectiles() {
   const volleyHits = useRef<Set<string>>(new Set());
   const volleyProjectileCounts = useRef<Map<string, number>>(new Map());
   const volleyRemainingCounts = useRef<Map<string, number>>(new Map());
+  const removedProjectileIds = useRef<Set<string>>(new Set());
+  const activeProjectileIds = useRef<Set<string>>(new Set());
 
   // ── Overcharged shockwave rings ───────────────────────────────────────────
   const knownOcIds   = useRef<Set<string>>(new Set());
@@ -1612,13 +1628,14 @@ export function Projectiles() {
   const scatterArcTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => () => {
-    projectilePhysicsMap.clear();
+    resetProjectileMotion();
   }, []);
   
   const skinColors = useMemo(() => getSkinColors(equippedSkin, 3), [equippedSkin]);
   const projectileColor = skinColors.projectile;
   
   useFrame((state, delta) => {
+    runtimeDiagnostics.beginSimulation();
     clockRef.current = state.clock.getElapsedTime();
     
     const {
@@ -1649,7 +1666,10 @@ export function Projectiles() {
       addStarFlowEvent,
     } = useMagicOrb.getState();
     
-    if (phase !== "playing") return;
+    if (phase !== "playing") {
+      runtimeDiagnostics.endSimulation();
+      return;
+    }
 
     // Detect newly spawned overcharged projectiles → shockwave ring
     for (const proj of projectiles) {
@@ -1701,14 +1721,20 @@ export function Projectiles() {
       updateImpactEffects(updatedEffects);
     }
     
-    if (projectiles.length === 0) return;
+    if (projectiles.length === 0) {
+      runtimeDiagnostics.endSimulation();
+      return;
+    }
     
-    const removedProjectileIds = new Set<string>();
+    const removedIds = removedProjectileIds.current;
+    removedIds.clear();
     let structuralChanged = false;
-    const activeProjectileIds = new Set(projectiles.map(proj => proj.id));
+    const activeIds = activeProjectileIds.current;
+    activeIds.clear();
+    for (const proj of projectiles) activeIds.add(proj.id);
     for (const proj of projectiles) getProjectileMotion(proj);
     for (const id of projectilePhysicsMap.keys()) {
-      if (!activeProjectileIds.has(id)) projectilePhysicsMap.delete(id);
+      if (!activeIds.has(id)) releaseProjectileMotion(id);
     }
     hitOrbsThisFrame.current.clear();
     hitPowerUpsThisFrame.current.clear();
@@ -1736,15 +1762,16 @@ export function Projectiles() {
       if (proj.homing) {
         const homingBoundary = 12;
         // Inline the filter into the closest-orb search (single pass, no allocation).
-        let closestTarget: { position: [number, number, number] } | null = null;
+        let closestTargetPosition: [number, number, number] | null = null;
         let closestDist2 = Infinity; // compare squared distances — no sqrt needed for selection
 
         for (const orb of darkOrbs) {
-          if (orb.destroying || Math.abs(orb.position[0]) > homingBoundary || Math.abs(orb.position[1]) > homingBoundary) continue;
-          const d2 = (orb.position[0] - px) ** 2 + (orb.position[1] - py) ** 2;
+          const orbPosition = liveOrbPosition(orb);
+          if (orb.destroying || Math.abs(orbPosition[0]) > homingBoundary || Math.abs(orbPosition[1]) > homingBoundary) continue;
+          const d2 = (orbPosition[0] - px) ** 2 + (orbPosition[1] - py) ** 2;
           if (d2 < closestDist2) {
             closestDist2 = d2;
-            closestTarget = orb;
+            closestTargetPosition = orbPosition;
           }
         }
 
@@ -1752,13 +1779,13 @@ export function Projectiles() {
           const bossDist2 = (boss.position[0] - px) ** 2 + (boss.position[1] - py) ** 2;
           if (bossDist2 < closestDist2) {
             closestDist2 = bossDist2;
-            closestTarget = boss;
+            closestTargetPosition = boss.position;
           }
         }
         
-        if (closestTarget) {
-          const targetDirX = closestTarget.position[0] - px;
-          const targetDirY = closestTarget.position[1] - py;
+        if (closestTargetPosition) {
+          const targetDirX = closestTargetPosition[0] - px;
+          const targetDirY = closestTargetPosition[1] - py;
           const len = Math.sqrt(targetDirX * targetDirX + targetDirY * targetDirY);
           if (len > 0.1) {
             const tdx = targetDirX / len;
@@ -1784,7 +1811,7 @@ export function Projectiles() {
         }
       }
       
-      let newSpiralAngle = proj.spiralAngle;
+      let newSpiralAngle = motion.spiralAngle;
       // Old-style spiralAngle steers direction only for non-spiral types.
       if (newSpiralAngle !== undefined && proj.type !== "spiral") {
         const spiralSpeed = 3;
@@ -1793,7 +1820,7 @@ export function Projectiles() {
         dy = Math.sin(newSpiralAngle);
       } else if (proj.type === "spiral") {
         // Advance orbit phase for sub-sphere positioning (not steering)
-        newSpiralAngle = (proj.spiralAngle ?? 0) + delta * SPIRAL_ORBIT_SPEED;
+        newSpiralAngle = (motion.spiralAngle ?? 0) + delta * SPIRAL_ORBIT_SPEED;
       }
       
       const effSpeed = proj.speed ?? projectileSpeed;
@@ -1802,8 +1829,8 @@ export function Projectiles() {
       pz += dz * effSpeed * delta;
 
       // Grow-in scale for overcharged (EaseOutQuad over 0.15 s)
-      let newSpawnScale    = proj.spawnScale;
-      let newSpawnScaleTimer = proj.spawnScaleTimer;
+      let newSpawnScale    = motion.spawnScale;
+      let newSpawnScaleTimer = motion.spawnScaleTimer;
       if (proj.type === "overcharged" && newSpawnScaleTimer !== undefined && newSpawnScaleTimer < 0.15) {
         newSpawnScaleTimer = newSpawnScaleTimer + delta;
         const eoqT  = Math.min(1, newSpawnScaleTimer / 0.15);
@@ -1811,7 +1838,7 @@ export function Projectiles() {
       }
 
       // travelTimer is advanced after hitSomething is declared (see below)
-      let newTravelTimer = proj.travelTimer;
+      let newTravelTimer = motion.travelTimer;
 
       const screenBoundary = 20;
       if (Math.abs(px) > screenBoundary || Math.abs(py) > screenBoundary) {
@@ -1840,7 +1867,7 @@ export function Projectiles() {
         }
         
         projectileOrbHits.current.delete(proj.id);
-        removedProjectileIds.add(proj.id);
+        removedIds.add(proj.id);
         structuralChanged = true;
         continue;
       }
@@ -1876,10 +1903,10 @@ export function Projectiles() {
 
           for (const orb of darkOrbs) {
             if (orb.destroying) continue;
-            const [ox, oy, oz] = orb.position;
+            const [ox, oy, oz] = liveOrbPosition(orb);
             if (Math.abs(ox) > 13 || Math.abs(oy) > 13) continue;
             if (Math.sqrt((px-ox)**2+(py-oy)**2+(pz-oz)**2) < OC_EXPLODE_RADIUS) {
-              markOrbDestroying(orb.id);
+              markOrbDestroying(orb.id, [ox, oy, oz]);
               addScore(10); incrementGauntletOrbs();
               addStarFlowEvent([ox, oy, oz], 5);
               if (gameMode === "arcade") incrementOrbsDestroyed();
@@ -1902,9 +1929,9 @@ export function Projectiles() {
 
       // ── Orbital Spiral Blaster: per-sub-sphere collision (boss + orbs) ────
       if (proj.type === "spiral") {
-        const _subAlive = proj.subSphereAlive ?? [true, true, true];
-        const [_fdx, _fdy] = proj.direction;
-        const _phase = proj.spiralAngle ?? 0;
+        const _subAlive = motion.subSphereAlive ?? [true, true, true];
+        const [_fdx, _fdy] = motion.direction;
+        const _phase = motion.spiralAngle ?? 0;
 
         if (boss && !boss.destroying && !boss.shieldActive) {
           const [bx, by, bz] = boss.position;
@@ -1916,7 +1943,7 @@ export function Projectiles() {
             if (Math.sqrt((_spx-bx)**2+(_spy-by)**2+(_spz-(bz||0))**2) < 2.15) {
               spiralBossHit.current.add(_sk);
               _subAlive[si] = false;
-              proj.hitCount = Math.max(0, (proj.hitCount ?? 3) - 1);
+              motion.hitCount = Math.max(0, (motion.hitCount ?? 3) - 1);
               const _ph = projectileOrbHits.current.get(proj.id) || new Set<string>();
               _ph.add("boss"); projectileOrbHits.current.set(proj.id, _ph);
               const _bk = damageBoss();
@@ -1929,7 +1956,7 @@ export function Projectiles() {
 
         for (const orb of darkOrbs) {
           if (hitOrbsThisFrame.current.has(orb.id) || orb.destroying) continue;
-          const [ox, oy, oz] = orb.position;
+          const [ox, oy, oz] = liveOrbPosition(orb);
           if (Math.abs(ox) > 12 || Math.abs(oy) > 12) continue;
           const _ph = projectileOrbHits.current.get(proj.id) || new Set<string>();
           if (_ph.has(orb.id)) continue;
@@ -1938,9 +1965,9 @@ export function Projectiles() {
             const [_spx, _spy, _spz] = _getSpiralSubPos(px, py, pz, _fdx, _fdy, _phase, si);
             if (Math.sqrt((_spx-ox)**2+(_spy-oy)**2+(_spz-oz)**2) < hitRadius + (orb.isBossOrb ? 0.6 : 0) + 0.38) {
               _subAlive[si] = false;
-              proj.hitCount = Math.max(0, (proj.hitCount ?? 3) - 1);
+              motion.hitCount = Math.max(0, (motion.hitCount ?? 3) - 1);
               hitOrbsThisFrame.current.add(orb.id);
-              markOrbDestroying(orb.id);
+              markOrbDestroying(orb.id, [ox, oy, oz]);
               addScore(10); incrementGauntletOrbs(); playHit();
               addStarFlowEvent([ox, oy, oz], 5);
               if (gameMode === "arcade") incrementOrbsDestroyed();
@@ -1951,10 +1978,7 @@ export function Projectiles() {
           }
         }
 
-        if (motion.subSphereAlive !== _subAlive) {
-          motion.subSphereAlive = [..._subAlive] as [boolean, boolean, boolean];
-          structuralChanged = true;
-        }
+        motion.subSphereAlive = _subAlive;
         if (!_subAlive.some(Boolean)) hitSomething = true;
       }
 
@@ -1965,9 +1989,9 @@ export function Projectiles() {
         const bossHitRadius = 1.65;
         
         if (dist < bossHitRadius && !spiralBossHit.current.has(proj.id) &&
-            (proj.type !== "overcharged" || (proj.spawnScale ?? 1) >= 0.8)) {
+            (proj.type !== "overcharged" || (motion.spawnScale ?? 1) >= 0.8)) {
           const isOvercharged = proj.type === "overcharged";
-           const isSpiralPiercing = proj.hitCount !== undefined && proj.hitCount > 1;
+           const isSpiralPiercing = motion.hitCount !== undefined && motion.hitCount > 1;
 
           if (isOvercharged) {
             // Overcharged passes through the boss — track so it only hits once per pass
@@ -1976,7 +2000,7 @@ export function Projectiles() {
             hitSomething = true;
           } else {
             // Spiral braid loses one strand, keeps flying
-            proj.hitCount!--;
+            motion.hitCount!--;
             spiralBossHit.current.add(proj.id);
           }
 
@@ -2037,7 +2061,7 @@ export function Projectiles() {
       for (const orb of darkOrbs) {
         if (hitOrbsThisFrame.current.has(orb.id) || orb.destroying) continue;
         
-        const [ox, oy, oz] = orb.position;
+        const [ox, oy, oz] = liveOrbPosition(orb);
         const orbScreenBoundary = 12;
         if (Math.abs(ox) > orbScreenBoundary || Math.abs(oy) > orbScreenBoundary) continue;
         
@@ -2053,9 +2077,9 @@ export function Projectiles() {
           : (proj.isCharged ? hitRadius * 1.8 : hitRadius) + bossOrbHitBonus;
 
         if (dist2 < effectiveRadius * effectiveRadius &&
-            (proj.type !== "overcharged" || (proj.spawnScale ?? 1) >= 0.8)) {
+            (proj.type !== "overcharged" || (motion.spawnScale ?? 1) >= 0.8)) {
           hitOrbsThisFrame.current.add(orb.id);
-          markOrbDestroying(orb.id);
+          markOrbDestroying(orb.id, [ox, oy, oz]);
           addScore(10);
           incrementGauntletOrbs();
           addStarFlowEvent([ox, oy, oz], 5);
@@ -2082,8 +2106,8 @@ export function Projectiles() {
             let _ph = projectileOrbHits.current.get(proj.id);
             if (!_ph) { _ph = new Set(); projectileOrbHits.current.set(proj.id, _ph); }
             _ph.add(orb.id);
-          } else if (proj.piercing && proj.hitCount && proj.hitCount > 1) {
-            proj.hitCount--;
+          } else if (proj.piercing && motion.hitCount && motion.hitCount > 1) {
+            motion.hitCount--;
             let _ph2 = projectileOrbHits.current.get(proj.id);
             if (!_ph2) { _ph2 = new Set(); projectileOrbHits.current.set(proj.id, _ph2); }
             _ph2.add(orb.id);
@@ -2113,15 +2137,19 @@ export function Projectiles() {
       }
       
       if (!hitSomething) {
-        motion.position = [px, py, pz];
-        motion.direction = [dx, dy, dz];
+        motion.position[0] = px;
+        motion.position[1] = py;
+        motion.position[2] = pz;
+        motion.direction[0] = dx;
+        motion.direction[1] = dy;
+        motion.direction[2] = dz;
         motion.spiralAngle = newSpiralAngle;
         motion.spawnScale = newSpawnScale;
         motion.spawnScaleTimer = newSpawnScaleTimer;
         motion.travelTimer = newTravelTimer;
       } else {
         projectileOrbHits.current.delete(proj.id);
-        removedProjectileIds.add(proj.id);
+        removedIds.add(proj.id);
         structuralChanged = true;
       }
     }
@@ -2129,28 +2157,18 @@ export function Projectiles() {
     // Iterate the Map directly — avoids Array.from() allocation; safe to delete
     // the current key during Map iteration per the ECMAScript spec.
     for (const projId of projectileOrbHits.current.keys()) {
-      if (removedProjectileIds.has(projId)) projectileOrbHits.current.delete(projId);
+      if (removedIds.has(projId)) projectileOrbHits.current.delete(projId);
     }
     
     if (structuralChanged) {
-      updateProjectiles(projectiles
-        .filter(proj => !removedProjectileIds.has(proj.id))
-        .map(proj => {
-          const motion = getProjectileMotion(proj);
-          return {
-            ...proj,
-            position: [...motion.position] as [number, number, number],
-            direction: [...motion.direction] as [number, number, number],
-            spiralAngle: motion.spiralAngle,
-            spawnScale: motion.spawnScale,
-            spawnScaleTimer: motion.spawnScaleTimer,
-            subSphereAlive: motion.subSphereAlive,
-            travelTimer: motion.travelTimer,
-          };
-        }));
+      for (const id of removedIds) releaseProjectileMotion(id);
+      updateProjectiles(projectiles.filter(proj => !removedIds.has(proj.id)));
+      runtimeDiagnostics.noteStoreWrite();
     }
+    runtimeDiagnostics.endSimulation();
   });
   
+  runtimeDiagnostics.noteProjectileRender();
   return (
     <>
       {projectiles.map((proj) =>
