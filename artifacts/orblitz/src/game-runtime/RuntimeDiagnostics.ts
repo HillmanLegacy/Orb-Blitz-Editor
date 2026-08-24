@@ -5,10 +5,15 @@ type Timings = {
   frameMs: number;
   simulationMs: number;
   collisionMs: number;
+  projectileVisualMs: number;
+  trailMs: number;
   /** CPU callback time outside measured simulation; not a GPU render measurement. */
   cpuCallbackMs: number;
   storeWrites: number;
+  projectileSpawns: number;
   projectileRenders: number;
+  projectileVisualInstances: number;
+  trailParticles: number;
   enemyRenders: number;
 };
 
@@ -45,9 +50,11 @@ class RuntimeDiagnostics {
   private frameStartedAt = 0;
   private simulationStartedAt = 0;
   private collisionStartedAt = 0;
+  private projectileVisualStartedAt = 0;
+  private trailStartedAt = 0;
   private readonly values: Timings = {
-    frameMs: 0, simulationMs: 0, collisionMs: 0, cpuCallbackMs: 0,
-    storeWrites: 0, projectileRenders: 0, enemyRenders: 0,
+    frameMs: 0, simulationMs: 0, collisionMs: 0, projectileVisualMs: 0, trailMs: 0, cpuCallbackMs: 0,
+    storeWrites: 0, projectileSpawns: 0, projectileRenders: 0, projectileVisualInstances: 0, trailParticles: 0, enemyRenders: 0,
   };
   private readonly frameHistory = new Float32Array(180);
   private frameHistorySize = 0;
@@ -73,10 +80,15 @@ class RuntimeDiagnostics {
     this.frameStartedAt = performance.now();
     this.values.storeWrites = 0;
     this.values.projectileRenders = 0;
+    this.values.projectileVisualInstances = 0;
+    this.values.trailParticles = 0;
     this.values.enemyRenders = 0;
     this.values.simulationMs = 0;
     this.values.collisionMs = 0;
+    this.values.projectileVisualMs = 0;
+    this.values.trailMs = 0;
     this.values.cpuCallbackMs = 0;
+    this.values.projectileSpawns = 0;
   }
 
   beginSimulation(): void {
@@ -95,6 +107,26 @@ class RuntimeDiagnostics {
     if (this.enabled) this.values.collisionMs = performance.now() - this.collisionStartedAt;
   }
 
+  beginProjectileVisuals(): void {
+    if (this.enabled) this.projectileVisualStartedAt = performance.now();
+  }
+
+  endProjectileVisuals(instances: number): void {
+    if (!this.enabled) return;
+    this.values.projectileVisualMs = performance.now() - this.projectileVisualStartedAt;
+    this.values.projectileVisualInstances = instances;
+  }
+
+  beginTrails(): void {
+    if (this.enabled) this.trailStartedAt = performance.now();
+  }
+
+  endTrails(particles: number): void {
+    if (!this.enabled) return;
+    this.values.trailMs = performance.now() - this.trailStartedAt;
+    this.values.trailParticles = particles;
+  }
+
   endFrame(renderer?: WebGLRenderer): void {
     if (!this.enabled) return;
     this.values.frameMs = performance.now() - this.frameStartedAt;
@@ -106,6 +138,7 @@ class RuntimeDiagnostics {
   }
 
   noteStoreWrite(): void { if (this.enabled) this.values.storeWrites++; }
+  noteProjectileSpawn(): void { if (this.enabled) this.values.projectileSpawns++; }
   noteProjectileRender(): void { if (this.enabled) this.values.projectileRenders++; }
   noteEnemyRender(): void { if (this.enabled) this.values.enemyRenders++; }
 

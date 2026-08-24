@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import type { MagiOrbType, DefenseType } from "./useShop";
 import { useShop } from "./useShop";
+import { runtimeDiagnostics } from "@/game-runtime/RuntimeDiagnostics";
 
 export type GamePhase = "menu" | "loading" | "playing" | "paused" | "gameOver" | "levelComplete" | "modeSelect" | "arcadeComplete";
 export type LoadingType = "entering" | "exiting" | "exiting_to_menu" | "nextLevel" | null;
@@ -1712,9 +1713,10 @@ export const useMagicOrb = create<MagicOrbState>()(
       get().triggerBackgroundPulse();
     },
     
-    addProjectile: (projectile) => set((state) => ({ 
-      projectiles: [...state.projectiles, projectile] 
-    })),
+    addProjectile: (projectile) => {
+      runtimeDiagnostics.noteProjectileSpawn();
+      set((state) => ({ projectiles: [...state.projectiles, projectile] }));
+    },
     
     removeProjectile: (id) => set((state) => ({ 
       projectiles: state.projectiles.filter((p) => p.id !== id) 
