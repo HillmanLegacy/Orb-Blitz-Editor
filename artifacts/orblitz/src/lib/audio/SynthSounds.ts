@@ -86,14 +86,21 @@ function rev(): AudioNode | null {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /** Soft-clip waveshaper — adds harmonic saturation without harsh clipping. */
+const _distCurveCache = new Map<number, Float32Array<ArrayBuffer>>();
+
 function _distCurve(amount: number): Float32Array<ArrayBuffer> {
+  const cached = _distCurveCache.get(amount);
+  if (cached) return cached;
+
   const n = 256;
   const curve = new Float32Array(n);
   for (let i = 0; i < n; i++) {
     const x = (i * 2) / n - 1;
     curve[i] = ((Math.PI + amount) * x) / (Math.PI + amount * Math.abs(x));
   }
-  return curve as Float32Array<ArrayBuffer>;
+  const result = curve as Float32Array<ArrayBuffer>;
+  _distCurveCache.set(amount, result);
+  return result;
 }
 
 /** Exponentially-decaying stereo noise — works as a convolution reverb IR. */
@@ -141,6 +148,20 @@ function noise(ctx: AudioContext, key: 'xs' | 'sm' | 'md' | 'lg'): AudioBuffer {
 let _tShoot  = 0;   // 30 ms  – shoot
 let _tHit    = 0;   // 75 ms  – hit
 let _tNearM  = 0;   // 200 ms – near miss (quiet)
+const _sfxTimestamps = new Map<string, number>();
+
+/**
+ * Audio graph construction is synchronous on the main thread even though
+ * playback happens on the audio thread. These limits only coalesce repetitive
+ * cues; gameplay still processes every shot, hit, destruction, and combo.
+ */
+function allowSfx(key: string, minimumIntervalMs: number): boolean {
+  const now = performance.now();
+  const last = _sfxTimestamps.get(key) ?? -Infinity;
+  if (now - last < minimumIntervalMs) return false;
+  _sfxTimestamps.set(key, now);
+  return true;
+}
 
 // ── Convenience: pitch randomisation ─────────────────────────────────────────
 function _pr(semis: number): number { return Math.pow(2, semis / 12); }
@@ -290,6 +311,7 @@ export function playHitSound(volume = 0.3) {
  * Player projectile hits boss — heavy sub thud + metallic ring + reverb.
  */
 export function playBossHitSound(volume = 0.4) {
+  if (!allowSfx("boss-hit", 90)) return;
   try {
     const ctx = getAudioContext();
     const d   = dst(ctx);
@@ -364,6 +386,7 @@ export function playBossHitSound(volume = 0.4) {
  * Dark orb destroyed — mini explosion: noise sweep + tonal decay + reverb.
  */
 export function playOrbDestroySound(volume = 0.3) {
+  if (!allowSfx("orb-destroy", 45)) return;
   try {
     const ctx = getAudioContext();
     const d   = dst(ctx);
@@ -434,6 +457,7 @@ export function playOrbDestroySound(volume = 0.3) {
  * Player takes damage — gut-punch: distorted noise burst + vibrato + sub.
  */
 export function playPlayerDamageSound(volume = 0.5) {
+  if (!allowSfx("player-damage", 180)) return;
   try {
     const ctx = getAudioContext();
     const d   = dst(ctx);
@@ -494,6 +518,7 @@ export function playPlayerDamageSound(volume = 0.5) {
  * Power-up collected — ascending chiptune fanfare: 5-note Sine/Square arpeggio.
  */
 export function playPowerUpSound(volume = 0.3) {
+  if (!allowSfx("power-up", 100)) return;
   try {
     const ctx  = getAudioContext();
     const d    = dst(ctx);
@@ -544,6 +569,7 @@ export function playPowerUpSound(volume = 0.3) {
 
 /** Healing orb collected — ascending warm sine arpeggios. */
 export function playHealSound(volume = 0.25) {
+  if (!allowSfx("heal", 100)) return;
   try {
     const ctx   = getAudioContext();
     const d     = dst(ctx);
@@ -680,6 +706,7 @@ export function playGameOverSound(volume = 0.35) {
  * Boss defeated — epic multi-layer fanfare: explosion → chord → arpeggio → shimmer.
  */
 export function playBossDefeatSound(volume = 0.4) {
+  if (!allowSfx("boss-defeat", 800)) return;
   try {
     const ctx   = getAudioContext();
     const d     = dst(ctx);
@@ -765,6 +792,7 @@ export function playBossDefeatSound(volume = 0.4) {
 
 /** Shield activated — upward sine sweep, resonant. */
 export function playShieldActivateSound(volume = 0.28) {
+  if (!allowSfx("shield", 250)) return;
   try {
     const ctx = getAudioContext(); const d = dst(ctx); const r = rev(); const t = ctx.currentTime;
     [0, 0.04, 0.08].forEach((offset, i) => {
@@ -793,6 +821,7 @@ export function playDefenseActivateSound(volume = 0.28) { playShieldActivateSoun
 
 /** Teleport — rapid pitch chaos + noise crackle. */
 export function playTeleportSound(volume = 0.3) {
+  if (!allowSfx("teleport", 180)) return;
   try {
     const ctx = getAudioContext(); const d = dst(ctx); const r = rev(); const t = ctx.currentTime;
 
@@ -834,6 +863,7 @@ export function playTeleportSound(volume = 0.3) {
 
 /** Charge-up — rising sine + triangle over 0.5 s. */
 export function playChargeUpSound(volume = 0.25) {
+  if (!allowSfx("charge-up", 250)) return;
   try {
     const ctx = getAudioContext(); const d = dst(ctx); const r = rev(); const t = ctx.currentTime;
     const o1 = ctx.createOscillator(); o1.type = 'sine';
@@ -854,6 +884,7 @@ export function playChargeUpSound(volume = 0.25) {
 
 /** Energy burst — rapid Saw/Square burst cluster. */
 export function playEnergyBurstSound(volume = 0.3) {
+  if (!allowSfx("energy-burst", 160)) return;
   try {
     const ctx = getAudioContext(); const d = dst(ctx); const r = rev(); const t = ctx.currentTime;
     [0, 0.04, 0.08, 0.12, 0.16].forEach((off, i) => {
@@ -875,6 +906,7 @@ export function playEnergyBurstSound(volume = 0.3) {
 
 /** Power-down — sawtooth pitch descend. */
 export function playPowerDownSound(volume = 0.25) {
+  if (!allowSfx("power-down", 180)) return;
   try {
     const ctx = getAudioContext(); const d = dst(ctx); const t = ctx.currentTime;
     const o = ctx.createOscillator(); o.type = 'sawtooth';
@@ -890,6 +922,7 @@ export function playPowerDownSound(volume = 0.25) {
 
 /** Warning beep — urgent alternating square tones. */
 export function playWarningSound(volume = 0.22) {
+  if (!allowSfx("warning", 180)) return;
   try {
     const ctx = getAudioContext(); const d = dst(ctx); const t = ctx.currentTime;
     [0, 0.18].forEach((off) => {
@@ -906,6 +939,7 @@ export function playWarningSound(volume = 0.22) {
 
 /** Critical hit — heavy distortion burst + high shimmer. */
 export function playCriticalHitSound(volume = 0.42) {
+  if (!allowSfx("critical-hit", 90)) return;
   try {
     const ctx = getAudioContext(); const d = dst(ctx); const r = rev(); const t = ctx.currentTime;
     const pv  = _rv(1.0);
@@ -948,6 +982,7 @@ export function playNearMissSound(volume = 0.18) {
  *  NOTE: useAudio.tsx calls playComboSound(count, volume) so params are swapped
  *  vs the original file. The call site passes (comboCount, volume). */
 export function playComboSound(comboCount = 1, volume = 0.25) {
+  if (!allowSfx("combo", 120)) return;
   try {
     const ctx = getAudioContext(); const d = dst(ctx); const r = rev(); const t = ctx.currentTime;
     const baseFreq = 440 * Math.pow(2, Math.min(comboCount - 1, 8) / 8);
@@ -967,6 +1002,7 @@ export function playComboSound(comboCount = 1, volume = 0.25) {
 
 /** Coin collected — stepping arpeggio. */
 export function playCoinSound(volume = 0.22) {
+  if (!allowSfx("coin", 80)) return;
   try {
     const ctx = getAudioContext(); const d = dst(ctx); const t = ctx.currentTime;
     [1400, 1760, 2200].forEach((f, i) => {
@@ -1010,6 +1046,7 @@ export function playPauseSound(volume = 0.2) {
 
 /** Boss attack telegraph — sawtooth sweep. */
 export function playBossAttackSound(volume = 0.28) {
+  if (!allowSfx("boss-attack", 160)) return;
   try {
     const ctx = getAudioContext(); const d = dst(ctx); const r = rev(); const t = ctx.currentTime;
     const o   = ctx.createOscillator(); o.type = 'sawtooth';
@@ -1138,6 +1175,7 @@ export function playSparkleSound(volume = 0.15) {
 
 /** Sparkle explosion — dense high-frequency burst. */
 export function playSparkleExplosionSound(volume = 0.22) {
+  if (!allowSfx("sparkle-explosion", 140)) return;
   try {
     const ctx = getAudioContext(); const d = dst(ctx); const r = rev(); const t = ctx.currentTime;
     for (let i = 0; i < 8; i++) {
@@ -1378,6 +1416,7 @@ export function createGameplayMusicNode(targetVol = 0.2): SynthMusicNode {
         if (fadeTimer !== null) clearTimeout(fadeTimer);
         active = true;
         nextT  = ctx.currentTime + 0.05;
+        if (scheduleTimer === null) schedule();
         mgain.gain.cancelScheduledValues(ctx.currentTime);
         mgain.gain.setValueAtTime(mgain.gain.value, ctx.currentTime);
         mgain.gain.linearRampToValueAtTime(targetVol, ctx.currentTime + FADE_TIME);
@@ -1391,6 +1430,10 @@ export function createGameplayMusicNode(targetVol = 0.2): SynthMusicNode {
         fadeTimer = window.setTimeout(() => {
           if (generation !== fadeGeneration) return;
           active = false;
+           if (scheduleTimer !== null) {
+             clearTimeout(scheduleTimer);
+             scheduleTimer = null;
+           }
           fadeTimer = null;
           onComplete?.();
         }, (FADE_TIME + 0.1) * 1000);
@@ -1597,6 +1640,7 @@ export function createMenuMusicNode(targetVol = 0.2): SynthMusicNode {
         if (fadeTimer !== null) clearTimeout(fadeTimer);
         active = true;
         nextT  = ctx.currentTime + 0.05;
+        if (scheduleTimer === null) schedule();
         mgain.gain.cancelScheduledValues(ctx.currentTime);
         mgain.gain.setValueAtTime(mgain.gain.value, ctx.currentTime);
         mgain.gain.linearRampToValueAtTime(targetVol, ctx.currentTime + FADE_TIME);
@@ -1610,6 +1654,10 @@ export function createMenuMusicNode(targetVol = 0.2): SynthMusicNode {
         fadeTimer = window.setTimeout(() => {
           if (generation !== fadeGeneration) return;
           active = false;
+           if (scheduleTimer !== null) {
+             clearTimeout(scheduleTimer);
+             scheduleTimer = null;
+           }
           fadeTimer = null;
           onComplete?.();
         }, (FADE_TIME + 0.1) * 1000);
@@ -1821,6 +1869,7 @@ export function createBossMusicNode(targetVol = 0.18): SynthMusicNode {
         if (fadeTimer !== null) clearTimeout(fadeTimer);
         active = true;
         nextT  = ctx.currentTime + 0.05;
+        if (scheduleTimer === null) schedule();
         mgain.gain.cancelScheduledValues(ctx.currentTime);
         mgain.gain.setValueAtTime(mgain.gain.value, ctx.currentTime);
         mgain.gain.linearRampToValueAtTime(targetVol, ctx.currentTime + FADE_TIME);
@@ -1834,6 +1883,10 @@ export function createBossMusicNode(targetVol = 0.18): SynthMusicNode {
         fadeTimer = window.setTimeout(() => {
           if (generation !== fadeGeneration) return;
           active = false;
+          if (scheduleTimer !== null) {
+            clearTimeout(scheduleTimer);
+            scheduleTimer = null;
+          }
           fadeTimer = null;
           onComplete?.();
         }, (FADE_TIME + 0.1) * 1000);
@@ -1866,6 +1919,7 @@ export function disposeAudioContext(): void {
   _tShoot = 0;
   _tHit = 0;
   _tNearM = 0;
+  _sfxTimestamps.clear();
 
   for (const entry of Object.values(_noisePool)) {
     entry.buf = null!;

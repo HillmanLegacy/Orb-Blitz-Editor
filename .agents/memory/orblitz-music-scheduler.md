@@ -23,3 +23,18 @@ The old file had them swapped — fixed by checking the call site, not assuming 
 
 ## Architecture
 Each music node gets its own `mgain: GainNode` (starts at 0) inserted between scheduled notes and `dst(ctx)`. This is the fade handle — all oscillators connect to `mgain`, not to `dst` directly. Reverb send connects `mgain → reverbNode`. This keeps the SFX master bus completely separate from music fading.
+
+## Performance guardrails
+Web Audio graph construction runs synchronously on the main thread. Reuse static
+waveshaper curves and coalesce only repeated SFX cues at the audio boundary;
+never throttle the gameplay event that requested the sound. Once a music fade
+finishes, clear its scheduler timeout; `fadeIn` must explicitly restart that
+scheduler after resetting its next note time.
+
+**Why:** Dense combat can otherwise create many oscillator/filter/gain graphs in
+one render interval, while inactive sequencers continue waking even though they
+emit no notes.
+
+**How to apply:** Keep first-instance feedback for combat and ability sounds,
+but apply small per-cue spacing to repeated audible events. Treat a completed
+fade as a paused scheduler, not an indefinitely polling silent one.
