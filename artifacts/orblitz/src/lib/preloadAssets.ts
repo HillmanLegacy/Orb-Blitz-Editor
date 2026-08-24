@@ -10,7 +10,6 @@ import { useGLTF } from "@react-three/drei";
 // ─── 3D model paths ───────────────────────────────────────────────────────────
 const CORE_GLTF_MODELS = [
   "/models/player_orb_texture.glb",
-  "/models/star_pickup.glb",
 ];
 
 const MENU_AUDIO = [
@@ -19,8 +18,6 @@ const MENU_AUDIO = [
   "/sounds/exit_to_menu.wav",
   "/sounds/tap_to_start.wav",
 ];
-
-const GAMEPLAY_AUDIO = ["/sounds/boss_explosion.wav"];
 
 const BOSS_MODELS: Partial<Record<BossType, readonly string[]>> = {
   circle: ["/models/boss_orb_1.glb", "/models/boss_orb_1_texture.glb"],
@@ -88,11 +85,10 @@ export function preloadImminentGameAssets({
 }): Promise<void> {
   CORE_GLTF_MODELS.forEach((url) => useGLTF.preload(url));
 
-  const urls = ["/models/player.fbx", ...GAMEPLAY_AUDIO];
   // A selected arcade boss level is the only time its model is imminent.
   if (gameMode === "arcade" && level !== null && Math.round(level * 10) % 10 === 9) {
     const models = BOSS_MODELS[BOSS_BY_WORLD[Math.floor(level)]];
     models?.forEach((model) => useGLTF.preload(model));
   }
-  return fetchAssets(urls);
+  return Promise.resolve();
 }

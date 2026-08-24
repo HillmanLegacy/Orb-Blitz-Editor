@@ -7,7 +7,13 @@ import { AdaptiveRenderQuality, useRenderQuality } from "./AdaptiveRenderQuality
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
 
-const GameplayScene = lazy(() => import("./GameplayScene"));
+const loadGameplayScene = () => import("./GameplayScene");
+const GameplayScene = lazy(loadGameplayScene);
+
+/** Start downloading the heavy gameplay chunk before the gameplay gate mounts. */
+export function preloadGameplayScene(): void {
+  void loadGameplayScene();
+}
 
 // ── Renderer configuration ────────────────────────────────────────────────────
 function RendererSetup() {
@@ -70,21 +76,36 @@ function RenderScheduler() {
 // first gameplay frame never stalls on shader compilation.
 function ShaderPrewarm() {
   const { gl, scene, camera } = useThree();
+  const phase = useMagicOrb(s => s.phase);
   const done = useRef(false);
 
   useEffect(() => {
-    if (done.current) return;
-    done.current = true;
-    // Use idle callback so all Suspense'd meshes have had a chance to mount
-    const run = () => (gl as THREE.WebGLRenderer).compile(scene, camera);
-    if (typeof requestIdleCallback !== "undefined") {
-      const id = requestIdleCallback(run, { timeout: 2000 });
-      return () => cancelIdleCallback(id);
-    } else {
-      const id = setTimeout(run, 300);
-      return () => clearTimeout(id);
-    }
-  }, [gl, scene, camera]);
+    if (phase !== "playing" || done.current) return;
+
+    // Do not compete with the first playable frame. Give the lazy gameplay
+    // scene one paint to mount, then use idle time for shader warmup.
+    const run = () => {
+      done.current = true;
+      (gl as THREE.WebGLRenderer).compile(scene, camera);
+    };
+    let idleId: number | null = null;
+    const begin = () => {
+      if (typeof requestIdleCallback !== "undefined") {
+        idleId = requestIdleCallback(run, { timeout: 2200 });
+      } else {
+        idleId = window.setTimeout(run, 600);
+      }
+    };
+    const delay = window.setTimeout(begin, 250);
+
+    return () => {
+      window.clearTimeout(delay);
+      if (idleId !== null) {
+        if (typeof requestIdleCallback !== "undefined") cancelIdleCallback(idleId);
+        else window.clearTimeout(idleId);
+      }
+    };
+  }, [gl, scene, camera, phase]);
 
   return null;
 }
@@ -225,8 +246,37 @@ function PostProcessing({
 // They mount during the gameplay loading phase, then stay mounted through play.
 function GameplayGate() {
   const phase = useMagicOrb(s => s.phase);
-  if (phase !== "loading" && phase !== "playing") return null;
-  return <GameplayScene />;
+  if (phase !== "playing") return null;
+  return (
+    <Suspense fallback={<GameplayLoadingPlayer />}>
+      <GameplayScene />
+    </Suspense>
+  );
+}
+
+/** Visible immediately while the gameplay chunk and textured player model stream. */
+function GameplayLoadingPlayer() {
+  const playerPosition = useMagicOrb(s => s.playerPosition);
+
+  return (
+    <group position={playerPosition}>
+      <pointLight color="#9dfaff" intensity={2.8} distance={7} decay={2} />
+      <mesh scale={0.72}>
+        <sphereGeometry args={[1, 18, 14]} />
+        <meshBasicMaterial color="#d8faff" transparent opacity={0.96} />
+      </mesh>
+      <mesh scale={1.05}>
+        <sphereGeometry args={[1, 14, 10]} />
+        <meshBasicMaterial
+          color="#26cfff"
+          transparent
+          opacity={0.16}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </mesh>
+    </group>
+  );
 }
 
 /** Clears live slots when a run is definitively over, without wiping a pause. */

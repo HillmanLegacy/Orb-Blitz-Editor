@@ -409,6 +409,7 @@ function ParticleSystem() {
   const dustRef   = useRef<THREE.InstancedMesh>(null);
   const streamRef = useRef<THREE.InstancedMesh>(null);
   const sparkRef  = useRef<THREE.InstancedMesh>(null);
+  const elapsedRef = useRef(0);
 
   const dustMat = useMemo(() => new THREE.MeshBasicMaterial({
     color: new THREE.Color(0.62, 0.80, 1.0),
@@ -448,7 +449,13 @@ function ParticleSystem() {
   }, []);
 
   useFrame((state, delta) => {
-    const dt = Math.min(delta, 0.05);
+    // These particles are decorative, but their simulation is the most
+    // expensive persistent CPU work in gameplay. Step at 30 Hz while carrying
+    // real elapsed time forward so motion speed and density stay unchanged.
+    elapsedRef.current += Math.min(delta, 0.05);
+    if (elapsedRef.current < 1 / 30) return;
+    const dt = Math.min(elapsedRef.current, 0.05);
+    elapsedRef.current = 0;
     const t  = state.clock.getElapsedTime();
     _bgFrame++;
 

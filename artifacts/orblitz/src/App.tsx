@@ -7,7 +7,7 @@ import { useShop } from "@/lib/stores/useShop";
 import { useAudio } from "@/lib/stores/useAudio";
 import { useOrbTransition } from "@/lib/stores/useOrbTransition";
 import { preloadImminentGameAssets, preloadMenuAssets } from "@/lib/preloadAssets";
-import { GameScene } from "@/components/game/GameScene";
+import { GameScene, preloadGameplayScene } from "@/components/game/GameScene";
 import { SoundManager } from "@/components/game/SoundManager";
 import { GameUI } from "@/components/ui/GameUI";
 import { GameOver } from "@/components/ui/GameOver";
@@ -86,9 +86,9 @@ function App() {
 
     if (!musicFiredRef.current) {
       musicFiredRef.current = true;
-      // Start the selected run's critical requests at the transition boundary.
-      // Do not gate gameplay on a background cache warmup: a slow or failed
-      // optional request must never leave the transition screen stuck.
+      // Start the gameplay module and selected run's critical requests while
+      // the transition is opaque. Neither request gates the transition.
+      preloadGameplayScene();
       void preloadImminentGameAssets({ gameMode, level: pendingLevel });
     }
 
