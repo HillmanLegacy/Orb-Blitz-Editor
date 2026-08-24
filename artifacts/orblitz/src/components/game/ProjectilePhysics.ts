@@ -31,6 +31,11 @@ export function getProjectileMotion(projectile: Projectile): ProjectileMotion {
   return motionFromProjectile(projectile);
 }
 
+/** Read-only visual lookup; never resurrects a projectile after collision cleanup. */
+export function getLiveProjectileMotion(projectile: Projectile): ProjectileMotion | undefined {
+  return projectilePhysicsMap.get(projectile.id);
+}
+
 export function releaseProjectileMotion(id: string): void {
   gameRuntime.projectiles.release(id);
 }

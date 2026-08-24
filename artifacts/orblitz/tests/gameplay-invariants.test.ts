@@ -22,6 +22,11 @@ import {
   getVisualBudget,
 } from "../src/components/game/AdaptiveRenderQuality";
 import { sweptSphereHit } from "../src/components/game/ProjectileCollision";
+import {
+  getLiveProjectileMotion,
+  getProjectileMotion,
+  releaseProjectileMotion,
+} from "../src/components/game/ProjectilePhysics";
 
 const makeProjectile = (id: string): Projectile => ({
   id,
@@ -229,5 +234,19 @@ describe("gameplay runtime invariants", () => {
     expect(Math.abs(20)).toBeLessThan(32);
     expect(Math.abs(20)).toBeLessThan(24);
     expect(Math.abs(33)).toBeGreaterThan(32);
+  });
+
+  it("does not resurrect a hit projectile at its stale muzzle position", () => {
+    const projectile = { ...makeProjectile("collision-cleanup") };
+    const liveMotion = getProjectileMotion(projectile);
+    liveMotion.position[0] = 8;
+    liveMotion.position[1] = -3;
+
+    releaseProjectileMotion(projectile.id);
+
+    expect(getLiveProjectileMotion(projectile)).toBeUndefined();
+    expect(getLiveProjectileMotion(projectile)).not.toBe(getProjectileMotion(projectile));
+
+    releaseProjectileMotion(projectile.id);
   });
 });

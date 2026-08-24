@@ -11,6 +11,7 @@ import { PlayerParticles } from "./PlayerParticles";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 import {
   getProjectileMotion,
+  getLiveProjectileMotion,
   projectilePhysicsMap,
   releaseProjectileMotion,
   resetProjectileMotion,
@@ -173,7 +174,8 @@ function HDTrailEffect({
   // the same live direction the collision loop uses so steering never leaves
   // a visual trail pointing away from the actual shot.
   useFrame(({ clock }) => {
-    const direction = getProjectileMotion(projectile).direction;
+    const direction = getLiveProjectileMotion(projectile)?.direction;
+    if (!direction) return;
     const time = clock.getElapsedTime();
     for (let i = 0; i < particles.length; i++) {
       const mesh = particleRefs.current[i];
@@ -600,7 +602,8 @@ function ProjectileMesh({ projectile, trailType, skinColor, skinColors }: {
   const groupScale = 1;
 
   useFrame(() => {
-    const motion = getProjectileMotion(projectile);
+   const motion = getLiveProjectileMotion(projectile);
+   if (!motion) return;
     if (groupRef.current && motion) groupRef.current.position.set(...motion.position);
   });
 
@@ -990,7 +993,8 @@ function SubblasterProjectileMesh({ projectile }: { projectile: Projectile }) {
 
   useFrame(() => {
     const proj   = projRef.current;
-    const motion = getProjectileMotion(proj);
+    const motion = getLiveProjectileMotion(proj);
+    if (!motion) return;
     if (groupRef.current) groupRef.current.position.set(...motion.position);
     const [wx, wy, wz] = motion.position;
     const N   = _SB_TRAIL_N;
@@ -1033,7 +1037,8 @@ function SubblasterProjectileMesh({ projectile }: { projectile: Projectile }) {
   });
 
   useFrame(() => {
-    const motion = getProjectileMotion(projectile);
+    const motion = getLiveProjectileMotion(projectile);
+    if (!motion) return;
     if (groupRef.current && motion) groupRef.current.position.set(...motion.position);
   });
 
@@ -1118,7 +1123,8 @@ function RapidBlasterProjectileMesh({
 
   useFrame(({ clock }) => {
     const proj = projRef.current;
-    const motion = getProjectileMotion(proj);
+    const motion = getLiveProjectileMotion(proj);
+    if (!motion) return;
     if (groupRef.current) groupRef.current.position.set(...motion.position);
     const [wx, wy, wz] = motion.position;
 
@@ -1184,7 +1190,8 @@ function RapidBlasterProjectileMesh({
   const projScale = isCharged ? 0.165 : 0.11; // 1.5× when charge beam active
 
   useFrame(() => {
-    const motion = getProjectileMotion(projectile);
+    const motion = getLiveProjectileMotion(projectile);
+    if (!motion) return;
     if (groupRef.current && motion) groupRef.current.position.set(...motion.position);
   });
 
@@ -1320,7 +1327,8 @@ function HomingProjectileMesh({ projectile }: { projectile: Projectile }) {
 
   useFrame(({ clock }) => {
     const proj   = projRef.current;
-    const motion = getProjectileMotion(proj);
+    const motion = getLiveProjectileMotion(proj);
+    if (!motion) return;
     if (groupRef.current) groupRef.current.position.set(...motion.position);
     const [wx, wy, wz] = motion.position;
     if (bornRef.current === null) bornRef.current = clock.getElapsedTime();
@@ -1381,7 +1389,8 @@ function HomingProjectileMesh({ projectile }: { projectile: Projectile }) {
   const projScale = isCharged ? 0.195 : 0.13; // 1.5× when charge beam active
 
   useFrame(() => {
-    const motion = getProjectileMotion(projectile);
+    const motion = getLiveProjectileMotion(projectile);
+    if (!motion) return;
     if (groupRef.current && motion) groupRef.current.position.set(...motion.position);
   });
 
@@ -1504,7 +1513,8 @@ function ScattershotProjectileMesh({ projectile }: { projectile: Projectile }) {
 
   useFrame(({ clock }, delta) => {
     const proj   = projRef.current;
-    const motion = getProjectileMotion(proj);
+    const motion = getLiveProjectileMotion(proj);
+    if (!motion) return;
     if (groupRef.current) groupRef.current.position.set(...motion.position);
     const [wx, wy, wz] = motion.position;
     if (bornRef.current === null) bornRef.current = clock.getElapsedTime();
@@ -1565,7 +1575,8 @@ function ScattershotProjectileMesh({ projectile }: { projectile: Projectile }) {
   const projScale = isCharged ? 0.195 : 0.13; // 1.5× when charge beam active
 
   useFrame(() => {
-    const motion = getProjectileMotion(projectile);
+    const motion = getLiveProjectileMotion(projectile);
+    if (!motion) return;
     if (groupRef.current && motion) groupRef.current.position.set(...motion.position);
   });
 
@@ -1650,7 +1661,7 @@ function OverchargedProjectileMesh({
   useFrame(({ clock }) => {
     const proj = projRef.current;
     const ss   = spawnScaleRef.current;
-    const motion = projectilePhysicsMap.get(proj.id);
+    const motion = getLiveProjectileMotion(proj);
     if (groupRef.current && motion) groupRef.current.position.set(...motion.position);
     const visualScale = motion?.spawnScale ?? ss;
     if (spawnGroupRef.current) spawnGroupRef.current.scale.setScalar(visualScale);
