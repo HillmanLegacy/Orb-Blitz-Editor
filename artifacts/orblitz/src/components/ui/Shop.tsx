@@ -1,12 +1,9 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useShop, SHOP_ITEMS, ShopItem } from "@/lib/stores/useShop";
 import type { RingStyle } from "@/lib/stores/useShop";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { Canvas, useFrame } from "@react-three/fiber";
-import * as THREE from "three";
-import { OrbitalRings } from "@/components/game/OrbitalRings";
-import { ShopItemPreview } from "@/components/ui/ShopItemPreview";
+import { ShopPreviewCanvas } from "@/components/ui/ShopPreviewCanvas";
 import { useModalAccessibility } from "@/components/ui/useModalAccessibility";
 
 // ─── Per-category design tokens ──────────────────────────────────────────────
@@ -22,83 +19,6 @@ const PREVIEW_CATEGORIES = new Set(["weapon", "defense", "magi_orb", "aura"]);
 
 const CAT_ORDER = ["weapon", "defense", "magi_orb", "skin", "trail", "aura"] as const;
 type CatKey = typeof CAT_ORDER[number];
-
-// ─── Aura preview — inner R3F scene ──────────────────────────────────────────
-function AuraPreviewScene({ style }: { style: RingStyle }) {
-  const groupRef = useRef<THREE.Group>(null);
-
-  useFrame(({ clock }) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y = clock.getElapsedTime() * 0.55;
-    }
-  });
-
-  // Dummy orb sphere — dark iridescent material
-  const orbMat = useMemo(() => new THREE.MeshStandardMaterial({
-    color: new THREE.Color("#0d1b2a"),
-    metalness: 0.65,
-    roughness: 0.30,
-    emissive: new THREE.Color("#0a1020"),
-    emissiveIntensity: 0.5,
-  }), []);
-
-  useEffect(() => () => orbMat.dispose(), [orbMat]);
-
-  return (
-    <group ref={groupRef}>
-      <mesh material={orbMat}>
-        <sphereGeometry args={[1, 32, 24]} />
-      </mesh>
-      <OrbitalRings style={style} scale={1} />
-    </group>
-  );
-}
-
-// ─── Aura preview — Canvas wrapper ───────────────────────────────────────────
-function AuraPreview({ style, name }: { style: RingStyle; name: string }) {
-  return (
-    <div style={{
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      gap: 8,
-      paddingBottom: 12,
-      borderBottom: "1px solid rgba(0,204,238,0.12)",
-      marginBottom: 8,
-    }}>
-      <div style={{
-        width: 180,
-        height: 180,
-        borderRadius: 16,
-        overflow: "hidden",
-        border: "1px solid rgba(0,204,238,0.22)",
-        background: "radial-gradient(ellipse at center, rgba(0,20,40,0.95) 0%, rgba(0,0,8,0.98) 100%)",
-        boxShadow: "0 0 24px rgba(0,204,238,0.12), inset 0 0 20px rgba(0,0,0,0.5)",
-        flexShrink: 0,
-      }}>
-        <Canvas
-          camera={{ position: [0, 0.4, 4.2], fov: 46 }}
-          style={{ width: "100%", height: "100%" }}
-          gl={{ antialias: true, alpha: true }}
-          dpr={[1, 1.5]}
-        >
-          <ambientLight intensity={0.18} />
-          <AuraPreviewScene style={style} />
-        </Canvas>
-      </div>
-      <p style={{
-        color: "rgba(0,204,238,0.65)",
-        fontSize: "9px",
-        fontWeight: 900,
-        letterSpacing: "0.18em",
-        textTransform: "uppercase",
-        textAlign: "center",
-      }}>
-        {name}
-      </p>
-    </div>
-  );
-}
 
 // ─── Item row ─────────────────────────────────────────────────────────────────
 function ItemRow({
@@ -424,17 +344,9 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
                     transition={{ duration: 0.18 }}
                   >
                     {/* ── Aura live preview ─────────────────────────────── */}
-                    {cat === "aura" && previewItem && (
-                      <AuraPreview
-                        style={previewItem.value as RingStyle}
-                        name={previewItem.name}
-                      />
-                    )}
-
-                    {/* ── Weapon / Defense / Magi-Orb live preview ──────── */}
-                    {(cat === "weapon" || cat === "defense" || cat === "magi_orb") && previewItem && (
-                      <ShopItemPreview
-                        category={cat}
+                    {previewItem && (
+                      <ShopPreviewCanvas
+                        category={cat as "weapon" | "defense" | "magi_orb" | "aura"}
                         value={previewItem.value}
                         color={activePal.color}
                         name={previewItem.name}

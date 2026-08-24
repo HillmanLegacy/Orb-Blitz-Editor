@@ -2,10 +2,16 @@ import { useRef, useMemo, useState, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb, PowerUp, PowerUpType } from "@/lib/stores/useMagicOrb";
+import { balanceTelemetry } from "@/game-runtime/BalanceTelemetry";
+import { gameRuntime } from "@/game-runtime/GameRuntime";
+import {
+  POWER_UP_DESTROY_DURATION,
+  POWER_UP_HURT_DURATION,
+} from "@/game-runtime/PowerUpRuntime";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const HURT_DUR    = 0.10;  // white-flash duration after being shot
-const DESTROY_DUR = 0.72;  // teleport-out VFX duration before activation
+const HURT_DUR    = POWER_UP_HURT_DURATION;
+const DESTROY_DUR = POWER_UP_DESTROY_DURATION;
 
 // ── Teleport-out VFX ─────────────────────────────────────────────────────────
 // 28 color-matched particles burst outward then arc toward the player at [0,0,0]
@@ -227,17 +233,37 @@ function ShieldFormVFX({ startPos }: { startPos: [number, number, number] }) {
 }
 
 // ── Per-power-up mesh ─────────────────────────────────────────────────────────
-function PowerUpMesh({ powerUp, time }: { powerUp: PowerUp; time: number }) {
+function PowerUpMesh({ powerUp }: { powerUp: PowerUp }) {
   const groupRef = useRef<THREE.Group>(null);
 
-  const collectProgress = powerUp.collected ? 1 - (powerUp.collectTimer || 0) / 0.4 : 0;
-  const opacity = powerUp.collected ? 1 - collectProgress : 1;
-  const bobY = Math.sin(time * 4) * 0.15;
-  const floatRotation = Math.sin(time * 2) * 0.1;
-  const pulseScale = 1 + Math.sin(time * 6) * 0.1;
+  useFrame(({ clock }) => {
+    const runtime = gameRuntime.powerUps.get(powerUp.id);
+    const group = groupRef.current;
+    if (!runtime || !group) return;
+    const time = clock.getElapsedTime();
+    const collectProgress = runtime.collected ? 1 - Math.max(0, runtime.collectTimer) / 0.4 : 0;
+    const bobY = Math.sin(time * 4) * 0.15;
+    const floatRotation = Math.sin(time * 2) * 0.1;
+    const pulseScale = 1 + Math.sin(time * 6) * 0.1;
+    const hurtFlash = runtime.hurtTimer > 0 ? runtime.hurtTimer / HURT_DUR : 0;
+    group.position.set(
+      runtime.position[0],
+      runtime.position[1] + bobY,
+      runtime.position[2],
+    );
+    group.rotation.z = floatRotation;
+    group.scale.setScalar(
+      runtime.collected
+        ? 1 + collectProgress * 2
+        : (hurtFlash > 0.5 ? 1.15 : pulseScale),
+    );
+  });
 
-  // Hurt flash: briefly tint white when shot
-  const hurtFlash = powerUp.hurtTimer ? powerUp.hurtTimer / HURT_DUR : 0;
+  const runtime = gameRuntime.powerUps.get(powerUp.id);
+  const renderedPosition = runtime?.position ?? powerUp.position;
+  const collectProgress = runtime?.collected ? 1 - Math.max(0, runtime.collectTimer) / 0.4 : 0;
+  const opacity = runtime?.collected ? 1 - collectProgress : 1;
+  const hurtFlash = runtime?.hurtTimer ? runtime.hurtTimer / HURT_DUR : 0;
 
   const getColors = (type: PowerUpType) => {
     switch (type) {
@@ -264,22 +290,22 @@ function PowerUpMesh({ powerUp, time }: { powerUp: PowerUp; time: number }) {
     if (powerUp.type === "shield") {
       return (
         <>
-          <pointLight position={powerUp.position} color={colors.glow} intensity={4} distance={7} decay={2} />
-          <ShieldFormVFX startPos={powerUp.position} />
+          <pointLight position={renderedPosition} color={colors.glow} intensity={4} distance={7} decay={2} />
+          <ShieldFormVFX startPos={renderedPosition} />
         </>
       );
     }
     return (
       <>
         <pointLight
-          position={powerUp.position}
+          position={renderedPosition}
           color={colors.glow}
           intensity={4}
           distance={7}
           decay={2}
         />
         <PowerUpTeleportVFX
-          startPos={powerUp.position}
+          startPos={renderedPosition}
           primaryColor={colors.primary}
           accentColor={colors.glow}
         />
@@ -418,9 +444,7 @@ function PowerUpMesh({ powerUp, time }: { powerUp: PowerUp; time: number }) {
   return (
     <group
       ref={groupRef}
-      position={[powerUp.position[0], powerUp.position[1] + bobY, powerUp.position[2]]}
-      rotation={[0, 0, floatRotation]}
-      scale={powerUp.collected ? 1 + collectProgress * 2 : (hurtFlash > 0.5 ? 1.15 : pulseScale)}
+      position={renderedPosition}
     >
       {!powerUp.collected && (
         <pointLight
@@ -504,68 +528,30 @@ function activatePowerUp(type: PowerUpType) {
 // ── Main PowerUps component ───────────────────────────────────────────────────
 export function PowerUps() {
   const powerUps       = useMagicOrb((s) => s.powerUps);
-  const updatePowerUps = useMagicOrb((s) => s.updatePowerUps);
   const phase          = useMagicOrb((s) => s.phase);
-  const clockRef       = useRef(0);
 
-  useFrame((state, delta) => {
-    clockRef.current = state.clock.getElapsedTime();
+  useFrame((_, delta) => {
     if (phase !== "playing") return;
+    gameRuntime.pipeline.enter("powerUps");
 
     const current = useMagicOrb.getState().powerUps;
     if (current.length === 0) return;
-
-    const updated: PowerUp[] = [];
-
-    for (const pu of current) {
-      // ── Already collected (touch animation) ──────────────────────────────
-      if (pu.collected) {
-        const newTimer = (pu.collectTimer || 0) - delta;
-        if (newTimer <= 0) continue;
-        updated.push({ ...pu, collectTimer: newTimer });
-        continue;
-      }
-
-      // ── Destroying: teleport-out VFX counting down ───────────────────────
-      if (pu.destroying) {
-        const newTimer = (pu.destroyTimer ?? DESTROY_DUR) - delta;
-        if (newTimer <= 0) {
-          activatePowerUp(pu.type);
-          continue; // activated — remove from array
-        }
-        updated.push({ ...pu, destroyTimer: newTimer });
-        continue;
-      }
-
-      // ── Hurt flash countdown → transition to destroying ──────────────────
-      if (pu.hurtTimer && pu.hurtTimer > 0) {
-        const newHurt = pu.hurtTimer - delta;
-        if (newHurt <= 0) {
-          updated.push({ ...pu, hurtTimer: 0, destroying: true, destroyTimer: DESTROY_DUR });
-        } else {
-          updated.push({ ...pu, hurtTimer: newHurt });
-        }
-        continue;
-      }
-
-      // ── Normal movement ───────────────────────────────────────────────────
-      let [x, y, z] = pu.position;
-      const [vx, vy, vz] = pu.velocity;
-      x += vx * delta;
-      y += vy * delta;
-      z += vz * delta;
-
-      if (Math.abs(x) > 15 || Math.abs(y) > 10) continue;
-      updated.push({ ...pu, position: [x, y, z] });
+    gameRuntime.powerUps.sync(current);
+    const changes = gameRuntime.powerUps.tick(delta);
+    const state = useMagicOrb.getState();
+    for (const { id, patch } of changes.stateChanges) state.updatePowerUpState(id, patch);
+    for (const { id, type } of changes.activations) {
+      activatePowerUp(type);
+      balanceTelemetry.recordPowerUp(type);
+      state.removePowerUp(id);
     }
-
-    updatePowerUps(updated);
+    for (const id of changes.removedIds) state.removePowerUp(id);
   });
 
   return (
     <>
       {powerUps.map((powerUp) => (
-        <PowerUpMesh key={powerUp.id} powerUp={powerUp} time={clockRef.current} />
+        <PowerUpMesh key={powerUp.id} powerUp={powerUp} />
       ))}
     </>
   );

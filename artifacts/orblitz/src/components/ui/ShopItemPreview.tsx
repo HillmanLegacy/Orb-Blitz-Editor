@@ -5,7 +5,7 @@
 // Each scene shows the player using the item with enemies on screen.
 // ═══════════════════════════════════════════════════════════════════════════════
 import { useRef, useMemo, useEffect } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { WeaponType, DefenseType, MagiOrbType } from "@/lib/stores/useShop";
 
@@ -1136,6 +1136,8 @@ function MagiOrbScene({ value }: { value: MagiOrbType }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // ── ShopItemPreview — Canvas wrapper (mirrors AuraPreview design) ─────────────
 // ─────────────────────────────────────────────────────────────────────────────
+export type ShopItemPreviewCategory = "weapon" | "defense" | "magi_orb";
+
 interface ShopItemPreviewProps {
   category: "weapon" | "defense" | "magi_orb";
   value: string;
@@ -1143,36 +1145,11 @@ interface ShopItemPreviewProps {
   name: string;
 }
 
-export function ShopItemPreview({ category, value, color, name }: ShopItemPreviewProps) {
-  return (
-    <div style={{
-      display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
-      paddingBottom: 12, borderBottom: `1px solid ${color}1e`, marginBottom: 8,
-    }}>
-      <div style={{
-        width: 200, height: 158, borderRadius: 16, overflow: "hidden",
-        border: `1px solid ${color}38`,
-        background: "radial-gradient(ellipse at center, rgba(0,8,22,0.97) 0%, rgba(0,0,8,0.99) 100%)",
-        boxShadow: `0 0 24px ${color}18, inset 0 0 20px rgba(0,0,0,0.5)`,
-        flexShrink: 0,
-      }}>
-        <Canvas
-          camera={{ position: [0, 0.25, 5.5], fov: 50 }}
-          style={{ width: "100%", height: "100%" }}
-          gl={{ antialias: false, alpha: true, powerPreference: "low-power" }}
-          dpr={[1, 1.25]}
-        >
-          {category === "weapon"   && <WeaponScene   value={value as WeaponType}   />}
-          {category === "defense"  && <DefenseScene  value={value as DefenseType}  />}
-          {category === "magi_orb" && <MagiOrbScene  value={value as MagiOrbType}  />}
-        </Canvas>
-      </div>
-      <p style={{
-        color: `${color}aa`, fontSize: "9px", fontWeight: 900,
-        letterSpacing: "0.18em", textTransform: "uppercase", textAlign: "center",
-      }}>
-        {name}
-      </p>
-    </div>
-  );
+export function ShopItemPreviewScene({
+  category,
+  value,
+}: Pick<ShopItemPreviewProps, "category" | "value">) {
+  if (category === "weapon") return <WeaponScene value={value as WeaponType} />;
+  if (category === "defense") return <DefenseScene value={value as DefenseType} />;
+  return <MagiOrbScene value={value as MagiOrbType} />;
 }

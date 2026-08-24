@@ -224,6 +224,7 @@ export function Boss() {
   };
   
   useFrame((state, delta) => {
+    gameRuntime.pipeline.enter("boss");
     if (!boss) {
       resetStarTeleportVFX();
       if (meshRef.current) meshRef.current.visible = true;

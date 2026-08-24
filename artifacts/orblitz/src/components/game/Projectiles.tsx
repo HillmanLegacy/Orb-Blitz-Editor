@@ -2144,6 +2144,7 @@ export function Projectiles() {
   }, -1);
   
   useFrame((state, delta) => {
+    gameRuntime.pipeline.enter("projectiles");
     runtimeDiagnostics.beginSimulation();
     clockRef.current = state.clock.getElapsedTime();
     
@@ -2445,7 +2446,7 @@ export function Projectiles() {
 
           for (const powerUp of powerUps) {
             if (powerUp.collected || powerUp.destroying || powerUp.hurtTimer) continue;
-            const [pux, puy, puz] = powerUp.position;
+            const [pux, puy, puz] = gameRuntime.powerUps.positionFor(powerUp);
             if (Math.sqrt((px-pux)**2+(py-puy)**2+(pz-puz)**2) < OC_EXPLODE_RADIUS) {
               hitPowerUpsThisFrame.current.add(powerUp.id);
               hurtPowerUp(powerUp.id);
@@ -2720,13 +2721,14 @@ export function Projectiles() {
       
       for (const powerUp of powerUps) {
         if (hitPowerUpsThisFrame.current.has(powerUp.id) || powerUp.collected || powerUp.destroying || powerUp.hurtTimer) continue;
+        const [powerUpX, powerUpY, powerUpZ] = gameRuntime.powerUps.positionFor(powerUp);
         
         if (
             sweptSphereHit(
               previousProjectileX, previousProjectileY, previousProjectileZ,
               px, py, pz,
-              powerUp.position[0], powerUp.position[1], powerUp.position[2],
-              powerUp.position[0], powerUp.position[1], powerUp.position[2],
+              powerUpX, powerUpY, powerUpZ,
+              powerUpX, powerUpY, powerUpZ,
               1.5,
             ) !== null
         ) {

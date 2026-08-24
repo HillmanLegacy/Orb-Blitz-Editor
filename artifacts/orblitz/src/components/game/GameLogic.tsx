@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { useMagicOrb, DarkOrb, Projectile, PowerUp, PowerUpType, OrbShape, MovementPattern, ProjectileType } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
 import { useAudio } from "@/lib/stores/useAudio";
+import { gameRuntime } from "@/game-runtime/GameRuntime";
 
 const orbShapes: OrbShape[] = ["sphere", "cube", "tetrahedron", "octahedron", "dodecahedron"];
 const allOrbShapes: OrbShape[] = ["sphere", "cube", "tetrahedron", "octahedron", "dodecahedron", "circle", "star", "arrow", "triangle", "trapezoid", "lightning", "tentacle", "monster", "bird"];
@@ -651,6 +652,7 @@ export function GameLogic() {
   
   useFrame((state, delta) => {
     if (phaseRef.current !== "playing") return;
+    gameRuntime.pipeline.enter("run");
     
     // Single batched timer tick — replaces ~17 individual set() calls
     useMagicOrb.getState().tickGameTimers(delta);

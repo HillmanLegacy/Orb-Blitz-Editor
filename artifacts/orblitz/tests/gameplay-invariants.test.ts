@@ -6,7 +6,16 @@ import {
 } from "../src/game-runtime/ProjectileRuntime";
 import { ProjectileSpawnEvents } from "../src/game-runtime/ProjectileSpawnEvents";
 import { RuntimeClock } from "../src/game-runtime/RuntimeClock";
-import { useMagicOrb, type Projectile } from "../src/lib/stores/useMagicOrb";
+import {
+  POWER_UP_DESTROY_DURATION,
+  PowerUpRuntime,
+} from "../src/game-runtime/PowerUpRuntime";
+import {
+  getArcadeRequiredOrbs,
+  getAuthoredBossProgression,
+} from "../src/game-runtime/BossProgression";
+import { SimulationPipeline } from "../src/game-runtime/SimulationPipeline";
+import { useMagicOrb, type PowerUp, type Projectile } from "../src/lib/stores/useMagicOrb";
 import { useShop } from "../src/lib/stores/useShop";
 import {
   AdaptiveRenderQualityController,
@@ -19,6 +28,13 @@ const makeProjectile = (id: string): Projectile => ({
   direction: [1, 0, 0],
   isCharged: false,
   size: 1,
+});
+
+const makePowerUp = (id: string): PowerUp => ({
+  id,
+  type: "shield",
+  position: [1, 2, 0],
+  velocity: [2, -1, 0],
 });
 
 describe("gameplay runtime invariants", () => {
@@ -141,5 +157,48 @@ describe("gameplay runtime invariants", () => {
     for (let frame = 0; frame < 20; frame++) controller.sample(0.03);
 
     expect(controller.getSnapshot()).toBe("medium");
+  });
+
+  it("keeps pickup transforms and countdowns in the runtime, not store snapshots", () => {
+    const runtime = new PowerUpRuntime();
+    const source = makePowerUp("pickup-one");
+    runtime.sync([source]);
+
+    runtime.tick(0.5);
+    expect(runtime.get("pickup-one")?.position).toEqual([2, 1.5, 0]);
+    expect(source.position).toEqual([1, 2, 0]);
+    expect(runtime.positionFor(source)).toEqual([2, 1.5, 0]);
+
+    runtime.sync([{ ...source, hurtTimer: 0.1 }]);
+    const result = runtime.tick(0.1);
+    expect(result.stateChanges).toEqual([{
+      id: "pickup-one",
+      patch: { hurtTimer: 0, destroying: true, destroyTimer: POWER_UP_DESTROY_DURATION },
+    }]);
+  });
+
+  it("preserves the existing authored arcade progression values", () => {
+    expect(getArcadeRequiredOrbs(1.1)).toBe(15);
+    expect(getArcadeRequiredOrbs(2.3)).toBe(35);
+    expect(getArcadeRequiredOrbs(4.9)).toBe(1);
+    expect(getAuthoredBossProgression(1)).toMatchObject({ bossType: "circle", health: 100 });
+    expect(getAuthoredBossProgression(9)).toMatchObject({ bossType: "monster", health: 100 });
+    expect(getAuthoredBossProgression(99)).toMatchObject({ bossType: "monster", health: 100 });
+  });
+
+  it("records frame stages once in their observed simulation order", () => {
+    const pipeline = new SimulationPipeline();
+    pipeline.beginFrame();
+    pipeline.enter("clock");
+    pipeline.enter("enemies");
+    pipeline.enter("enemies");
+    pipeline.enter("projectiles");
+    pipeline.enter("run");
+    pipeline.enter("powerUps");
+    pipeline.enter("presentation");
+
+    expect(pipeline.snapshot().order).toEqual([
+      "clock", "enemies", "projectiles", "run", "powerUps", "presentation",
+    ]);
   });
 });

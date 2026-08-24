@@ -4,6 +4,8 @@ import type { MagiOrbType, DefenseType } from "./useShop";
 import { useShop } from "./useShop";
 import { runtimeDiagnostics } from "@/game-runtime/RuntimeDiagnostics";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
+import { balanceTelemetry } from "@/game-runtime/BalanceTelemetry";
+import { getArcadeRequiredOrbs, getAuthoredBossProgression } from "@/game-runtime/BossProgression";
 import { MAX_RUNTIME_PROJECTILES, PLAYER_PROJECTILE_RESERVE } from "@/game-runtime/ProjectileRuntime";
 
 export type GamePhase = "menu" | "loading" | "playing" | "paused" | "gameOver" | "levelComplete" | "modeSelect" | "arcadeComplete";
@@ -161,7 +163,7 @@ export interface LaserBeam {
   timer: number;
 }
 
-interface MagicOrbState {
+export interface MagicOrbState {
   phase: GamePhase;
   loadingType: LoadingType;
   pendingLevel: number | null;
@@ -298,6 +300,7 @@ interface MagicOrbState {
   removePowerUp: (id: string) => void;
   hurtPowerUp: (id: string) => void;
   markPowerUpCollected: (id: string) => void;
+  updatePowerUpState: (id: string, patch: Partial<Pick<PowerUp, "collected" | "collectTimer" | "hurtTimer" | "destroying" | "destroyTimer">>) => void;
   updatePowerUps: (powerUps: PowerUp[]) => void;
   
   addParticles: (particles: Particle[]) => void;
@@ -599,6 +602,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     finishLoading: () => {
       const { loadingType, pendingLevel, gameMode, bonusMaxHealth } = get();
       if (loadingType === "entering") {
+        balanceTelemetry.beginRun();
         const maxHP = 3 + bonusMaxHealth;
         set({
           phase: "playing",
@@ -664,26 +668,12 @@ export const useMagicOrb = create<MagicOrbState>()(
         get().initMagiOrbs();
       } else if (loadingType === "nextLevel" && pendingLevel !== null) {
         const isBossLevel = Math.floor(pendingLevel * 10) % 10 === 9;
-        const subLevel = Math.round((pendingLevel % 1) * 10);
         const worldLevel = Math.floor(pendingLevel);
-        let orbsRequired: number;
-        if (isBossLevel) {
-          orbsRequired = 1;
-        } else {
-          const worldBase = 15 + (worldLevel - 1) * 10;
-          orbsRequired = worldBase + (subLevel - 1) * 5;
-        }
+        const orbsRequired = getArcadeRequiredOrbs(pendingLevel);
         const maxHP = 3 + get().bonusMaxHealth;
-        
-        const bossTypes: Record<number, BossType> = {
-          1: "circle", 2: "star", 3: "triangle", 4: "trapezoid", 5: "cube",
-          6: "cloud", 7: "arrow", 8: "tentacle", 9: "monster",
-        };
-        const bossHPs: Record<number, number> = {
-          1: 100, 2: 100, 3: 100, 4: 100, 5: 100, 6: 100, 7: 100, 8: 100, 9: 100,
-        };
-        const bossType = bossTypes[worldLevel] || "monster";
-        const bossHP = bossHPs[worldLevel] || 100;
+        const progression = getAuthoredBossProgression(worldLevel);
+        const bossType = progression.bossType;
+        const bossHP = progression.health;
         
         let bossInit: Boss | null = null;
         if (isBossLevel) {
@@ -778,6 +768,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     startGame: () => {
       const mode = get().gameMode;
       const maxHP = 3;
+      balanceTelemetry.beginRun();
       set({
         phase: "playing",
         arcadeLevel: 1.1,
@@ -855,27 +846,13 @@ export const useMagicOrb = create<MagicOrbState>()(
     
     startArcadeLevel: (level) => {
       const isBossLevel = Math.floor(level * 10) % 10 === 9;
-      const subLevel = Math.round((level % 1) * 10);
       const worldLevel = Math.floor(level);
-      
-      let orbsRequired: number;
-      if (isBossLevel) {
-        orbsRequired = 1;
-      } else {
-        const worldBase = 15 + (worldLevel - 1) * 10;
-        orbsRequired = worldBase + (subLevel - 1) * 5;
-      }
+      const orbsRequired = getArcadeRequiredOrbs(level);
       const bonusHP = get().bonusMaxHealth;
-      
-      const bossTypes: Record<number, BossType> = {
-        1: "circle", 2: "star", 3: "triangle", 4: "trapezoid", 5: "cube",
-        6: "cloud", 7: "arrow", 8: "tentacle", 9: "monster",
-      };
-      const bossHPs: Record<number, number> = {
-        1: 100, 2: 100, 3: 100, 4: 100, 5: 100, 6: 100, 7: 100, 8: 100, 9: 100,
-      };
-      const bossType = bossTypes[worldLevel] || "monster";
-      const bossHP = bossHPs[worldLevel] || 100;
+      const progression = getAuthoredBossProgression(worldLevel);
+      const bossType = progression.bossType;
+      const bossHP = progression.health;
+      balanceTelemetry.beginRun();
       
       let bossInit: Boss | null = null;
       if (isBossLevel) {
@@ -1133,7 +1110,9 @@ export const useMagicOrb = create<MagicOrbState>()(
       
       const actualDamage = damage ?? (hasChargeBeam ? 2 : 1);
       const newHealth = boss.health - actualDamage;
+      balanceTelemetry.recordBossDamage(actualDamage, boss.bossType);
       if (newHealth <= 0) {
+        balanceTelemetry.recordBossDefeat();
         // Explode ALL on-screen orbs when boss is defeated
         const defeatedOrbs = darkOrbs.map(o => ({
           ...o,
@@ -1688,11 +1667,13 @@ export const useMagicOrb = create<MagicOrbState>()(
       darkOrbs: state.darkOrbs.map((orb) => ({ ...orb, frozen: false }))
     })),
     
-    addDarkOrb: (orb) => set((state) => ({
+    addDarkOrb: (orb) => set((state) => {
       // Cap active orbs to prevent unbounded GPU instance-buffer growth.
       // Each dark orb mounts a DarkOrbModel with 5 InstancedMeshes (174 slots).
-      darkOrbs: state.darkOrbs.length >= 20 ? state.darkOrbs : [...state.darkOrbs, orb],
-    })),
+      if (state.darkOrbs.length >= 20) return state;
+      balanceTelemetry.recordEnemySpawn();
+      return { darkOrbs: [...state.darkOrbs, orb] };
+    }),
     
     removeDarkOrb: (id) => set((state) => ({ 
       darkOrbs: state.darkOrbs.filter((o) => o.id !== id) 
@@ -1724,9 +1705,11 @@ export const useMagicOrb = create<MagicOrbState>()(
         : MAX_RUNTIME_PROJECTILES;
       if (activeCount >= capacityLimit) {
         runtimeDiagnostics.noteProjectileOverflow();
+        balanceTelemetry.recordPoolReject();
         return false;
       }
       runtimeDiagnostics.noteProjectileSpawn();
+      balanceTelemetry.recordProjectile(projectile.type);
       set((state) => ({ projectiles: [...state.projectiles, projectile] }));
       gameRuntime.projectileSpawns.enqueue(projectile);
       return true;
@@ -1765,6 +1748,12 @@ export const useMagicOrb = create<MagicOrbState>()(
       )
     })),
     
+    updatePowerUpState: (id, patch) => set((state) => ({
+      powerUps: state.powerUps.map((powerUp) => (
+        powerUp.id === id ? { ...powerUp, ...patch } : powerUp
+      )),
+    })),
+    
     updatePowerUps: (powerUps) => set({ powerUps }),
     
     addParticles: (particles) => set((state) => ({ 
@@ -1781,6 +1770,7 @@ export const useMagicOrb = create<MagicOrbState>()(
 
     addStarFlowEvent: (pos, count, isBoss = false) => {
       const coinsPerStar = get().hasDoubleCoins ? 2 : 1;
+      balanceTelemetry.recordReward(count * coinsPerStar);
       // Rewards are committed by the gameplay event, not by the rendered stars.
       // This keeps earnings correct when VFX are disabled, pooled particles are
       // saturated, or the scene unmounts before a visual burst reaches the player.

@@ -50,6 +50,8 @@ function GameRuntimeCoordinator() {
   useFrame((_, delta) => {
     if (phase !== "playing") return;
     runtimeDiagnostics.beginFrame();
+    gameRuntime.pipeline.beginFrame();
+    gameRuntime.pipeline.enter("clock");
     gameRuntime.clock.tick(delta);
   }, -2);
 
@@ -92,6 +94,7 @@ export default function GameplayScene() {
       <SubBlasterOrb />
       <DefenseOrbs />
       <StarFlowVFX visualEnabled={vfxEnabled} />
+      <SimulationPresentationMarker />
       {visualSystemsReady && vfxEnabled && (
         <>
           <World1FireBackground />
@@ -105,4 +108,14 @@ export default function GameplayScene() {
       )}
     </>
   );
+}
+
+/** Records the boundary after simulation systems and before decorative effects. */
+function SimulationPresentationMarker() {
+  useFrame(() => {
+    if (useMagicOrb.getState().phase === "playing") {
+      gameRuntime.pipeline.enter("presentation");
+    }
+  });
+  return null;
 }

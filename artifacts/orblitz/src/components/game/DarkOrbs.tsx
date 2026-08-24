@@ -724,6 +724,7 @@ export function DarkOrbs() {
   useEffect(() => () => { gameRuntime.enemies.reset(); }, []);
 
   useFrame((_, delta) => {
+    gameRuntime.pipeline.enter("enemies");
     const {
       darkOrbs: currentOrbs,
       updateDarkOrbs,
