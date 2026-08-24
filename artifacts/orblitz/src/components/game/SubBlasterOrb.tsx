@@ -16,6 +16,7 @@ import * as THREE from "three";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
 import type { Projectile } from "@/lib/stores/useMagicOrb";
+import { gameRuntime } from "@/game-runtime/GameRuntime";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const ORBIT_RADIUS   = 2.0;
@@ -156,20 +157,23 @@ export function SubBlasterOrb() {
       if (!bestTarget) {
         for (const orb of darkOrbs) {
           if (orb.destroying) continue;
-          if (Math.abs(orb.position[0]) > 13 || Math.abs(orb.position[1]) > 9) continue;
-          const d = Math.sqrt((orb.position[0] - px) ** 2 + (orb.position[1] - py) ** 2);
+          const liveOrb = gameRuntime.enemies.get(orb.id);
+          const orbPosition = liveOrb?.position ?? orb.position;
+          if (Math.abs(orbPosition[0]) > 13 || Math.abs(orbPosition[1]) > 9) continue;
+          const d = Math.sqrt((orbPosition[0] - px) ** 2 + (orbPosition[1] - py) ** 2);
           if (d < DETECT_RANGE && d < bestDist) {
             bestDist = d;
-            bestTarget = [orb.position[0], orb.position[1]];
+            bestTarget = [orbPosition[0], orbPosition[1]];
           }
         }
       }
 
       // Priority 3 — boss entity
       if (!bestTarget && boss && !boss.destroying) {
-        const d = Math.sqrt((boss.position[0] - px) ** 2 + (boss.position[1] - py) ** 2);
+        const bossPosition = gameRuntime.boss.get(boss.id)?.position ?? boss.position;
+        const d = Math.sqrt((bossPosition[0] - px) ** 2 + (bossPosition[1] - py) ** 2);
         if (d < DETECT_RANGE) {
-          bestTarget = [boss.position[0], boss.position[1]];
+          bestTarget = [bossPosition[0], bossPosition[1]];
         }
       }
 

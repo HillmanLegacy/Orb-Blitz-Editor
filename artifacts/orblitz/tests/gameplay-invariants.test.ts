@@ -27,6 +27,7 @@ import {
   getProjectileMotion,
   releaseProjectileMotion,
 } from "../src/components/game/ProjectilePhysics";
+import { gameRuntime } from "../src/game-runtime/GameRuntime";
 
 const makeProjectile = (id: string): Projectile => ({
   id,
@@ -45,6 +46,8 @@ const makePowerUp = (id: string): PowerUp => ({
 
 describe("gameplay runtime invariants", () => {
   beforeEach(() => {
+    gameRuntime.enemies.reset();
+    gameRuntime.boss.reset();
     useShop.setState({ coins: 0 });
     useMagicOrb.setState({
       hasDoubleCoins: false,
@@ -54,6 +57,8 @@ describe("gameplay runtime invariants", () => {
   });
 
   afterEach(() => {
+    gameRuntime.enemies.reset();
+    gameRuntime.boss.reset();
     useMagicOrb.setState({ projectiles: [], starFlowEvents: [] });
   });
 
@@ -248,5 +253,27 @@ describe("gameplay runtime invariants", () => {
     expect(getLiveProjectileMotion(projectile)).not.toBe(getProjectileMotion(projectile));
 
     releaseProjectileMotion(projectile.id);
+  });
+
+  it("keeps autonomous target acquisition aligned with live enemy transforms", () => {
+    const source = {
+      id: "sub-target",
+      position: [18, 0, 0] as [number, number, number],
+      previousPosition: [18, 0, 0] as [number, number, number],
+    };
+    const liveEnemy = gameRuntime.enemies.getOrCreate({
+      ...source,
+      speed: 1,
+      size: 0.6,
+      seed: 0,
+      shape: "sphere",
+      pattern: "direct",
+      patternPhase: 0,
+    });
+    liveEnemy.position[0] = 3;
+    liveEnemy.position[1] = 1;
+
+    expect(gameRuntime.enemies.get(source.id)?.position).toEqual([3, 1, 0]);
+    expect(gameRuntime.enemies.get(source.id)?.position).not.toEqual(source.position);
   });
 });
