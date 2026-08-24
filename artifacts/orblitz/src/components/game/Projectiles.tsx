@@ -2081,8 +2081,7 @@ export function Projectiles() {
   const projectileColor = skinColors.projectile;
    const batchedProjectiles = useMemo(
      () => projectiles.filter((projectile) =>
-       projectile.type === "rapidblaster" ||
-       ((projectile.type === "normal" || !projectile.type) && equippedTrail !== "particle_swarm"),
+        (projectile.type === "normal" || !projectile.type) && equippedTrail !== "particle_swarm",
      ),
      [equippedTrail, projectiles],
    );
@@ -2824,7 +2823,13 @@ export function Projectiles() {
             key={proj.id}
             projectile={proj}
           />
-         ) : proj.type === "rapidblaster" ? null
+         ) : proj.type === "rapidblaster" ? (
+           <RapidBlasterProjectileMesh
+             key={proj.id}
+             projectile={proj}
+             skinColors={skinColors}
+           />
+         )
          : (proj.type === "normal" || !proj.type) && equippedTrail !== "particle_swarm" ? null
          : (
            <ProjectileMesh
