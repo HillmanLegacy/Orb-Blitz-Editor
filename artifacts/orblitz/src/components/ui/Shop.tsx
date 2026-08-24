@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useShop, SHOP_ITEMS, ShopItem } from "@/lib/stores/useShop";
 import type { RingStyle } from "@/lib/stores/useShop";
-import { useState, useRef, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { OrbitalRings } from "@/components/game/OrbitalRings";
@@ -38,6 +38,8 @@ function AuraPreviewScene({ style }: { style: RingStyle }) {
     emissive: new THREE.Color("#0a1020"),
     emissiveIntensity: 0.5,
   }), []);
+
+  useEffect(() => () => orbMat.dispose(), [orbMat]);
 
   return (
     <group ref={groupRef}>
@@ -97,11 +99,11 @@ function AuraPreview({ style, name }: { style: RingStyle; name: string }) {
 
 // ─── Item row ─────────────────────────────────────────────────────────────────
 function ItemRow({
-  item, isOwned, canAfford, onPurchase, onHover, isHighlighted,
+  item, isOwned, canAfford, onPurchase, onPreview, isHighlighted,
 }: {
   item: ShopItem; isOwned: boolean;
   canAfford: boolean; onPurchase: () => void;
-  onHover?: () => void; isHighlighted?: boolean;
+  onPreview?: () => void; isHighlighted?: boolean;
 }) {
   const pal = PALETTE[item.category];
   return (
@@ -123,10 +125,10 @@ function ItemRow({
             ? pal.color + "35"
             : "rgba(255,255,255,0.07)"}`,
         boxShadow: isHighlighted ? `0 0 12px ${pal.shadow}` : "none",
-        cursor: onHover ? "pointer" : undefined,
+        cursor: onPreview ? "pointer" : undefined,
         transition: "background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
       }}
-      onMouseEnter={onHover}
+      onClick={onPreview}
     >
       {/* Accent bar */}
       <div style={{
@@ -155,7 +157,10 @@ function ItemRow({
       ) : (
         <motion.button
           whileTap={{ scale: canAfford ? 0.9 : 1 }}
-          onClick={canAfford ? onPurchase : undefined}
+          onClick={(event) => {
+            event.stopPropagation();
+            if (canAfford) onPurchase();
+          }}
           disabled={!canAfford}
           className="flex-shrink-0 mt-1 flex items-center gap-1 text-[10px] font-black tracking-wider px-2 py-1 rounded-lg"
           style={{
@@ -173,10 +178,10 @@ function ItemRow({
 }
 
 // ─── Main Shop popup ──────────────────────────────────────────────────────────
-export function Shop() {
+export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
   const { coins: stars, shopOpen, closeShop, purchaseItem, isOwned, canAfford } = useShop();
   const [cat, setCat] = useState<CatKey>("weapon");
-  const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
+  const [previewItemId, setPreviewItemId] = useState<string | null>(null);
 
   const filteredItems = SHOP_ITEMS
     .filter(i => i.category === cat)
@@ -184,15 +189,26 @@ export function Shop() {
 
   const activePal = PALETTE[cat];
 
-  // Only show preview canvas when user explicitly hovers an item (avoids
-  // spawning a WebGL context before user interaction).
+  // A preview is intentional and click-triggered. This avoids creating and
+  // destroying preview WebGL contexts while a pointer merely crosses rows.
   const PREVIEW_CATS = new Set(["weapon", "defense", "magi_orb", "aura"]);
-  const previewItem = (PREVIEW_CATS.has(cat) && hoveredItemId !== null)
-    ? (filteredItems.find(i => i.id === hoveredItemId) ?? null)
+  const selectedPreviewItem = previewItemId === null
+    ? null
+    : filteredItems.find(i => i.id === previewItemId) ?? null;
+  const previewItem = (PREVIEW_CATS.has(cat) && selectedPreviewItem && !isOwned(selectedPreviewItem.id))
+    ? selectedPreviewItem
     : null;
 
+  useEffect(() => {
+    if (!shopOpen) setPreviewItemId(null);
+  }, [shopOpen]);
+
+  const handlePurchase = (item: ShopItem) => {
+    if (purchaseItem(item.id)) setPreviewItemId(null);
+  };
+
   return (
-    <AnimatePresence>
+    <AnimatePresence onExitComplete={onExitComplete}>
       {shopOpen && (
         <motion.div
           className="fixed inset-0 z-50 flex items-center justify-center"
@@ -292,7 +308,7 @@ export function Shop() {
                     <motion.button
                       key={c}
                       whileTap={{ scale: 0.94 }}
-                      onClick={() => { setCat(c); setHoveredItemId(null); }}
+                       onClick={() => { setCat(c); setPreviewItemId(null); }}
                       className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl w-full text-left"
                       style={{
                         background: active ? `${pal.color}16` : "rgba(255,255,255,0.03)",
@@ -387,8 +403,10 @@ export function Shop() {
                         item={item}
                         isOwned={isOwned(item.id)}
                         canAfford={canAfford(item.price)}
-                        onPurchase={() => purchaseItem(item.id)}
-                        onHover={PREVIEW_CATS.has(cat) ? () => setHoveredItemId(item.id) : undefined}
+                         onPurchase={() => handlePurchase(item)}
+                         onPreview={PREVIEW_CATS.has(cat) && !isOwned(item.id)
+                           ? () => setPreviewItemId((current) => current === item.id ? null : item.id)
+                           : undefined}
                         isHighlighted={PREVIEW_CATS.has(cat) && previewItem?.id === item.id}
                       />
                     ))}

@@ -41,6 +41,12 @@ type RenderQualityDiagnostics = {
   lastTransitionReason: string;
 };
 
+type RuntimeSaturationDiagnostics = {
+  projectileRejected: number;
+  cosmeticTrailSkipped: number;
+  spawnEffectSkipped: number;
+};
+
 /**
  * Development-only counters. This never uses React state and is compiled into
  * a no-op API in production through the same inexpensive guards.
@@ -73,6 +79,11 @@ class RuntimeDiagnostics {
     pixelRatio: 1,
     transitionCount: 0,
     lastTransitionReason: "initial",
+  };
+  private readonly saturation: RuntimeSaturationDiagnostics = {
+    projectileRejected: 0,
+    cosmeticTrailSkipped: 0,
+    spawnEffectSkipped: 0,
   };
 
   beginFrame(): void {
@@ -141,6 +152,9 @@ class RuntimeDiagnostics {
   noteProjectileSpawn(): void { if (this.enabled) this.values.projectileSpawns++; }
   noteProjectileRender(): void { if (this.enabled) this.values.projectileRenders++; }
   noteEnemyRender(): void { if (this.enabled) this.values.enemyRenders++; }
+  noteProjectileOverflow(): void { if (this.enabled) this.saturation.projectileRejected++; }
+  noteTrailOverflow(): void { if (this.enabled) this.saturation.cosmeticTrailSkipped++; }
+  noteSpawnEffectOverflow(): void { if (this.enabled) this.saturation.spawnEffectSkipped++; }
 
   setRenderQuality(value: RenderQualityDiagnostics): void {
     if (!this.enabled) return;
@@ -184,12 +198,14 @@ class RuntimeDiagnostics {
     framePercentiles: FramePercentiles;
     renderer: RendererStats;
     features: ReturnType<typeof performanceFeatureSnapshot>;
+    saturation: Readonly<RuntimeSaturationDiagnostics>;
   } {
     return {
       ...this.values,
       framePercentiles: this.framePercentiles(),
       renderer: { ...this.rendererStats },
       features: performanceFeatureSnapshot(),
+      saturation: { ...this.saturation },
     };
   }
 

@@ -1,4 +1,8 @@
 import type { ProjectileSource, RuntimePool, RuntimeSlot } from "./RuntimeTypes";
+import { runtimeDiagnostics } from "./RuntimeDiagnostics";
+
+/** Matches the shared instanced projectile renderer's maximum instance count. */
+export const MAX_RUNTIME_PROJECTILES = 512;
 
 export type RuntimeProjectile = {
   id: string;
@@ -23,16 +27,27 @@ export type RuntimeProjectile = {
 export class ProjectileRuntime implements RuntimePool {
   readonly byId = new Map<string, RuntimeProjectile>();
   private readonly freeSlots: RuntimeSlot[] = [];
-  private nextSlot = 0;
+  private readonly slots: RuntimeProjectile[];
   private _active = 0;
-  private _capacity = 0;
+
+  constructor(private readonly maxSlots = MAX_RUNTIME_PROJECTILES) {
+    this.slots = Array.from({ length: maxSlots }, (_, slot) => ({
+      id: "",
+      slot,
+      position: [0, 0, 0],
+      previousPosition: [0, 0, 0],
+      direction: [0, 0, 0],
+      previousDirection: [0, 0, 0],
+    }));
+    this.reset();
+  }
 
   get active(): number {
     return this._active;
   }
 
   get capacity(): number {
-    return this._capacity;
+    return this.maxSlots;
   }
 
   get(id: string): RuntimeProjectile | undefined {
@@ -43,27 +58,37 @@ export class ProjectileRuntime implements RuntimePool {
     const existing = this.byId.get(source.id);
     if (existing) return existing;
 
-    const slot = this.freeSlots.pop() ?? this.nextSlot++;
-    const state: RuntimeProjectile = {
-      id: source.id,
-      slot,
-      position: [source.position[0], source.position[1], source.position[2]],
-      previousPosition: [source.position[0], source.position[1], source.position[2]],
-      direction: [source.direction[0], source.direction[1], source.direction[2]],
-      previousDirection: [source.direction[0], source.direction[1], source.direction[2]],
-      spiralAngle: source.spiralAngle,
-      previousSpiralAngle: source.spiralAngle,
-      spawnScale: source.spawnScale,
-      spawnScaleTimer: source.spawnScaleTimer,
-      subSphereAlive: source.subSphereAlive
-        ? [source.subSphereAlive[0], source.subSphereAlive[1], source.subSphereAlive[2]]
-        : undefined,
-      travelTimer: source.travelTimer,
-      hitCount: source.hitCount,
-    };
+    const slot = this.freeSlots.pop();
+    if (slot === undefined) {
+      runtimeDiagnostics.noteProjectileOverflow();
+      throw new Error(`Projectile runtime capacity (${this.maxSlots}) exceeded.`);
+    }
+
+    const state = this.slots[slot];
+    state.id = source.id;
+    state.position[0] = source.position[0];
+    state.position[1] = source.position[1];
+    state.position[2] = source.position[2];
+    state.previousPosition[0] = source.position[0];
+    state.previousPosition[1] = source.position[1];
+    state.previousPosition[2] = source.position[2];
+    state.direction[0] = source.direction[0];
+    state.direction[1] = source.direction[1];
+    state.direction[2] = source.direction[2];
+    state.previousDirection[0] = source.direction[0];
+    state.previousDirection[1] = source.direction[1];
+    state.previousDirection[2] = source.direction[2];
+    state.spiralAngle = source.spiralAngle;
+    state.previousSpiralAngle = source.spiralAngle;
+    state.spawnScale = source.spawnScale;
+    state.spawnScaleTimer = source.spawnScaleTimer;
+    state.subSphereAlive = source.subSphereAlive
+      ? [source.subSphereAlive[0], source.subSphereAlive[1], source.subSphereAlive[2]]
+      : undefined;
+    state.travelTimer = source.travelTimer;
+    state.hitCount = source.hitCount;
     this.byId.set(source.id, state);
     this._active++;
-    this._capacity = Math.max(this._capacity, this._active);
     return state;
   }
 
@@ -72,14 +97,32 @@ export class ProjectileRuntime implements RuntimePool {
     if (!state) return;
     this.byId.delete(id);
     this.freeSlots.push(state.slot);
+    state.id = "";
+    state.spiralAngle = undefined;
+    state.previousSpiralAngle = undefined;
+    state.spawnScale = undefined;
+    state.spawnScaleTimer = undefined;
+    state.subSphereAlive = undefined;
+    state.travelTimer = undefined;
+    state.hitCount = undefined;
     this._active--;
   }
 
   reset(): void {
     this.byId.clear();
     this.freeSlots.length = 0;
-    this.nextSlot = 0;
+    for (let slot = this.maxSlots - 1; slot >= 0; slot--) {
+      const state = this.slots[slot];
+      state.id = "";
+      state.spiralAngle = undefined;
+      state.previousSpiralAngle = undefined;
+      state.spawnScale = undefined;
+      state.spawnScaleTimer = undefined;
+      state.subSphereAlive = undefined;
+      state.travelTimer = undefined;
+      state.hitCount = undefined;
+      this.freeSlots.push(slot);
+    }
     this._active = 0;
-    this._capacity = 0;
   }
 }

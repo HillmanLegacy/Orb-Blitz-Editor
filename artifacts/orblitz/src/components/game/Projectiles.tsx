@@ -17,6 +17,7 @@ import {
 } from "./ProjectilePhysics";
 import { runtimeDiagnostics } from "@/game-runtime/RuntimeDiagnostics";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
+import { MAX_RUNTIME_PROJECTILES } from "@/game-runtime/ProjectileRuntime";
 import { usePerformanceFeature } from "@/game-runtime/PerformanceToggles";
 
 /** Projectile collision always reads live enemy transforms, never store snapshots. */
@@ -335,7 +336,7 @@ function ProjectileChargeAura({ projScale }: { projScale: number }) {
 
 // SpiralBraidMesh removed — replaced by the full OrbitalSpiralBlaster SpiralBundleMesh below
 
-const MAX_BATCHED_PROJECTILES = 512;
+const MAX_BATCHED_PROJECTILES = MAX_RUNTIME_PROJECTILES;
 const _batchedProjectileCoreGeometry = new THREE.SphereGeometry(1, 10, 7);
 const _batchedProjectileGlowGeometry = new THREE.SphereGeometry(1, 8, 6);
 const _batchedRapidTrailGeometry = new THREE.CylinderGeometry(1, 1, 1, 5, 1, true);
@@ -2085,6 +2086,62 @@ export function Projectiles() {
      ),
      [equippedTrail, projectiles],
    );
+
+  // Spawn effects consume successful admission events. This avoids an active
+  // projectile scan every frame while still preserving effects for shots that
+  // collide and disappear before React can commit a structural update.
+  useFrame(() => {
+    gameRuntime.projectileSpawns.consume((event) => {
+      if (event.type === "overcharged" && !knownOcIds.current.has(event.id)) {
+        knownOcIds.current.add(event.id);
+        const swId = `sw-${event.id}`;
+        const position: [number, number, number] = [
+          event.position[0], event.position[1], event.position[2],
+        ];
+        setShockwaves((previous) => [...previous, { id: swId, pos: position }]);
+        swTimeoutsRef.current.set(swId, setTimeout(() => {
+          setShockwaves((previous) => previous.filter((effect) => effect.id !== swId));
+          swTimeoutsRef.current.delete(swId);
+        }, 680));
+      }
+
+      if (event.type === "homing" && !knownHomingIds.current.has(event.id)) {
+        knownHomingIds.current.add(event.id);
+        const ringId = `hring-${event.id}`;
+        const position: [number, number, number] = [
+          event.position[0], event.position[1], event.position[2],
+        ];
+        setHomingLockRings((previous) => [
+          ...previous,
+          { id: ringId, pos: position, dirX: event.direction[0], dirY: event.direction[1] },
+        ]);
+        hmRingTimeoutsRef.current.set(ringId, setTimeout(() => {
+          setHomingLockRings((previous) => previous.filter((effect) => effect.id !== ringId));
+          hmRingTimeoutsRef.current.delete(ringId);
+        }, 350));
+      }
+
+      if (
+        event.type === "scattershot" &&
+        event.volleyId &&
+        !knownScatterVolleys.current.has(event.volleyId)
+      ) {
+        knownScatterVolleys.current.add(event.volleyId);
+        const arcId = `sarc-${event.volleyId}`;
+        const position: [number, number, number] = [
+          event.position[0], event.position[1], event.position[2],
+        ];
+        setScatterArcs((previous) => [
+          ...previous,
+          { id: arcId, pos: position, dirX: event.direction[0], dirY: event.direction[1] },
+        ]);
+        scatterArcTimeoutsRef.current.set(arcId, setTimeout(() => {
+          setScatterArcs((previous) => previous.filter((effect) => effect.id !== arcId));
+          scatterArcTimeoutsRef.current.delete(arcId);
+        }, 250));
+      }
+    });
+  }, -1);
   
   useFrame((state, delta) => {
     runtimeDiagnostics.beginSimulation();
@@ -2125,45 +2182,6 @@ export function Projectiles() {
     if (collisionsEnabled) {
       runtimeDiagnostics.beginCollision();
       enemyCollisionGrid.current.build(darkOrbs);
-    }
-
-    // Detect newly spawned overcharged projectiles → shockwave ring
-    for (const proj of projectiles) {
-      if (proj.type === "overcharged" && !knownOcIds.current.has(proj.id)) {
-        knownOcIds.current.add(proj.id);
-        const swId  = `sw-${proj.id}`;
-        const swPos = [...proj.position] as [number, number, number];
-        setShockwaves(prev => [...prev, { id: swId, pos: swPos }]);
-        swTimeoutsRef.current.set(swId, setTimeout(() => {
-          setShockwaves(prev => prev.filter(s => s.id !== swId));
-          swTimeoutsRef.current.delete(swId);
-        }, 680));
-      }
-      // Detect newly spawned homing projectiles → lock-on ring flash
-      if (proj.type === "homing" && !knownHomingIds.current.has(proj.id)) {
-        knownHomingIds.current.add(proj.id);
-        const ringId  = `hring-${proj.id}`;
-        const ringPos = [...proj.position] as [number, number, number];
-        const [hdx, hdy] = proj.direction;
-        setHomingLockRings(prev => [...prev, { id: ringId, pos: ringPos, dirX: hdx, dirY: hdy }]);
-        hmRingTimeoutsRef.current.set(ringId, setTimeout(() => {
-          setHomingLockRings(prev => prev.filter(r => r.id !== ringId));
-          hmRingTimeoutsRef.current.delete(ringId);
-        }, 350));
-      }
-      // Detect newly spawned scattershot volleys → muzzle arc (one arc per volley)
-      if (proj.type === "scattershot" && proj.volleyId &&
-          !knownScatterVolleys.current.has(proj.volleyId)) {
-        knownScatterVolleys.current.add(proj.volleyId);
-        const arcId  = `sarc-${proj.volleyId}`;
-        const arcPos = [...proj.position] as [number, number, number];
-        const [adx, ady] = proj.direction;
-        setScatterArcs(prev => [...prev, { id: arcId, pos: arcPos, dirX: adx, dirY: ady }]);
-        scatterArcTimeoutsRef.current.set(arcId, setTimeout(() => {
-          setScatterArcs(prev => prev.filter(a => a.id !== arcId));
-          scatterArcTimeoutsRef.current.delete(arcId);
-        }, 250));
-      }
     }
 
     if (impactEffects.length > 0) {

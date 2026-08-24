@@ -62,7 +62,7 @@ function clearMeta(cat: Category): { label: string; desc: string } {
 }
 
 // ─── Main Inventory (Gear) popup ──────────────────────────────────────────────
-export function Inventory() {
+export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
   const {
     inventoryOpen, closeInventory,
     ownedItems,
@@ -101,7 +101,7 @@ export function Inventory() {
   if (!inventoryOpen) return null;
 
   return (
-    <AnimatePresence>
+    <AnimatePresence onExitComplete={onExitComplete}>
       <motion.div
         className="fixed inset-0 z-50 flex items-center justify-center"
         style={{ padding: "clamp(10px, 2.5vw, 20px)" }}

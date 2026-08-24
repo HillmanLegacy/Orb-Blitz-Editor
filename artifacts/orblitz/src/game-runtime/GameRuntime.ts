@@ -1,6 +1,7 @@
 import { BossRuntime } from "./BossRuntime";
 import { EnemyRuntime } from "./EnemyRuntime";
 import { ParticleRuntime } from "./ParticleRuntime";
+import { ProjectileSpawnEvents } from "./ProjectileSpawnEvents";
 import { ProjectileRuntime } from "./ProjectileRuntime";
 import { RuntimeClock } from "./RuntimeClock";
 import { TrailRuntime } from "./TrailRuntime";
@@ -14,6 +15,7 @@ export class GameRuntime {
   readonly enemies = new EnemyRuntime();
   readonly particles = new ParticleRuntime();
   readonly trails = new TrailRuntime();
+  readonly projectileSpawns = new ProjectileSpawnEvents();
 
   reset(): void {
     this.clock.reset();
@@ -22,6 +24,7 @@ export class GameRuntime {
     this.enemies.reset();
     this.particles.reset();
     this.trails.reset();
+    this.projectileSpawns.reset();
   }
 
   diagnosticsSnapshot() {

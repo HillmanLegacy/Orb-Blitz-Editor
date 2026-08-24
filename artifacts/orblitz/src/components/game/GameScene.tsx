@@ -270,7 +270,10 @@ function PostProcessing({
 // They mount during the gameplay loading phase, then stay mounted through play.
 function GameplayGate() {
   const phase = useMagicOrb(s => s.phase);
-  if (phase !== "playing") return null;
+  // Allocate the scene while the transition is opaque so the first playable
+  // frame does not compete with the gameplay chunk, instanced buffers, and
+  // player model. GameLogic still refuses to simulate until `playing`.
+  if (phase !== "loading" && phase !== "playing") return null;
   return (
     <Suspense fallback={<GameplayLoadingPlayer />}>
       <GameplayScene />

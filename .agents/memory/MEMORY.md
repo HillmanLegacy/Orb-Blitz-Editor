@@ -11,3 +11,4 @@
 - [Orblitz discontinuous collision transforms](orblitz-discontinuous-collision-transforms.md) — teleports must reset swept-collision history; orbital projectile parts need prior and next phases.
 - [Orblitz Vite port ownership](orblitz-vite-port-ownership.md) — Orblitz Vite must use strict port binding; an orphan dev process can otherwise make the artifact proxy serve stale code.
 - [Orblitz projectile visual ownership](orblitz-projectile-visual-ownership.md) — Projectile effects must use stable runtime identities, not compacted store order, to prevent visual reassignment.
+- [Orblitz projectile admission](orblitz-projectile-admission.md) — Pool limits must atomically admit weapon volleys and drive spawn VFX from successful events.

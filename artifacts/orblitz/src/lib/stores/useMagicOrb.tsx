@@ -3,6 +3,8 @@ import { subscribeWithSelector } from "zustand/middleware";
 import type { MagiOrbType, DefenseType } from "./useShop";
 import { useShop } from "./useShop";
 import { runtimeDiagnostics } from "@/game-runtime/RuntimeDiagnostics";
+import { gameRuntime } from "@/game-runtime/GameRuntime";
+import { MAX_RUNTIME_PROJECTILES } from "@/game-runtime/ProjectileRuntime";
 
 export type GamePhase = "menu" | "loading" | "playing" | "paused" | "gameOver" | "levelComplete" | "modeSelect" | "arcadeComplete";
 export type LoadingType = "entering" | "exiting" | "exiting_to_menu" | "nextLevel" | null;
@@ -287,7 +289,8 @@ interface MagicOrbState {
   freezeAllOrbs: () => void;
   unfreezeAllOrbs: () => void;
   
-  addProjectile: (projectile: Projectile) => void;
+  addProjectile: (projectile: Projectile) => boolean;
+  canAddProjectiles: (count: number) => boolean;
   removeProjectile: (id: string) => void;
   updateProjectiles: (projectiles: Projectile[]) => void;
   
@@ -1714,9 +1717,21 @@ export const useMagicOrb = create<MagicOrbState>()(
     },
     
     addProjectile: (projectile) => {
+      if (get().projectiles.length >= MAX_RUNTIME_PROJECTILES) {
+        runtimeDiagnostics.noteProjectileOverflow();
+        return false;
+      }
       runtimeDiagnostics.noteProjectileSpawn();
       set((state) => ({ projectiles: [...state.projectiles, projectile] }));
+      gameRuntime.projectileSpawns.enqueue(projectile);
+      return true;
     },
+
+    canAddProjectiles: (count) => (
+      Number.isInteger(count) &&
+      count > 0 &&
+      get().projectiles.length + count <= MAX_RUNTIME_PROJECTILES
+    ),
     
     removeProjectile: (id) => set((state) => ({ 
       projectiles: state.projectiles.filter((p) => p.id !== id) 
@@ -2008,8 +2023,9 @@ export const useMagicOrb = create<MagicOrbState>()(
     },
     
     activateMagiOrb3: () => {
-      const { magiOrb3Cooldown, playerPosition, addProjectile } = get();
+      const { magiOrb3Cooldown, playerPosition, addProjectile, canAddProjectiles } = get();
       if (magiOrb3Cooldown > 0) return;
+      if (!canAddProjectiles(10)) return;
       
       for (let i = 0; i < 10; i++) {
         const angle = (i / 10) * Math.PI * 2 + Math.random() * 0.3;

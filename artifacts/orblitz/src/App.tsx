@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { lazy, Suspense, useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
 import { useShallow } from "zustand/react/shallow";
 import "@fontsource/inter";
@@ -11,14 +11,18 @@ import { GameScene, preloadGameplayScene } from "@/components/game/GameScene";
 import { SoundManager } from "@/components/game/SoundManager";
 import { GameUI } from "@/components/ui/GameUI";
 import { GameOver } from "@/components/ui/GameOver";
-import { Shop } from "@/components/ui/Shop";
 import { PauseMenu } from "@/components/ui/PauseMenu";
-import { Inventory } from "@/components/ui/Inventory";
 import { LevelTransition } from "@/components/ui/LevelTransition";
 import { StartupAnimation, type MenuState } from "@/components/ui/StartupAnimation";
 import { StartupLoading } from "@/components/ui/StartupLoading";
 import { ArcadeComplete } from "@/components/ui/ArcadeComplete";
 import { OrbSweepOverlay } from "@/components/ui/OrbSweepOverlay";
+
+// These screens contain large UI trees (and the shop can create an optional
+// preview WebGL context). Keep them out of the initial menu/gameplay bundle and
+// do not mount their stateful trees until the player asks to open one.
+const Shop = lazy(() => import("@/components/ui/Shop").then(({ Shop }) => ({ default: Shop })));
+const Inventory = lazy(() => import("@/components/ui/Inventory").then(({ Inventory }) => ({ default: Inventory })));
 
 function App() {
   const phase = useMagicOrb(s => s.phase);
@@ -41,6 +45,8 @@ function App() {
   const [skipIntro, setSkipIntro] = useState(false);
   const [initialMenuState, setInitialMenuState] = useState<MenuState>("root");
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
+  const [shopLayerVisible, setShopLayerVisible] = useState(false);
+  const [inventoryLayerVisible, setInventoryLayerVisible] = useState(false);
   const musicFiredRef = useRef(false);
   const handleStartupLoadingComplete = useCallback(() => {
     setShowStartupLoading(false);
@@ -102,6 +108,14 @@ function App() {
   const handleShowLevelSelect = useCallback(() => setInitialMenuState("worlds"), []);
   const handleShowMainMenu    = useCallback(() => setInitialMenuState("root"),   []);
 
+  useEffect(() => {
+    if (shopOpen) setShopLayerVisible(true);
+  }, [shopOpen]);
+
+  useEffect(() => {
+    if (inventoryOpen) setInventoryLayerVisible(true);
+  }, [inventoryOpen]);
+
   // When arcade completes, ensure returning to menu lands on the root screen
   // (not the world-select that was open when the run started).
   useEffect(() => {
@@ -150,8 +164,14 @@ function App() {
       )}
       {phase === "arcadeComplete" && <ArcadeComplete />}
 
-      <Shop />
-      <Inventory />
+       <Suspense fallback={null}>
+         {(shopOpen || shopLayerVisible) && (
+           <Shop onExitComplete={() => setShopLayerVisible(false)} />
+         )}
+         {(inventoryOpen || inventoryLayerVisible) && (
+           <Inventory onExitComplete={() => setInventoryLayerVisible(false)} />
+         )}
+       </Suspense>
       <SoundManager />
 
        {paymentNotice && (

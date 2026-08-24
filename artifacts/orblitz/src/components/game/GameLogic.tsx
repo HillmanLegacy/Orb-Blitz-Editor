@@ -314,7 +314,7 @@ export function GameLogic() {
   isStaggeredRef.current = isStaggered;
   
   const fireProjectile = useCallback((clientX: number, clientY: number) => {
-    if (phaseRef.current !== "playing" || isDyingRef.current || isStaggeredRef.current) return;
+    if (phaseRef.current !== "playing" || isDyingRef.current || isStaggeredRef.current) return false;
     
     const canvas = gl.domElement;
     const rect = canvas.getBoundingClientRect();
@@ -344,12 +344,12 @@ export function GameLogic() {
       dirY /= len;
       dirZ /= len;
     } else {
-      return;
+      return false;
     }
     
     if (selectedWeaponRef.current === "distort" && hasDistortRef.current && distortCooldownRef.current <= 0) {
       activateDistortFieldRef.current();
-      return;
+      return true;
     }
     
     if (selectedWeaponRef.current === "teletransfer" && hasTeletransferRef.current && teletransferCooldownRef.current <= 0) {
@@ -365,7 +365,7 @@ export function GameLogic() {
       teleportPlayerRef.current([teleportX, teleportY, 0]);
       useTeletransferRef.current();
       setSelectedWeaponRef.current("normal");
-      return;
+      return true;
     }
     
     const playerPos = playerPositionRef.current;
@@ -385,6 +385,12 @@ export function GameLogic() {
         targetDirZ /= targetLen;
       }
     }
+
+    // Admission is decided before creating a weapon's projectiles. Scattershot
+    // is atomic: it either emits all three projectiles or leaves its cooldown
+    // and presentation state untouched. The other player weapons emit one.
+    const requestedProjectileCount = hasScattershotRef.current ? 3 : 1;
+    if (!useMagicOrb.getState().canAddProjectiles(requestedProjectileCount)) return false;
     
     if (hasRapidBlasterRef.current) {
       // Spawn at front perimeter of the player orb
@@ -411,16 +417,14 @@ export function GameLogic() {
         hitCount: 1,
         speed: 22.0,
       };
-      addProjectileRef.current(projectile);
+      if (!addProjectileRef.current(projectile)) return false;
       useMagicOrb.getState().triggerCameraOnlyShake();
       triggerRapidBlasterFireRef.current(targetDirX, targetDirY);
     } else if (hasScattershotRef.current) {
       const now = Date.now();
       if (now - lastScattershotFire.current < 500) {
-        return;
+        return false;
       }
-      lastScattershotFire.current = now;
-
       const wedgeAngle = Math.PI / 12; // 15°
       const angles = [-wedgeAngle, 0, wedgeAngle];
       const scatterVolleyId = `volley-${now}-scatter`;
@@ -452,15 +456,14 @@ export function GameLogic() {
         addProjectileRef.current(projectile);
       });
 
+      lastScattershotFire.current = now;
       useMagicOrb.getState().triggerBackgroundShake();
       triggerScatterFireRef.current(targetDirX, targetDirY);
     } else if (hasSpiralBlasterRef.current) {
       const now = Date.now();
       if (now - lastSpiralFire.current < 500) {
-        return;
+        return false;
       }
-      lastSpiralFire.current = now;
-
       // Orbital Spiral Blaster — 3 individually-hittable sub-spheres orbiting a central path
       const projectile: Projectile = {
         id: `proj-${projectileIdCounter++}`,
@@ -475,16 +478,15 @@ export function GameLogic() {
         spiralAngle: 0,
         subSphereAlive: [true, true, true],
       };
-      addProjectileRef.current(projectile);
+      if (!addProjectileRef.current(projectile)) return false;
+      lastSpiralFire.current = now;
       useMagicOrb.getState().triggerBackgroundShake();
       triggerSpiralBlasterFireRef.current(targetDirX, targetDirY);
     } else if (hasOverchargedBlasterRef.current) {
       const now = Date.now();
       if (now - lastOverchargedFire.current < 1500) {
-        return;
+        return false;
       }
-      lastOverchargedFire.current = now;
-
       // Spawn slightly outside the player orb's front edge
       const _oc_offset = 0.85;
       const projectile: Projectile = {
@@ -505,17 +507,16 @@ export function GameLogic() {
         travelTimer: 0,
         volleyId: `volley-${now}-overcharged`,
       };
-      addProjectileRef.current(projectile);
+      if (!addProjectileRef.current(projectile)) return false;
+      lastOverchargedFire.current = now;
       // Camera shake + fire signal for squash/recoil in PlayerOrb
       useMagicOrb.getState().triggerBackgroundShake();
       useMagicOrb.getState().triggerOverchargedFire(targetDirX, targetDirY);
     } else if (hasHomingBlasterRef.current) {
       const now = Date.now();
       if (now - lastHomingFire.current < 333) {
-        return;
+        return false;
       }
-      lastHomingFire.current = now;
-
       const _hm_offset = 0.75;
       const projectile: Projectile = {
         id: `proj-${projectileIdCounter++}`,
@@ -531,7 +532,8 @@ export function GameLogic() {
         hitCount: 1,
         homing: true,
       };
-      addProjectileRef.current(projectile);
+      if (!addProjectileRef.current(projectile)) return false;
+      lastHomingFire.current = now;
       useMagicOrb.getState().triggerBackgroundShake();
       triggerHomingFireRef.current(targetDirX, targetDirY);
     } else {
@@ -545,10 +547,11 @@ export function GameLogic() {
         hitCount: 1,
       };
       
-      addProjectileRef.current(projectile);
+      if (!addProjectileRef.current(projectile)) return false;
     }
     
     playShootRef.current();
+    return true;
   }, [gl]);
   
   const armorApplied = useRef(false);
@@ -605,8 +608,9 @@ export function GameLogic() {
       e.preventDefault();
       isPointerDown.current = true;
       pointerPosition.current = { x: e.clientX, y: e.clientY };
-      fireProjectile(e.clientX, e.clientY);
-      lastFireTime.current = performance.now();
+      if (fireProjectile(e.clientX, e.clientY)) {
+        lastFireTime.current = performance.now();
+      }
     };
     
     const onPointerMove = (e: PointerEvent) => {
@@ -655,8 +659,9 @@ export function GameLogic() {
       const now = performance.now();
       const elapsed = (now - lastFireTime.current) / 1000;
       if (elapsed >= getFireInterval()) {
-        fireProjectile(pointerPosition.current.x, pointerPosition.current.y);
-        lastFireTime.current = now;
+        if (fireProjectile(pointerPosition.current.x, pointerPosition.current.y)) {
+          lastFireTime.current = now;
+        }
       }
     }
     
@@ -694,7 +699,6 @@ export function GameLogic() {
         const now = performance.now();
         const elapsed = (now - lastMagiOrb8Fire.current) / 1000;
         if (elapsed >= 0.5) {
-          lastMagiOrb8Fire.current = now;
           const { darkOrbs } = useMagicOrb.getState();
           const onScreenOrbs = darkOrbs.filter(orb => 
             orb.position && 
@@ -722,8 +726,16 @@ export function GameLogic() {
                 type: "normal",
                 hitCount: 1,
               };
-              addProjectileRef.current(projectile);
+              if (addProjectileRef.current(projectile)) {
+                lastMagiOrb8Fire.current = now;
+              } else {
+                // Capacity saturation must not consume the Magi-Orb's cadence;
+                // it will retry when a pool slot becomes available.
+                lastMagiOrb8Fire.current = now - 500;
+              }
             }
+          } else {
+            lastMagiOrb8Fire.current = now;
           }
         }
       }

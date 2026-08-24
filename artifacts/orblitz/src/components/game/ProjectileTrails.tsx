@@ -5,22 +5,15 @@ import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
 import { projectilePhysicsMap } from "./ProjectilePhysics";
 import { COSMETIC_TRAIL_CONFIGS } from "./ProjectileTrailConfig";
+import { gameRuntime } from "@/game-runtime/GameRuntime";
+import { MAX_RUNTIME_TRAILS, MAX_TRAIL_HISTORY_POINTS } from "@/game-runtime/TrailRuntime";
 import { runtimeDiagnostics } from "@/game-runtime/RuntimeDiagnostics";
 
-const MAX_PARTICLES_PER_PROJECTILE = 16;
 const MAX_COSMETIC_TRAIL_PARTICLES = 2048;
 const TRAIL_BASE_SCALE = 0.144;
 const trailGeometry = new THREE.SphereGeometry(1, 5, 4);
 const trailDummy = new THREE.Object3D();
 const trailColor = new THREE.Color();
-
-type TrailSlot = {
-  index: number;
-  history: Float32Array;
-  head: number;
-  count: number;
-  seeds: Float32Array;
-};
 
 function seedFromId(id: string, index: number): number {
   let value = index * 0x9e3779b1;
@@ -37,9 +30,6 @@ export function ProjectileTrails() {
   const projectiles = useMagicOrb(s => s.projectiles);
   const { equippedTrail } = useShop();
   const meshRef = useRef<THREE.InstancedMesh>(null);
-  const slotsByProjectileRef = useRef<Map<string, TrailSlot>>(new Map());
-  const freeSlotIndicesRef = useRef<number[]>([]);
-  const nextSlotIndexRef = useRef(0);
   const configuredParticleCountRef = useRef(-1);
   const activeProjectileIdsRef = useRef<Set<string>>(new Set());
   const [material] = useState(() => new THREE.MeshBasicMaterial({
@@ -60,23 +50,22 @@ export function ProjectileTrails() {
     runtimeDiagnostics.beginTrails();
 
     if (config.particleCount === 0) {
-      slotsByProjectileRef.current.clear();
-      freeSlotIndicesRef.current.length = 0;
-      nextSlotIndexRef.current = 0;
+      if (configuredParticleCountRef.current !== 0) gameRuntime.trails.reset();
       configuredParticleCountRef.current = 0;
       mesh.count = 0;
       runtimeDiagnostics.endTrails(0);
       return;
     }
 
-    const maxTrailSlots = Math.floor(MAX_COSMETIC_TRAIL_PARTICLES / config.particleCount);
+    const maxTrailSlots = Math.min(
+      MAX_RUNTIME_TRAILS,
+      Math.floor(MAX_COSMETIC_TRAIL_PARTICLES / config.particleCount),
+    );
     if (configuredParticleCountRef.current !== config.particleCount) {
       // Particle ranges depend on the equipped cosmetic's density. Clearing on
       // a cosmetic change is intentional: it prevents an old stride from being
       // interpreted as another projectile's trail for one frame.
-      slotsByProjectileRef.current.clear();
-      freeSlotIndicesRef.current.length = 0;
-      nextSlotIndexRef.current = 0;
+      gameRuntime.trails.reset();
       configuredParticleCountRef.current = config.particleCount;
       mesh.count = 0;
     }
@@ -86,7 +75,7 @@ export function ProjectileTrails() {
     activeIds.clear();
     let highestSlot = -1;
     let visibleParticles = 0;
-    const slotsByProjectile = slotsByProjectileRef.current;
+    const slotsByProjectile = gameRuntime.trails;
 
     for (const projectile of projectiles) {
       if (projectile.type !== "normal" && projectile.type) continue;
@@ -99,44 +88,42 @@ export function ProjectileTrails() {
       activeIds.add(projectile.id);
       let slot = slotsByProjectile.get(projectile.id);
       if (!slot) {
-        let index = freeSlotIndicesRef.current.pop();
-        if (index === undefined) {
-          if (nextSlotIndexRef.current >= maxTrailSlots) continue;
-          index = nextSlotIndexRef.current++;
+        slot = slotsByProjectile.getOrCreate(projectile.id);
+        if (!slot || slot.slot >= maxTrailSlots) {
+          if (slot) slotsByProjectile.release(projectile.id);
+          runtimeDiagnostics.noteTrailOverflow();
+          continue;
         }
-        const history = new Float32Array(MAX_PARTICLES_PER_PROJECTILE * 3);
-        for (let i = 0; i < MAX_PARTICLES_PER_PROJECTILE; i++) {
-          history[i * 3] = motion.position[0];
-          history[i * 3 + 1] = motion.position[1];
-          history[i * 3 + 2] = motion.position[2];
+        for (let i = 0; i < MAX_TRAIL_HISTORY_POINTS; i++) {
+          slot.positions[i * 3] = motion.position[0];
+          slot.positions[i * 3 + 1] = motion.position[1];
+          slot.positions[i * 3 + 2] = motion.position[2];
+          slot.seeds[i] = seedFromId(projectile.id, i);
         }
-        const seeds = new Float32Array(MAX_PARTICLES_PER_PROJECTILE);
-        for (let i = 0; i < seeds.length; i++) seeds[i] = seedFromId(projectile.id, i);
-        slot = { index, history, head: 0, count: 1, seeds };
-        slotsByProjectile.set(projectile.id, slot);
+        slot.count = 1;
       }
 
-      const lastOffset = slot.head * 3;
-      const lastX = slot.history[lastOffset];
-      const lastY = slot.history[lastOffset + 1];
-      const lastZ = slot.history[lastOffset + 2];
+      const lastOffset = slot.writeIndex * 3;
+      const lastX = slot.positions[lastOffset];
+      const lastY = slot.positions[lastOffset + 1];
+      const lastZ = slot.positions[lastOffset + 2];
       if (
         Math.abs(lastX - motion.position[0]) > 0.00001 ||
         Math.abs(lastY - motion.position[1]) > 0.00001 ||
         Math.abs(lastZ - motion.position[2]) > 0.00001
       ) {
-        slot.head = (slot.head + 1) % MAX_PARTICLES_PER_PROJECTILE;
-        const writeOffset = slot.head * 3;
-        slot.history[writeOffset] = motion.position[0];
-        slot.history[writeOffset + 1] = motion.position[1];
-        slot.history[writeOffset + 2] = motion.position[2];
-        slot.count = Math.min(slot.count + 1, MAX_PARTICLES_PER_PROJECTILE);
+        slot.writeIndex = (slot.writeIndex + 1) % MAX_TRAIL_HISTORY_POINTS;
+        const writeOffset = slot.writeIndex * 3;
+        slot.positions[writeOffset] = motion.position[0];
+        slot.positions[writeOffset + 1] = motion.position[1];
+        slot.positions[writeOffset + 2] = motion.position[2];
+        slot.count = Math.min(slot.count + 1, MAX_TRAIL_HISTORY_POINTS);
       }
 
       const [dx, dy] = motion.direction;
       const baseScale = projectile.isCharged ? 0.216 : TRAIL_BASE_SCALE;
-      const instanceStart = slot.index * config.particleCount;
-      highestSlot = Math.max(highestSlot, slot.index);
+      const instanceStart = slot.slot * config.particleCount;
+      highestSlot = Math.max(highestSlot, slot.slot);
 
       for (let i = 0; i < config.particleCount; i++) {
         const seed = slot.seeds[i];
@@ -163,11 +150,11 @@ export function ProjectileTrails() {
         let foundSample = remaining <= 0;
 
         for (let sample = 1; sample < slot.count && !foundSample; sample++) {
-          const historyIndex = (slot.head - sample + MAX_PARTICLES_PER_PROJECTILE) % MAX_PARTICLES_PER_PROJECTILE;
+          const historyIndex = (slot.writeIndex - sample + MAX_TRAIL_HISTORY_POINTS) % MAX_TRAIL_HISTORY_POINTS;
           const historyOffset = historyIndex * 3;
-          const nextX = slot.history[historyOffset];
-          const nextY = slot.history[historyOffset + 1];
-          const nextZ = slot.history[historyOffset + 2];
+          const nextX = slot.positions[historyOffset];
+          const nextY = slot.positions[historyOffset + 1];
+          const nextZ = slot.positions[historyOffset + 2];
           const segmentX = nextX - historyX;
           const segmentY = nextY - historyY;
           const segmentZ = nextZ - historyZ;
@@ -205,17 +192,16 @@ export function ProjectileTrails() {
       }
     }
 
-    for (const [projectileId, slot] of slotsByProjectile) {
+    for (const [projectileId, slot] of gameRuntime.trails.entries()) {
       if (activeIds.has(projectileId)) continue;
-      const instanceStart = slot.index * config.particleCount;
+      const instanceStart = slot.slot * config.particleCount;
       trailDummy.position.set(0, 0, 0);
       trailDummy.scale.setScalar(0);
       trailDummy.updateMatrix();
       for (let i = 0; i < config.particleCount; i++) {
         mesh.setMatrixAt(instanceStart + i, trailDummy.matrix);
       }
-      slotsByProjectile.delete(projectileId);
-      freeSlotIndicesRef.current.push(slot.index);
+      gameRuntime.trails.release(projectileId);
     }
 
     mesh.count = highestSlot < 0 ? 0 : (highestSlot + 1) * config.particleCount;

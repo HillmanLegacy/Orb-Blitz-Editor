@@ -190,8 +190,6 @@ export function SubBlasterOrb() {
     // ── Auto-fire ─────────────────────────────────────────────────────────
     fireTimerRef.current -= delta;
     if (tgt && fireTimerRef.current <= 0) {
-      fireTimerRef.current = FIRE_INTERVAL;
-
       const dirX = tgt[0] - ox;
       const dirY = tgt[1] - oy;
       const len  = Math.sqrt(dirX * dirX + dirY * dirY);
@@ -207,14 +205,20 @@ export function SubBlasterOrb() {
           speed: 26.0,
           noMissTracking: true,
         };
-        state.addProjectile(projectile);
+        if (state.addProjectile(projectile)) {
+          fireTimerRef.current = FIRE_INTERVAL;
+          // Micro-recoil squash + muzzle flash
+          recoilTimerRef.current = RECOIL_DUR;
+          flashTimerRef.current  = FLASH_DUR;
 
-        // Micro-recoil squash + muzzle flash
-        recoilTimerRef.current = RECOIL_DUR;
-        flashTimerRef.current  = FLASH_DUR;
-
-        // Subtle background shake (lighter than player weapons)
-        // Don't call triggerBackgroundShake — too heavy for auto-fire
+          // Subtle background shake (lighter than player weapons)
+          // Don't call triggerBackgroundShake — too heavy for auto-fire
+        } else {
+          // Retry shortly when saturation clears without presenting a phantom shot.
+          fireTimerRef.current = 0.1;
+        }
+      } else {
+        fireTimerRef.current = FIRE_INTERVAL;
       }
     }
 
