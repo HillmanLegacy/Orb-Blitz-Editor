@@ -532,7 +532,10 @@ function ProjectileVisualBatch({
 
       _batchedProjectileDummy.position.set(...motion.position);
       _batchedProjectileDummy.quaternion.identity();
-      _batchedProjectileDummy.scale.setScalar(isRapid ? scale : 0);
+      // Keep a lightweight emissive core visible for normal shots while their
+      // textured instanced mini-orb is loading or unavailable on a renderer.
+      // This also makes the projectile readable against dense level effects.
+      _batchedProjectileDummy.scale.setScalar(scale);
       _batchedProjectileDummy.updateMatrix();
       coreMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
       _batchedProjectileCoreColor.set(isRapid ? "#ffffff" : skinColors.core);

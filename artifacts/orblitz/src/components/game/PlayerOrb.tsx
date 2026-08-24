@@ -1172,12 +1172,7 @@ export function PlayerOrb() {
   return (
     <group ref={groupRef} position={playerPosition}>
       {/* 3D Player Character Model */}
-      <Suspense fallback={
-        <mesh scale={scale * 0.92}>
-          <circleGeometry args={[1, 48]} />
-          <meshBasicMaterial color={coreColor} transparent opacity={0.9 * phaseOpacity} />
-        </mesh>
-      }>
+      <Suspense fallback={null}>
         <PlayerModel
           scale={scale}
           coreColor={coreColor}
