@@ -37,6 +37,20 @@ export class BossRuntime {
     this.state.position[2] = position[2];
   }
 
+  /** Records an instantaneous relocation without exposing a fake swept path. */
+  teleport(id: string, position: [number, number, number]): void {
+    if (!this.state || this.state.id !== id) {
+      this.beginFrame(id, position);
+      return;
+    }
+    this.state.previousPosition[0] = position[0];
+    this.state.previousPosition[1] = position[1];
+    this.state.previousPosition[2] = position[2];
+    this.state.position[0] = position[0];
+    this.state.position[1] = position[1];
+    this.state.position[2] = position[2];
+  }
+
   get(id: string): RuntimeBoss | undefined {
     return this.state?.id === id ? this.state : undefined;
   }

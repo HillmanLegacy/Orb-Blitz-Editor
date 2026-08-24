@@ -8,3 +8,4 @@
 - [Orblitz gameplay mount boundary](orblitz-gameplay-mount-boundary.md) — mount heavy gameplay systems only during loading/playing; keep menu rendering limited to lightweight background/postprocessing.
 - [Orblitz weapon input behavior](orblitz-weapon-input-guard.md) — selectedWeapon defaults to normal intentionally; no equipped shop weapon still permits the default projectile.
 - [Orblitz enemy particle budgets](orblitz-enemy-particle-budgets.md) — shared mini-orb visuals need optional particle counts so standard enemies can be reduced without changing boss defaults.
+- [Orblitz discontinuous collision transforms](orblitz-discontinuous-collision-transforms.md) — teleports must reset swept-collision history; orbital projectile parts need prior and next phases.

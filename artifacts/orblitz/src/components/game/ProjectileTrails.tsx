@@ -1,133 +1,100 @@
-import { useRef, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
+import { useShop } from "@/lib/stores/useShop";
 import { getProjectileMotion } from "./ProjectilePhysics";
-import { gameRuntime } from "@/game-runtime/GameRuntime";
-import type { RuntimeTrail } from "@/game-runtime/TrailRuntime";
+import { COSMETIC_TRAIL_CONFIGS } from "./ProjectileTrailConfig";
 
-const MAX_TRAIL_LENGTH = 12;
-const VERTICES_PER_TRAIL = (MAX_TRAIL_LENGTH - 1) * 2;
+const MAX_PARTICLES_PER_PROJECTILE = 16;
+const MAX_COSMETIC_TRAIL_PARTICLES = 2048;
+const TRAIL_BASE_SCALE = 0.144;
+const trailGeometry = new THREE.SphereGeometry(1, 5, 4);
+const trailDummy = new THREE.Object3D();
+const trailColor = new THREE.Color();
 
-type TrailBatch = {
-  geometry: THREE.BufferGeometry;
-  positions: Float32Array;
-  capacity: number;
-};
-
-function createBatch(): TrailBatch {
-  const geometry = new THREE.BufferGeometry();
-  const positions = new Float32Array(0);
-  const attribute = new THREE.BufferAttribute(positions, 3);
-  attribute.setUsage(THREE.DynamicDrawUsage);
-  geometry.setAttribute("position", attribute);
-  geometry.setDrawRange(0, 0);
-  return { geometry, positions, capacity: 0 };
+function seedFromId(id: string, index: number): number {
+  let value = index * 0x9e3779b1;
+  for (let i = 0; i < id.length; i++) value = Math.imul(value ^ id.charCodeAt(i), 0x85ebca6b);
+  return ((value >>> 0) % 10_000) / 10_000;
 }
 
 /**
- * Combines every trail of a colour into one LineSegments object.  A trail used
- * to allocate a geometry, material, scene child, and draw call of its own.
- * Pairing adjacent history points retains exactly the same line segments while
- * reducing active projectile trails to two draw calls.
+ * One instanced mesh renders all standard cosmetic trails. This replaces the
+ * former 8–16 React meshes and frame callbacks per normal projectile while
+ * retaining each equipped trail's palette, taper, wobble, and live direction.
  */
 export function ProjectileTrails() {
   const projectiles = useMagicOrb(s => s.projectiles);
-  const trailsRef = useRef<Map<string, RuntimeTrail>>(new Map());
-  const currentIdsRef = useRef(new Set<string>());
-  const cyanBatch = useMemo(createBatch, []);
-  const chargedBatch = useMemo(createBatch, []);
-  const cyanMaterial = useMemo(() => new THREE.LineBasicMaterial({
-    color: "#00ffff", transparent: true, opacity: 0.7,
-  }), []);
-  const chargedMaterial = useMemo(() => new THREE.LineBasicMaterial({
-    color: "#ffff00", transparent: true, opacity: 0.7,
-  }), []);
+  const { equippedTrail } = useShop();
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const [material] = useState(() => new THREE.MeshBasicMaterial({
+    transparent: true,
+    opacity: 0.9,
+    depthWrite: false,
+    vertexColors: true,
+    blending: THREE.AdditiveBlending,
+  }));
 
-  useEffect(() => () => {
-    for (const id of trailsRef.current.keys()) gameRuntime.trails.release(id);
-    trailsRef.current.clear();
-    cyanBatch.geometry.dispose();
-    chargedBatch.geometry.dispose();
-    cyanMaterial.dispose();
-    chargedMaterial.dispose();
-    gameRuntime.trails.reset();
-  }, [cyanBatch, chargedBatch, cyanMaterial, chargedMaterial]);
+  useEffect(() => () => material.dispose(), [material]);
 
-  useFrame(() => {
-    const trails = trailsRef.current;
-    const currentIds = currentIdsRef.current;
-    currentIds.clear();
-    for (const projectile of projectiles) currentIds.add(projectile.id);
+  const config = COSMETIC_TRAIL_CONFIGS[equippedTrail];
+  const activeProjectiles = useMemo(
+    () => projectiles.filter((projectile) => projectile.type === "normal" || !projectile.type),
+    [projectiles],
+  );
 
-    for (const id of trails.keys()) {
-      if (!currentIds.has(id)) {
-        trails.delete(id);
-        gameRuntime.trails.release(id);
-      }
+  useFrame(({ clock }) => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+
+    if (config.particleCount === 0) {
+      mesh.count = 0;
+      return;
     }
 
-    const requiredCyan = projectiles.reduce(
-      (count, projectile) => count + (projectile.isCharged ? 0 : VERTICES_PER_TRAIL), 0,
-    );
-    const requiredCharged = projectiles.length * VERTICES_PER_TRAIL - requiredCyan;
-    for (const [batch, required] of [[cyanBatch, requiredCyan], [chargedBatch, requiredCharged]] as const) {
-      if (required > batch.capacity) {
-        batch.capacity = required;
-        batch.positions = new Float32Array(required * 3);
-        const attribute = new THREE.BufferAttribute(batch.positions, 3);
-        attribute.setUsage(THREE.DynamicDrawUsage);
-        batch.geometry.setAttribute("position", attribute);
-      }
-    }
-
-    let cyanVertex = 0;
-    let chargedVertex = 0;
-    for (const projectile of projectiles) {
-      let history = trails.get(projectile.id);
-      if (!history) {
-        history = gameRuntime.trails.getOrCreate(projectile.id, MAX_TRAIL_LENGTH);
-        trails.set(projectile.id, history);
-      }
-
-      const writeOffset = history.writeIndex * 3;
+    const time = clock.getElapsedTime();
+    let instance = 0;
+    for (const projectile of activeProjectiles) {
       const motion = getProjectileMotion(projectile);
-      history.positions[writeOffset] = motion.position[0];
-      history.positions[writeOffset + 1] = motion.position[1];
-      history.positions[writeOffset + 2] = motion.position[2];
-      history.writeIndex = (history.writeIndex + 1) % MAX_TRAIL_LENGTH;
-      history.count = Math.min(history.count + 1, MAX_TRAIL_LENGTH);
+      const [dx, dy] = motion.direction;
+      const baseScale = projectile.isCharged ? 0.216 : TRAIL_BASE_SCALE;
 
-      const batch = projectile.isCharged ? chargedBatch : cyanBatch;
-      let vertex = projectile.isCharged ? chargedVertex : cyanVertex;
-      // LineSegments consumes point pairs, so adjacent history points are
-      // duplicated rather than connecting separate projectile trails.
-      for (let point = 1; point < history.count; point++) {
-        const previous = ((history.writeIndex - history.count + point - 1 + MAX_TRAIL_LENGTH) % MAX_TRAIL_LENGTH) * 3;
-        const next = ((history.writeIndex - history.count + point + MAX_TRAIL_LENGTH) % MAX_TRAIL_LENGTH) * 3;
-        const destination = vertex * 3;
-        batch.positions[destination] = history.positions[previous];
-        batch.positions[destination + 1] = history.positions[previous + 1];
-        batch.positions[destination + 2] = history.positions[previous + 2];
-        batch.positions[destination + 3] = history.positions[next];
-        batch.positions[destination + 4] = history.positions[next + 1];
-        batch.positions[destination + 5] = history.positions[next + 2];
-        vertex += 2;
+      for (let i = 0; i < config.particleCount && instance < MAX_COSMETIC_TRAIL_PARTICLES; i++) {
+        const seed = seedFromId(projectile.id, i);
+        const trailDistance = i * 0.24;
+        const wobblePhase = seed * Math.PI * 2;
+        const wobbleX = Math.sin(time * 3.2 + wobblePhase) * config.spread * baseScale;
+        const wobbleY = Math.cos(time * 2.7 + wobblePhase) * config.spread * baseScale;
+        const wobbleZ = Math.sin(time * 4.1 + wobblePhase * 1.7) * config.spread * baseScale * 0.6;
+        const taper = Math.max(0.05, 1 - i / config.particleCount);
+        const particleScale = baseScale * 0.44 * (0.5 + seed * 0.65) * taper;
+        const fade = Math.max(0.08, 1 - trailDistance * 1.8);
+
+        trailDummy.position.set(
+          motion.position[0] - dx * trailDistance + wobbleX,
+          motion.position[1] - dy * trailDistance + wobbleY,
+          motion.position[2] + wobbleZ,
+        );
+        trailDummy.scale.setScalar(particleScale);
+        trailDummy.updateMatrix();
+        mesh.setMatrixAt(instance, trailDummy.matrix);
+        trailColor.set(config.colors[i % config.colors.length]).multiplyScalar(fade);
+        mesh.setColorAt(instance, trailColor);
+        instance++;
       }
-      if (projectile.isCharged) chargedVertex = vertex;
-      else cyanVertex = vertex;
     }
 
-    for (const [batch, vertices] of [[cyanBatch, cyanVertex], [chargedBatch, chargedVertex]] as const) {
-      (batch.geometry.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
-      batch.geometry.setDrawRange(0, vertices);
-    }
+    mesh.count = instance;
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   });
 
   return (
-    <group>
-      <lineSegments geometry={cyanBatch.geometry} material={cyanMaterial} frustumCulled={false} />
-      <lineSegments geometry={chargedBatch.geometry} material={chargedMaterial} frustumCulled={false} />
-    </group>
+    <instancedMesh
+      ref={meshRef}
+      args={[trailGeometry, material, MAX_COSMETIC_TRAIL_PARTICLES]}
+      frustumCulled={false}
+    />
   );
 }

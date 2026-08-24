@@ -6,7 +6,9 @@ export type RuntimeProjectile = {
   position: [number, number, number];
   previousPosition: [number, number, number];
   direction: [number, number, number];
+  previousDirection: [number, number, number];
   spiralAngle?: number;
+  previousSpiralAngle?: number;
   spawnScale?: number;
   spawnScaleTimer?: number;
   subSphereAlive?: [boolean, boolean, boolean];
@@ -48,7 +50,9 @@ export class ProjectileRuntime implements RuntimePool {
       position: [source.position[0], source.position[1], source.position[2]],
       previousPosition: [source.position[0], source.position[1], source.position[2]],
       direction: [source.direction[0], source.direction[1], source.direction[2]],
+      previousDirection: [source.direction[0], source.direction[1], source.direction[2]],
       spiralAngle: source.spiralAngle,
+      previousSpiralAngle: source.spiralAngle,
       spawnScale: source.spawnScale,
       spawnScaleTimer: source.spawnScaleTimer,
       subSphereAlive: source.subSphereAlive

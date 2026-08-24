@@ -170,17 +170,20 @@ export function Boss() {
     let threatCount = 0;
     
     for (const proj of liveProjectiles) {
-      const dx = bossPos[0] - proj.position[0];
-      const dy = bossPos[1] - proj.position[1];
+      const liveProjectile = gameRuntime.projectiles.get(proj.id);
+      const position = liveProjectile?.position ?? proj.position;
+      const direction = liveProjectile?.direction ?? proj.direction;
+      const dx = bossPos[0] - position[0];
+      const dy = bossPos[1] - position[1];
       const dist = Math.sqrt(dx * dx + dy * dy);
       
       if (dist < DODGE_DISTANCE) {
-        const dotProduct = proj.direction[0] * -dx + proj.direction[1] * -dy;
+        const dotProduct = direction[0] * -dx + direction[1] * -dy;
         if (dotProduct > 0) {
           threatened = true;
           threatCount++;
-          const perpX = -proj.direction[1];
-          const perpY = proj.direction[0];
+          const perpX = -direction[1];
+          const perpY = direction[0];
           avgDodgeX += perpX;
           avgDodgeY += perpY;
         }
@@ -422,6 +425,7 @@ export function Boss() {
             // Snap position now so it's ready for arrival
             const [atx, aty] = starTeleportTargetRef.current;
             bossPosRef.current = [atx, aty, 0];
+            gameRuntime.boss.teleport(boss.id, bossPosRef.current);
           }
 
         } else if (tPhase === 'transiting') {

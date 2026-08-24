@@ -143,6 +143,10 @@ function HDTrailEffect({
   return (
     <group>
       {particles.map((p, i) => {
+        // The active trail renderer is batched in ProjectileTrails. This
+        // fallback is retained only for compatibility and has no frame-time
+        // dependent JSX calculations.
+        const time = 0;
         const trailDist = p.offset * 1.6;
         const wobbleX   = Math.sin(time * 3.2 + p.wobble) * config.spread * baseScale;
         const wobbleY   = Math.cos(time * 2.7 + p.wobble) * config.spread * baseScale;
@@ -272,21 +276,10 @@ function ProjectileMesh({ projectile, trailType, skinColor, skinColors }: {
 
   return (
     <group ref={groupRef} position={initialMotion.position}>
-      {/* Point light matching player skin colour */}
-      <pointLight
-        color={skinColors.glow}
-        intensity={isCharged ? 12 : 8}
-        distance={isCharged ? 6 : 4}
-        decay={2}
-      />
-      {/* Trail */}
-      {trailType !== "none" && trailType !== "particle_swarm" && (
-        <MemoizedHDTrailEffect
-          trailType={trailType}
-          projectile={projectile}
-          baseScale={projScale * groupScale}
-          projectileColor={skinColor}
-        />
+      {/* Charged shots retain their stronger light; standard-shot lighting is
+          provided by their emissive model and batched cosmetic trail. */}
+      {isCharged && (
+        <pointLight color={skinColors.glow} intensity={12} distance={6} decay={2} />
       )}
 
       {/* Charge beam aura — mini orbiting swarm + lightning, outside the scale group
@@ -1667,6 +1660,7 @@ export function Projectiles() {
   const removedProjectileIds = useRef<Set<string>>(new Set());
   const activeProjectileIds = useRef<Set<string>>(new Set());
   const activeVolleyCounts = useRef<Map<string, number>>(new Map());
+  const impactUpdateAccumulator = useRef(0);
 
   // ── Overcharged shockwave rings ───────────────────────────────────────────
   const knownOcIds   = useRef<Set<string>>(new Set());
@@ -1789,17 +1783,31 @@ export function Projectiles() {
     }
 
     if (impactEffects.length > 0) {
-      // Single-pass loop avoids the two intermediate array allocations that
-      // map+filter creates every frame when impact effects are active.
+      // Visual effect timing does not need a store write every render frame.
+      // Apply the accumulated time at 30 Hz to preserve duration while
+      // reducing React/Zustand allocation churn during dense hits.
+      impactUpdateAccumulator.current += delta;
+      if (impactUpdateAccumulator.current >= 1 / 30) {
+        const elapsed = impactUpdateAccumulator.current;
+        impactUpdateAccumulator.current = 0;
       const updatedEffects: typeof impactEffects = [];
       for (const e of impactEffects) {
-        const newTimer = e.timer - delta;
+          const newTimer = e.timer - elapsed;
         if (newTimer > 0) updatedEffects.push({ ...e, timer: newTimer });
       }
       updateImpactEffects(updatedEffects);
+      }
+    } else {
+      impactUpdateAccumulator.current = 0;
     }
     
     if (projectiles.length === 0) {
+      for (const id of projectilePhysicsMap.keys()) releaseProjectileMotion(id);
+      projectileOrbHits.current.clear();
+      spiralBossHit.current.clear();
+      volleyHits.current.clear();
+      volleyProjectileCounts.current.clear();
+      volleyRemainingCounts.current.clear();
       runtimeDiagnostics.endSimulation();
       return;
     }
@@ -1845,6 +1853,10 @@ export function Projectiles() {
       motion.previousPosition[0] = px;
       motion.previousPosition[1] = py;
       motion.previousPosition[2] = pz;
+      motion.previousDirection[0] = dx;
+      motion.previousDirection[1] = dy;
+      motion.previousDirection[2] = dz;
+      motion.previousSpiralAngle = motion.spiralAngle;
       const previousProjectileX = motion.previousPosition[0];
       const previousProjectileY = motion.previousPosition[1];
       const previousProjectileZ = motion.previousPosition[2];
@@ -2021,8 +2033,14 @@ export function Projectiles() {
       // ── Orbital Spiral Blaster: per-sub-sphere collision (boss + orbs) ────
       if (proj.type === "spiral") {
         const _subAlive = motion.subSphereAlive ?? [true, true, true];
-        const [_fdx, _fdy] = motion.direction;
-        const _phase = motion.spiralAngle ?? 0;
+        const _fdx = dx;
+        const _fdy = dy;
+        const [_previousFdx, _previousFdy] = motion.previousDirection;
+        // The collision endpoint must match the new phase committed at the end
+        // of this frame; otherwise fast orbital motion can tunnel independently
+        // of the projectile parent's forward movement.
+        const _phase = newSpiralAngle ?? motion.spiralAngle ?? 0;
+        const _previousPhase = motion.previousSpiralAngle ?? _phase;
 
         if (boss && !boss.destroying && !boss.shieldActive) {
           const liveBoss = gameRuntime.boss.get(boss.id);
@@ -2031,8 +2049,20 @@ export function Projectiles() {
             if (!_subAlive[si]) continue;
             const _sk = `${proj.id}-b${si}`;
             if (spiralBossHit.current.has(_sk)) continue;
+            const [_prevSpx, _prevSpy, _prevSpz] = _getSpiralSubPos(
+              previousProjectileX, previousProjectileY, previousProjectileZ,
+              _previousFdx, _previousFdy, _previousPhase, si,
+            );
             const [_spx, _spy, _spz] = _getSpiralSubPos(px, py, pz, _fdx, _fdy, _phase, si);
-            if (Math.sqrt((_spx-bx)**2+(_spy-by)**2+(_spz-(bz||0))**2) < 2.15) {
+            if (sweptSphereHit(
+              _prevSpx, _prevSpy, _prevSpz,
+              _spx, _spy, _spz,
+              liveBoss?.previousPosition[0] ?? bx,
+              liveBoss?.previousPosition[1] ?? by,
+              liveBoss?.previousPosition[2] ?? bz ?? 0,
+              bx, by, bz ?? 0,
+              2.15,
+            ) !== null) {
               spiralBossHit.current.add(_sk);
               _subAlive[si] = false;
               motion.hitCount = Math.max(0, (motion.hitCount ?? 3) - 1);
@@ -2054,8 +2084,19 @@ export function Projectiles() {
           if (_ph.has(orb.id)) continue;
           for (let si = 0; si < 3; si++) {
             if (!_subAlive[si]) continue;
+            const [_prevSpx, _prevSpy, _prevSpz] = _getSpiralSubPos(
+              previousProjectileX, previousProjectileY, previousProjectileZ,
+              _previousFdx, _previousFdy, _previousPhase, si,
+            );
             const [_spx, _spy, _spz] = _getSpiralSubPos(px, py, pz, _fdx, _fdy, _phase, si);
-            if (Math.sqrt((_spx-ox)**2+(_spy-oy)**2+(_spz-oz)**2) < hitRadius + (orb.isBossOrb ? 0.6 : 0) + 0.38) {
+            const previousEnemyPosition = gameRuntime.enemies.get(orb.id)?.previousPosition ?? [ox, oy, oz];
+            if (sweptSphereHit(
+              _prevSpx, _prevSpy, _prevSpz,
+              _spx, _spy, _spz,
+              previousEnemyPosition[0], previousEnemyPosition[1], previousEnemyPosition[2],
+              ox, oy, oz,
+              hitRadius + (orb.isBossOrb ? 0.6 : 0) + 0.38,
+            ) !== null) {
               _subAlive[si] = false;
               motion.hitCount = Math.max(0, (motion.hitCount ?? 3) - 1);
               hitOrbsThisFrame.current.add(orb.id);
