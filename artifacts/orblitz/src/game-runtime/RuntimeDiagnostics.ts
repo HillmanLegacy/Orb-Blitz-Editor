@@ -8,6 +8,13 @@ type Timings = {
   enemyRenders: number;
 };
 
+type RenderQualityDiagnostics = {
+  tier: "high" | "medium" | "low";
+  pixelRatio: number;
+  transitionCount: number;
+  lastTransitionReason: string;
+};
+
 /**
  * Development-only counters. This never uses React state and is compiled into
  * a no-op API in production through the same inexpensive guards.
@@ -20,6 +27,12 @@ class RuntimeDiagnostics {
   private readonly values: Timings = {
     frameMs: 0, simulationMs: 0, collisionMs: 0, renderMs: 0,
     storeWrites: 0, projectileRenders: 0, enemyRenders: 0,
+  };
+  private readonly renderQuality: RenderQualityDiagnostics = {
+    tier: "high",
+    pixelRatio: 1,
+    transitionCount: 0,
+    lastTransitionReason: "initial",
   };
 
   beginFrame(): void {
@@ -56,8 +69,20 @@ class RuntimeDiagnostics {
   noteProjectileRender(): void { if (this.enabled) this.values.projectileRenders++; }
   noteEnemyRender(): void { if (this.enabled) this.values.enemyRenders++; }
 
+  setRenderQuality(value: RenderQualityDiagnostics): void {
+    if (!this.enabled) return;
+    this.renderQuality.tier = value.tier;
+    this.renderQuality.pixelRatio = value.pixelRatio;
+    this.renderQuality.transitionCount = value.transitionCount;
+    this.renderQuality.lastTransitionReason = value.lastTransitionReason;
+  }
+
   snapshot(): Readonly<Timings> {
     return this.values;
+  }
+
+  qualitySnapshot(): Readonly<RenderQualityDiagnostics> {
+    return this.renderQuality;
   }
 }
 

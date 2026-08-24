@@ -3,6 +3,7 @@ import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { EffectComposer, Bloom, SMAA, ChromaticAberration, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { Background } from "./Background";
+import { AdaptiveRenderQuality, useRenderQuality } from "./AdaptiveRenderQuality";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
 
@@ -160,19 +161,26 @@ function CameraController() {
 
 // ── Dynamic post-processing ───────────────────────────────────────────────────
 // PostProcessingWrapper reads phase via a selector so it re-renders only on
-// phase transitions (menu→loading→playing etc.), not on every frame. This means
+// phase or adaptive-quality transitions, not on every frame. This means
 // EffectComposer is rebuilt only a handful of times per session — acceptable.
 // Heavy effects (SMAA, ChromaticAberration, full Bloom) are skipped in menus.
 function PostProcessingWrapper() {
   const phase = useMagicOrb(s => s.phase);
+  const quality = useRenderQuality();
   const isMenu = phase === "menu" || phase === "loading";
-  return <PostProcessing isMenu={isMenu} />;
+  return <PostProcessing isMenu={isMenu} quality={quality} />;
 }
 
 // IMPORTANT: PostProcessing itself must NOT call useMagicOrb(). The per-frame
 // chromatic aberration offset is driven via getState() inside useFrame so that
 // no Zustand subscription is created here — which would rebuild the pipeline.
-function PostProcessing({ isMenu }: { isMenu: boolean }) {
+function PostProcessing({
+  isMenu,
+  quality,
+}: {
+  isMenu: boolean;
+  quality: "high" | "medium" | "low";
+}) {
   // Pre-allocated Vector2 — mutated each frame via getState() in useFrame.
   // Postprocessing reads it through the uniform reference on each render tick.
   const abOffset = useRef(new THREE.Vector2(0.0006, 0.0004));
@@ -197,15 +205,15 @@ function PostProcessing({ isMenu }: { isMenu: boolean }) {
         luminanceThreshold={isMenu ? 0.5 : 0.28}
         luminanceSmoothing={0.82}
         mipmapBlur={!isMenu}
-        radius={0.72}
+        radius={quality === "high" ? 0.72 : quality === "medium" ? 0.58 : 0.42}
       />
       {/* Pass the same Vector2 object every render — uniform stores the ref,
           so mutations in useFrame are reflected without re-mounting the effect.
           Do NOT pass a `ref` prop: in React 19 refs are regular props and get
           spread into the effect constructor causing unexpected behaviour. */}
-      {isMenu ? <></> : <ChromaticAberration offset={abOffset.current} />}
+      {isMenu || quality === "low" ? <></> : <ChromaticAberration offset={abOffset.current} />}
       <Vignette eskil={false} offset={0.28} darkness={0.78} />
-      {isMenu ? <></> : <SMAA />}
+      {isMenu || quality !== "high" ? <></> : <SMAA />}
     </EffectComposer>
   );
 }
@@ -309,7 +317,7 @@ export function GameScene() {
       <Canvas
         fallback={<WebGLUnavailable />}
         camera={{ position: [0, 0, 10], fov: 60, near: 0.1, far: 100 }}
-        dpr={[1, 1.5]}
+        dpr={[0.75, 1.5]}
         frameloop="demand"
         gl={{
           powerPreference: "high-performance",
@@ -327,6 +335,7 @@ export function GameScene() {
       >
         <Suspense fallback={null}>
           <RenderScheduler />
+          <AdaptiveRenderQuality />
           <GameRuntimeLifecycle />
           <RendererSetup />
           <ShaderPrewarm />

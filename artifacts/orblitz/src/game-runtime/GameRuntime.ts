@@ -27,6 +27,7 @@ export class GameRuntime {
   diagnosticsSnapshot() {
     return {
       timing: runtimeDiagnostics.snapshot(),
+      renderQuality: runtimeDiagnostics.qualitySnapshot(),
       slots: {
         projectiles: { active: this.projectiles.active, capacity: this.projectiles.capacity },
         enemies: { active: this.enemies.active, capacity: this.enemies.capacity },
