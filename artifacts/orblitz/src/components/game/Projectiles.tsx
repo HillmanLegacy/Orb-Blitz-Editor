@@ -68,6 +68,11 @@ const ENEMY_GRID_CELL_SIZE = 4;
 const ENEMY_GRID_KEY_OFFSET = 128;
 const ENEMY_GRID_KEY_STRIDE = 512;
 const compareEnemyIndices = (a: number, b: number) => a - b;
+// DarkOrbs renders/spawns through approximately x ±28 / y ±18. Projectiles
+// must remain alive across that whole envelope so distance from the center
+// cannot make a rendered enemy impossible to hit.
+const PROJECTILE_WORLD_BOUNDARY_X = 32;
+const PROJECTILE_WORLD_BOUNDARY_Y = 24;
 
 /**
  * Reusable broad-phase index for projectile collisions.
@@ -2265,14 +2270,13 @@ export function Projectiles() {
       const previousProjectileZ = motion.previousPosition[2];
       
       if (proj.homing) {
-        const homingBoundary = 12;
         // Inline the filter into the closest-orb search (single pass, no allocation).
         let closestTargetPosition: [number, number, number] | null = null;
         let closestDist2 = Infinity; // compare squared distances — no sqrt needed for selection
 
         for (const orb of darkOrbs) {
           const orbPosition = liveOrbPosition(orb);
-          if (orb.destroying || Math.abs(orbPosition[0]) > homingBoundary || Math.abs(orbPosition[1]) > homingBoundary) continue;
+          if (orb.destroying) continue;
           const d2 = (orbPosition[0] - px) ** 2 + (orbPosition[1] - py) ** 2;
           if (d2 < closestDist2) {
             closestDist2 = d2;
@@ -2346,8 +2350,7 @@ export function Projectiles() {
       // travelTimer is advanced after hitSomething is declared (see below)
       let newTravelTimer = motion.travelTimer;
 
-      const screenBoundary = 20;
-      if (Math.abs(px) > screenBoundary || Math.abs(py) > screenBoundary) {
+      if (Math.abs(px) > PROJECTILE_WORLD_BOUNDARY_X || Math.abs(py) > PROJECTILE_WORLD_BOUNDARY_Y) {
         const projHasHit = projectileOrbHits.current.has(proj.id) && projectileOrbHits.current.get(proj.id)!.size > 0;
         
         if (proj.volleyId) {
@@ -2433,7 +2436,6 @@ export function Projectiles() {
             const orb = darkOrbs[orbIndex];
             if (orb.destroying) continue;
             const [ox, oy, oz] = liveOrbPosition(orb);
-            if (Math.abs(ox) > 13 || Math.abs(oy) > 13) continue;
             if (Math.sqrt((px-ox)**2+(py-oy)**2+(pz-oz)**2) < OC_EXPLODE_RADIUS) {
               markOrbDestroying(orb.id, [ox, oy, oz]);
               addScore(10); incrementGauntletOrbs();
@@ -2512,7 +2514,6 @@ export function Projectiles() {
           const orb = darkOrbs[orbIndex];
           if (hitOrbsThisFrame.current.has(orb.id) || orb.destroying) continue;
           const [ox, oy, oz] = liveOrbPosition(orb);
-          if (Math.abs(ox) > 12 || Math.abs(oy) > 12) continue;
           const _ph = projectileOrbHits.current.get(proj.id) || new Set<string>();
           if (_ph.has(orb.id)) continue;
           for (let si = 0; si < 3; si++) {
@@ -2653,8 +2654,6 @@ export function Projectiles() {
         if (hitOrbsThisFrame.current.has(orb.id) || orb.destroying) continue;
         
         const [ox, oy, oz] = liveOrbPosition(orb);
-        const orbScreenBoundary = 12;
-        if (Math.abs(ox) > orbScreenBoundary || Math.abs(oy) > orbScreenBoundary) continue;
         
         if (proj.piercing) {
           const _ph = projectileOrbHits.current.get(proj.id);
