@@ -61,7 +61,7 @@ function GameRuntimeCoordinator() {
   return null;
 }
 
-/** Gameplay module; core systems mount before optional visual systems. */
+/** Gameplay module; mechanics stay mounted independently from presentation. */
 export default function GameplayScene() {
   const [visualSystemsReady, setVisualSystemsReady] = useState(false);
   const vfxEnabled = usePerformanceFeature("vfx");
@@ -82,19 +82,25 @@ export default function GameplayScene() {
       <Boss />
       <Projectiles />
       <GameLogic />
+      {/*
+       * These systems own gameplay state in addition to their render trees. They
+       * intentionally stay mounted at every visual quality level: disabling VFX
+       * must never disable pickups, allied weapons, defensive collisions, or
+       * rewards.
+       */}
+      <PowerUps />
+      <SubBlasterOrb />
+      <DefenseOrbs />
+      <StarFlowVFX visualEnabled={vfxEnabled} />
       {visualSystemsReady && vfxEnabled && (
         <>
           <World1FireBackground />
           <ProjectileTrails />
-          <PowerUps />
           <Particles />
           <LaserBeams />
           <DistortField />
-          <SubBlasterOrb />
-          <DefenseOrbs />
           <MagiOrbEffects />
           <ScreenEffects />
-          <StarFlowVFX />
         </>
       )}
     </>

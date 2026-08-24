@@ -14,7 +14,6 @@ import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
-import { useShop } from "@/lib/stores/useShop";
 
 // ─── Star flow config ─────────────────────────────────────────────────────────
 const MAX_PARTICLES   = 700;
@@ -91,7 +90,7 @@ const _sparkGeo = new THREE.SphereGeometry(1, 5, 3);
 const _ringGeo  = new THREE.RingGeometry(0.82, 1.0, 36);
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export function StarFlowVFX() {
+export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean }) {
   const { scene } = useGLTF("/models/star_pickup.glb");
 
   const [starGeo, normalScale] = useMemo(() => {
@@ -159,6 +158,15 @@ export function StarFlowVFX() {
 
   useFrame((_, delta) => {
     const { starFlowEvents, removeStarFlowEvent, playerPosition } = useMagicOrb.getState();
+
+    // The reward was already committed by addStarFlowEvent. When this visual
+    // tier is disabled, discard only the presentation events rather than
+    // allowing the queue to grow or delaying gameplay state.
+    if (!visualEnabled) {
+      for (const evt of starFlowEvents) removeStarFlowEvent(evt.id);
+      return;
+    }
+
     const ppx = playerPosition[0];
     const ppy = playerPosition[1];
     const ppz = playerPosition[2];
@@ -214,8 +222,6 @@ export function StarFlowVFX() {
 
       // Absorbed?
       if (dx * dx + dy * dy < ABSORB_DIST_SQ) {
-        useShop.getState().addCoins(_pPool[off + 7]);
-
         // ── AAA burst: 36 sphere particles in full 3D spread ─────────────────
         for (let k = 0; k < SPARKS_PER_ABSORB; k++) {
           if (sLive.current >= MAX_SPARKS) break;
@@ -423,6 +429,8 @@ export function StarFlowVFX() {
       if (ringMesh.instanceColor) ringMesh.instanceColor.needsUpdate = true;
     }
   });
+
+  if (!visualEnabled) return null;
 
   return (
     <>

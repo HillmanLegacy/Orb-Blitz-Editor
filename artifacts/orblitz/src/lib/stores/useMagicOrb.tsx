@@ -150,7 +150,7 @@ export interface StarFlowEvent {
   id: string;
   fromPos: [number, number, number];
   count: number;          // number of star particles to spawn
-  coinsPerStar: number;   // coins awarded when each particle is absorbed by the player
+  coinsPerStar: number;   // visual metadata for the reward burst
   isBoss?: boolean;       // use explosion-debris burst pattern instead of radial ring
 }
 
@@ -1776,6 +1776,10 @@ export const useMagicOrb = create<MagicOrbState>()(
 
     addStarFlowEvent: (pos, count, isBoss = false) => {
       const coinsPerStar = get().hasDoubleCoins ? 2 : 1;
+      // Rewards are committed by the gameplay event, not by the rendered stars.
+      // This keeps earnings correct when VFX are disabled, pooled particles are
+      // saturated, or the scene unmounts before a visual burst reaches the player.
+      useShop.getState().addCoins(count * coinsPerStar);
       set((state) => ({
         starFlowEvents: [
           ...state.starFlowEvents,

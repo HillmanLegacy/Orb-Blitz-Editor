@@ -16,7 +16,8 @@
   "dependencies": {
     "@types/three": "0.185.3",
     "drizzle-orm": "catalog:",
-    "drizzle-zod": "^0.7.0"
+    "drizzle-zod": "^0.7.0",
+    "vitest": "^4.1.11"
   },
   "pnpm": {
     "overrides": {
