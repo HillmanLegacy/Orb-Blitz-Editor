@@ -26,13 +26,26 @@ let _masterComp: DynamicsCompressorNode | null = null;
 let _reverbNode: ConvolverNode | null = null;
 let _reverbReturn: GainNode | null = null;
 
-function getAudioContext(): AudioContext {
-  if (!_ctx || _ctx.state === 'closed') {
-    _ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    _setupMasterBus(_ctx);
+function reportAudioError(context: string, error: unknown): void {
+  if (import.meta.env.DEV) {
+    console.warn(`[audio] ${context}`, error);
   }
-  if (_ctx.state === 'suspended') _ctx.resume();
-  return _ctx;
+}
+
+function getAudioContext(): AudioContext {
+  try {
+    if (!_ctx || _ctx.state === 'closed') {
+      _ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      _setupMasterBus(_ctx);
+    }
+    if (_ctx.state === 'suspended') {
+      _ctx.resume().catch((error) => reportAudioError("AudioContext resume failed", error));
+    }
+    return _ctx;
+  } catch (error) {
+    reportAudioError("AudioContext initialization failed", error);
+    throw error;
+  }
 }
 
 function _setupMasterBus(ctx: AudioContext) {
@@ -1200,6 +1213,9 @@ export function createGameplayMusicNode(targetVol = 0.2): SynthMusicNode {
 
     let running = true;
     let active  = false;
+    let scheduleTimer: number | null = null;
+    let fadeTimer: number | null = null;
+    let fadeGeneration = 0;
 
     const BPM  = 135;
     const STEP = 60 / BPM / 2; // eighth note ≈ 0.222 s
@@ -1342,15 +1358,24 @@ export function createGameplayMusicNode(targetVol = 0.2): SynthMusicNode {
         nextT += STEP;
       }
       if (!active) nextT = Math.max(nextT, ctx.currentTime + 0.05);
-      if (running) setTimeout(schedule, SCHED_INTV);
+      if (running) scheduleTimer = window.setTimeout(schedule, SCHED_INTV);
     }
 
     schedule();
 
     return {
       start:   () => {},
-      stop:    () => { running = false; try { mgain.disconnect(); } catch (_) {} },
+      stop:    () => {
+        running = false;
+        active = false;
+        fadeGeneration++;
+        if (scheduleTimer !== null) clearTimeout(scheduleTimer);
+        if (fadeTimer !== null) clearTimeout(fadeTimer);
+        try { mgain.gain.cancelScheduledValues(ctx.currentTime); mgain.disconnect(); } catch (_) {}
+      },
       fadeIn:  () => {
+        fadeGeneration++;
+        if (fadeTimer !== null) clearTimeout(fadeTimer);
         active = true;
         nextT  = ctx.currentTime + 0.05;
         mgain.gain.cancelScheduledValues(ctx.currentTime);
@@ -1358,10 +1383,17 @@ export function createGameplayMusicNode(targetVol = 0.2): SynthMusicNode {
         mgain.gain.linearRampToValueAtTime(targetVol, ctx.currentTime + FADE_TIME);
       },
       fadeOut: (onComplete?: () => void) => {
+        const generation = ++fadeGeneration;
+        if (fadeTimer !== null) clearTimeout(fadeTimer);
         mgain.gain.cancelScheduledValues(ctx.currentTime);
         mgain.gain.setValueAtTime(mgain.gain.value, ctx.currentTime);
         mgain.gain.linearRampToValueAtTime(0, ctx.currentTime + FADE_TIME);
-        setTimeout(() => { active = false; onComplete?.(); }, (FADE_TIME + 0.1) * 1000);
+        fadeTimer = window.setTimeout(() => {
+          if (generation !== fadeGeneration) return;
+          active = false;
+          fadeTimer = null;
+          onComplete?.();
+        }, (FADE_TIME + 0.1) * 1000);
       },
     };
   } catch (_) {
@@ -1388,6 +1420,9 @@ export function createMenuMusicNode(targetVol = 0.2): SynthMusicNode {
 
     let running = true;
     let active  = false;
+    let scheduleTimer: number | null = null;
+    let fadeTimer: number | null = null;
+    let fadeGeneration = 0;
 
     const BPM  = 128;
     const STEP = 60 / BPM / 2; // eighth note ≈ 0.234 s
@@ -1542,15 +1577,24 @@ export function createMenuMusicNode(targetVol = 0.2): SynthMusicNode {
         nextT += STEP;
       }
       if (!active) nextT = Math.max(nextT, ctx.currentTime + 0.05);
-      if (running) setTimeout(schedule, SCHED_INTV);
+      if (running) scheduleTimer = window.setTimeout(schedule, SCHED_INTV);
     }
 
     schedule();
 
     return {
       start:   () => {},
-      stop:    () => { running = false; try { mgain.disconnect(); } catch (_) {} },
+      stop:    () => {
+        running = false;
+        active = false;
+        fadeGeneration++;
+        if (scheduleTimer !== null) clearTimeout(scheduleTimer);
+        if (fadeTimer !== null) clearTimeout(fadeTimer);
+        try { mgain.gain.cancelScheduledValues(ctx.currentTime); mgain.disconnect(); } catch (_) {}
+      },
       fadeIn:  () => {
+        fadeGeneration++;
+        if (fadeTimer !== null) clearTimeout(fadeTimer);
         active = true;
         nextT  = ctx.currentTime + 0.05;
         mgain.gain.cancelScheduledValues(ctx.currentTime);
@@ -1558,10 +1602,17 @@ export function createMenuMusicNode(targetVol = 0.2): SynthMusicNode {
         mgain.gain.linearRampToValueAtTime(targetVol, ctx.currentTime + FADE_TIME);
       },
       fadeOut: (onComplete?: () => void) => {
+        const generation = ++fadeGeneration;
+        if (fadeTimer !== null) clearTimeout(fadeTimer);
         mgain.gain.cancelScheduledValues(ctx.currentTime);
         mgain.gain.setValueAtTime(mgain.gain.value, ctx.currentTime);
         mgain.gain.linearRampToValueAtTime(0, ctx.currentTime + FADE_TIME);
-        setTimeout(() => { active = false; onComplete?.(); }, (FADE_TIME + 0.1) * 1000);
+        fadeTimer = window.setTimeout(() => {
+          if (generation !== fadeGeneration) return;
+          active = false;
+          fadeTimer = null;
+          onComplete?.();
+        }, (FADE_TIME + 0.1) * 1000);
       },
     };
   } catch (_) {
@@ -1589,6 +1640,9 @@ export function createBossMusicNode(targetVol = 0.18): SynthMusicNode {
     let running   = true;
     let active    = false;
     let intensity = 0.5;
+    let scheduleTimer: number | null = null;
+    let fadeTimer: number | null = null;
+    let fadeGeneration = 0;
 
     const BPM  = 148;
     const STEP = 60 / BPM / 2; // eighth note ≈ 0.203 s
@@ -1748,14 +1802,23 @@ export function createBossMusicNode(targetVol = 0.18): SynthMusicNode {
         nextT += STEP;
       }
       if (!active) nextT = Math.max(nextT, ctx.currentTime + 0.05);
-      if (running) setTimeout(schedule, SCHED_INTV);
+      if (running) scheduleTimer = window.setTimeout(schedule, SCHED_INTV);
     }
 
     schedule();
     return {
       start:        () => {},
-      stop:         () => { running = false; try { mgain.disconnect(); } catch (_) {} },
+      stop:         () => {
+        running = false;
+        active = false;
+        fadeGeneration++;
+        if (scheduleTimer !== null) clearTimeout(scheduleTimer);
+        if (fadeTimer !== null) clearTimeout(fadeTimer);
+        try { mgain.gain.cancelScheduledValues(ctx.currentTime); mgain.disconnect(); } catch (_) {}
+      },
       fadeIn:       () => {
+        fadeGeneration++;
+        if (fadeTimer !== null) clearTimeout(fadeTimer);
         active = true;
         nextT  = ctx.currentTime + 0.05;
         mgain.gain.cancelScheduledValues(ctx.currentTime);
@@ -1763,10 +1826,17 @@ export function createBossMusicNode(targetVol = 0.18): SynthMusicNode {
         mgain.gain.linearRampToValueAtTime(targetVol, ctx.currentTime + FADE_TIME);
       },
       fadeOut:      (onComplete?: () => void) => {
+        const generation = ++fadeGeneration;
+        if (fadeTimer !== null) clearTimeout(fadeTimer);
         mgain.gain.cancelScheduledValues(ctx.currentTime);
         mgain.gain.setValueAtTime(mgain.gain.value, ctx.currentTime);
         mgain.gain.linearRampToValueAtTime(0, ctx.currentTime + FADE_TIME);
-        setTimeout(() => { active = false; onComplete?.(); }, (FADE_TIME + 0.1) * 1000);
+        fadeTimer = window.setTimeout(() => {
+          if (generation !== fadeGeneration) return;
+          active = false;
+          fadeTimer = null;
+          onComplete?.();
+        }, (FADE_TIME + 0.1) * 1000);
       },
       setIntensity: (i: number) => { intensity = Math.max(0, Math.min(1, i)); },
     };
@@ -1782,4 +1852,26 @@ export { _makeNoiseBuf as createNoiseBuffer };
 /** Set the master output volume (0–1). Safe to call before any audio is initialised. */
 export function setMasterVolume(v: number): void {
   if (_masterGain) _masterGain.gain.value = Math.max(0, Math.min(1, v)) * 0.85;
+}
+
+/** Release the shared Web Audio graph so an app unmount or HMR replacement does
+ * not leave an AudioContext and its buffers alive in the background. */
+export function disposeAudioContext(): void {
+  const context = _ctx;
+  _ctx = null;
+  _masterGain = null;
+  _masterComp = null;
+  _reverbNode = null;
+  _reverbReturn = null;
+  _tShoot = 0;
+  _tHit = 0;
+  _tNearM = 0;
+
+  for (const entry of Object.values(_noisePool)) {
+    entry.buf = null!;
+    entry.ctx = null;
+  }
+
+  if (!context || context.state === "closed") return;
+  context.close().catch((error) => reportAudioError("AudioContext close failed", error));
 }

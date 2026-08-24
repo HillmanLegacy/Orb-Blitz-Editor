@@ -13,6 +13,7 @@ export function SoundManager() {
   const gameMode = useMagicOrb((s) => s.gameMode);
   const startArcadeBgm = useAudio((s) => s.startArcadeBgm);
   const stopArcadeBgm  = useAudio((s) => s.stopArcadeBgm);
+  const releaseAudio = useAudio((s) => s.releaseAudio);
 
   // Track whether we're currently in an arcade session so we know when to
   // stop — even if gameMode changes before phase returns to "menu".
@@ -30,6 +31,16 @@ export function SoundManager() {
     }
     // paused, levelComplete, gameOver, loading — leave BGM untouched
   }, [phase, gameMode, startArcadeBgm, stopArcadeBgm]);
+
+  useEffect(() => {
+    return () => {
+      if (inArcadeSession.current) {
+        inArcadeSession.current = false;
+        stopArcadeBgm();
+      }
+      releaseAudio();
+    };
+  }, [releaseAudio, stopArcadeBgm]);
 
   return null;
 }

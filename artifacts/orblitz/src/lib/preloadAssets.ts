@@ -24,6 +24,8 @@ const GAMEPLAY_AUDIO = ["/sounds/boss_explosion.wav"];
 
 const BOSS_MODELS: Partial<Record<BossType, readonly string[]>> = {
   circle: ["/models/boss_orb_1.glb", "/models/boss_orb_1_texture.glb"],
+  star: ["/models/boss_orb_2_star_texture.glb"],
+  triangle: ["/models/boss_orb_3_crystal_texture.glb"],
   trapezoid: ["/models/boss_orb_4_toxic_texture.glb"],
   cube: ["/models/boss_orb_5_plasma_texture.glb"],
   cloud: ["/models/boss_orb_6_diamond_texture.glb"],

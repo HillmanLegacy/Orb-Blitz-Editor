@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { setMasterVolume } from "@/lib/audio/SynthSounds";
+import { disposeAudioContext, setMasterVolume } from "@/lib/audio/SynthSounds";
 import {
   playShootSound,
   playHitSound,
@@ -62,6 +62,20 @@ let _arcadeIdx = 0;
 let _arcadeFadeTimer: number | null = null;
 let _arcadeGeneration = 0;
 
+function reportAudioPlaybackError(context: string, error: unknown): void {
+  if (import.meta.env.DEV) {
+    console.warn(`[audio] ${context} playback failed`, error);
+  }
+}
+
+function playAudioElement(audio: HTMLAudioElement, context: string): void {
+  try {
+    audio.play().catch((error) => reportAudioPlaybackError(context, error));
+  } catch (error) {
+    reportAudioPlaybackError(context, error);
+  }
+}
+
 function _shuffleArcade(): string[] {
   const a = [...ARCADE_TRACKS];
   for (let i = a.length - 1; i > 0; i--) {
@@ -122,7 +136,7 @@ function _playNextArcadeTrack(targetVol: number) {
   el.onended = () => {
     if (_arcadeEl === el && _arcadeActive) _playNextArcadeTrack(targetVol);
   };
-  el.play().catch(() => {});
+  playAudioElement(el, "arcade track");
   _fadeArcade(el, 0, Math.min(1, targetVol), 1800);
 }
 
@@ -164,7 +178,7 @@ function playWav(path: string, volume = 0.6) {
     pool.idx++;
     el.currentTime = 0;
     el.volume = Math.max(0, Math.min(1, volume));
-    el.play().catch(() => {});
+    playAudioElement(el, "sound effect");
   } catch {}
 }
 
@@ -311,6 +325,7 @@ interface AudioState {
 
   startArcadeBgm: () => void;
   stopArcadeBgm: () => void;
+  releaseAudio: () => void;
 }
 
 export const useAudio = create<AudioState>((set, get) => ({
@@ -393,7 +408,7 @@ export const useAudio = create<AudioState>((set, get) => ({
       }
       // Resume arcade BGM if the playlist is still active
       if (_arcadeActive && _arcadeEl) {
-        _arcadeEl.play().catch(() => {});
+        playAudioElement(_arcadeEl, "arcade track");
         _fadeArcade(_arcadeEl, 0, Math.min(1, 0.65 * volume), 800);
       } else if (_arcadeActive) {
         _playNextArcadeTrack(0.65 * volume);
@@ -458,7 +473,7 @@ export const useAudio = create<AudioState>((set, get) => ({
     // Reset and play from start each time the menu is freshly entered
     audio.currentTime = 0;
     audio.volume = 0;
-    audio.play().catch(() => {});
+    playAudioElement(audio, "menu music");
     const targetVol = Math.min(1, 0.65 * volume);
     fadeMenuBgm(audio, 0, targetVol, 1800);
   },
@@ -493,6 +508,48 @@ export const useAudio = create<AudioState>((set, get) => ({
         }
       });
     }
+  },
+
+  releaseAudio: () => {
+    if (_arcadeFadeTimer !== null) {
+      clearInterval(_arcadeFadeTimer);
+      _arcadeFadeTimer = null;
+    }
+    if (menuBgmFadeInterval !== null) {
+      clearInterval(menuBgmFadeInterval);
+      menuBgmFadeInterval = null;
+    }
+    if (gameMusicFadeInterval !== null) {
+      clearInterval(gameMusicFadeInterval);
+      gameMusicFadeInterval = null;
+    }
+
+    _arcadeActive = false;
+    _arcadeGeneration++;
+    if (_arcadeEl) {
+      _unloadAudio(_arcadeEl);
+      _arcadeEl = null;
+    }
+
+    const { backgroundMusic, menuMusic, menuBgm, synthMenuMusic, synthGameMusic, synthBossMusic } = get();
+    const elements = new Set([backgroundMusic, menuMusic, menuBgm].filter(Boolean));
+    elements.forEach(_unloadAudio);
+    synthMenuMusic?.stop();
+    synthGameMusic?.stop();
+    synthBossMusic?.stop();
+    _wavPools.forEach(_unloadWavPool);
+    _wavPools.clear();
+    disposeAudioContext();
+
+    set({
+      backgroundMusic: null,
+      menuMusic: null,
+      menuBgm: null,
+      synthMenuMusic: null,
+      synthGameMusic: null,
+      synthBossMusic: null,
+      currentMusicType: null,
+    });
   },
   
   playHit: () => {

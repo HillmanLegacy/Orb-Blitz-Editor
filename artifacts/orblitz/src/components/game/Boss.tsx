@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb, MovementPattern } from "@/lib/stores/useMagicOrb";
@@ -87,6 +87,20 @@ export function Boss() {
   const destroyInitRef  = useRef(false); // true once SFX fires (frame 0 of destroy)
   const sfxDoneRef      = useRef(false); // true when boss_explosion.wav onended fires
   const timerDoneRef    = useRef(false); // true when 3.5 s destroyTimer expires
+  const destroyAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    return () => {
+      const audio = destroyAudioRef.current;
+      if (!audio) return;
+      audio.onended = null;
+      audio.onerror = null;
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+      destroyAudioRef.current = null;
+    };
+  }, []);
 
   // ── FireBoss (circle) strike-and-retreat state machine ──────────────────────
   const fireMovePhaseRef = useRef<'entering' | 'waiting' | 'exiting'>('entering');
@@ -229,9 +243,12 @@ export function Boss() {
         const { isMuted } = useAudio.getState();
         if (!isMuted) {
           const audio = new Audio('/sounds/boss_explosion.wav');
+          destroyAudioRef.current = audio;
           audio.volume = 0.85;
           const onSfxDone = () => {
+            if (sfxDoneRef.current) return;
             sfxDoneRef.current = true;
+            if (destroyAudioRef.current === audio) destroyAudioRef.current = null;
             // If the 3.5 s timer already expired, complete the level now
             if (timerDoneRef.current) useMagicOrb.getState().completeLevel();
           };
