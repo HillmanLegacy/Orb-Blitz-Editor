@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useShop, SHOP_ITEMS, ShopItem } from "@/lib/stores/useShop";
 import type { RingStyle } from "@/lib/stores/useShop";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { OrbitalRings } from "@/components/game/OrbitalRings";
@@ -16,6 +17,7 @@ const PALETTE: Record<string, { color: string; shadow: string; icon: string; lab
   trail:    { color: "#ddcc00", shadow: "rgba(221,204,0,0.45)",  icon: "≋", label: "TRAILS"   },
   aura:     { color: "#00ccee", shadow: "rgba(0,204,238,0.45)",  icon: "✦", label: "AURA"     },
 };
+const PREVIEW_CATEGORIES = new Set(["weapon", "defense", "magi_orb", "aura"]);
 
 const CAT_ORDER = ["weapon", "defense", "magi_orb", "skin", "trail", "aura"] as const;
 type CatKey = typeof CAT_ORDER[number];
@@ -179,23 +181,29 @@ function ItemRow({
 
 // ─── Main Shop popup ──────────────────────────────────────────────────────────
 export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
-  const { coins: stars, shopOpen, closeShop, purchaseItem, isOwned, canAfford } = useShop();
+  const { coins: stars, shopOpen, closeShop, purchaseItem, isOwned, canAfford } = useShop(useShallow((s) => ({
+    coins: s.coins,
+    shopOpen: s.shopOpen,
+    closeShop: s.closeShop,
+    purchaseItem: s.purchaseItem,
+    isOwned: s.isOwned,
+    canAfford: s.canAfford,
+  })));
   const [cat, setCat] = useState<CatKey>("weapon");
   const [previewItemId, setPreviewItemId] = useState<string | null>(null);
 
-  const filteredItems = SHOP_ITEMS
+  const filteredItems = useMemo(() => SHOP_ITEMS
     .filter(i => i.category === cat)
-    .sort((a, b) => a.price - b.price);
+    .sort((a, b) => a.price - b.price), [cat]);
 
   const activePal = PALETTE[cat];
 
   // A preview is intentional and click-triggered. This avoids creating and
   // destroying preview WebGL contexts while a pointer merely crosses rows.
-  const PREVIEW_CATS = new Set(["weapon", "defense", "magi_orb", "aura"]);
   const selectedPreviewItem = previewItemId === null
     ? null
     : filteredItems.find(i => i.id === previewItemId) ?? null;
-  const previewItem = (PREVIEW_CATS.has(cat) && selectedPreviewItem && !isOwned(selectedPreviewItem.id))
+  const previewItem = (PREVIEW_CATEGORIES.has(cat) && selectedPreviewItem && !isOwned(selectedPreviewItem.id))
     ? selectedPreviewItem
     : null;
 
@@ -380,7 +388,6 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
                     {/* ── Aura live preview ─────────────────────────────── */}
                     {cat === "aura" && previewItem && (
                       <AuraPreview
-                        key={previewItem.id}
                         style={previewItem.value as RingStyle}
                         name={previewItem.name}
                       />
@@ -389,7 +396,6 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
                     {/* ── Weapon / Defense / Magi-Orb live preview ──────── */}
                     {(cat === "weapon" || cat === "defense" || cat === "magi_orb") && previewItem && (
                       <ShopItemPreview
-                        key={previewItem.id}
                         category={cat}
                         value={previewItem.value}
                         color={activePal.color}
@@ -404,10 +410,10 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
                         isOwned={isOwned(item.id)}
                         canAfford={canAfford(item.price)}
                          onPurchase={() => handlePurchase(item)}
-                         onPreview={PREVIEW_CATS.has(cat) && !isOwned(item.id)
+                         onPreview={PREVIEW_CATEGORIES.has(cat) && !isOwned(item.id)
                            ? () => setPreviewItemId((current) => current === item.id ? null : item.id)
                            : undefined}
-                        isHighlighted={PREVIEW_CATS.has(cat) && previewItem?.id === item.id}
+                        isHighlighted={PREVIEW_CATEGORIES.has(cat) && previewItem?.id === item.id}
                       />
                     ))}
                     {filteredItems.length === 0 && (

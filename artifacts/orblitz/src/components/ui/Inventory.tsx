@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useShop, SHOP_ITEMS, ShopItem, OrbSkin, TrailEffect, RingStyle, WeaponType, DefenseType, MagiOrbType } from "@/lib/stores/useShop";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 
 // ─── Slot definitions ─────────────────────────────────────────────────────────
 type SlotKey = "weapon" | "defense_0" | "defense_1" | "magi_orb" | "skin" | "trail" | "aura";
@@ -69,14 +70,30 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
     equippedSkin, equippedTrail, equippedRing,
     equippedWeapon, equippedDefenses, equippedMagiOrb,
     equipSkin, equipTrail, equipRing, equipWeapon, equipDefense, equipMagiOrb,
-  } = useShop();
+  } = useShop(useShallow((s) => ({
+    inventoryOpen: s.inventoryOpen,
+    closeInventory: s.closeInventory,
+    ownedItems: s.ownedItems,
+    equippedSkin: s.equippedSkin,
+    equippedTrail: s.equippedTrail,
+    equippedRing: s.equippedRing,
+    equippedWeapon: s.equippedWeapon,
+    equippedDefenses: s.equippedDefenses,
+    equippedMagiOrb: s.equippedMagiOrb,
+    equipSkin: s.equipSkin,
+    equipTrail: s.equipTrail,
+    equipRing: s.equipRing,
+    equipWeapon: s.equipWeapon,
+    equipDefense: s.equipDefense,
+    equipMagiOrb: s.equipMagiOrb,
+  })));
 
   const [activeSlot, setActiveSlot] = useState<SlotDef>(SLOTS[0]);
 
-  const eq: EquippedState = {
+  const eq: EquippedState = useMemo(() => ({
     equippedSkin, equippedTrail, equippedRing,
     equippedWeapon, equippedDefenses, equippedMagiOrb,
-  };
+  }), [equippedSkin, equippedTrail, equippedRing, equippedWeapon, equippedDefenses, equippedMagiOrb]);
 
   const doEquip = (slot: SlotDef, item: ShopItem | null) => {
     switch (slot.cat) {
@@ -94,15 +111,13 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
   const clear = clearMeta(slot.cat);
   const isDefaultSelected = currentVal === "none" || currentVal === "default";
 
-  const ownedCatItems = SHOP_ITEMS.filter(
+  const ownedCatItems = useMemo(() => SHOP_ITEMS.filter(
     i => i.category === slot.cat && ownedItems.includes(i.id)
-  );
-
-  if (!inventoryOpen) return null;
+  ), [ownedItems, slot.cat]);
 
   return (
     <AnimatePresence onExitComplete={onExitComplete}>
-      <motion.div
+      {inventoryOpen && <motion.div
         className="fixed inset-0 z-50 flex items-center justify-center"
         style={{ padding: "clamp(10px, 2.5vw, 20px)" }}
         initial={{ opacity: 0 }}
@@ -348,7 +363,7 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
             </div>
           </div>
         </motion.div>
-      </motion.div>
+      </motion.div>}
     </AnimatePresence>
   );
 }

@@ -1159,8 +1159,8 @@ export function ShopItemPreview({ category, value, color, name }: ShopItemPrevie
         <Canvas
           camera={{ position: [0, 0.25, 5.5], fov: 50 }}
           style={{ width: "100%", height: "100%" }}
-          gl={{ antialias: false, alpha: true }}
-          dpr={[1, 1.5]}
+          gl={{ antialias: false, alpha: true, powerPreference: "low-power" }}
+          dpr={[1, 1.25]}
         >
           {category === "weapon"   && <WeaponScene   value={value as WeaponType}   />}
           {category === "defense"  && <DefenseScene  value={value as DefenseType}  />}

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
+import { useMagicOrb } from "./useMagicOrb";
 
 export type OrbSkin = "default" | "golden" | "neon" | "rainbow" | "crystal" | "void" | "plasma" | "galaxy" | "phoenix" | "shadow" | "aurora" | "diamond" | "inferno" | "frost" | "toxic" | "electric";
 export type TrailEffect = "none" | "sparkle" | "fire" | "ice" | "cosmic" | "lightning" | "rainbow" | "plasma" | "shadow" | "stardust" | "meteor" | "spirit" | "neon" | "sakura" | "galaxy" | "particle_swarm" | "flame_aura";
@@ -281,9 +282,7 @@ export const useShop = create<ShopState>()(
     },
     
     equipWeapon: (weapon) => {
-      import("./useMagicOrb").then(({ useMagicOrb }) => {
-        useMagicOrb.getState().updateProjectiles([]);
-      });
+      useMagicOrb.getState().updateProjectiles([]);
       set({ equippedWeapon: weapon });
       saveShopData(createSaveData({ ...get(), equippedWeapon: weapon }));
     },
@@ -301,20 +300,18 @@ export const useShop = create<ShopState>()(
       
       const removedDefense = prevDefenses[slot];
       if (removedDefense !== defense && removedDefense !== "none") {
-        import("./useMagicOrb").then(({ useMagicOrb }) => {
-          if (removedDefense === "distort_field") {
-            useMagicOrb.setState({ distortActive: false, distortCooldown: 0, distortTimer: 0 });
-          }
-          if (removedDefense === "pulse_shield") {
-            useMagicOrb.setState({ pulseShieldCooldown: 0 });
-          }
-          if (removedDefense === "orbital_teletransfer") {
-            useMagicOrb.setState({ teletransferCooldown: 0 });
-          }
-          if (removedDefense === "defense_system") {
-            useMagicOrb.setState({ defenseOrbs: [] });
-          }
-        });
+        if (removedDefense === "distort_field") {
+          useMagicOrb.setState({ distortActive: false, distortCooldown: 0, distortTimer: 0 });
+        }
+        if (removedDefense === "pulse_shield") {
+          useMagicOrb.setState({ pulseShieldCooldown: 0 });
+        }
+        if (removedDefense === "orbital_teletransfer") {
+          useMagicOrb.setState({ teletransferCooldown: 0 });
+        }
+        if (removedDefense === "defense_system") {
+          useMagicOrb.setState({ defenseOrbs: [] });
+        }
       }
       
       set({ equippedDefenses: newDefenses });

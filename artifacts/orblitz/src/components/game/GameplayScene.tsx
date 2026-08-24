@@ -24,9 +24,10 @@ import { usePerformanceFeature } from "@/game-runtime/PerformanceToggles";
 
 function PlayerLight() {
   const lightRef = useRef<THREE.PointLight>(null);
+  const phase = useMagicOrb((s) => s.phase);
 
   useFrame(() => {
-    if (!lightRef.current) return;
+    if (phase !== "playing" || !lightRef.current) return;
     const pos = useMagicOrb.getState().playerPosition;
     lightRef.current.position.set(pos[0], pos[1], 1.5);
   });
@@ -44,13 +45,16 @@ function PlayerLight() {
 
 function GameRuntimeCoordinator() {
   const { gl } = useThree();
+  const phase = useMagicOrb((s) => s.phase);
 
   useFrame((_, delta) => {
+    if (phase !== "playing") return;
     runtimeDiagnostics.beginFrame();
     gameRuntime.clock.tick(delta);
   }, -2);
 
   useFrame(() => {
+    if (phase !== "playing") return;
     runtimeDiagnostics.endFrame(gl);
   }, 100);
 

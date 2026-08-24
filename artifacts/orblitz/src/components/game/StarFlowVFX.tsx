@@ -154,6 +154,7 @@ export function StarFlowVFX() {
     sLive.current = 0;
     rLive.current = 0;
     seenEvents.current.clear();
+    absorbLightIntensity.current = 0;
   }, []);
 
   useFrame((_, delta) => {
@@ -373,11 +374,7 @@ export function StarFlowVFX() {
         _dummy.updateMatrix();
         mesh.setMatrixAt(i, _dummy.matrix);
       }
-      _dummy.position.copy(_offPos);
-      _dummy.scale.setScalar(1e-4);
-      _dummy.updateMatrix();
-      for (let i = live; i < MAX_PARTICLES; i++) mesh.setMatrixAt(i, _dummy.matrix);
-      mesh.count = MAX_PARTICLES;
+      mesh.count = live;
       mesh.instanceMatrix.needsUpdate = true;
     }
 
@@ -399,13 +396,7 @@ export function StarFlowVFX() {
         _col.copy(_burstColors[ci]).multiplyScalar(lifeFrac * 1.4 + 0.2);
         sparkMesh.setColorAt(i, _col);
       }
-      _dummy.position.copy(_offPos);
-      _dummy.scale.setScalar(1e-4);
-      _dummy.updateMatrix();
-      for (let i = sLiveNext; i < MAX_SPARKS; i++) {
-        sparkMesh.setMatrixAt(i, _dummy.matrix);
-      }
-      sparkMesh.count = MAX_SPARKS;
+      sparkMesh.count = sLiveNext;
       sparkMesh.instanceMatrix.needsUpdate = true;
       if (sparkMesh.instanceColor) sparkMesh.instanceColor.needsUpdate = true;
     }
@@ -427,13 +418,7 @@ export function StarFlowVFX() {
         _col.setHex(0xffd700).multiplyScalar(fade * 1.2);
         ringMesh.setColorAt(i, _col);
       }
-      _dummy.position.copy(_offPos);
-      _dummy.scale.setScalar(1e-4);
-      _dummy.updateMatrix();
-      for (let i = rLiveNext; i < MAX_RINGS; i++) {
-        ringMesh.setMatrixAt(i, _dummy.matrix);
-      }
-      ringMesh.count = MAX_RINGS;
+      ringMesh.count = rLiveNext;
       ringMesh.instanceMatrix.needsUpdate = true;
       if (ringMesh.instanceColor) ringMesh.instanceColor.needsUpdate = true;
     }

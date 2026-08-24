@@ -2,7 +2,6 @@ import { useRef, useMemo, memo, Suspense, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb, DarkOrb, BossType } from "@/lib/stores/useMagicOrb";
-import { useShop } from "@/lib/stores/useShop";
 import { useAudio } from "@/lib/stores/useAudio";
 import { playBossDefeatSound } from "@/lib/audio/SynthSounds";
 import { DarkOrbModel } from "./DarkOrbModel";
@@ -149,54 +148,13 @@ function UnifiedDarkOrbMesh({ orb }: { orb: DarkOrb }) {
   const eyeHighRefs     = useRef<(THREE.Mesh  | null)[]>(Array(eyeData.count).fill(null));
 
   const deathVariation = useMemo(() => {
-    const seed        = orb.seed;
-    const rng         = seed * 12345.6789;
-    const particleCount    = 14 + Math.floor((rng % 1) * 10);
-    const rotationOffset   = ((rng * 7) % 1) * Math.PI * 2;
-    const speedVariation   = 0.5 + ((rng * 11) % 1) * 1.0;
-    const sizeVariation    = 0.6 + ((rng * 13) % 1) * 0.8;
-    const explosionStyle   = Math.floor((rng * 17) % 4);
     const defaultColors    = ["#660033","#440022","#880044","#ff00ff","#aa0066","#ffaaff"];
-    const shimmerColors    = ["#ffffff","#ffccff","#ccffff","#ffffcc"];
     const getBossColors    = (bt: string) => {
       const c = BOSS_ORB_COLORS[bt as BossType] || BOSS_ORB_COLORS.circle;
       return [c.glow, c.primary, c.secondary, c.glow, c.primary];
     };
-    const colors = orb.bossDefeatColor ? getBossColors(orb.bossDefeatColor) : defaultColors;
-    return {
-      particleCount, rotationOffset, speedVariation, sizeVariation, explosionStyle, colors, shimmerColors,
-      particles: Array.from({ length: particleCount }, (_, i) => {
-        const ps = (rng * (i+1) * 31.41592) % 1;
-        const as = (rng * (i+1) * 47.12389) % 1;
-        const ds = (rng * (i+1) * 61.80339) % 1;
-        const ss = (rng * (i+1) * 73.09017) % 1;
-        const dl = (rng * (i+1) * 89.44271) % 1;
-        const spiralAmt = explosionStyle===0?0:(explosionStyle===1?0.5:explosionStyle===2?1.2:0.3);
-        return {
-          angleOffset: (as - 0.5) * 0.8,
-          distVariation: 0.4 + ds * 1.2,
-          sizeScale: 0.4 + ss * 1.0,
-          color: colors[Math.floor(ps * colors.length)],
-          shimmerColor: shimmerColors[Math.floor(dl * shimmerColors.length)],
-          delay: dl * 0.2,
-          spinSpeed: 2 + ps * 8,
-          spinDirection: ps > 0.5 ? 1 : -1,
-          spiralAmount: spiralAmt,
-          wobbleFreq: 3 + as * 5,
-          wobbleAmp: 0.1 + ds * 0.3,
-          trailLength: 0.3 + ss * 0.5,
-          isShimmer: ps > 0.7,
-        };
-      }),
-      sparkles: Array.from({ length: 8 + Math.floor((rng * 23) % 6) }, (_, i) => ({
-        angle:       ((rng*(i+1)*97)%1)*Math.PI*2,
-        speed:       0.8 + ((rng*(i+1)*103)%1)*1.5,
-        size:        0.03 + ((rng*(i+1)*109)%1)*0.08,
-        delay:       ((rng*(i+1)*127)%1)*0.3,
-        twinkleSpeed: 8 + ((rng*(i+1)*131)%1)*12,
-      })),
-    };
-  }, [orb.seed, orb.bossDefeatColor]);
+    return { colors: orb.bossDefeatColor ? getBossColors(orb.bossDefeatColor) : defaultColors };
+  }, [orb.bossDefeatColor]);
 
   // ── Imperative per-frame: position, scale, rotation, feature animations ──────
   useFrame((state) => {
@@ -286,10 +244,9 @@ function UnifiedDarkOrbMesh({ orb }: { orb: DarkOrb }) {
       const eyeScale  = blinkPhase > 0.95 ? eye.size * 0.2 : eye.size;
       ref.scale.setScalar(eyeScale);
     });
-    const pupilLookArr = eyeData.positions.map((_, i) => Math.sin(time * 0.8 + i) * 0.02);
-    eyePupilRefs.current.forEach((ref, i) => { if (ref) ref.position.x = pupilLookArr[i]; });
-    eyeInnerRefs.current.forEach((ref, i) => { if (ref) ref.position.x = pupilLookArr[i] + 0.01; });
-    eyeHighRefs.current.forEach( (ref, i) => { if (ref) ref.position.x = pupilLookArr[i] + 0.01; });
+    eyePupilRefs.current.forEach((ref, i) => { if (ref) ref.position.x = Math.sin(time * 0.8 + i) * 0.02; });
+    eyeInnerRefs.current.forEach((ref, i) => { if (ref) ref.position.x = Math.sin(time * 0.8 + i) * 0.02 + 0.01; });
+    eyeHighRefs.current.forEach( (ref, i) => { if (ref) ref.position.x = Math.sin(time * 0.8 + i) * 0.02 + 0.01; });
   });
 
   const frozenTint = orb.frozen;
@@ -755,7 +712,6 @@ const MemoizedDarkOrbMesh = memo(OrbRouter, orbMemoEqual);
 
 // ── Main DarkOrbs component ───────────────────────────────────────────────────
 export function DarkOrbs() {
-  const { equippedSkin } = useShop();
   // Subscribe only to structural state — NOT to position
   const darkOrbs    = useMagicOrb((s) => s.darkOrbs);
   const arcadeLevel = useMagicOrb((s) => s.arcadeLevel);

@@ -231,6 +231,7 @@ function PostProcessing({
   const abOffset = useRef(new THREE.Vector2(0.0006, 0.0004));
 
   useFrame(() => {
+    if (isMenu || quality === "low") return;
     const s        = useMagicOrb.getState();
     // Only apply chromatic aberration while actively playing
     const shake    = s.phase === "playing" ? s.backgroundShake : 0;

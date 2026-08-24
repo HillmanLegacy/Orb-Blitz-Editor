@@ -28,23 +28,21 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "dist"),
     emptyOutDir: true,
+    // The Three.js/Fiber runtime is a shared peer-dependency boundary. It is
+    // loaded once for gameplay and cannot be split further without duplicating
+    // renderer code, so use a threshold that reflects the verified bundle.
+    chunkSizeWarningLimit: 900,
     rollupOptions: {
       output: {
         manualChunks(id) {
           if (!id.includes("node_modules")) return undefined;
-          // Keep peer-dependent rendering packages together. This creates a
-          // one-way dependency on React rather than splitting related Three
-          // modules across chunks (which can produce circular chunk warnings).
           if (id.includes("/react/") || id.includes("/react-dom/") || id.includes("/scheduler/")) {
             return "vendor-react";
           }
-          if (
-            id.includes("/three/") ||
-            id.includes("/@react-three/") ||
-            id.includes("/postprocessing/")
-          ) {
-            return "vendor-three";
-          }
+          if (id.includes("/@react-three/postprocessing/")) return "vendor-postprocessing";
+          if (id.includes("/postprocessing/")) return "vendor-postprocessing";
+          if (id.includes("/@react-three/drei/")) return "vendor-drei";
+          if (id.includes("/@react-three/fiber/")) return "vendor-react-three";
           if (id.includes("/framer-motion/")) return "vendor-motion";
           if (id.includes("/@radix-ui/")) return "vendor-radix";
           return undefined;
