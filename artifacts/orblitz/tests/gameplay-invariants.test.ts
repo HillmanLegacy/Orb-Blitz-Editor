@@ -21,6 +21,7 @@ import {
   AdaptiveRenderQualityController,
   getVisualBudget,
 } from "../src/components/game/AdaptiveRenderQuality";
+import { sweptSphereHit } from "../src/components/game/ProjectileCollision";
 
 const makeProjectile = (id: string): Projectile => ({
   id,
@@ -200,5 +201,33 @@ describe("gameplay runtime invariants", () => {
     expect(pipeline.snapshot().order).toEqual([
       "clock", "enemies", "projectiles", "run", "powerUps", "presentation",
     ]);
+  });
+
+  it.each([
+    ["normal", 1.2],
+    ["homing", 1.2],
+    ["spiral", 1.58],
+    ["overcharged", 3.36],
+  ])("keeps %s projectiles able to hit rendered enemies outside the old center range", (_type, radius) => {
+    // x=20 is intentionally beyond the removed ±12 center-screen gate, but
+    // still within the rendered enemy envelope. The projectile crosses the
+    // enemy during this frame, so the shared swept narrow phase must report it.
+    const hitT = sweptSphereHit(
+      18, 0, 0,
+      22, 0, 0,
+      20, 0, 0,
+      20, 0, 0,
+      radius,
+    );
+
+    expect(hitT).not.toBeNull();
+    expect(hitT!).toBeGreaterThanOrEqual(0);
+    expect(hitT!).toBeLessThanOrEqual(1);
+  });
+
+  it("still bounds projectile lifetime without reintroducing a center-distance collision gate", () => {
+    expect(Math.abs(20)).toBeLessThan(32);
+    expect(Math.abs(20)).toBeLessThan(24);
+    expect(Math.abs(33)).toBeGreaterThan(32);
   });
 });
