@@ -123,7 +123,7 @@ function LaserBeamMesh({ beam, time }: { beam: LaserBeam; time: number }) {
 }
 
 export function LaserBeams() {
-  const { laserBeams } = useMagicOrb();
+  const laserBeams = useMagicOrb(s => s.laserBeams);
   const clockRef = useRef(0);
   
   useFrame((state) => {

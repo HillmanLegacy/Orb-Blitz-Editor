@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { PlayerOrb } from "./PlayerOrb";
 import { DarkOrbs } from "./DarkOrbs";
@@ -20,6 +20,7 @@ import { ProjectileTrails } from "./ProjectileTrails";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
 import { runtimeDiagnostics } from "@/game-runtime/RuntimeDiagnostics";
+import { usePerformanceFeature } from "@/game-runtime/PerformanceToggles";
 
 function PlayerLight() {
   const lightRef = useRef<THREE.PointLight>(null);
@@ -42,13 +43,15 @@ function PlayerLight() {
 }
 
 function GameRuntimeCoordinator() {
+  const { gl } = useThree();
+
   useFrame((_, delta) => {
     runtimeDiagnostics.beginFrame();
     gameRuntime.clock.tick(delta);
   }, -2);
 
   useFrame(() => {
-    runtimeDiagnostics.endFrame();
+    runtimeDiagnostics.endFrame(gl);
   }, 100);
 
   return null;
@@ -57,6 +60,7 @@ function GameRuntimeCoordinator() {
 /** Gameplay module; core systems mount before optional visual systems. */
 export default function GameplayScene() {
   const [visualSystemsReady, setVisualSystemsReady] = useState(false);
+  const vfxEnabled = usePerformanceFeature("vfx");
 
   useEffect(() => {
     // Let the core player/gameplay tree paint once before allocating effect
@@ -74,7 +78,7 @@ export default function GameplayScene() {
       <Boss />
       <Projectiles />
       <GameLogic />
-      {visualSystemsReady && (
+      {visualSystemsReady && vfxEnabled && (
         <>
           <World1FireBackground />
           <ProjectileTrails />

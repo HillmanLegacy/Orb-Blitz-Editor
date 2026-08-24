@@ -46,7 +46,9 @@ const _sSeedBase = Array.from({ length: SPARKS_PER }, (_, i) => ({
 }));
 
 export function DistortField() {
-  const { distortActive, distortTimer, playerPosition } = useMagicOrb();
+  const distortActive = useMagicOrb(s => s.distortActive);
+  const distortTimer = useMagicOrb(s => s.distortTimer);
+  const playerPosition = useMagicOrb(s => s.playerPosition);
 
   // Materials created once per mount — same pattern as HealAura
   const [fieldMat]  = useState(() => new THREE.MeshBasicMaterial({ color: "#00E5FF", transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));

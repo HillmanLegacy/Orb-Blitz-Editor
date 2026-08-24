@@ -16,6 +16,7 @@ import {
 } from "./ProjectilePhysics";
 import { runtimeDiagnostics } from "@/game-runtime/RuntimeDiagnostics";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
+import { usePerformanceFeature } from "@/game-runtime/PerformanceToggles";
 
 /** Projectile collision always reads live enemy transforms, never store snapshots. */
 function liveOrbPosition(orb: DarkOrb): [number, number, number] {
@@ -59,6 +60,87 @@ function sweptSphereHit(
 
   const hitT = (-b - Math.sqrt(discriminant)) / (2 * a);
   return hitT >= 0 && hitT <= 1 ? hitT : null;
+}
+
+const ENEMY_GRID_CELL_SIZE = 4;
+const ENEMY_GRID_KEY_OFFSET = 128;
+const ENEMY_GRID_KEY_STRIDE = 512;
+const compareEnemyIndices = (a: number, b: number) => a - b;
+
+/**
+ * Reusable broad-phase index for projectile collisions.
+ *
+ * Every enemy is inserted once using its live runtime transform. Queries return
+ * source-array indices in their original order, so the existing deterministic
+ * swept-hit and piercing behavior remains unchanged while avoiding full scans.
+ */
+class EnemyCollisionGrid {
+  private readonly buckets = new Map<number, number[]>();
+  private readonly activeKeys: number[] = [];
+  private readonly candidates: number[] = [];
+
+  build(orbs: readonly DarkOrb[]): void {
+    for (const key of this.activeKeys) this.buckets.get(key)!.length = 0;
+    this.activeKeys.length = 0;
+
+    for (let index = 0; index < orbs.length; index++) {
+      const orb = orbs[index];
+      if (orb.destroying) continue;
+      const runtimeEnemy = gameRuntime.enemies.get(orb.id);
+      const position = runtimeEnemy?.position ?? orb.position;
+      const previousPosition = runtimeEnemy?.previousPosition ?? orb.position;
+      const startX = Math.floor(Math.min(position[0], previousPosition[0]) / ENEMY_GRID_CELL_SIZE);
+      const endX = Math.floor(Math.max(position[0], previousPosition[0]) / ENEMY_GRID_CELL_SIZE);
+      const startY = Math.floor(Math.min(position[1], previousPosition[1]) / ENEMY_GRID_CELL_SIZE);
+      const endY = Math.floor(Math.max(position[1], previousPosition[1]) / ENEMY_GRID_CELL_SIZE);
+
+      // Insert every cell touched by the enemy's swept transform. The narrow
+      // phase still decides the hit; this only guarantees it is never omitted.
+      for (let cellX = startX; cellX <= endX; cellX++) {
+        for (let cellY = startY; cellY <= endY; cellY++) {
+          const key = (cellX + ENEMY_GRID_KEY_OFFSET) * ENEMY_GRID_KEY_STRIDE + cellY + ENEMY_GRID_KEY_OFFSET;
+          let bucket = this.buckets.get(key);
+          if (!bucket) {
+            bucket = [];
+            this.buckets.set(key, bucket);
+          }
+          if (bucket.length === 0) this.activeKeys.push(key);
+          bucket.push(index);
+        }
+      }
+    }
+  }
+
+  queryAabb(minX: number, maxX: number, minY: number, maxY: number): readonly number[] {
+    const output = this.candidates;
+    output.length = 0;
+    const startX = Math.floor(minX / ENEMY_GRID_CELL_SIZE);
+    const endX = Math.floor(maxX / ENEMY_GRID_CELL_SIZE);
+    const startY = Math.floor(minY / ENEMY_GRID_CELL_SIZE);
+    const endY = Math.floor(maxY / ENEMY_GRID_CELL_SIZE);
+
+    for (let cellX = startX; cellX <= endX; cellX++) {
+      for (let cellY = startY; cellY <= endY; cellY++) {
+        const key = (cellX + ENEMY_GRID_KEY_OFFSET) * ENEMY_GRID_KEY_STRIDE + cellY + ENEMY_GRID_KEY_OFFSET;
+        const bucket = this.buckets.get(key);
+        if (!bucket) continue;
+        for (let i = 0; i < bucket.length; i++) output.push(bucket[i]);
+      }
+    }
+
+    // Cell traversal is spatial, while the original loop order is source-array
+    // order. Restore source order and deduplicate swept-cell entries to keep
+    // first-hit selection and per-projectile damage exactly deterministic.
+    output.sort(compareEnemyIndices);
+    let writeIndex = 0;
+    for (let index = 0; index < output.length; index++) {
+      if (index === 0 || output[index] !== output[index - 1]) {
+        output[writeIndex++] = output[index];
+      }
+    }
+    output.length = writeIndex;
+    return output;
+  }
 }
 
 const TRAIL_CONFIGS: Record<TrailEffect, { colors: string[]; particleCount: number; spread: number; glow: boolean }> = {
@@ -1668,6 +1750,8 @@ export function Projectiles() {
   const activeProjectileIds = useRef<Set<string>>(new Set());
   const activeVolleyCounts = useRef<Map<string, number>>(new Map());
   const impactUpdateAccumulator = useRef(0);
+  const enemyCollisionGrid = useRef(new EnemyCollisionGrid());
+  const collisionsEnabled = usePerformanceFeature("collision");
 
   // ── Overcharged shockwave rings ───────────────────────────────────────────
   const knownOcIds   = useRef<Set<string>>(new Set());
@@ -1749,6 +1833,10 @@ export function Projectiles() {
       runtimeDiagnostics.endSimulation();
       return;
     }
+    if (collisionsEnabled) {
+      runtimeDiagnostics.beginCollision();
+      enemyCollisionGrid.current.build(darkOrbs);
+    }
 
     // Detect newly spawned overcharged projectiles → shockwave ring
     for (const proj of projectiles) {
@@ -1815,6 +1903,7 @@ export function Projectiles() {
       volleyHits.current.clear();
       volleyProjectileCounts.current.clear();
       volleyRemainingCounts.current.clear();
+      if (collisionsEnabled) runtimeDiagnostics.endCollision();
       runtimeDiagnostics.endSimulation();
       return;
     }
@@ -1981,6 +2070,22 @@ export function Projectiles() {
         structuralChanged = true;
         continue;
       }
+
+      // Development A/B switch: retain movement and out-of-bounds behavior,
+      // but bypass every gameplay hit path so collision cost is measurable.
+      if (!collisionsEnabled) {
+        motion.position[0] = px;
+        motion.position[1] = py;
+        motion.position[2] = pz;
+        motion.direction[0] = dx;
+        motion.direction[1] = dy;
+        motion.direction[2] = dz;
+        motion.spiralAngle = newSpiralAngle;
+        motion.spawnScale = newSpawnScale;
+        motion.spawnScaleTimer = newSpawnScaleTimer;
+        motion.travelTimer = newTravelTimer;
+        continue;
+      }
       
       let hitSomething = false;
 
@@ -2011,7 +2116,14 @@ export function Projectiles() {
             }
           }
 
-          for (const orb of darkOrbs) {
+          const explosionCandidates = enemyCollisionGrid.current.queryAabb(
+            px - OC_EXPLODE_RADIUS,
+            px + OC_EXPLODE_RADIUS,
+            py - OC_EXPLODE_RADIUS,
+            py + OC_EXPLODE_RADIUS,
+          );
+          for (const orbIndex of explosionCandidates) {
+            const orb = darkOrbs[orbIndex];
             if (orb.destroying) continue;
             const [ox, oy, oz] = liveOrbPosition(orb);
             if (Math.abs(ox) > 13 || Math.abs(oy) > 13) continue;
@@ -2083,7 +2195,14 @@ export function Projectiles() {
           }
         }
 
-        for (const orb of darkOrbs) {
+        const spiralCandidates = enemyCollisionGrid.current.queryAabb(
+          Math.min(previousProjectileX, px) - 3.5,
+          Math.max(previousProjectileX, px) + 3.5,
+          Math.min(previousProjectileY, py) - 3.5,
+          Math.max(previousProjectileY, py) + 3.5,
+        );
+        for (const orbIndex of spiralCandidates) {
+          const orb = darkOrbs[orbIndex];
           if (hitOrbsThisFrame.current.has(orb.id) || orb.destroying) continue;
           const [ox, oy, oz] = liveOrbPosition(orb);
           if (Math.abs(ox) > 12 || Math.abs(oy) > 12) continue;
@@ -2216,7 +2335,14 @@ export function Projectiles() {
         }
       }
       
-      for (const orb of darkOrbs) {
+        const collisionCandidates = enemyCollisionGrid.current.queryAabb(
+          Math.min(previousProjectileX, px) - 4,
+          Math.max(previousProjectileX, px) + 4,
+          Math.min(previousProjectileY, py) - 4,
+          Math.max(previousProjectileY, py) + 4,
+        );
+        for (const orbIndex of collisionCandidates) {
+          const orb = darkOrbs[orbIndex];
         if (hitOrbsThisFrame.current.has(orb.id) || orb.destroying) continue;
         
         const [ox, oy, oz] = liveOrbPosition(orb);
@@ -2350,6 +2476,7 @@ export function Projectiles() {
       updateProjectiles(projectiles.filter(proj => !removedIds.has(proj.id)));
       runtimeDiagnostics.noteStoreWrite();
     }
+    if (collisionsEnabled) runtimeDiagnostics.endCollision();
     runtimeDiagnostics.endSimulation();
   });
   

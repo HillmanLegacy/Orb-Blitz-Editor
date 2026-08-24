@@ -4,7 +4,8 @@ import * as THREE from "three";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 
 export function PlayerOrbParticles() {
-  const { health, phase } = useMagicOrb();
+  const health = useMagicOrb(s => s.health);
+  const phase = useMagicOrb(s => s.phase);
   const particlesRef = useRef<THREE.Points>(null);
   const particleCount = 40;
   
@@ -87,7 +88,7 @@ interface DarkTrailData {
 const MAX_DARK_TRAIL = 8;
 
 export function DarkOrbTrails() {
-  const { darkOrbs } = useMagicOrb();
+  const darkOrbs = useMagicOrb(s => s.darkOrbs);
   const trailsRef = useRef<Map<string, DarkTrailData>>(new Map());
   const groupRef = useRef<THREE.Group>(null);
   

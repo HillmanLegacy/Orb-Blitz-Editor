@@ -23,6 +23,7 @@ import { StandardEnemyParticles } from "./StandardEnemyParticles";
 import { addExplosionImpulse } from "./Background";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
 import { runtimeDiagnostics } from "@/game-runtime/RuntimeDiagnostics";
+import { usePerformanceFeature } from "@/game-runtime/PerformanceToggles";
 
 const DISTORT_FIELD_RADIUS    = 7.125;
 const DISTORT_FIELD_RADIUS_SQ = DISTORT_FIELD_RADIUS * DISTORT_FIELD_RADIUS; // 50.77
@@ -759,6 +760,7 @@ export function DarkOrbs() {
   const darkOrbs    = useMagicOrb((s) => s.darkOrbs);
   const arcadeLevel = useMagicOrb((s) => s.arcadeLevel);
   const gameMode    = useMagicOrb((s) => s.gameMode);
+  const showEnemyVisuals = usePerformanceFeature("enemyVisuals");
 
   const bossOrbDeathSoundedRef = useRef(new Set<string>());
 
@@ -976,10 +978,10 @@ export function DarkOrbs() {
   runtimeDiagnostics.noteEnemyRender();
   return (
     <>
-      {darkOrbs.map((orb) => (
+      {showEnemyVisuals && darkOrbs.map((orb) => (
         <MemoizedDarkOrbMesh key={orb.id} orb={orb} arcadeLevel={arcadeLevel} gameMode={gameMode} />
       ))}
-      <StandardEnemyParticles />
+      {showEnemyVisuals && <StandardEnemyParticles />}
     </>
   );
 }

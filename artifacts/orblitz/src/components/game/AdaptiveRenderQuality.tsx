@@ -11,13 +11,13 @@ type QualityListener = () => void;
 
 const MIN_PIXEL_RATIO = 0.75;
 const MAX_PIXEL_RATIO = 1.5;
-const WINDOW_MS = 750;
-const WARMUP_FRAMES = 45;
-const SLOW_WINDOWS_TO_DOWNGRADE = 2;
+const WINDOW_MS = 500;
+const WARMUP_FRAMES = 15;
+const SLOW_WINDOWS_TO_DOWNGRADE = 1;
 const GOOD_WINDOWS_TO_UPGRADE = 6;
-const SLOW_FRAME_MS = 20.5;
+const SLOW_FRAME_MS = 18.5;
 const GOOD_FRAME_MS = 17.5;
-const TRANSITION_COOLDOWN_MS = 6000;
+const TRANSITION_COOLDOWN_MS = 3500;
 
 const TIER_ORDER: RenderQualityTier[] = ["low", "medium", "high"];
 

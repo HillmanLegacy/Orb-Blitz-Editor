@@ -6,6 +6,13 @@ import { Background } from "./Background";
 import { AdaptiveRenderQuality, useRenderQuality } from "./AdaptiveRenderQuality";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
+import {
+  performanceFeatureSnapshot,
+  setPerformanceFeatureEnabled,
+  usePerformanceFeature,
+  usePerformanceToggleVersion,
+  type PerformanceFeature,
+} from "@/game-runtime/PerformanceToggles";
 
 const loadGameplayScene = () => import("./GameplayScene");
 const GameplayScene = lazy(loadGameplayScene);
@@ -71,6 +78,18 @@ function RenderScheduler() {
   return null;
 }
 
+/** Makes a development A/B toggle repaint the demand-driven canvas immediately. */
+function PerformanceToggleInvalidator() {
+  const { invalidate } = useThree();
+  const version = usePerformanceToggleVersion();
+
+  useEffect(() => {
+    invalidate();
+  }, [invalidate, version]);
+
+  return null;
+}
+
 // ── Shader pre-compilation (prewarm) ─────────────────────────────────────────
 // Compiles all GPU shader programs while the loading screen is visible so the
 // first gameplay frame never stalls on shader compilation.
@@ -113,7 +132,10 @@ function ShaderPrewarm() {
 // ── Camera smooth-follow + screen shake ───────────────────────────────────────
 function CameraController() {
   const { camera } = useThree();
-  const { boss, arcadeLevel, gameMode, playerPosition } = useMagicOrb();
+  const boss = useMagicOrb(s => s.boss);
+  const arcadeLevel = useMagicOrb(s => s.arcadeLevel);
+  const gameMode = useMagicOrb(s => s.gameMode);
+  const playerPosition = useMagicOrb(s => s.playerPosition);
   const isBossLevel = gameMode === "arcade" && Math.round((arcadeLevel % 1) * 10) === 9;
 
   const targetZRef = useRef(10);
@@ -188,6 +210,8 @@ function CameraController() {
 function PostProcessingWrapper() {
   const phase = useMagicOrb(s => s.phase);
   const quality = useRenderQuality();
+  const postprocessingEnabled = usePerformanceFeature("postprocessing");
+  if (!postprocessingEnabled) return null;
   const isMenu = phase === "menu" || phase === "loading";
   return <PostProcessing isMenu={isMenu} quality={quality} />;
 }
@@ -299,9 +323,20 @@ function GameRuntimeLifecycle() {
     if (!import.meta.env.DEV) return;
     const target = window as Window & {
       __orblitzRuntimeDiagnostics?: () => ReturnType<typeof gameRuntime.diagnosticsSnapshot>;
+      __orblitzPerformance?: {
+        features: () => ReturnType<typeof performanceFeatureSnapshot>;
+        setFeature: (feature: PerformanceFeature, enabled: boolean) => void;
+      };
     };
     target.__orblitzRuntimeDiagnostics = () => gameRuntime.diagnosticsSnapshot();
-    return () => { delete target.__orblitzRuntimeDiagnostics; };
+    target.__orblitzPerformance = {
+      features: performanceFeatureSnapshot,
+      setFeature: setPerformanceFeatureEnabled,
+    };
+    return () => {
+      delete target.__orblitzRuntimeDiagnostics;
+      delete target.__orblitzPerformance;
+    };
   }, []);
 
   return null;
@@ -359,6 +394,7 @@ function canCreateWebGLContext() {
 // ── Scene ─────────────────────────────────────────────────────────────────────
 export function GameScene() {
   const [webglAvailable] = useState(canCreateWebGLContext);
+  const backgroundEnabled = usePerformanceFeature("background");
 
   if (!webglAvailable) return <WebGLUnavailable />;
 
@@ -385,6 +421,7 @@ export function GameScene() {
       >
         <Suspense fallback={null}>
           <RenderScheduler />
+          <PerformanceToggleInvalidator />
           <AdaptiveRenderQuality />
           <GameRuntimeLifecycle />
           <RendererSetup />
@@ -392,7 +429,7 @@ export function GameScene() {
           <CameraController />
 
           {/* Lightweight background — gameplay GPU systems mount below only when needed */}
-          <Background />
+          {backgroundEnabled && <Background />}
 
           {/* Gameplay systems — unmounted outside gameplay loading/playing */}
           <GameplayGate />

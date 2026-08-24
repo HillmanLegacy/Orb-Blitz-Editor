@@ -869,7 +869,19 @@ export function PlayerOrb() {
   const hmRecoilOffsetRef     = useRef([0, 0]);
   const prevHmSignalCountRef  = useRef(0);
   
-  const { health, maxHealth, hasShield, shieldDisintTimer, shieldFormTimer, hasChargeBeam, isDamaged, isDying, deathTimer, playerPosition, magiOrb2Active, healAnimTimer, chargeGatherTimer } = useMagicOrb();
+  const health = useMagicOrb(s => s.health);
+  const maxHealth = useMagicOrb(s => s.maxHealth);
+  const hasShield = useMagicOrb(s => s.hasShield);
+  const shieldDisintTimer = useMagicOrb(s => s.shieldDisintTimer);
+  const shieldFormTimer = useMagicOrb(s => s.shieldFormTimer);
+  const hasChargeBeam = useMagicOrb(s => s.hasChargeBeam);
+  const isDamaged = useMagicOrb(s => s.isDamaged);
+  const isDying = useMagicOrb(s => s.isDying);
+  const deathTimer = useMagicOrb(s => s.deathTimer);
+  const playerPosition = useMagicOrb(s => s.playerPosition);
+  const magiOrb2Active = useMagicOrb(s => s.magiOrb2Active);
+  const healAnimTimer = useMagicOrb(s => s.healAnimTimer);
+  const chargeGatherTimer = useMagicOrb(s => s.chargeGatherTimer);
   const { equippedSkin, equippedRing, equippedTrail } = useShop();
   
   const healthRatio = health / maxHealth;

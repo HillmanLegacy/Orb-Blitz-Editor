@@ -277,8 +277,15 @@ const _stMat4  = new THREE.Matrix4();       // reused every frame, no allocation
 
 function StarField() {
   const meshRef = useRef<THREE.InstancedMesh>(null);
+  const elapsedRef = useRef(0);
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock }, delta) => {
+    // Twinkle is decorative. Updating its matrix buffer at 30 Hz retains the
+    // same density and time-based animation while removing 9,000 matrix writes
+    // per second from a 60 FPS gameplay render loop.
+    elapsedRef.current += delta;
+    if (elapsedRef.current < 1 / 30) return;
+    elapsedRef.current = 0;
     const mesh = meshRef.current;
     if (!mesh) return;
     const t = clock.elapsedTime;
@@ -452,9 +459,9 @@ function ParticleSystem() {
     // These particles are decorative, but their simulation is the most
     // expensive persistent CPU work in gameplay. Step at 30 Hz while carrying
     // real elapsed time forward so motion speed and density stay unchanged.
-    elapsedRef.current += Math.min(delta, 0.05);
+    elapsedRef.current += delta;
     if (elapsedRef.current < 1 / 30) return;
-    const dt = Math.min(elapsedRef.current, 0.05);
+    const dt = elapsedRef.current;
     elapsedRef.current = 0;
     const t  = state.clock.getElapsedTime();
     _bgFrame++;

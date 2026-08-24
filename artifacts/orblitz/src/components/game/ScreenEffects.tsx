@@ -17,7 +17,9 @@ export function ScreenEffects() {
   const prevDamagedRef = useRef(false);
   const prevBossRef    = useRef<string | null>(null);
 
-  const { phase, isDamaged, boss } = useMagicOrb();
+  const phase = useMagicOrb(s => s.phase);
+  const isDamaged = useMagicOrb(s => s.isDamaged);
+  const boss = useMagicOrb(s => s.boss);
 
   // ── Trigger flashes on events ─────────────────────────────────────────────
   useEffect(() => {
