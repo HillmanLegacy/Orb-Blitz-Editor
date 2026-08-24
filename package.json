@@ -10,7 +10,17 @@
   },
   "private": true,
   "devDependencies": {
-    "typescript": "~5.9.2",
-    "prettier": "^3.8.1"
+    "prettier": "^3.8.1",
+    "typescript": "~5.9.2"
+  },
+  "dependencies": {
+    "@types/three": "0.185.3",
+    "drizzle-orm": "catalog:",
+    "drizzle-zod": "^0.7.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "@types/three": "0.185.3"
+    }
   }
 }

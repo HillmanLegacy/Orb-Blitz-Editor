@@ -39,14 +39,14 @@ export function StarShop({ onClose }: StarShopProps) {
         body: JSON.stringify({ packageId: pkg.id }),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => null) as { url?: string; error?: string } | null;
 
-      if (data.url) {
+      if (response.ok && data?.url) {
         window.location.href = data.url;
       } else {
-        setError(data.error || "Failed to create checkout session");
+        setError(data?.error || "Payment system unavailable. Please try again later.");
       }
-    } catch (err) {
+    } catch {
       setError("Payment system unavailable. Please try again later.");
     } finally {
       setLoading(null);

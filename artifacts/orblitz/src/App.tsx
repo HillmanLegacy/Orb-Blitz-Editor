@@ -40,6 +40,7 @@ function App() {
   const [showStartupLoading, setShowStartupLoading] = useState(true);
   const [skipIntro, setSkipIntro] = useState(false);
   const [initialMenuState, setInitialMenuState] = useState<MenuState>("root");
+  const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
   const musicFiredRef = useRef(false);
   const handleStartupLoadingComplete = useCallback(() => {
     setShowStartupLoading(false);
@@ -56,9 +57,18 @@ function App() {
     const sessionId = params.get("session_id");
     if (sessionId) {
       fetch(`/api/verify-payment?session_id=${sessionId}`)
-        .then(r => r.json())
-        .then(d => { if (d.success && d.coins) addCoins(d.coins); })
-        .catch(() => {})
+        .then(async (response) => {
+          const data = await response.json().catch(() => null) as { success?: boolean; coins?: number; error?: string } | null;
+          if (!response.ok || !data?.success) {
+            throw new Error(data?.error || "Payment verification is temporarily unavailable.");
+          }
+          return data;
+        })
+        .then((data) => { if (data.coins) addCoins(data.coins); })
+        .catch((error: unknown) => {
+          console.error("Payment verification failed", error);
+          setPaymentNotice("We could not verify that payment yet. Your purchase has not been applied.");
+        })
         .finally(() => window.history.replaceState({}, "", window.location.pathname));
     }
   }, [addCoins]);
@@ -143,6 +153,20 @@ function App() {
       <Shop />
       <Inventory />
       <SoundManager />
+
+       {paymentNotice && (
+         <div
+           role="alert"
+           style={{
+             position: "fixed", left: "50%", bottom: 18, transform: "translateX(-50%)", zIndex: 10000,
+             maxWidth: "min(92vw, 540px)", padding: "12px 16px", borderRadius: 12,
+             color: "#ffe8e8", background: "rgba(95, 12, 20, 0.94)", border: "1px solid rgba(255, 122, 122, 0.65)",
+             fontSize: 13, textAlign: "center",
+           }}
+         >
+           {paymentNotice}
+         </div>
+       )}
 
       {/* Orb sweep transition – z-9999, above all UI */}
       <OrbSweepOverlay />

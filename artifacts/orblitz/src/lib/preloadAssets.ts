@@ -53,6 +53,9 @@ function fetchIntoCache(url: string): Promise<void> {
     })
     .then(() => undefined)
     .catch((error: unknown) => {
+      // A retry can succeed after an intermittent network/cache failure. Keep
+      // successful requests deduplicated, but never permanently poison a URL.
+      requestedUrls.delete(url);
       // Preloading is an optimization. The owning renderer/audio element still
       // gets its normal request path, while this makes a failed warmup diagnosable.
       console.warn("[assets] preload failed", error);

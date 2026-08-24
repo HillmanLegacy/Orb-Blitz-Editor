@@ -1898,7 +1898,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     spawnSurvivalBoss: () => {
       const bossTypes: BossType[] = ["circle", "star", "triangle", "trapezoid", "cube", "cloud", "arrow", "tentacle", "monster"];
       const bossHPs: Record<BossType, number> = {
-        circle: 100, star: 100, triangle: 100, trapezoid: 100, cube: 100, cloud: 100, arrow: 100, tentacle: 100, monster: 100,
+        circle: 100, star: 100, triangle: 100, trapezoid: 100, cube: 100, cloud: 100, arrow: 100, tentacle: 100, monster: 100, bird: 100,
       };
       const randomIndex = Math.floor(Math.random() * bossTypes.length);
       const bossType = bossTypes[randomIndex];

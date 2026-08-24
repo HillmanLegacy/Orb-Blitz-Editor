@@ -20,7 +20,6 @@
  * └──────────────┴───────────────────────────────────────────────────────────┘
  */
 
-// @ts-expect-error — three@0.170 ships no .d.ts; types arrive via @react-three/fiber in component files
 import * as THREE from "three";
 
 // ── Defaults ──────────────────────────────────────────────────────────────────

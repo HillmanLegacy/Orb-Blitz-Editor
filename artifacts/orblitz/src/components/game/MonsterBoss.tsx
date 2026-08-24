@@ -390,7 +390,8 @@ export function MonsterBoss({ radius = 1.44, healthPercent = 1 }: MonsterBossPro
         }
       }
     });
-    if (orbTexture) orbTexture.colorSpace = THREE.SRGBColorSpace;
+    const texture = orbTexture as THREE.Texture | null;
+    if (texture) texture.colorSpace = THREE.SRGBColorSpace;
 
     const cloned = modelScene.clone(true);
     materialsRef.current = [];

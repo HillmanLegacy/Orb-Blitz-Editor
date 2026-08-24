@@ -177,7 +177,7 @@ function Leaderboard({ highlight }: { highlight: number }) {
         style={{ fontSize: "clamp(0.48rem,1.1vw,0.6rem)", letterSpacing: "0.22em", color: "rgba(0,255,255,0.5)", background: "rgba(0,255,255,0.04)", borderBottom: "1px solid rgba(0,255,255,0.08)" }}>
         LEADERBOARD
       </p>
-      <div className="divide-y" style={{ divideColor: "rgba(255,255,255,0.04)" }}>
+      <div className="divide-y divide-white/5">
         {scores.slice(0, 5).map((e, i) => (
           <div key={i} className="flex items-center justify-between px-3 py-1.5"
             style={{ background: e.score === highlight ? "rgba(0,255,255,0.06)" : "transparent" }}>

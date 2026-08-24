@@ -281,7 +281,8 @@ export function MiniMonsterOrb({ radius = 1, particleCount = MINI_PARTICLE_COUNT
         }
       }
     });
-    if (orbTexture) orbTexture.colorSpace = THREE.SRGBColorSpace;
+    const texture = orbTexture as THREE.Texture | null;
+    if (texture) texture.colorSpace = THREE.SRGBColorSpace;
 
     const cloned = modelScene.clone(true);
     materialsRef.current = [];

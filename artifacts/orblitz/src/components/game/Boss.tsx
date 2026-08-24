@@ -108,6 +108,14 @@ export function Boss() {
     arrivalProgress:   0,
   });
 
+  const resetStarTeleportVFX = () => {
+    starTeleportPhaseRef.current = "idle";
+    starTeleportTimerRef.current = 0;
+    starTeleportCooldownRef.current = 3 + Math.random() * 4;
+    starTeleportVFXRef.current.departureProgress = 0;
+    starTeleportVFXRef.current.arrivalProgress = 0;
+  };
+
   // ── TriangleBoss (crystal) movement + burst-fire state ──────────────────────
   const triPatternRef       = useRef(0);              // active movement pattern: 0 | 1 | 2
   const triPatternTimerRef  = useRef(0);              // seconds until next pattern switch
@@ -203,6 +211,8 @@ export function Boss() {
   
   useFrame((state, delta) => {
     if (!boss) {
+      resetStarTeleportVFX();
+      if (meshRef.current) meshRef.current.visible = true;
       gameRuntime.boss.reset();
       return;
     }
@@ -420,8 +430,10 @@ export function Boss() {
           if (starTeleportTimerRef.current <= 0) {
             // Brief invisible transit
             tvfx.departureProgress = 0;
+            tvfx.arrivalProgress = 0;
             starTeleportPhaseRef.current = 'transiting';
             starTeleportTimerRef.current = 0.08;
+            meshRef.current.visible = false;
             // Snap position now so it's ready for arrival
             const [atx, aty] = starTeleportTargetRef.current;
             bossPosRef.current = [atx, aty, 0];
@@ -439,6 +451,7 @@ export function Boss() {
             tvfx.arrivalProgress = 0.001;
             starTeleportPhaseRef.current = 'arriving';
             starTeleportTimerRef.current = 0.55;
+            meshRef.current.visible = true;
           }
 
         } else { // arriving
@@ -449,6 +462,7 @@ export function Boss() {
           lerpSpeed = 0.5;
           if (starTeleportTimerRef.current <= 0) {
             tvfx.arrivalProgress = 0;
+            tvfx.departureProgress = 0;
             starTeleportPhaseRef.current = 'idle';
             starTeleportCooldownRef.current = 3 + Math.random() * 4;
           }

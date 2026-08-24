@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef } from "react";
+import { Component, lazy, Suspense, type ReactNode, useEffect, useRef, useState } from "react";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { EffectComposer, Bloom, SMAA, ChromaticAberration, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
@@ -203,9 +203,9 @@ function PostProcessing({ isMenu }: { isMenu: boolean }) {
           so mutations in useFrame are reflected without re-mounting the effect.
           Do NOT pass a `ref` prop: in React 19 refs are regular props and get
           spread into the effect constructor causing unexpected behaviour. */}
-      {!isMenu && <ChromaticAberration offset={abOffset.current} />}
+      {isMenu ? <></> : <ChromaticAberration offset={abOffset.current} />}
       <Vignette eskil={false} offset={0.28} darkness={0.78} />
-      {!isMenu && <SMAA />}
+      {isMenu ? <></> : <SMAA />}
     </EffectComposer>
   );
 }
@@ -249,43 +249,99 @@ function GameRuntimeLifecycle() {
   return null;
 }
 
-// ── Scene ─────────────────────────────────────────────────────────────────────
-export function GameScene() {
+function WebGLUnavailable() {
   return (
-    <Canvas
-      camera={{ position: [0, 0, 10], fov: 60, near: 0.1, far: 100 }}
-      dpr={[1, 1.5]}
-      frameloop="demand"
-      gl={{
-        powerPreference: "high-performance",
-        antialias: false,
-        stencil: false,
-      }}
+    <div
+      role="alert"
       style={{
         position: "fixed",
-        top: 0,
-        left: 0,
-        width: "100%",
-        height: "100%",
-        touchAction: "none",
+        inset: 0,
+        display: "grid",
+        placeItems: "center",
+        padding: 24,
+        color: "#e8f7ff",
+        background: "radial-gradient(circle at top, #102a42, #030712 68%)",
+        fontFamily: "Inter, system-ui, sans-serif",
+        textAlign: "center",
       }}
     >
-      <Suspense fallback={null}>
-        <RenderScheduler />
-        <GameRuntimeLifecycle />
-        <RendererSetup />
-        <ShaderPrewarm />
-        <CameraController />
+      <div style={{ maxWidth: 480 }}>
+        <p style={{ margin: "0 0 12px", fontWeight: 800, letterSpacing: "0.08em" }}>WEBGL REQUIRED</p>
+        <p style={{ margin: 0, color: "rgba(232,247,255,0.76)", lineHeight: 1.55 }}>
+          Orblitz needs WebGL graphics support. Enable hardware acceleration or try a supported browser and device.
+        </p>
+      </div>
+    </div>
+  );
+}
 
-        {/* Lightweight background — gameplay GPU systems mount below only when needed */}
-        <Background />
+class WebGLErrorBoundary extends Component<{ children: ReactNode }, { unavailable: boolean }> {
+  state = { unavailable: false };
 
-        {/* Gameplay systems — unmounted outside gameplay loading/playing */}
-        <GameplayGate />
+  static getDerivedStateFromError() {
+    return { unavailable: true };
+  }
 
-        {/* Post-processing stack */}
-        <PostProcessingWrapper />
-      </Suspense>
-    </Canvas>
+  render() {
+    return this.state.unavailable ? <WebGLUnavailable /> : this.props.children;
+  }
+}
+
+function canCreateWebGLContext() {
+  if (typeof document === "undefined") return false;
+
+  const canvas = document.createElement("canvas");
+  try {
+    return Boolean(canvas.getContext("webgl2") || canvas.getContext("webgl"));
+  } catch {
+    return false;
+  }
+}
+
+// ── Scene ─────────────────────────────────────────────────────────────────────
+export function GameScene() {
+  const [webglAvailable] = useState(canCreateWebGLContext);
+
+  if (!webglAvailable) return <WebGLUnavailable />;
+
+  return (
+    <WebGLErrorBoundary>
+      <Canvas
+        fallback={<WebGLUnavailable />}
+        camera={{ position: [0, 0, 10], fov: 60, near: 0.1, far: 100 }}
+        dpr={[1, 1.5]}
+        frameloop="demand"
+        gl={{
+          powerPreference: "high-performance",
+          antialias: false,
+          stencil: false,
+        }}
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          touchAction: "none",
+        }}
+      >
+        <Suspense fallback={null}>
+          <RenderScheduler />
+          <GameRuntimeLifecycle />
+          <RendererSetup />
+          <ShaderPrewarm />
+          <CameraController />
+
+          {/* Lightweight background — gameplay GPU systems mount below only when needed */}
+          <Background />
+
+          {/* Gameplay systems — unmounted outside gameplay loading/playing */}
+          <GameplayGate />
+
+          {/* Post-processing stack */}
+          <PostProcessingWrapper />
+        </Suspense>
+      </Canvas>
+    </WebGLErrorBoundary>
   );
 }

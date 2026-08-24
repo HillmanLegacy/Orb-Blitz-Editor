@@ -38,7 +38,7 @@ export function ProjectileTrails() {
 
   useEffect(() => () => material.dispose(), [material]);
 
-  const config = COSMETIC_TRAIL_CONFIGS[equippedTrail];
+  const config = COSMETIC_TRAIL_CONFIGS[equippedTrail] ?? COSMETIC_TRAIL_CONFIGS.none;
   const activeProjectiles = useMemo(
     () => projectiles.filter((projectile) => projectile.type === "normal" || !projectile.type),
     [projectiles],

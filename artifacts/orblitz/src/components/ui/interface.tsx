@@ -28,8 +28,8 @@ export function Interface() {
         if (activeElement && 'blur' in activeElement) {
           (activeElement as HTMLElement).blur();
         }
-        const event = new KeyboardEvent("keydown", { code: "Space" });
-        window.dispatchEvent(event);
+        const spaceEvent = new KeyboardEvent("keydown", { code: "Space" });
+        window.dispatchEvent(spaceEvent);
       };
 
       window.addEventListener("click", handleClick);

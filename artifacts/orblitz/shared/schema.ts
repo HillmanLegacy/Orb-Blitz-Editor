@@ -1,6 +1,5 @@
 import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -27,7 +26,7 @@ export const insertLeaderboardSchema = createInsertSchema(leaderboard).pick({
   gameMode: true,
 });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
-export type InsertLeaderboardEntry = z.infer<typeof insertLeaderboardSchema>;
+export type InsertLeaderboardEntry = typeof leaderboard.$inferInsert;
 export type LeaderboardEntry = typeof leaderboard.$inferSelect;

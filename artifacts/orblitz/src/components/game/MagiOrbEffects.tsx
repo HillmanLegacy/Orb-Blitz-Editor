@@ -52,11 +52,13 @@ export function MagiOrbEffects() {
   const barrierRef    = useRef<THREE.Group>(null);
   const cubeGroupRef  = useRef<THREE.Group>(null);
   const alliedOrbRef  = useRef<THREE.Group>(null);
+  const pulseShieldRef = useRef<THREE.Group>(null);
 
   const hasMagiOrb2 = equippedMagiOrb === "magi_orb_2";
   const hasMagiOrb4 = equippedMagiOrb === "magi_orb_4";
   const hasMagiOrb5 = equippedMagiOrb === "magi_orb_5";
   const hasMagiOrb8 = equippedMagiOrb === "magi_orb_8";
+  const initialPlayerPosition = useMagicOrb.getState().playerPosition;
 
   // ── Magi-Orb 2 VFX state ──────────────────────────────────────────────────
   const m2Timer      = useRef(-1);
@@ -160,6 +162,9 @@ export function MagiOrbEffects() {
     // ── Magi-Orb 8: allied orb ─────────────────────────────────────────────
     if (alliedOrbRef.current && magiOrb8Position && magiOrb8HP > 0) {
       alliedOrbRef.current.position.set(magiOrb8Position[0], magiOrb8Position[1], 0);
+    }
+    if (pulseShieldRef.current && pulseShieldActive) {
+      pulseShieldRef.current.position.set(playerPosition[0], playerPosition[1], 0.2);
     }
 
     // ── Magi-Orb 2: Arcane Annihilator VFX ───────────────────────────────
@@ -392,7 +397,7 @@ export function MagiOrbEffects() {
     <>
       {/* ── Magi-Orb 4: HD Barrier Shield ─────────────────────────────────── */}
       {hasMagiOrb4 && magiOrb4Active && (
-        <group ref={barrierRef} position={[playerPosition[0], playerPosition[1], 0.1]}>
+        <group ref={barrierRef} position={[initialPlayerPosition[0], initialPlayerPosition[1], 0.1]}>
           {[0, 1, 2].map((layer) => (
             <mesh key={`barrier-layer-${layer}`} position={[0, 0, layer * 0.01]}>
               <shapeGeometry args={[(() => {
@@ -443,7 +448,7 @@ export function MagiOrbEffects() {
 
       {/* ── Magi-Orb 5: HD Protective Cube ────────────────────────────────── */}
       {hasMagiOrb5 && magiOrb5HP > 0 && (
-        <group ref={cubeGroupRef} position={[playerPosition[0], playerPosition[1], 0]}>
+        <group ref={cubeGroupRef} position={[initialPlayerPosition[0], initialPlayerPosition[1], 0]}>
           {[0, 1, 2].map((layer) => {
             const healthRatio = magiOrb5HP / magiOrb5MaxHP;
             return (
@@ -559,19 +564,19 @@ export function MagiOrbEffects() {
           <instancedMesh ref={m2DustRef} args={[_m2DustGeo, m2DustMat, N_DUST]} frustumCulled={false} />
 
           {/* Expanding shockwave ring (Phase 2) */}
-          <mesh ref={m2ShockRef} position={[playerPosition[0], playerPosition[1], 0.05]}>
+          <mesh ref={m2ShockRef} position={[initialPlayerPosition[0], initialPlayerPosition[1], 0.05]}>
             <primitive object={_m2ShockGeo} attach="geometry" />
             <primitive object={m2ShockMat}  attach="material" />
           </mesh>
 
           {/* Absorption flash burst (Phase 3) */}
-          <mesh ref={m2AbsorbRef} position={[playerPosition[0], playerPosition[1], 0.2]}>
+          <mesh ref={m2AbsorbRef} position={[initialPlayerPosition[0], initialPlayerPosition[1], 0.2]}>
             <circleGeometry args={[1, 32]} />
             <primitive object={m2AbsorbMat} attach="material" />
           </mesh>
 
           {/* Player flash ring (Phase 1) */}
-          <mesh ref={m2FlashRef} position={[playerPosition[0], playerPosition[1], 0.15]}>
+          <mesh ref={m2FlashRef} position={[initialPlayerPosition[0], initialPlayerPosition[1], 0.15]}>
             <ringGeometry args={[0.7, 1, 32]} />
             <primitive object={m2FlashMat} attach="material" />
           </mesh>
@@ -599,7 +604,7 @@ export function MagiOrbEffects() {
 
       {/* ── Pulse Shield VFX ──────────────────────────────────────────────── */}
       {pulseShieldActive && (
-        <group position={[playerPosition[0], playerPosition[1], 0.2]}>
+        <group ref={pulseShieldRef} position={[initialPlayerPosition[0], initialPlayerPosition[1], 0.2]}>
           {[0, 1, 2].map((i) => {
             const progress = 1 - pulseShieldTimer / 0.5;
             const scale    = 7 * (0.3 + progress * 0.7) - i * 0.5;

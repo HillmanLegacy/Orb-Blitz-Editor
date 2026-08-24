@@ -451,7 +451,8 @@ function SingularityEvent({ scale }: RingProps) {
       const curl  = Math.sin(t * 1.5 + i * 0.3) * 0.5;
       const a     = base + t * 2.8 + curl;
       const rad   = r * (0.58 + (i % 4) * 0.12 + Math.sin(t * 3 + i * 0.7) * 0.08);
-      _dummy.position.set(Math.cos(a) * rad, Math.sin(a) * rad, (Math.random() - 0.5) * 0.06);
+      const depth = Math.sin(t * 2.2 + i * 2.17) * 0.03;
+      _dummy.position.set(Math.cos(a) * rad, Math.sin(a) * rad, depth);
       _dummy.scale.setScalar(0.45 + Math.sin(t * 8 + i) * 0.3);
       _dummy.updateMatrix();
       im.setMatrixAt(i, _dummy.matrix);
@@ -1120,13 +1121,13 @@ function CrystallineAura({ scale }: RingProps) {
     vertexShader: _crystInnerVert, fragmentShader: _crystInnerFrag,
     uniforms: { uTime: { value: 0 }, uIntensity: { value: 1 } },
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-    side: THREE.DoubleSide, extensions: { derivatives: true },
+    side: THREE.DoubleSide,
   }), []);
   const outerMat = useMemo(() => new THREE.ShaderMaterial({
     vertexShader: _crystOuterVert, fragmentShader: _crystOuterFrag,
     uniforms: { uTime: { value: 0 }, uIntensity: { value: 1 } },
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-    side: THREE.DoubleSide, extensions: { derivatives: true },
+    side: THREE.DoubleSide,
   }), []);
   const rayMat = useMemo(() => new THREE.ShaderMaterial({
     vertexShader: _crystRayVert, fragmentShader: _crystRayFrag,

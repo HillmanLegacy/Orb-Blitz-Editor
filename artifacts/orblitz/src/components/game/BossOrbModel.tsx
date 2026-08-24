@@ -30,7 +30,7 @@ export function BossOrbModel({ scale = 2.5, healthPercent = 1 }: BossOrbModelPro
             orbTexture = tex;
             // Force GPU re-upload — required when re-using a texture from one
             // GLTF scene in a freshly-created material on a different scene.
-            orbTexture.needsUpdate = true;
+            (tex as THREE.Texture).needsUpdate = true;
             break;
           }
         }

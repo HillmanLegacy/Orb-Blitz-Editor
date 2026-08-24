@@ -31,7 +31,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (!id.includes("node_modules")) return;
+          if (!id.includes("node_modules")) return undefined;
           // Keep peer-dependent rendering packages together. This creates a
           // one-way dependency on React rather than splitting related Three
           // modules across chunks (which can produce circular chunk warnings).
@@ -47,6 +47,7 @@ export default defineConfig({
           }
           if (id.includes("/framer-motion/")) return "vendor-motion";
           if (id.includes("/@radix-ui/")) return "vendor-radix";
+          return undefined;
         },
       },
     },

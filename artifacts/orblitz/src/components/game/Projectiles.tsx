@@ -1266,19 +1266,16 @@ const _RIBBON_N  = 16;
 const _RIBBON_HW = 0.22; // half-width at head
 
 function OverchargedProjectileMesh({
-  projectile, time, spawnScale, travelTimer,
+  projectile, spawnScale,
 }: {
-  projectile: Projectile; time: number; spawnScale: number; travelTimer?: number;
+  projectile: Projectile; spawnScale: number;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const spawnGroupRef = useRef<THREE.Group>(null);
-  // Charge-up urgency in the last 0.5 s before detonation
-  const chargeT  = travelTimer !== undefined ? Math.max(0, (travelTimer - (OC_TRAVEL_TIME - 0.5)) / 0.5) : 0;
-  const pulseHz  = 4.5 + chargeT * 18;           // 4.5 → 22.5 Hz as detonation nears
-  const pulse     = 0.5 + 0.5 * Math.sin(time * pulseHz);
-  const coreScale = 1.247 + pulse * (0.1505 + chargeT * 0.35);
-  const r1 = time * 2.1;
-  const r2 = time * 1.6 + 1.05;
+  const coreRef = useRef<THREE.Mesh>(null);
+  const ringOneRef = useRef<THREE.Group>(null);
+  const ringTwoRef = useRef<THREE.Group>(null);
+  const glowLightRef = useRef<THREE.PointLight>(null);
 
   // ── Trailing ribbon geometry ─────────────────────────────────────────────────
   const ribbonGeo = useMemo(() => {
@@ -1317,13 +1314,20 @@ function OverchargedProjectileMesh({
   projRef.current      = projectile;
   spawnScaleRef.current = spawnScale;
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
     const proj = projRef.current;
     const ss   = spawnScaleRef.current;
     const motion = projectilePhysicsMap.get(proj.id);
     if (groupRef.current && motion) groupRef.current.position.set(...motion.position);
     const visualScale = motion?.spawnScale ?? ss;
     if (spawnGroupRef.current) spawnGroupRef.current.scale.setScalar(visualScale);
+    const travelTimer = motion?.travelTimer ?? 0;
+    const chargeT = Math.max(0, Math.min(1, (travelTimer - (OC_TRAVEL_TIME - 0.5)) / 0.5));
+    const pulse = 0.5 + 0.5 * Math.sin(clock.getElapsedTime() * (4.5 + chargeT * 18));
+    if (coreRef.current) coreRef.current.scale.setScalar(1.247 + pulse * (0.1505 + chargeT * 0.35));
+    if (ringOneRef.current) ringOneRef.current.rotation.set(clock.getElapsedTime() * 2.1, 0, (clock.getElapsedTime() * 1.6 + 1.05) * 0.6);
+    if (ringTwoRef.current) ringTwoRef.current.rotation.set((clock.getElapsedTime() * 1.6 + 1.05) * 0.5, clock.getElapsedTime() * 2.1 * 0.8, 0);
+    if (glowLightRef.current) glowLightRef.current.intensity = 8 + pulse * 4;
     const [wx, wy, wz] = motion?.position ?? proj.position;
 
     // Push position into history (most-recent at index 0)
@@ -1335,7 +1339,10 @@ function OverchargedProjectileMesh({
       hist[i*3] = hist[(i-1)*3]; hist[i*3+1] = hist[(i-1)*3+1]; hist[i*3+2] = hist[(i-1)*3+2];
     }
     hist[0] = wx; hist[1] = wy; hist[2] = wz;
-    if (len < 2) return;
+    if (len < 2) {
+      ribbonGeo.setDrawRange(0, 0);
+      return;
+    }
 
     // Perpendicular to fire direction (for ribbon width)
     const [fdx, fdy] = motion?.direction ?? proj.direction;
@@ -1371,13 +1378,13 @@ function OverchargedProjectileMesh({
       <mesh geometry={ribbonGeo} material={ribbonMat} />
       {/* Scale-in group: everything below grows from 0.05 → 1.0 on spawn */}
       <group ref={spawnGroupRef} scale={spawnScale}>
-        <pointLight color="#55aaff" intensity={8 + pulse * 4} distance={9} decay={2} />
+        <pointLight ref={glowLightRef} color="#55aaff" intensity={8} distance={9} decay={2} />
         <pointLight color="#ffffff" intensity={4}              distance={3} decay={2} />
-        <mesh geometry={_ocProjCoreGeo} material={_ocProjCoreMat} scale={coreScale} />
-        <group rotation={[r1, 0, r2 * 0.6]}>
+        <mesh ref={coreRef} geometry={_ocProjCoreGeo} material={_ocProjCoreMat} scale={1.247} />
+        <group ref={ringOneRef}>
           <mesh geometry={_ocRingGeo} material={_ocRingMat}  scale={1.72} />
         </group>
-        <group rotation={[r2 * 0.5, r1 * 0.8, 0]}>
+        <group ref={ringTwoRef}>
           <mesh geometry={_ocRingGeo} material={_ocRing2Mat} scale={1.55} />
         </group>
       </group>
@@ -2354,9 +2361,7 @@ export function Projectiles() {
           <OverchargedProjectileMesh
             key={proj.id}
             projectile={proj}
-            time={clockRef.current}
             spawnScale={proj.spawnScale ?? 1}
-            travelTimer={proj.travelTimer}
           />
         ) : proj.type === "spiral" ? (
           <SpiralBundleMesh

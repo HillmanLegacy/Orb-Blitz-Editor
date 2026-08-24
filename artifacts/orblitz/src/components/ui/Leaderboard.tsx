@@ -17,6 +17,7 @@ interface LeaderboardProps {
 export function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
   const [scores, setScores] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const itemsPerPage = 20;
 
@@ -28,12 +29,16 @@ export function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
 
   const fetchScores = async () => {
     setLoading(true);
+    setError(null);
     try {
       const response = await fetch('/api/leaderboard');
-      const data = await response.json();
-      setScores(data.scores || []);
-    } catch (error) {
+      const data = await response.json().catch(() => null) as { scores?: LeaderboardEntry[]; error?: string } | null;
+      if (!response.ok) throw new Error(data?.error || "Leaderboard is temporarily unavailable.");
+      setScores(Array.isArray(data?.scores) ? data.scores : []);
+    } catch (error: unknown) {
       console.error('Failed to fetch leaderboard:', error);
+      setScores([]);
+      setError(error instanceof Error ? error.message : "Leaderboard is temporarily unavailable.");
     } finally {
       setLoading(false);
     }
@@ -89,6 +94,8 @@ export function Leaderboard({ isOpen, onClose }: LeaderboardProps) {
                   transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                 />
               </div>
+            ) : error ? (
+              <div className="text-center py-8 text-amber-200/80">{error}</div>
             ) : scores.length === 0 ? (
               <div className="text-center py-8 text-purple-300/60">
                 No scores yet. Be the first!
@@ -167,9 +174,12 @@ export async function submitScoreToLeaderboard(playerName: string, score: number
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ playerName, score, gameMode }),
     });
-    const data = await response.json();
-    return data.success;
-  } catch (error) {
+    const data = await response.json().catch(() => null) as { success?: boolean; error?: string } | null;
+    if (!response.ok || !data?.success) {
+      throw new Error(data?.error || "Leaderboard is temporarily unavailable.");
+    }
+    return true;
+  } catch (error: unknown) {
     console.error('Failed to submit score:', error);
     return false;
   }
