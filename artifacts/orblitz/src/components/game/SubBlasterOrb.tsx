@@ -159,7 +159,6 @@ export function SubBlasterOrb() {
           if (orb.destroying) continue;
           const liveOrb = gameRuntime.enemies.get(orb.id);
           const orbPosition = liveOrb?.position ?? orb.position;
-          if (Math.abs(orbPosition[0]) > 13 || Math.abs(orbPosition[1]) > 9) continue;
           const d = Math.sqrt((orbPosition[0] - px) ** 2 + (orbPosition[1] - py) ** 2);
           if (d < DETECT_RANGE && d < bestDist) {
             bestDist = d;
