@@ -599,15 +599,16 @@ function ProjectileMesh({ projectile, trailType, skinColor, skinColors }: {
   const projScale  = isCharged ? 0.216 : 0.144;
   const groupScale = 1;
 
-  const initialMotion = getProjectileMotion(projectile);
-
   useFrame(() => {
     const motion = getProjectileMotion(projectile);
     if (groupRef.current && motion) groupRef.current.position.set(...motion.position);
   });
 
   return (
-    <group ref={groupRef} position={initialMotion.position}>
+     // This group is positioned exclusively from the live projectile runtime.
+     // Do not also bind the stale structural position prop here: rapid-fire
+     // store updates can otherwise snap the trail back to the muzzle origin.
+     <group ref={groupRef}>
       {/* Charged shots retain their stronger light; standard-shot lighting is
           provided by their emissive model and batched cosmetic trail. */}
       {isCharged && (
@@ -1037,7 +1038,7 @@ function SubblasterProjectileMesh({ projectile }: { projectile: Projectile }) {
   });
 
   return (
-    <group ref={groupRef} position={projectile.position}>
+    <group ref={groupRef}>
       <pointLight color="#22ddff" intensity={8} distance={2.5} decay={2} />
       <mesh geometry={ribbonGeo} material={ribbonMat} />
       <mesh geometry={_sbCoreGeo} material={_sbCoreMat} scale={0.075} />
@@ -1188,7 +1189,7 @@ function RapidBlasterProjectileMesh({
   });
 
   return (
-    <group ref={groupRef} position={projectile.position}>
+    <group ref={groupRef}>
       {/* Point light — tight, matches skin colour */}
       <pointLight color={skinColors.glow}
         intensity={isCharged ? 12 : 8}
@@ -1385,7 +1386,7 @@ function HomingProjectileMesh({ projectile }: { projectile: Projectile }) {
   });
 
   return (
-    <group ref={groupRef} position={projectile.position}>
+    <group ref={groupRef}>
       <pointLight color="#22eedd"
         intensity={isCharged ? 12 : 8}
         distance={isCharged ? 6 : 4}
@@ -1569,7 +1570,7 @@ function ScattershotProjectileMesh({ projectile }: { projectile: Projectile }) {
   });
 
   return (
-    <group ref={groupRef} position={projectile.position}>
+    <group ref={groupRef}>
       <pointLight color="#ff9900"
         intensity={isCharged ? 12 : 8}
         distance={isCharged ? 6 : 4}
@@ -1705,7 +1706,7 @@ function OverchargedProjectileMesh({
   });
 
   return (
-    <group ref={groupRef} position={projectile.position}>
+    <group ref={groupRef}>
       {/* Trailing ribbon rendered behind the spawn-scale group */}
       <mesh geometry={ribbonGeo} material={ribbonMat} />
       {/* Scale-in group: everything below grows from 0.05 → 1.0 on spawn */}
@@ -1860,7 +1861,7 @@ function SpiralBundleMesh({
   });
 
   return (
-    <group ref={groupRef} position={projectile.position}>
+    <group ref={groupRef}>
       {/* Central point light */}
       <pointLight color="#aaddff" intensity={8} distance={7} decay={2} />
 
