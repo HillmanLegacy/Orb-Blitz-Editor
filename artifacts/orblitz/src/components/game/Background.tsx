@@ -7,6 +7,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { getVisualBudget, useRenderQuality } from "./AdaptiveRenderQuality";
 
 // ── Orb palette ────────────────────────────────────────────────────────────────
 const SHOOT_COLORS = [
@@ -53,9 +54,9 @@ const MAX_PER_CELL = 12; // 120 orbs / 475 cells → avg 0.25; 12 is a generous 
 const _gridData    = new Int16Array(GW * GH * MAX_PER_CELL); // orb indices
 const _gridCount   = new Uint8Array(GW * GH);                 // live count per cell
 
-function _buildGrid(): void {
+function _buildGrid(orbCount = SHOOT_COUNT): void {
   _gridCount.fill(0); // typed-array fill: no per-element JS objects, no GC
-  for (let j = 0; j < SHOOT_COUNT; j++) {
+  for (let j = 0; j < orbCount; j++) {
     const cx = Math.floor((_orbPosX[j] - GX_MIN) / CELL);
     const cy = Math.floor((_orbPosY[j] - GY_MIN) / CELL);
     if (cx >= 0 && cx < GW && cy >= 0 && cy < GH) {
@@ -275,7 +276,7 @@ const _stMat4  = new THREE.Matrix4();       // reused every frame, no allocation
   }
 })();
 
-function StarField() {
+function StarField({ limit }: { limit: number }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const elapsedRef = useRef(0);
 
@@ -289,7 +290,7 @@ function StarField() {
     const mesh = meshRef.current;
     if (!mesh) return;
     const t = clock.elapsedTime;
-    for (let i = 0; i < STAR_N; i++) {
+    for (let i = 0; i < limit; i++) {
       const tw = Math.sin(t * _stTw[i] + _stPh[i]) * 0.5 + 0.5;
       const sc = _stSc[i] * (0.28 + tw * 0.72);
       // Build scale+translation matrix without any new allocations
@@ -299,6 +300,7 @@ function StarField() {
       _stMat4.elements[14] = _stZ[i];
       mesh.setMatrixAt(i, _stMat4);
     }
+    mesh.count = limit;
     mesh.instanceMatrix.needsUpdate = true;
   });
 
@@ -313,7 +315,7 @@ function StarField() {
 // ── HD Shooting Orbs (InstancedMesh, priority -1) ──────────────────────────────
 interface ShootOrb { x:number;y:number;z:number;vx:number;vy:number;size:number;phase:number;twink:number; }
 
-function ShootingOrbs() {
+function ShootingOrbs({ limit }: { limit: number }) {
   const orbRef    = useRef<THREE.InstancedMesh>(null);
   const coronaRef = useRef<THREE.InstancedMesh>(null);
 
@@ -371,7 +373,7 @@ function ShootingOrbs() {
     const orbMesh    = orbRef.current;
     const coronaMesh = coronaRef.current;
 
-    for (let i = 0; i < SHOOT_COUNT; i++) {
+    for (let i = 0; i < limit; i++) {
       const p = pos.current[i];
       const o = orbs[i];
       p.x += o.vx * delta; p.y += o.vy * delta;
@@ -397,6 +399,8 @@ function ShootingOrbs() {
     }
     if (orbMesh)    orbMesh.instanceMatrix.needsUpdate    = true;
     if (coronaMesh) coronaMesh.instanceMatrix.needsUpdate = true;
+    if (orbMesh)    orbMesh.count = limit;
+    if (coronaMesh) coronaMesh.count = limit;
   }, -1); // priority -1 → writes orb positions before ParticleSystem reads them
 
   return (<>
@@ -412,7 +416,17 @@ function ShootingOrbs() {
 }
 
 // ── Particle system (all 3 types, single useFrame at priority 0) ───────────────
-function ParticleSystem() {
+function ParticleSystem({
+  dustLimit,
+  streamLimit,
+  sparkLimit,
+  orbLimit,
+}: {
+  dustLimit: number;
+  streamLimit: number;
+  sparkLimit: number;
+  orbLimit: number;
+}) {
   const dustRef   = useRef<THREE.InstancedMesh>(null);
   const streamRef = useRef<THREE.InstancedMesh>(null);
   const sparkRef  = useRef<THREE.InstancedMesh>(null);
@@ -468,7 +482,7 @@ function ParticleSystem() {
 
     // Rebuild spatial grid every other frame.  Background orbs travel ~0.2–0.4 u/frame;
     // the cell is 5 u wide, so no orb jumps a cell boundary between rebuilds.
-    if ((_bgFrame & 1) === 0) _buildGrid();
+    if ((_bgFrame & 1) === 0) _buildGrid(orbLimit);
 
     // Snapshot impulse ring for this frame — no allocation, just primitives
     const IC    = _impSize;
@@ -481,8 +495,8 @@ function ParticleSystem() {
     // ── TYPE 1: Nebula Dust ───────────────────────────────────────────────────
     // Interleave: update the first half on even frames, second half on odd frames.
     // Each particle gets full physics every 2 frames — unnoticeable for dim background dust.
-    const dustStart = (_bgFrame & 1) === 0 ? 0 : (DUST_N >> 1);
-    const dustEnd   = (_bgFrame & 1) === 0 ? (DUST_N >> 1) : DUST_N;
+    const dustStart = (_bgFrame & 1) === 0 ? 0 : (dustLimit >> 1);
+    const dustEnd   = (_bgFrame & 1) === 0 ? (dustLimit >> 1) : dustLimit;
 
     if (dustMesh) {
       for (let i = dustStart; i < dustEnd; i++) {
@@ -542,7 +556,7 @@ function ParticleSystem() {
 
     // ── TYPE 2: Ionic Streams ─────────────────────────────────────────────────
     if (streamMesh) {
-      for (let i = 0; i < STREAM_N; i++) {
+      for (let i = 0; i < streamLimit; i++) {
         const s = Math.floor(i / SPP);
 
         // Advance along stream (flow)
@@ -609,7 +623,7 @@ function ParticleSystem() {
 
     // ── TYPE 3: Cosmic Sparks ─────────────────────────────────────────────────
     if (sparkMesh) {
-      for (let i = 0; i < SPARK_N; i++) {
+      for (let i = 0; i < sparkLimit; i++) {
         const px = _kX[i], py = _kY[i];
         let ax = 0, ay = 0;
 
@@ -680,18 +694,25 @@ function ParticleSystem() {
   const sparkGeo  = useMemo(() => new THREE.SphereGeometry(1, 7, 5), []);
 
   return (<>
-    <instancedMesh ref={dustRef}   args={[dustGeo,   dustMat,   DUST_N]}   />
-    <instancedMesh ref={streamRef} args={[streamGeo, streamMat, STREAM_N]} />
-    <instancedMesh ref={sparkRef}  args={[sparkGeo,  sparkMat,  SPARK_N]}  />
+    <instancedMesh ref={dustRef}   args={[dustGeo,   dustMat,   DUST_N]}   count={dustLimit} />
+    <instancedMesh ref={streamRef} args={[streamGeo, streamMat, STREAM_N]} count={streamLimit} />
+    <instancedMesh ref={sparkRef}  args={[sparkGeo,  sparkMat,  SPARK_N]}  count={sparkLimit} />
   </>);
 }
 
 // ── Scene root ─────────────────────────────────────────────────────────────────
 export function Background() {
+  const budget = getVisualBudget(useRenderQuality());
+
   return (<>
     <color attach="background" args={[0, 0, 0]} />
-    <StarField />
-    <ParticleSystem />
-    <ShootingOrbs />
+    <StarField limit={budget.backgroundStars} />
+    <ParticleSystem
+      dustLimit={budget.backgroundDust}
+      streamLimit={budget.backgroundStreams}
+      sparkLimit={budget.backgroundSparks}
+      orbLimit={budget.backgroundOrbs}
+    />
+    <ShootingOrbs limit={budget.backgroundOrbs} />
   </>);
 }

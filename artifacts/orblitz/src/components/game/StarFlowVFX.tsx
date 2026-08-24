@@ -14,6 +14,7 @@ import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
+import { getVisualBudget, useRenderQuality } from "./AdaptiveRenderQuality";
 
 // ─── Star flow config ─────────────────────────────────────────────────────────
 const MAX_PARTICLES   = 700;
@@ -92,6 +93,7 @@ const _ringGeo  = new THREE.RingGeometry(0.82, 1.0, 36);
 // ─── Component ────────────────────────────────────────────────────────────────
 export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean }) {
   const { scene } = useGLTF("/models/star_pickup.glb");
+  const budget = getVisualBudget(useRenderQuality());
 
   const [starGeo, normalScale] = useMemo(() => {
     let geo: THREE.BufferGeometry | null = null;
@@ -167,6 +169,12 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
       return;
     }
 
+    // These caps govern presentation buffers only. Reward payout has already
+    // occurred, so discarding excess visual particles cannot change currency.
+    pLive.current = Math.min(pLive.current, budget.rewardStars);
+    sLive.current = Math.min(sLive.current, budget.rewardSparks);
+    rLive.current = Math.min(rLive.current, budget.rewardRings);
+
     const ppx = playerPosition[0];
     const ppy = playerPosition[1];
     const ppz = playerPosition[2];
@@ -182,7 +190,7 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
       const coinsPerStar = evt.coinsPerStar ?? 1;
 
       for (let i = 0; i < evt.count; i++) {
-        if (pLive.current >= MAX_PARTICLES) break;
+        if (pLive.current >= budget.rewardStars) break;
         const off = pLive.current * P_STRIDE;
         let bvx: number, bvy: number;
         if (evt.isBoss) {
@@ -224,7 +232,7 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
       if (dx * dx + dy * dy < ABSORB_DIST_SQ) {
         // ── AAA burst: 36 sphere particles in full 3D spread ─────────────────
         for (let k = 0; k < SPARKS_PER_ABSORB; k++) {
-          if (sLive.current >= MAX_SPARKS) break;
+          if (sLive.current >= budget.rewardSparks) break;
           // Full sphere spread
           const phi   = Math.acos(2 * Math.random() - 1);
           const theta = Math.random() * Math.PI * 2;
@@ -243,7 +251,7 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
         }
 
         // ── Shockwave ring ────────────────────────────────────────────────────
-        if (rLive.current < MAX_RINGS) {
+        if (rLive.current < budget.rewardRings) {
           const roff = rLive.current * R_STRIDE;
           _ringPool[roff + 0] = ppx;
           _ringPool[roff + 1] = ppy;
@@ -330,7 +338,7 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
       al.position.set(ppx, ppy, ppz + 0.5);
     }
 
-    // ── Assign float lights to nearest LIGHT_POOL stars ──────────────────────
+    // ── Assign float lights to nearest visible stars ─────────────────────────
     const lights = lightRefs.current;
     if (live === 0) {
       for (let l = 0; l < LIGHT_POOL; l++) {
@@ -351,7 +359,7 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
           _nearDist[maxSlot] = d2;
           _nearIdx[maxSlot]  = i;
           maxVal = 0;
-          for (let l = 0; l < LIGHT_POOL; l++) {
+          for (let l = 0; l < budget.rewardLights; l++) {
             if (_nearDist[l] > maxVal) { maxVal = _nearDist[l]; maxSlot = l; }
           }
         }
@@ -359,6 +367,7 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
 
       for (let l = 0; l < LIGHT_POOL; l++) {
         const lt = lights[l]; if (!lt) continue;
+        if (l >= budget.rewardLights) { lt.position.copy(_offPos); continue; }
         const idx = _nearIdx[l];
         if (idx < 0) { lt.position.copy(_offPos); continue; }
         const off = idx * P_STRIDE;
@@ -478,6 +487,7 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
           distance={LIGHT_RANGE}
           decay={2}
           position={[0, 0, -999]}
+          visible={i < budget.rewardLights}
         />
       ))}
     </>

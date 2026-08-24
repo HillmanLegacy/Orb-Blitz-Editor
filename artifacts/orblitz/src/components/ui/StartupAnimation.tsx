@@ -558,6 +558,7 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false }: Butt
             onPointerUp={() => setPressedBtn(null)}
             onPointerLeave={() => setPressedBtn(null)}
             onClick={b.action}
+            data-orblitz-modal-opener={b.id === "shop" || b.id === "inventory" ? b.id : undefined}
           >
             {/* Top accent line */}
             <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{

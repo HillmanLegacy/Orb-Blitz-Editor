@@ -117,3 +117,12 @@ canvas {
     z-index: 99999;
   }
 }
+
+/* Phones run the game in landscape. Keep long loadout sidebars scrollable
+   inside the dialog rather than allowing them to extend below a short screen. */
+@media screen and (orientation: landscape) and (max-height: 500px) {
+  .orblitz-modal-sidebar {
+    min-height: 0;
+    overflow-y: auto;
+  }
+}

@@ -3,6 +3,11 @@ import { runtimeDiagnostics } from "./RuntimeDiagnostics";
 
 /** Matches the shared instanced projectile renderer's maximum instance count. */
 export const MAX_RUNTIME_PROJECTILES = 512;
+/**
+ * Keep a small portion of the shared pool available for player-originated
+ * volleys when an autonomous weapon is producing sustained fire.
+ */
+export const PLAYER_PROJECTILE_RESERVE = 12;
 
 export type RuntimeProjectile = {
   id: string;

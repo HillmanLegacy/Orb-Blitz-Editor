@@ -7,6 +7,59 @@ import { runtimeDiagnostics } from "@/game-runtime/RuntimeDiagnostics";
 
 export type RenderQualityTier = "high" | "medium" | "low";
 
+export type VisualBudget = {
+  backgroundDust: number;
+  backgroundStreams: number;
+  backgroundSparks: number;
+  backgroundOrbs: number;
+  backgroundStars: number;
+  rewardStars: number;
+  rewardSparks: number;
+  rewardRings: number;
+  rewardLights: number;
+};
+
+/** Presentation-only budgets. Gameplay-critical projectile cores are not here. */
+export const VISUAL_BUDGETS: Record<RenderQualityTier, VisualBudget> = {
+  high: {
+    backgroundDust: 4000,
+    backgroundStreams: 1496,
+    backgroundSparks: 400,
+    backgroundOrbs: 120,
+    backgroundStars: 150,
+    rewardStars: 700,
+    rewardSparks: 576,
+    rewardRings: 12,
+    rewardLights: 16,
+  },
+  medium: {
+    backgroundDust: 2200,
+    backgroundStreams: 896,
+    backgroundSparks: 240,
+    backgroundOrbs: 96,
+    backgroundStars: 110,
+    rewardStars: 480,
+    rewardSparks: 320,
+    rewardRings: 8,
+    rewardLights: 10,
+  },
+  low: {
+    backgroundDust: 1000,
+    backgroundStreams: 512,
+    backgroundSparks: 120,
+    backgroundOrbs: 64,
+    backgroundStars: 70,
+    rewardStars: 260,
+    rewardSparks: 160,
+    rewardRings: 5,
+    rewardLights: 6,
+  },
+};
+
+export function getVisualBudget(tier: RenderQualityTier): VisualBudget {
+  return VISUAL_BUDGETS[tier];
+}
+
 type QualityListener = () => void;
 
 const MIN_PIXEL_RATIO = 0.75;
@@ -58,7 +111,7 @@ function getTierPixelRatio(tier: RenderQualityTier): number {
  * It deliberately does not use React state or Zustand for its high-frequency
  * sampling. React subscribers are notified only when the quality tier changes.
  */
-class AdaptiveRenderQualityController {
+export class AdaptiveRenderQualityController {
   private renderer: THREE.WebGLRenderer | null = null;
   private readonly listeners = new Set<QualityListener>();
   private tier: RenderQualityTier = getInitialTier();

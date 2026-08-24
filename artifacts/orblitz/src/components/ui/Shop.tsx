@@ -7,6 +7,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { OrbitalRings } from "@/components/game/OrbitalRings";
 import { ShopItemPreview } from "@/components/ui/ShopItemPreview";
+import { useModalAccessibility } from "@/components/ui/useModalAccessibility";
 
 // ─── Per-category design tokens ──────────────────────────────────────────────
 const PALETTE: Record<string, { color: string; shadow: string; icon: string; label: string }> = {
@@ -157,23 +158,44 @@ function ItemRow({
           OWNED
         </span>
       ) : (
-        <motion.button
-          whileTap={{ scale: canAfford ? 0.9 : 1 }}
-          onClick={(event) => {
-            event.stopPropagation();
-            if (canAfford) onPurchase();
-          }}
-          disabled={!canAfford}
-          className="flex-shrink-0 mt-1 flex items-center gap-1 text-[10px] font-black tracking-wider px-2 py-1 rounded-lg"
-          style={{
-            color: canAfford ? "#ddcc00" : "#555",
-            background: canAfford ? "rgba(221,204,0,0.1)" : "rgba(255,255,255,0.04)",
-            border: `1px solid ${canAfford ? "rgba(221,204,0,0.45)" : "rgba(255,255,255,0.08)"}`,
-            cursor: canAfford ? "pointer" : "default",
-          }}>
-          <span>★</span>
-          <span>{item.price.toLocaleString()}</span>
-        </motion.button>
+        <div className="flex flex-shrink-0 items-center gap-1.5 mt-1">
+          {onPreview && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onPreview();
+              }}
+              aria-pressed={isHighlighted}
+              className="text-[9px] font-black tracking-wider px-2 py-1 rounded-lg"
+              style={{
+                color: pal.color,
+                background: `${pal.color}14`,
+                border: `1px solid ${pal.color}55`,
+                cursor: "pointer",
+              }}
+            >
+              PREVIEW
+            </button>
+          )}
+          <motion.button
+            whileTap={{ scale: canAfford ? 0.9 : 1 }}
+            onClick={(event) => {
+              event.stopPropagation();
+              if (canAfford) onPurchase();
+            }}
+            disabled={!canAfford}
+            className="flex items-center gap-1 text-[10px] font-black tracking-wider px-2 py-1 rounded-lg"
+            style={{
+              color: canAfford ? "#ddcc00" : "#555",
+              background: canAfford ? "rgba(221,204,0,0.1)" : "rgba(255,255,255,0.04)",
+              border: `1px solid ${canAfford ? "rgba(221,204,0,0.45)" : "rgba(255,255,255,0.08)"}`,
+              cursor: canAfford ? "pointer" : "default",
+            }}>
+            <span>★</span>
+            <span>{item.price.toLocaleString()}</span>
+          </motion.button>
+        </div>
       )}
     </motion.div>
   );
@@ -197,6 +219,11 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
     .sort((a, b) => a.price - b.price), [cat]);
 
   const activePal = PALETTE[cat];
+  const dialogRef = useModalAccessibility<HTMLDivElement>(
+    shopOpen,
+    closeShop,
+    '[data-orblitz-modal-opener="shop"]',
+  );
 
   // A preview is intentional and click-triggered. This avoids creating and
   // destroying preview WebGL contexts while a pointer merely crosses rows.
@@ -231,10 +258,16 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
             className="absolute inset-0 cursor-pointer"
             style={{ background: "rgba(0,0,8,0.82)", backdropFilter: "blur(8px)" }}
             onClick={closeShop}
+            aria-hidden="true"
           />
 
           {/* Card — wide enough to fit sidebar + items */}
           <motion.div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="orblitz-shop-title"
+            tabIndex={-1}
             className="relative flex flex-col w-full"
             style={{
               maxWidth: "min(720px, 100%)",
@@ -264,6 +297,7 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
               style={{ borderBottom: "1px solid rgba(255,255,255,0.07)", zIndex: 1 }}
             >
               <span
+                id="orblitz-shop-title"
                 className="font-black text-lg tracking-[0.18em] uppercase"
                 style={{
                   background: "linear-gradient(90deg,#00ffff,#8844ff,#ff00ff)",
@@ -286,6 +320,8 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
                 <motion.button
                   whileTap={{ scale: 0.85 }}
                   onClick={closeShop}
+                  aria-label="Close shop"
+                  title="Close shop"
                   className="flex items-center justify-center rounded-lg"
                   style={{
                     width: 32, height: 32,
@@ -299,11 +335,11 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
             </div>
 
             {/* ── Body: sidebar + items ───────────────────────────────────── */}
-            <div className="relative flex flex-1 min-h-0" style={{ zIndex: 1 }}>
+            <div className="orblitz-modal-body relative flex flex-1 min-h-0 flex-col min-[480px]:flex-row" style={{ zIndex: 1 }}>
 
               {/* Left sidebar — all 6 categories always visible */}
               <div
-                className="flex-none flex flex-col gap-1 py-3 px-2"
+                className="orblitz-modal-sidebar flex-none flex flex-col min-[480px]:flex-col max-[479px]:flex-row max-[479px]:overflow-x-auto max-[479px]:!w-full max-[479px]:!border-r-0 max-[479px]:border-b gap-1 py-3 px-2"
                 style={{
                   width: "clamp(120px, 22%, 152px)",
                   borderRight: "1px solid rgba(255,255,255,0.06)",
@@ -318,6 +354,8 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
                       whileTap={{ scale: 0.94 }}
                        onClick={() => { setCat(c); setPreviewItemId(null); }}
                       className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl w-full text-left"
+                      aria-pressed={active}
+                      aria-label={`Show ${pal.label.toLowerCase()}`}
                       style={{
                         background: active ? `${pal.color}16` : "rgba(255,255,255,0.03)",
                         border: `1px solid ${active ? pal.color + "55" : "rgba(255,255,255,0.06)"}`,

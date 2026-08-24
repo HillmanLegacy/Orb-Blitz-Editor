@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useShop, SHOP_ITEMS, ShopItem, OrbSkin, TrailEffect, RingStyle, WeaponType, DefenseType, MagiOrbType } from "@/lib/stores/useShop";
 import { useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { useModalAccessibility } from "@/components/ui/useModalAccessibility";
 
 // ─── Slot definitions ─────────────────────────────────────────────────────────
 type SlotKey = "weapon" | "defense_0" | "defense_1" | "magi_orb" | "skin" | "trail" | "aura";
@@ -89,6 +90,11 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
   })));
 
   const [activeSlot, setActiveSlot] = useState<SlotDef>(SLOTS[0]);
+  const dialogRef = useModalAccessibility<HTMLDivElement>(
+    inventoryOpen,
+    closeInventory,
+    '[data-orblitz-modal-opener="inventory"]',
+  );
 
   const eq: EquippedState = useMemo(() => ({
     equippedSkin, equippedTrail, equippedRing,
@@ -130,10 +136,16 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
           className="absolute inset-0 cursor-pointer"
           style={{ background: "rgba(0,0,8,0.82)", backdropFilter: "blur(8px)" }}
           onClick={closeInventory}
+          aria-hidden="true"
         />
 
         {/* Card — matches Shop dimensions exactly */}
         <motion.div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="orblitz-loadout-title"
+          tabIndex={-1}
           className="relative flex flex-col w-full"
           style={{
             maxWidth: "min(720px, 100%)",
@@ -163,6 +175,7 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
             style={{ borderBottom: "1px solid rgba(255,255,255,0.07)", zIndex: 1 }}
           >
             <span
+              id="orblitz-loadout-title"
               className="font-black text-lg tracking-[0.18em] uppercase"
               style={{
                 background: "linear-gradient(90deg,#ff7700,#ff00ff,#8844ff)",
@@ -175,6 +188,8 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
             <motion.button
               whileTap={{ scale: 0.85 }}
               onClick={closeInventory}
+              aria-label="Close loadout"
+              title="Close loadout"
               className="flex items-center justify-center rounded-lg"
               style={{
                 width: 32, height: 32,
@@ -187,11 +202,11 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
           </div>
 
           {/* ── Body: slot sidebar + picker ────────────────────────────── */}
-          <div className="relative flex flex-1 min-h-0" style={{ zIndex: 1 }}>
+          <div className="orblitz-modal-body relative flex flex-1 min-h-0 flex-col min-[480px]:flex-row" style={{ zIndex: 1 }}>
 
             {/* Left sidebar — all 7 slots always visible */}
             <div
-              className="flex-none flex flex-col gap-1 py-3 px-2"
+              className="orblitz-modal-sidebar flex-none flex flex-col max-[479px]:flex-row max-[479px]:overflow-x-auto max-[479px]:!w-full max-[479px]:!border-r-0 max-[479px]:border-b gap-1 py-3 px-2"
               style={{
                 width: "clamp(130px, 24%, 164px)",
                 borderRight: "1px solid rgba(255,255,255,0.06)",
@@ -207,6 +222,8 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                     key={s.key}
                     whileTap={{ scale: 0.94 }}
                     onClick={() => setActiveSlot(s)}
+                    aria-pressed={active}
+                    aria-label={`Edit ${s.label.toLowerCase()}`}
                     className="relative flex items-center gap-2 px-2.5 py-2 rounded-xl w-full text-left"
                     style={{
                       background: active ? `${s.color}16` : "rgba(255,255,255,0.03)",

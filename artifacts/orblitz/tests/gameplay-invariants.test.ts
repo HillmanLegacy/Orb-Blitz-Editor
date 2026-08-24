@@ -1,12 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   MAX_RUNTIME_PROJECTILES,
+  PLAYER_PROJECTILE_RESERVE,
   ProjectileRuntime,
 } from "../src/game-runtime/ProjectileRuntime";
 import { ProjectileSpawnEvents } from "../src/game-runtime/ProjectileSpawnEvents";
 import { RuntimeClock } from "../src/game-runtime/RuntimeClock";
 import { useMagicOrb, type Projectile } from "../src/lib/stores/useMagicOrb";
 import { useShop } from "../src/lib/stores/useShop";
+import {
+  AdaptiveRenderQualityController,
+  getVisualBudget,
+} from "../src/components/game/AdaptiveRenderQuality";
 
 const makeProjectile = (id: string): Projectile => ({
   id,
@@ -59,6 +64,20 @@ describe("gameplay runtime invariants", () => {
     expect(useMagicOrb.getState().canAddProjectiles(3)).toBe(false);
   });
 
+  it("reserves projectile capacity for player-originated fire over autonomous fire", () => {
+    const autonomous = Array.from(
+      { length: MAX_RUNTIME_PROJECTILES - PLAYER_PROJECTILE_RESERVE },
+      (_, index) => ({ ...makeProjectile(`sub-${index}`), type: "subblaster" as const }),
+    );
+    useMagicOrb.setState({ projectiles: autonomous });
+
+    expect(useMagicOrb.getState().addProjectile({
+      ...makeProjectile("sub-overflow"),
+      type: "subblaster",
+    })).toBe(false);
+    expect(useMagicOrb.getState().addProjectile(makeProjectile("player-shot"))).toBe(true);
+  });
+
   it("keeps runtime projectile slots bounded and reusable", () => {
     const pool = new ProjectileRuntime(2);
 
@@ -98,5 +117,29 @@ describe("gameplay runtime invariants", () => {
     expect(clock.tick(0.25)).toBe(0);
     expect(clock.elapsed).toBe(0.25);
     expect(clock.frame).toBe(2);
+  });
+
+  it("reduces only visual budgets as render quality falls", () => {
+    const high = getVisualBudget("high");
+    const medium = getVisualBudget("medium");
+    const low = getVisualBudget("low");
+
+    expect(high.backgroundDust).toBeGreaterThan(medium.backgroundDust);
+    expect(medium.backgroundDust).toBeGreaterThan(low.backgroundDust);
+    expect(high.rewardStars).toBeGreaterThan(medium.rewardStars);
+    expect(medium.rewardStars).toBeGreaterThan(low.rewardStars);
+    expect(low.rewardLights).toBeGreaterThan(0);
+  });
+
+  it("downgrades the renderer tier under sustained frame pressure", () => {
+    const controller = new AdaptiveRenderQualityController();
+    const setPixelRatio = () => undefined;
+    controller.attach({ setPixelRatio } as never);
+    controller.setGameplayActive(true);
+
+    for (let frame = 0; frame < 15; frame++) controller.sample(1 / 60);
+    for (let frame = 0; frame < 20; frame++) controller.sample(0.03);
+
+    expect(controller.getSnapshot()).toBe("medium");
   });
 });

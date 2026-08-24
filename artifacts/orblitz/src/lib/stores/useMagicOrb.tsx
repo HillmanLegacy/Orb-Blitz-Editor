@@ -4,7 +4,7 @@ import type { MagiOrbType, DefenseType } from "./useShop";
 import { useShop } from "./useShop";
 import { runtimeDiagnostics } from "@/game-runtime/RuntimeDiagnostics";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
-import { MAX_RUNTIME_PROJECTILES } from "@/game-runtime/ProjectileRuntime";
+import { MAX_RUNTIME_PROJECTILES, PLAYER_PROJECTILE_RESERVE } from "@/game-runtime/ProjectileRuntime";
 
 export type GamePhase = "menu" | "loading" | "playing" | "paused" | "gameOver" | "levelComplete" | "modeSelect" | "arcadeComplete";
 export type LoadingType = "entering" | "exiting" | "exiting_to_menu" | "nextLevel" | null;
@@ -1717,7 +1717,12 @@ export const useMagicOrb = create<MagicOrbState>()(
     },
     
     addProjectile: (projectile) => {
-      if (get().projectiles.length >= MAX_RUNTIME_PROJECTILES) {
+      const activeCount = get().projectiles.length;
+      const isAutonomousProjectile = projectile.type === "subblaster";
+      const capacityLimit = isAutonomousProjectile
+        ? MAX_RUNTIME_PROJECTILES - PLAYER_PROJECTILE_RESERVE
+        : MAX_RUNTIME_PROJECTILES;
+      if (activeCount >= capacityLimit) {
         runtimeDiagnostics.noteProjectileOverflow();
         return false;
       }
