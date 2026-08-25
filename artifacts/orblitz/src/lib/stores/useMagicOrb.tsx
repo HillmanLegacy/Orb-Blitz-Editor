@@ -1282,7 +1282,7 @@ export const useMagicOrb = create<MagicOrbState>()(
         const equippedDefenses = getEquippedDefenses();
         const hasSpatialRelocation = equippedDefenses[0] === "spatial_relocation" || equippedDefenses[1] === "spatial_relocation";
         
-        if (hasSpatialRelocation) {
+        if (hasSpatialRelocation && spatialRelocationCooldown <= 0) {
           get().useSpatialRelocation();
         }
       }

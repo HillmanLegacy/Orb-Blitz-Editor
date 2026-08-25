@@ -276,4 +276,45 @@ describe("gameplay runtime invariants", () => {
     expect(gameRuntime.enemies.get(source.id)?.position).toEqual([3, 1, 0]);
     expect(gameRuntime.enemies.get(source.id)?.position).not.toEqual(source.position);
   });
+
+  it("pulse shield reflects enemies using their live runtime position", () => {
+    const enemy = {
+      id: "pulse-target",
+      position: [18, 0, 0] as [number, number, number],
+      direction: [-1, 0, 0] as [number, number, number],
+      speed: 1,
+      size: 0.6,
+      seed: 0,
+      shape: "sphere" as const,
+      pattern: "direct" as const,
+      patternPhase: 0,
+    };
+    useMagicOrb.setState({ darkOrbs: [enemy], playerPosition: [0, 0, 0] });
+    const liveEnemy = gameRuntime.enemies.getOrCreate(enemy);
+    liveEnemy.position[0] = 4;
+    useMagicOrb.getState().activatePulseShield();
+
+    expect(useMagicOrb.getState().pulseShieldActive).toBe(true);
+    expect(useMagicOrb.getState().darkOrbs[0].direction).toEqual([1, 0, 0]);
+  });
+
+  it("spatial relocation starts a cooldown and emits boss-style teleport metadata", () => {
+    useMagicOrb.setState({
+      playerPosition: [0, 0, 0],
+      darkOrbs: [],
+      impactEffects: [],
+      spatialRelocationCooldown: 0,
+    });
+    useMagicOrb.getState().useSpatialRelocation();
+
+    const state = useMagicOrb.getState();
+    expect(state.spatialRelocationCooldown).toBe(state.spatialRelocationMaxCooldown);
+    expect(state.impactEffects).toHaveLength(1);
+    expect(state.impactEffects[0]).toMatchObject({
+      isSpatialRelocation: true,
+      maxTimer: 1.16,
+      fromPosition: [0, 0, 0],
+    });
+    expect(state.impactEffects[0].toPosition).not.toEqual([0, 0, 0]);
+  });
 });
