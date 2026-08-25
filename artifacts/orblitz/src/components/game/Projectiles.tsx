@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { useMagicOrb, DarkOrb, Projectile, Particle, ImpactEffect } from "@/lib/stores/useMagicOrb";
+import { StarBossTeleportVFX, StarTeleportVFXState } from "./StarBossTeleportVFX";
 import { useAudio } from "@/lib/stores/useAudio";
 import { useShop, TrailEffect } from "@/lib/stores/useShop";
 import { getSkinColors, PlayerGlow } from "./PlayerOrb";
@@ -1921,6 +1922,24 @@ function ImpactEffectMesh({ effect, skinColors }: {
   skinColors: { particles: string[]; glow: string; core: string; emissive: string };
 }) {
   const progress = 1 - effect.timer / effect.maxTimer;
+  const teleportRef = useRef<StarTeleportVFXState>({
+    departurePos: effect.fromPosition ?? effect.position,
+    departureProgress: 0,
+    arrivalPos: effect.toPosition ?? effect.position,
+    arrivalProgress: 0,
+  });
+
+  if (effect.isSpatialRelocation && effect.fromPosition && effect.toPosition) {
+    const departureEnd = 0.48;
+    const p = Math.max(0, Math.min(1, progress));
+    teleportRef.current.departurePos = effect.fromPosition;
+    teleportRef.current.arrivalPos = effect.toPosition;
+    teleportRef.current.departureProgress = Math.min(1, p / departureEnd);
+    teleportRef.current.arrivalProgress = p <= departureEnd
+      ? 0
+      : Math.min(1, (p - departureEnd) / (1 - departureEnd));
+    return <StarBossTeleportVFX vfxRef={teleportRef} scale={1.15} />;
+  }
 
   if (effect.isBossHit) {
     // Boss hit: point-light flash + particles only — no white crush geometry.

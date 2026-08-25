@@ -146,6 +146,9 @@ export interface ImpactEffect {
   maxTimer: number;
   seed: number;
   isBossHit?: boolean;
+  isSpatialRelocation?: boolean;
+  fromPosition?: [number, number, number];
+  toPosition?: [number, number, number];
 }
 
 export interface StarFlowEvent {
@@ -1496,12 +1499,14 @@ export const useMagicOrb = create<MagicOrbState>()(
       const playerPos = get().playerPosition;
       const reflectRadius = 7;
       const updatedOrbs = darkOrbs.map(orb => {
-        const dx = orb.position[0] - playerPos[0];
-        const dy = orb.position[1] - playerPos[1];
+        const liveOrb = gameRuntime.enemies.get(orb.id);
+        const orbPosition = liveOrb?.position ?? orb.position;
+        const dx = orbPosition[0] - playerPos[0];
+        const dy = orbPosition[1] - playerPos[1];
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < reflectRadius && !orb.destroying) {
-          const normX = dx / dist;
-          const normY = dy / dist;
+          const normX = dist > 0.001 ? dx / dist : 1;
+          const normY = dist > 0.001 ? dy / dist : 0;
           return {
             ...orb,
             direction: [normX, normY, 0] as [number, number, number],
@@ -1544,9 +1549,11 @@ export const useMagicOrb = create<MagicOrbState>()(
         let minDist = Infinity;
         for (const orb of darkOrbs) {
           if (orb.destroying) continue;
+          const liveOrb = gameRuntime.enemies.get(orb.id);
+          const orbPosition = liveOrb?.position ?? orb.position;
           const d = Math.sqrt(
-            (testPos[0] - orb.position[0]) ** 2 + 
-            (testPos[1] - orb.position[1]) ** 2
+            (testPos[0] - orbPosition[0]) ** 2 + 
+            (testPos[1] - orbPosition[1]) ** 2
           );
           minDist = Math.min(minDist, d);
         }
@@ -1558,24 +1565,21 @@ export const useMagicOrb = create<MagicOrbState>()(
       }
       
       const now = Date.now();
-      const departureEffect: ImpactEffect = {
-        id: `relocation-depart-${now}`,
+      const relocationEffect: ImpactEffect = {
+        id: `relocation-${now}`,
         position: oldPos,
-        timer: 0.6,
-        maxTimer: 0.6,
+        timer: 1.16,
+        maxTimer: 1.16,
         seed: Math.random(),
-      };
-      const arrivalEffect: ImpactEffect = {
-        id: `relocation-arrive-${now}`,
-        position: bestPos,
-        timer: 0.6,
-        maxTimer: 0.6,
-        seed: Math.random(),
+        isSpatialRelocation: true,
+        fromPosition: [...oldPos] as [number, number, number],
+        toPosition: [...bestPos] as [number, number, number],
       };
       
       set({ 
         playerPosition: bestPos,
-        impactEffects: [...impactEffects, departureEffect, arrivalEffect],
+        spatialRelocationCooldown: get().spatialRelocationMaxCooldown,
+        impactEffects: [...impactEffects, relocationEffect],
       });
     },
     

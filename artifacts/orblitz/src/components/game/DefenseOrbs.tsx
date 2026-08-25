@@ -5,6 +5,7 @@ import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
 import { useAudio } from "@/lib/stores/useAudio";
 import { getSkinColors } from "./PlayerOrb";
+import { gameRuntime } from "@/game-runtime/GameRuntime";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const ORBIT_R    = 2.2;
@@ -304,20 +305,22 @@ export function DefenseOrbs() {
 
         for (const dark of darkOrbs) {
           if (dark.destroying) continue;
-          const dx   = ox - dark.position[0];
-          const dy   = oy - dark.position[1];
+          const liveDark = gameRuntime.enemies.get(dark.id);
+          const darkPosition = liveDark?.position ?? dark.position;
+          const dx   = ox - darkPosition[0];
+          const dy   = oy - darkPosition[1];
           const dist = Math.sqrt(dx * dx + dy * dy);
 
           if (dist < HIT_R * 1.6) {
-            s.snapX = dark.position[0];
-            s.snapY = dark.position[1];
+            s.snapX = darkPosition[0];
+            s.snapY = darkPosition[1];
           }
 
           if (dist < HIT_R) {
             s.flash = 1.0;
             triggerImpact(
-              (ox + dark.position[0]) * 0.5,
-              (oy + dark.position[1]) * 0.5,
+              (ox + darkPosition[0]) * 0.5,
+              (oy + darkPosition[1]) * 0.5,
             );
             markOrbDestroying(dark.id);
             destroyDefenseOrb(defOrb.id);
