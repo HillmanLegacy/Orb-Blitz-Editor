@@ -743,6 +743,7 @@ export function DarkOrbs() {
       phase,
       magiOrb4Active,
       magiOrb4Direction,
+      magiOrb7Active,
       addStarFlowEvent,
     } = useMagicOrb.getState();
 
@@ -814,7 +815,10 @@ export function DarkOrbs() {
         currentSpeed   = orb.baseSpeed * (minMult + (maxMult - minMult) * smooth);
       }
 
-      const speed = orb.frozen ? currentSpeed * 0.1 : currentSpeed;
+      // Magi-Orb VII is a runtime effect. Do not rewrite Zustand's structural
+      // speed snapshot: doing so compounds on reactivation and misses new orbs.
+      const speed = (orb.frozen ? currentSpeed * 0.1 : currentSpeed) *
+        (magiOrb7Active ? 0.25 : 1);
 
       // Always home toward player
       const toPX = playerX - x;
@@ -845,28 +849,23 @@ export function DarkOrbs() {
         continue;
       }
 
-      // Barrier (magiOrb4) check
+      // Full-radius shield (magiOrb4) check. The old directional quarter arc
+      // made the ability unreliable because enemies could enter from behind.
       if (magiOrb4Active) {
         const relX = x - playerX, relY = y - playerY;
         const dtp2sq = relX * relX + relY * relY;
         if (dtp2sq < 12.25 && dtp2sq > 0.25) { // 3.5²=12.25, 0.5²=0.25
-          const orbAngle = Math.atan2(relY, relX);
-          let angleDiff = orbAngle - magiOrb4Direction;
-          while (angleDiff >  Math.PI) angleDiff -= Math.PI * 2;
-          while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-          if (angleDiff >= 0 && angleDiff <= Math.PI / 2) {
-            addImpactEffect({ id: `barrier-impact-${Date.now()}-${Math.random()}`, position: [x, y, 0], timer: 0.5, maxTimer: 0.5, seed: Math.random() });
-            addScore(10);
-            addStarFlowEvent([x, y, z], 5);
-            if (gm === "arcade" && !orb.isBossOrb) {
-              if (orbsDestroyedInLevel + 1 >= orbsRequiredForLevel) completeLevel();
-            }
+          addImpactEffect({ id: `barrier-impact-${Date.now()}-${Math.random()}`, position: [x, y, 0], timer: 0.5, maxTimer: 0.5, seed: Math.random() });
+          addScore(10);
+          addStarFlowEvent([x, y, z], 5);
+          if (gm === "arcade" && !orb.isBossOrb) {
+            if (orbsDestroyedInLevel + 1 >= orbsRequiredForLevel) completeLevel();
+          }
             // Write back position so VFX spawns at right place
             phy.position[0] = x; phy.position[1] = y; phy.position[2] = z;
             newOrbs.push({ ...orb, position: [x, y, z] as [number,number,number], direction: [dx,dy,dz] as [number,number,number], destroying: true, destroyTimer: 0.6 });
             structuralChanged = true;
             continue;
-          }
         }
       }
 

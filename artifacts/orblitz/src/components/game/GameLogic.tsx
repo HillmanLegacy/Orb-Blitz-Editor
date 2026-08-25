@@ -147,7 +147,7 @@ export function GameLogic() {
   const triggerHomingFireRef        = useRef(useMagicOrb.getState().triggerHomingFire);
   const lastRestorationTick = useRef(0);
   const lastMagiOrb6Teleport = useRef(0);
-  const lastMagiOrb8Fire = useRef(0);
+  const lastMagiOrb8PlayerFire = useRef(0);
   const lastMagiOrb9Reset = useRef(0);
   const magiOrb1Angle = useRef(0);
   const defenseOrbsSpawned = useRef(false);
@@ -695,22 +695,13 @@ export function GameLogic() {
       }
     }
     
-    if (hasMagiOrb8Ref.current && !isDying) {
+    if (hasMagiOrb8Ref.current && !isDying && lastFireTime.current > lastMagiOrb8PlayerFire.current) {
       const { magiOrb8Position, magiOrb8HP } = useMagicOrb.getState();
       if (magiOrb8Position && magiOrb8HP > 0) {
         const now = performance.now();
-        const elapsed = (now - lastMagiOrb8Fire.current) / 1000;
-        if (elapsed >= 0.5) {
-          const { darkOrbs } = useMagicOrb.getState();
-          const onScreenOrbs = darkOrbs.filter(orb => 
-            orb.position && 
-            Math.abs(orb.position[0]) < 10 && 
-            Math.abs(orb.position[1]) < 6 &&
-            !orb.destroying
-          );
-          if (onScreenOrbs.length > 0) {
-            // Use squared distance to avoid sqrt per candidate
-            const closest = onScreenOrbs.reduce((min, orb) => {
+        const liveTargets = Array.from(gameRuntime.enemies.byId.values());
+        if (liveTargets.length > 0) {
+            const closest = liveTargets.reduce((min, orb) => {
               const dist2 = (orb.position[0] - magiOrb8Position[0]) ** 2 + (orb.position[1] - magiOrb8Position[1]) ** 2;
               const minDist2 = (min.position[0] - magiOrb8Position[0]) ** 2 + (min.position[1] - magiOrb8Position[1]) ** 2;
               return dist2 < minDist2 ? orb : min;
@@ -729,16 +720,12 @@ export function GameLogic() {
                 hitCount: 1,
               };
               if (addProjectileRef.current(projectile)) {
-                lastMagiOrb8Fire.current = now;
-              } else {
-                // Capacity saturation must not consume the Magi-Orb's cadence;
-                // it will retry when a pool slot becomes available.
-                lastMagiOrb8Fire.current = now - 500;
+                lastMagiOrb8PlayerFire.current = lastFireTime.current;
               }
             }
-          } else {
-            lastMagiOrb8Fire.current = now;
-          }
+        } else {
+          // Keep the trigger pending until a live target exists.
+          lastMagiOrb8PlayerFire.current = lastFireTime.current - 1;
         }
       }
     }

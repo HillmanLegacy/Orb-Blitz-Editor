@@ -93,6 +93,8 @@ export default function GameplayScene() {
       <PowerUps />
       <SubBlasterOrb />
       <DefenseOrbs />
+      {/* Magi-Orb VFX are a core ability readout, not optional decoration. */}
+      <MagiOrbEffects />
       <StarFlowVFX visualEnabled={vfxEnabled} />
       <SimulationPresentationMarker />
       {visualSystemsReady && vfxEnabled && (
@@ -102,7 +104,6 @@ export default function GameplayScene() {
           <Particles />
           <LaserBeams />
           <DistortField />
-          <MagiOrbEffects />
           <ScreenEffects />
         </>
       )}

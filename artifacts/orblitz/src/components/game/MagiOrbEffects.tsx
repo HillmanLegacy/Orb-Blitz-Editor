@@ -41,6 +41,9 @@ export function MagiOrbEffects() {
   const boss                    = useMagicOrb(s => s.boss);
   const magiOrb4Active          = useMagicOrb(s => s.magiOrb4Active);
   const magiOrb4Direction       = useMagicOrb(s => s.magiOrb4Direction);
+  const magiOrb4Timer            = useMagicOrb(s => s.magiOrb4Timer);
+  const magiOrb7Active            = useMagicOrb(s => s.magiOrb7Active);
+  const magiOrb7Timer             = useMagicOrb(s => s.magiOrb7Timer);
   const magiOrb5HP              = useMagicOrb(s => s.magiOrb5HP);
   const magiOrb5MaxHP           = useMagicOrb(s => s.magiOrb5MaxHP);
   const magiOrb8Position        = useMagicOrb(s => s.magiOrb8Position);
@@ -53,10 +56,12 @@ export function MagiOrbEffects() {
   const cubeGroupRef  = useRef<THREE.Group>(null);
   const alliedOrbRef  = useRef<THREE.Group>(null);
   const pulseShieldRef = useRef<THREE.Group>(null);
+  const magiOrb7Ref = useRef<THREE.Group>(null);
 
   const hasMagiOrb2 = equippedMagiOrb === "magi_orb_2";
   const hasMagiOrb4 = equippedMagiOrb === "magi_orb_4";
   const hasMagiOrb5 = equippedMagiOrb === "magi_orb_5";
+  const hasMagiOrb7 = equippedMagiOrb === "magi_orb_7";
   const hasMagiOrb8 = equippedMagiOrb === "magi_orb_8";
   const initialPlayerPosition = useMagicOrb.getState().playerPosition;
 
@@ -147,8 +152,9 @@ export function MagiOrbEffects() {
 
     // ── Magi-Orb 4: barrier ────────────────────────────────────────────────
     if (barrierRef.current && magiOrb4Active) {
-      barrierRef.current.rotation.z = magiOrb4Direction;
+      barrierRef.current.rotation.z = time * 0.35;
       barrierRef.current.position.set(playerPosition[0], playerPosition[1], 0.1);
+      barrierRef.current.scale.setScalar(1 + Math.sin(time * 7) * 0.025);
     }
 
     // ── Magi-Orb 5: cube ───────────────────────────────────────────────────
@@ -165,6 +171,12 @@ export function MagiOrbEffects() {
     }
     if (pulseShieldRef.current && pulseShieldActive) {
       pulseShieldRef.current.position.set(playerPosition[0], playerPosition[1], 0.2);
+    }
+    if (magiOrb7Ref.current && magiOrb7Active) {
+      magiOrb7Ref.current.position.set(playerPosition[0], playerPosition[1], 0.12);
+      const progress = 1 - Math.max(0, Math.min(1, magiOrb7Timer / 5));
+      magiOrb7Ref.current.scale.setScalar(0.5 + progress * 4.5);
+      magiOrb7Ref.current.rotation.z = -time * 1.4;
     }
 
     // ── Magi-Orb 2: Arcane Annihilator VFX ───────────────────────────────
@@ -399,50 +411,32 @@ export function MagiOrbEffects() {
       {hasMagiOrb4 && magiOrb4Active && (
         <group ref={barrierRef} position={[initialPlayerPosition[0], initialPlayerPosition[1], 0.1]}>
           {[0, 1, 2].map((layer) => (
-            <mesh key={`barrier-layer-${layer}`} position={[0, 0, layer * 0.01]}>
-              <shapeGeometry args={[(() => {
-                const shape = new THREE.Shape();
-                shape.moveTo(0, 0);
-                barrierArcPoints.forEach((p, i) => {
-                  const radius = 3.5 - layer * 0.3;
-                  const scale  = radius / 3.5;
-                  if (i === 0) shape.lineTo(p[0] * scale, p[1] * scale);
-                  else         shape.lineTo(p[0] * scale, p[1] * scale);
-                });
-                shape.lineTo(0, 0);
-                return shape;
-              })()]} />
+            <mesh key={`barrier-layer-${layer}`} scale={3.5 - layer * 0.3} position={[0, 0, layer * 0.01]}>
+              <sphereGeometry args={[1, 24, 16]} />
               <meshBasicMaterial
-                color={layer === 0 ? "#ff6600" : layer === 1 ? "#ff8800" : "#ffaa00"}
-                transparent opacity={0.5 - layer * 0.12}
+                color={layer === 0 ? "#ff6600" : layer === 1 ? "#ff9900" : "#ffe08a"}
+                transparent opacity={0.12 - layer * 0.025}
+                wireframe
                 side={THREE.DoubleSide}
               />
             </mesh>
           ))}
-          {barrierArcPoints.map((point, i) => {
-            if (i % 4 !== 0) return null;
-            return (
-              <mesh key={`arc-glow-${i}`} position={[point[0], point[1], 0.02]} scale={0.12}>
-                <circleGeometry args={[1, 12]} />
-                <meshBasicMaterial color="#ffcc00" transparent opacity={0.7} />
-              </mesh>
-            );
-          })}
-          {barrierArcPoints.filter((_, i) => i % 6 === 0).map((point, i) => (
-            <mesh key={`arc-particle-${i}`} position={[point[0] * 0.95, point[1] * 0.95, 0.03]} scale={0.06}>
-              <circleGeometry args={[1, 8]} />
-              <meshBasicMaterial color="#ffffff" transparent opacity={0.9} />
-            </mesh>
-          ))}
-          {barrierArcPoints.map((point, i) => {
-            if (i % 2 !== 0) return null;
-            return (
-              <mesh key={`inner-line-${i}`} position={[point[0] * 0.85, point[1] * 0.85, 0.01]} scale={0.04}>
-                <circleGeometry args={[1, 6]} />
-                <meshBasicMaterial color="#ffff88" transparent opacity={0.6} />
-              </mesh>
-            );
-          })}
+          <pointLight color="#ff8a24" intensity={1.5} distance={6} />
+        </group>
+      )}
+
+      {/* ── Magi-Orb 7: 360-degree temporal slow pulse ───────────────────── */}
+      {hasMagiOrb7 && magiOrb7Active && (
+        <group ref={magiOrb7Ref}>
+          <mesh>
+            <ringGeometry args={[0.9, 1.02, 64]} />
+            <meshBasicMaterial color="#9b5cff" transparent opacity={0.75} side={THREE.DoubleSide} />
+          </mesh>
+          <mesh rotation={[0, 0, Math.PI / 4]} scale={0.72}>
+            <ringGeometry args={[0.9, 1.02, 8]} />
+            <meshBasicMaterial color="#d8b4ff" transparent opacity={0.8} side={THREE.DoubleSide} />
+          </mesh>
+          <pointLight color="#9b5cff" intensity={1.2} distance={7} />
         </group>
       )}
 

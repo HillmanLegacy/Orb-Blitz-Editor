@@ -367,7 +367,7 @@ export interface MagicOrbState {
   magiOrb2TargetPositions: [number, number, number][];
   magiOrb3Cooldown: number; // Homing projectiles
   magiOrb3MaxCooldown: number;
-  magiOrb4Active: boolean; // Quarter-circle barrier
+  magiOrb4Active: boolean; // Full player shield
   magiOrb4Cooldown: number;
   magiOrb4MaxCooldown: number;
   magiOrb4Timer: number;
@@ -2002,9 +2002,13 @@ export const useMagicOrb = create<MagicOrbState>()(
       // Target all non-boss orbs that aren't already dying
       const targets = darkOrbs.filter(o => !o.destroying && !o.isBossOrb && !o.bossType);
       const targetIds = new Set(targets.map(o => o.id));
-      const targetPositions: [number, number, number][] = targets.map(o => [
-        o.position[0], o.position[1], o.position[2],
-      ]);
+      // Capture the runtime transform when available; Zustand positions can
+      // lag behind the fixed-step enemy simulation during dense scenes.
+      const targetPositions: [number, number, number][] = targets.map(o => {
+        const live = gameRuntime.enemies.get(o.id);
+        const p = live?.position ?? o.position;
+        return [p[0], p[1], p[2]];
+      });
 
       set({
         magiOrb2Active: true,
@@ -2054,25 +2058,19 @@ export const useMagicOrb = create<MagicOrbState>()(
       set({
         magiOrb4Active: true,
         magiOrb4Cooldown: 15,
-        magiOrb4Timer: 10,
+        magiOrb4Timer: 5,
         magiOrb4Direction: direction,
       });
     },
     
     activateMagiOrb7: () => {
-      const { magiOrb7Cooldown, darkOrbs } = get();
+      const { magiOrb7Cooldown } = get();
       if (magiOrb7Cooldown > 0) return;
-      
-      const slowedOrbs = darkOrbs.map(orb => ({
-        ...orb,
-        speed: orb.speed * 0.25,
-      }));
-      
+
       set({
         magiOrb7Active: true,
         magiOrb7Cooldown: 15,
         magiOrb7Timer: 5,
-        darkOrbs: slowedOrbs,
       });
     },
     
