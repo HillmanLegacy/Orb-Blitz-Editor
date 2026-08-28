@@ -13,6 +13,8 @@ interface PlayerModelProps {
 }
 export function PlayerModel({
   scale,
+  coreColor = "#ffffff",
+  glowColor = coreColor,
   isRainbow = false,
   rotationSpeedX = 0.8,
   rotationSpeedY = 1.2,
@@ -62,6 +64,15 @@ export function PlayerModel({
       const rawMats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
       const clonedMats = rawMats.map((m) => {
         const c = (m as THREE.MeshStandardMaterial).clone();
+         // The shared GLTF is authored with a white base so it can be
+         // recoloured per equipped skin. Keep the texture detail, but tint
+         // the cloned material so boss skins are visible on the player mesh.
+         c.color.set(coreColor);
+         // Some model surfaces also use emissive lighting. Tint and soften
+         // that channel as well; an untouched white emissive map can obscure
+         // the equipped skin even when the base material is recoloured.
+         c.emissive.set(glowColor);
+         c.emissiveIntensity = Math.min(c.emissiveIntensity, 0.45);
         return c as THREE.MeshStandardMaterial;
       });
       mesh.material = clonedMats.length === 1 ? clonedMats[0] : clonedMats;
@@ -79,7 +90,7 @@ export function PlayerModel({
       materialsRef.current.forEach((m) => m.dispose());
       materialsRef.current = [];
     };
-  }, [texScene, scale]);
+  }, [texScene, scale, coreColor, glowColor]);
 
   useFrame((state, delta) => {
     if (modelGroupRef.current) {

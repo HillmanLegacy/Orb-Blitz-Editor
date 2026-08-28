@@ -1131,7 +1131,7 @@ export function PlayerOrb() {
 
       {/* Point light for default luminous skin */}
       {isLuminous && (
-        <pointLight color={glowColor} intensity={4} distance={8} decay={2} />
+        <pointLight color={glowColor} intensity={1.2} distance={6} decay={2} />
       )}
 
       {/* Heal aura — expanding green rings + rising sparkles */}
