@@ -4,6 +4,7 @@ import { useAudio } from "@/lib/stores/useAudio";
 import { useShop } from "@/lib/stores/useShop";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useOrbTransition } from "@/lib/stores/useOrbTransition";
+import { useGraphicsPreset, setGraphicsPreset, type GraphicsPreset } from "@/game-runtime/PerformanceToggles";
 
 // ─── Custom SVG Icons ─────────────────────────────────────────────────────────
 const _svg = { viewBox: "0 0 24 24", fill: "none", width: "1em", height: "1em", style: { display: "block" } } as const;
@@ -120,6 +121,7 @@ export function StartupAnimation({
   const { playOrbWhoosh, playOrbConverge, playTitleReveal, playLevelSelect, playTapToStart, isMuted, toggleMute, volume, setVolume, brightness, setBrightness, startMenuBgm, stopMenuBgm } = useAudio();
   const { openShop, openInventory, activateDevMode, coins: shopStars, devMode } = useShop();
   const { setGameMode, startLoading } = useMagicOrb();
+  const graphicsPreset = useGraphicsPreset();
 
   // Reload progress when entering menu
   useEffect(() => {
@@ -447,6 +449,7 @@ export function StartupAnimation({
                   isMuted={isMuted} toggleMute={toggleMute}
                   volume={volume} setVolume={setVolume}
                   brightness={brightness} setBrightness={setBrightness}
+                  graphicsPreset={graphicsPreset} setGraphicsPreset={setGraphicsPreset}
                   onBack={() => setMenuState("root")} btn={btn}
                 />
               : <ButtonRow buttons={panelButtons} pressedBtn={pressedBtn} setPressedBtn={setPressedBtn} />
@@ -591,10 +594,11 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false }: Butt
 }
 
 // ─── Settings button row: sound toggle + brightness slider + back ─────────────
-function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness, setBrightness, onBack, btn }: {
+function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness, setBrightness, graphicsPreset, setGraphicsPreset, onBack, btn }: {
   isMuted: boolean; toggleMute: () => void;
   volume: number; setVolume: (v: number) => void;
   brightness: number; setBrightness: (v: number) => void;
+  graphicsPreset: GraphicsPreset; setGraphicsPreset: (preset: GraphicsPreset) => void;
   onBack: () => void; btn: (id: string) => void;
 }) {
   const btnH  = "clamp(68px,12vw,96px)";
@@ -633,19 +637,65 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
       borderRadius: "inherit",
     }} />
   );
+  const presetOptions: { id: GraphicsPreset; label: string; detail: string; color: string }[] = [
+    { id: "low", label: "LOW", detail: "Performance", color: "#66ddff" },
+    { id: "standard", label: "STANDARD", detail: "Balanced", color: "#aa88ff" },
+    { id: "high", label: "HIGH", detail: "Full detail", color: "#ff66cc" },
+  ];
 
   return (
     <>
       <style>{`.orb-bslider{-webkit-appearance:none;appearance:none;outline:none;cursor:pointer;border-radius:2px}.orb-bslider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#ffff00;box-shadow:0 0 6px rgba(255,255,0,0.85)}.orb-bslider::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:50%;background:#ffff00;box-shadow:0 0 6px rgba(255,255,0,0.85)}.orb-vslider{-webkit-appearance:none;appearance:none;outline:none;cursor:pointer;border-radius:2px}.orb-vslider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#00ffff;box-shadow:0 0 6px rgba(0,255,255,0.85)}.orb-vslider::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:50%;background:#00ffff;box-shadow:0 0 6px rgba(0,255,255,0.85)}`}</style>
-      <motion.div
-        className="flex flex-row items-stretch justify-center w-full"
-        style={{ gap: "clamp(6px,1.8vw,16px)" }}
-        initial="hidden" animate="visible"
-        variants={{
-          visible: { transition: { staggerChildren: 0.055, delayChildren: 0.04 } },
-          hidden:  { transition: { staggerChildren: 0.03,  staggerDirection: -1 } },
-        }}
-      >
+      <div className="flex flex-col w-full" style={{ gap: "clamp(8px,1.5vw,14px)" }}>
+        <motion.div
+          className="relative flex flex-col items-center justify-center overflow-hidden w-full"
+          style={{ ...btnStyle("#aa88ff", "rgba(170,136,255,0.38)"), height: "clamp(82px,14vw,108px)", cursor: "default", padding: "clamp(8px,1.5vw,14px)" }}
+          initial={{ opacity: 0, y: 16, scale: 0.86 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ type: "spring", stiffness: 360, damping: 26 }}
+        >
+          <TopLine color="#aa88ff" /><Scanlines />
+          <div className="flex items-center justify-between w-full" style={{ marginBottom: 7 }}>
+            <span style={{ fontSize: labelSz, fontWeight: 800, letterSpacing: "0.16em", opacity: 0.9 }}>GRAPHICS</span>
+            <span style={{ fontSize: "clamp(0.42rem,1vw,0.56rem)", color: "#cbbcff", letterSpacing: "0.1em", opacity: 0.65 }}>
+              {presetOptions.find(option => option.id === graphicsPreset)?.detail.toUpperCase()}
+            </span>
+          </div>
+          <div className="flex w-full" style={{ gap: "clamp(5px,1.2vw,10px)" }}>
+            {presetOptions.map(option => {
+              const selected = graphicsPreset === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => { btn(`graphics-${option.id}`); setGraphicsPreset(option.id); }}
+                  style={{
+                    flex: 1, height: "clamp(30px,5vw,42px)", borderRadius: 8,
+                    border: `1px solid ${selected ? option.color : option.color + "55"}`,
+                    background: selected ? `${option.color}30` : "rgba(0,0,0,0.22)",
+                    color: selected ? "#fff" : `${option.color}bb`,
+                    boxShadow: selected ? `0 0 10px ${option.color}55, inset 0 0 10px ${option.color}18` : "none",
+                    fontSize: "clamp(0.44rem,1.1vw,0.62rem)", fontWeight: 900, letterSpacing: "0.1em",
+                    cursor: "pointer", transition: "all 0.15s",
+                  }}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="flex flex-row items-stretch justify-center w-full"
+          style={{ gap: "clamp(6px,1.8vw,16px)" }}
+          initial="hidden" animate="visible"
+          variants={{
+            visible: { transition: { staggerChildren: 0.055, delayChildren: 0.04 } },
+            hidden:  { transition: { staggerChildren: 0.03,  staggerDirection: -1 } },
+          }}
+        >
         {/* BRIGHTNESS slider */}
         <motion.div
           className="relative flex flex-col items-center justify-center overflow-hidden flex-[2]"
@@ -737,7 +787,8 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
             BACK
           </span>
         </motion.button>
-      </motion.div>
+        </motion.div>
+      </div>
     </>
   );
 }

@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { IS_MOBILE } from "@/lib/isMobile";
 import { runtimeDiagnostics } from "@/game-runtime/RuntimeDiagnostics";
+import { useGraphicsPreset, type GraphicsPreset } from "@/game-runtime/PerformanceToggles";
 
 export type RenderQualityTier = "high" | "medium" | "low";
 
@@ -125,6 +126,7 @@ export class AdaptiveRenderQualityController {
   private cooldownRemainingMs = 0;
   private transitionCount = 0;
   private lastTransitionReason = "initial";
+  private manualPreset: GraphicsPreset | null = null;
 
   readonly subscribe = (listener: QualityListener): (() => void) => {
     this.listeners.add(listener);
@@ -156,6 +158,20 @@ export class AdaptiveRenderQualityController {
     this.reapply();
   }
 
+  setPreset(preset: GraphicsPreset): void {
+    this.manualPreset = preset;
+    const nextTier: RenderQualityTier = preset === "standard" ? "medium" : preset;
+    if (this.tier === nextTier) {
+      this.reapply();
+      return;
+    }
+    this.tier = nextTier;
+    this.resetSampling();
+    this.lastTransitionReason = `player preset: ${preset}`;
+    this.reapply();
+    for (const listener of this.listeners) listener();
+  }
+
   reapply(): void {
     this.pixelRatio = getTierPixelRatio(this.tier);
     this.applyPixelRatio();
@@ -163,7 +179,7 @@ export class AdaptiveRenderQualityController {
   }
 
   sample(deltaSeconds: number): void {
-    if (!this.renderer || !this.activeGameplay || !Number.isFinite(deltaSeconds)) return;
+    if (!this.renderer || !this.activeGameplay || this.manualPreset !== null || !Number.isFinite(deltaSeconds)) return;
 
     const frameMs = deltaSeconds * 1000;
     // Ignore background-tab/debugger gaps. A single delayed callback should
@@ -258,9 +274,11 @@ export function useRenderQuality(): RenderQualityTier {
 
 export function AdaptiveRenderQuality() {
   const { gl } = useThree();
+  const graphicsPreset = useGraphicsPreset();
 
   useEffect(() => {
     adaptiveRenderQuality.attach(gl);
+    adaptiveRenderQuality.setPreset(graphicsPreset);
 
     const reapply = () => adaptiveRenderQuality.reapply();
     window.addEventListener("resize", reapply);
@@ -280,7 +298,7 @@ export function AdaptiveRenderQuality() {
       window.visualViewport?.removeEventListener("resize", reapply);
       adaptiveRenderQuality.detach();
     };
-  }, [gl]);
+  }, [gl, graphicsPreset]);
 
   useFrame((_, delta) => {
     adaptiveRenderQuality.sample(delta);

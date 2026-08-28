@@ -28,6 +28,11 @@ import {
   releaseProjectileMotion,
 } from "../src/components/game/ProjectilePhysics";
 import { gameRuntime } from "../src/game-runtime/GameRuntime";
+import {
+  getGraphicsPreset,
+  isPerformanceFeatureEnabled,
+  setGraphicsPreset,
+} from "../src/game-runtime/PerformanceToggles";
 
 const makeProjectile = (id: string): Projectile => ({
   id,
@@ -168,6 +173,30 @@ describe("gameplay runtime invariants", () => {
     for (let frame = 0; frame < 20; frame++) controller.sample(0.03);
 
     expect(controller.getSnapshot()).toBe("medium");
+  });
+
+  it("applies player-selected graphics presets without disabling gameplay", () => {
+    const controller = new AdaptiveRenderQualityController();
+
+    setGraphicsPreset("low");
+    controller.setPreset("low");
+    expect(getGraphicsPreset()).toBe("low");
+    expect(controller.getSnapshot()).toBe("low");
+    expect(isPerformanceFeatureEnabled("postprocessing")).toBe(false);
+    expect(isPerformanceFeatureEnabled("vfx")).toBe(false);
+    expect(isPerformanceFeatureEnabled("enemyVisuals")).toBe(true);
+    expect(isPerformanceFeatureEnabled("collision")).toBe(true);
+
+    setGraphicsPreset("standard");
+    controller.setPreset("standard");
+    expect(controller.getSnapshot()).toBe("medium");
+    expect(isPerformanceFeatureEnabled("postprocessing")).toBe(true);
+
+    setGraphicsPreset("high");
+    controller.setPreset("high");
+    expect(controller.getSnapshot()).toBe("high");
+
+    setGraphicsPreset("standard");
   });
 
   it("keeps pickup transforms and countdowns in the runtime, not store snapshots", () => {

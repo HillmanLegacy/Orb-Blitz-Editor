@@ -14,3 +14,4 @@
 - [Orblitz projectile admission](orblitz-projectile-admission.md) — Pool limits must atomically admit weapon volleys and drive spawn VFX from successful events.
 - [Orblitz authoritative rewards](orblitz-authoritative-rewards.md) — Reward payout belongs to gameplay events; star flow is presentation only.
 - [Orblitz runtime collision transforms](orblitz-runtime-collision-transforms.md) — When transforms move out of Zustand, every collision path must resolve the runtime position, with store values only as spawn fallback.
+- [Orblitz graphics presets](orblitz-graphics-presets.md) — Player-selected Low/Standard/High presets are persisted and authoritative; quality changes remain presentation-only.
