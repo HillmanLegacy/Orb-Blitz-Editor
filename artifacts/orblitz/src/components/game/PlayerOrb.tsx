@@ -5,6 +5,7 @@ import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop, OrbSkin } from "@/lib/stores/useShop";
 import { ToonOrbLayer, CelOutline, RayTracedGlow, AmbientOcclusionLayer, GlobalIlluminationBounce, ScreenSpaceReflection, CausticPattern } from "./ToonShaders";
 import { PlayerModel } from "./PlayerModel";
+import { PlayerBossSkin } from "./PlayerBossSkin";
 import { PlayerParticles } from "./PlayerParticles";
 import { FlameAura } from "./FlameAura";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
@@ -1116,16 +1117,23 @@ export function PlayerOrb() {
   
   return (
     <group ref={groupRef} position={playerPosition}>
-      {/* 3D Player Character Model */}
+      {/* Default model or the exact animated enemy renderer for boss skins */}
       <Suspense fallback={null}>
-        <PlayerModel
-          scale={scale}
-          coreColor={coreColor}
-          glowColor={glowColor}
-          isRainbow={(skinColors as any).isRainbow === true}
-          rotationSpeedX={0.8}
-          rotationSpeedY={1.2}
-        />
+        {equippedSkin === "default" ? (
+          <PlayerModel
+            scale={scale}
+            coreColor={coreColor}
+            glowColor={glowColor}
+            rotationSpeedX={0.3}
+            rotationSpeedY={0.8}
+          />
+        ) : (
+          <PlayerBossSkin
+            skin={equippedSkin}
+            radius={scale}
+            healthPercent={healthRatio}
+          />
+        )}
       </Suspense>
 
 
