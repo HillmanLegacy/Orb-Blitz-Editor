@@ -13,7 +13,7 @@ import { ToxicBoss } from "./ToxicBoss";
 import { MechaBoss } from "./MechaBoss";
 import { MonsterBoss } from "./MonsterBoss";
 import { FireExplosionVFX } from "./FireExplosionVFX";
-import { BOSS_DEFEAT_DURATION } from "./BossDefeatPalette";
+import { BOSS_DEFEAT_DURATION, BOSS_DEFEAT_SIZE_SCALE } from "./BossDefeatPalette";
 import { StarBossTeleportVFX, StarTeleportVFXState } from "./StarBossTeleportVFX";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
 
@@ -1259,7 +1259,7 @@ export function Boss() {
         <FireExplosionVFX
           progress={progress}
           bossType={bossType}
-          scale={3.5}
+          scale={3.5 * BOSS_DEFEAT_SIZE_SCALE}
         />
       </group>
     );

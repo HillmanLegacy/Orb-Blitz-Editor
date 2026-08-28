@@ -24,6 +24,7 @@ export const MAIN_BOSS_TYPES: readonly MainBossType[] = [
 ];
 
 export const BOSS_DEFEAT_DURATION = 3.5;
+export const BOSS_DEFEAT_SIZE_SCALE = 1.7;
 
 /**
  * Canonical palettes for the nine authored main bosses. These colors mirror

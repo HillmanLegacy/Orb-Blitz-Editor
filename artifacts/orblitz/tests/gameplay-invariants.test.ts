@@ -45,6 +45,7 @@ import {
 } from "../src/components/game/PlayerProjectileVisualConfig";
 import {
   BOSS_DEFEAT_DURATION,
+  BOSS_DEFEAT_SIZE_SCALE,
   BOSS_DEFEAT_PALETTES,
   MAIN_BOSS_TYPES,
   getBossDefeatPalette,
@@ -117,6 +118,7 @@ describe("gameplay runtime invariants", () => {
 
   it("preserves the 1.9 defeat duration and authored particle budget", () => {
     expect(BOSS_DEFEAT_DURATION).toBe(3.5);
+    expect(BOSS_DEFEAT_SIZE_SCALE).toBe(1.7);
     expect(BOSS_DEFEAT_PARTICLE_COUNTS).toEqual({
       main: 600,
       embers: 120,
