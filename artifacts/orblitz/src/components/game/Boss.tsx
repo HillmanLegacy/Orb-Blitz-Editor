@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb, MovementPattern } from "@/lib/stores/useMagicOrb";
@@ -1637,7 +1637,9 @@ export function Boss() {
     const fireRadius = 1.44;
     return (
       <group ref={meshRef} position={boss.position}>
-        <FireBoss radius={fireRadius} healthPercent={healthPercent} />
+        <Suspense fallback={null}>
+          <FireBoss radius={fireRadius} healthPercent={healthPercent} />
+        </Suspense>
       </group>
     );
   }
@@ -1648,7 +1650,9 @@ export function Boss() {
         {/* Teleport VFX rendered at world positions — outside the mesh group */}
         <StarBossTeleportVFX vfxRef={starTeleportVFXRef} scale={1.8} />
         <group ref={meshRef} position={boss.position}>
-          <StarBoss radius={1.44} healthPercent={healthPercent} />
+          <Suspense fallback={null}>
+            <StarBoss radius={1.44} healthPercent={healthPercent} />
+          </Suspense>
         </group>
       </>
     );
@@ -1657,7 +1661,9 @@ export function Boss() {
   if (bossType === "arrow") {
     return (
       <group ref={meshRef} position={boss.position}>
-        <RainbowBoss radius={1.44} healthPercent={healthPercent} />
+        <Suspense fallback={null}>
+          <RainbowBoss radius={1.44} healthPercent={healthPercent} />
+        </Suspense>
       </group>
     );
   }
@@ -1665,8 +1671,9 @@ export function Boss() {
   if (bossType === "triangle") {
     return (
       <group ref={meshRef} position={boss.position}>
-
-        <CrystalBoss radius={1.44} healthPercent={healthPercent} />
+        <Suspense fallback={null}>
+          <CrystalBoss radius={1.44} healthPercent={healthPercent} />
+        </Suspense>
       </group>
     );
   }
@@ -1674,8 +1681,9 @@ export function Boss() {
   if (bossType === "trapezoid") {
     return (
       <group ref={meshRef} position={boss.position}>
-
-        <ToxicBoss radius={1.44} healthPercent={healthPercent} />
+        <Suspense fallback={null}>
+          <ToxicBoss radius={1.44} healthPercent={healthPercent} />
+        </Suspense>
       </group>
     );
   }
@@ -1683,7 +1691,9 @@ export function Boss() {
   if (bossType === "cube") {
     return (
       <group ref={meshRef} position={boss.position}>
-        <PlasmaBoss radius={1.44} healthPercent={healthPercent} />
+        <Suspense fallback={null}>
+          <PlasmaBoss radius={1.44} healthPercent={healthPercent} />
+        </Suspense>
       </group>
     );
   }
@@ -1691,7 +1701,9 @@ export function Boss() {
   if (bossType === "cloud") {
     return (
       <group ref={meshRef} position={boss.position}>
-        <DiamondBoss radius={1.44} healthPercent={healthPercent} />
+        <Suspense fallback={null}>
+          <DiamondBoss radius={1.44} healthPercent={healthPercent} />
+        </Suspense>
       </group>
     );
   }
@@ -1699,7 +1711,9 @@ export function Boss() {
   if (bossType === "tentacle") {
     return (
       <group ref={meshRef} position={boss.position}>
-        <MechaBoss radius={1.44} healthPercent={healthPercent} />
+        <Suspense fallback={null}>
+          <MechaBoss radius={1.44} healthPercent={healthPercent} />
+        </Suspense>
       </group>
     );
   }
@@ -1707,7 +1721,9 @@ export function Boss() {
   if (bossType === "monster") {
     return (
       <group ref={meshRef} position={boss.position}>
-        <MonsterBoss radius={1.44} healthPercent={healthPercent} />
+        <Suspense fallback={null}>
+          <MonsterBoss radius={1.44} healthPercent={healthPercent} />
+        </Suspense>
       </group>
     );
   }

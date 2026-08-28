@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { PlayerOrb } from "./PlayerOrb";
@@ -95,7 +95,9 @@ export default function GameplayScene() {
       <DefenseOrbs />
       {/* Magi-Orb VFX are a core ability readout, not optional decoration. */}
       <MagiOrbEffects />
-      <StarFlowVFX visualEnabled={vfxEnabled} />
+      <Suspense fallback={null}>
+        <StarFlowVFX visualEnabled={vfxEnabled} />
+      </Suspense>
       <SimulationPresentationMarker />
       {visualSystemsReady && vfxEnabled && (
         <>

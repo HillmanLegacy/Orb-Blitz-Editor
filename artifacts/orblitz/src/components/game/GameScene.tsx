@@ -1,4 +1,4 @@
-import { Component, lazy, Suspense, type ReactNode, useEffect, useRef, useState } from "react";
+import { Component, Suspense, type ComponentType, type ReactNode, useEffect, useRef, useState } from "react";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { EffectComposer, Bloom, SMAA, ChromaticAberration, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
@@ -6,6 +6,7 @@ import { Background } from "./Background";
 import { AdaptiveRenderQuality, useRenderQuality } from "./AdaptiveRenderQuality";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
+import { getGameplayGateMode } from "@/game-runtime/GameplayGateState";
 import {
   performanceFeatureSnapshot,
   setPerformanceFeatureEnabled,
@@ -15,7 +16,7 @@ import {
 } from "@/game-runtime/PerformanceToggles";
 
 const loadGameplayScene = () => import("./GameplayScene");
-const GameplayScene = lazy(loadGameplayScene);
+let loadedGameplayScene: ComponentType | null = null;
 
 /** Start downloading the heavy gameplay chunk before the gameplay gate mounts. */
 export function preloadGameplayScene(): void {
@@ -271,18 +272,34 @@ function PostProcessing({
 // They mount during the gameplay loading phase, then stay mounted through play.
 function GameplayGate() {
   const phase = useMagicOrb(s => s.phase);
+  const [GameplayScene, setGameplayScene] = useState<ComponentType | null>(
+    () => loadedGameplayScene,
+  );
+  const gameplayActive = phase === "loading" || phase === "playing";
+  const gateMode = getGameplayGateMode(gameplayActive, GameplayScene !== null);
+
+  useEffect(() => {
+    if (!gameplayActive || GameplayScene) return;
+    let cancelled = false;
+    void loadGameplayScene().then((module) => {
+      loadedGameplayScene = module.default;
+      if (!cancelled) setGameplayScene(() => module.default);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [gameplayActive, GameplayScene]);
+
   // Allocate the scene while the transition is opaque so the first playable
   // frame does not compete with the gameplay chunk, instanced buffers, and
   // player model. GameLogic still refuses to simulate until `playing`.
-  if (phase !== "loading" && phase !== "playing") return null;
-  return (
-    <Suspense fallback={<GameplayLoadingPlayer />}>
-      <GameplayScene />
-    </Suspense>
-  );
+  if (gateMode === "hidden") return null;
+  if (gateMode === "chunk-loading" || !GameplayScene) return <GameplayLoadingPlayer />;
+  const ResolvedGameplayScene = GameplayScene;
+  return <ResolvedGameplayScene />;
 }
 
-/** Visible immediately while the gameplay chunk and textured player model stream. */
+/** Visible only while the gameplay JavaScript chunk is loading. */
 function GameplayLoadingPlayer() {
   const playerPosition = useMagicOrb(s => s.playerPosition);
 

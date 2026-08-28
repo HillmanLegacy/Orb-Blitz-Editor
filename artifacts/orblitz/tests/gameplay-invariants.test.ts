@@ -33,6 +33,7 @@ import {
   isPerformanceFeatureEnabled,
   setGraphicsPreset,
 } from "../src/game-runtime/PerformanceToggles";
+import { getGameplayGateMode } from "../src/game-runtime/GameplayGateState";
 
 const makeProjectile = (id: string): Projectile => ({
   id,
@@ -149,6 +150,12 @@ describe("gameplay runtime invariants", () => {
     expect(clock.tick(0.25)).toBe(0);
     expect(clock.elapsed).toBe(0.25);
     expect(clock.frame).toBe(2);
+  });
+
+  it("shows the blue gameplay placeholder only while the gameplay chunk loads", () => {
+    expect(getGameplayGateMode(false, false)).toBe("hidden");
+    expect(getGameplayGateMode(true, false)).toBe("chunk-loading");
+    expect(getGameplayGateMode(true, true)).toBe("ready");
   });
 
   it("reduces only visual budgets as render quality falls", () => {

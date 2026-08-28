@@ -675,11 +675,13 @@ function OrbRouter({ orb, arcadeLevel, gameMode }: { orb: DarkOrb; arcadeLevel: 
     mesh = <UnifiedDarkOrbMesh orb={orb} />;
   }
 
-  if (!orb.frozen) return <>{mesh}</>;
+  if (!orb.frozen) {
+    return <Suspense fallback={null}>{mesh}</Suspense>;
+  }
 
   return (
     <>
-      {mesh}
+      <Suspense fallback={null}>{mesh}</Suspense>
       {/* Frozen overlay — initial position from last structural-update snapshot,
           then driven imperatively by overlayRef useFrame above */}
       <mesh ref={overlayRef} position={orb.position} scale={orb.size * 1.08} renderOrder={1}>
