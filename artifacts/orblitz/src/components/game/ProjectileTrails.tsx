@@ -8,6 +8,10 @@ import { COSMETIC_TRAIL_CONFIGS } from "./ProjectileTrailConfig";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
 import { MAX_RUNTIME_TRAILS, MAX_TRAIL_HISTORY_POINTS } from "@/game-runtime/TrailRuntime";
 import { runtimeDiagnostics } from "@/game-runtime/RuntimeDiagnostics";
+import {
+  getPlayerProjectileVisualScale,
+  isPlayerProjectile,
+} from "./PlayerProjectileVisualConfig";
 
 const MAX_COSMETIC_TRAIL_PARTICLES = 2048;
 const TRAIL_BASE_SCALE = 0.144;
@@ -22,8 +26,8 @@ function seedFromId(id: string, index: number): number {
 }
 
 /**
- * One instanced mesh renders all standard cosmetic trails. This replaces the
- * former 8–16 React meshes and frame callbacks per normal projectile while
+ * One instanced mesh renders all player-projectile cosmetic trails. This replaces the
+ * former 8–16 React meshes and frame callbacks per projectile while
  * retaining each equipped trail's palette, taper, wobble, and live direction.
  */
 export function ProjectileTrails() {
@@ -78,7 +82,7 @@ export function ProjectileTrails() {
     const slotsByProjectile = gameRuntime.trails;
 
     for (const projectile of projectiles) {
-      if (projectile.type !== "normal" && projectile.type) continue;
+      if (!isPlayerProjectile(projectile)) continue;
       // Simulation creates these transforms before this visual pass. Never
       // recreate a released runtime from a stale store record, which was a
       // source of one-frame trail snap-backs.
@@ -121,7 +125,10 @@ export function ProjectileTrails() {
       }
 
       const [dx, dy] = motion.direction;
-      const baseScale = projectile.isCharged ? 0.216 : TRAIL_BASE_SCALE;
+      const baseScale = getPlayerProjectileVisualScale(
+        projectile,
+        motion.spawnScale ?? projectile.spawnScale ?? 1,
+      ) || TRAIL_BASE_SCALE;
       const instanceStart = slot.slot * config.particleCount;
       highestSlot = Math.max(highestSlot, slot.slot);
 

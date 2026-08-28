@@ -7,7 +7,6 @@ import { StarBossTeleportVFX, StarTeleportVFXState } from "./StarBossTeleportVFX
 import { useAudio } from "@/lib/stores/useAudio";
 import { useShop, TrailEffect } from "@/lib/stores/useShop";
 import { getSkinColors, PlayerGlow } from "./PlayerOrb";
-import { PlayerModel } from "./PlayerModel";
 import { PlayerParticles } from "./PlayerParticles";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 import {
@@ -22,6 +21,13 @@ import { gameRuntime } from "@/game-runtime/GameRuntime";
 import { MAX_RUNTIME_PROJECTILES } from "@/game-runtime/ProjectileRuntime";
 import { usePerformanceFeature } from "@/game-runtime/PerformanceToggles";
 import { sweptSphereHit } from "./ProjectileCollision";
+import {
+  getPlayerProjectileVisualScale,
+  isPlayerProjectile,
+  MAX_PLAYER_PROJECTILE_AURA_INSTANCES,
+  shouldRenderChargedProjectileAura,
+  shouldRenderParticleSwarmOverlay,
+} from "./PlayerProjectileVisualConfig";
 
 /** Projectile collision always reads live enemy transforms, never store snapshots. */
 function liveOrbPosition(orb: DarkOrb): [number, number, number] {
@@ -309,6 +315,7 @@ function ProjectileChargeAura({ projScale }: { projScale: number }) {
 const MAX_BATCHED_PROJECTILES = MAX_RUNTIME_PROJECTILES;
 const _batchedProjectileCoreGeometry = new THREE.SphereGeometry(1, 10, 7);
 const _batchedProjectileGlowGeometry = new THREE.SphereGeometry(1, 8, 6);
+const _batchedChargedAuraGeometry = new THREE.TorusGeometry(1, 0.12, 5, 16);
 const _batchedRapidTrailGeometry = new THREE.CylinderGeometry(1, 1, 1, 5, 1, true);
 const _batchedProjectileDummy = new THREE.Object3D();
 const _batchedProjectileAxis = new THREE.Vector3(0, 1, 0);
@@ -331,11 +338,14 @@ type BatchedModelPart = {
  * mesh part into one instanced draw instead of cloning a whole GLTF scene and
  * its materials for every active projectile.
  */
-function BatchedNormalProjectileModels({ projectiles }: { projectiles: readonly Projectile[] }) {
+function BatchedPlayerProjectileModels({ projectiles }: { projectiles: readonly Projectile[] }) {
   const { scene } = useGLTF("/models/player_orb_texture.glb");
   const meshRefs = useRef<Array<THREE.InstancedMesh | null>>([]);
+  const spiralMeshRefs = useRef<Array<THREE.InstancedMesh | null>>([]);
   const activeSlotsRef = useRef<Set<number>>(new Set());
+  const activeSpiralSlotsRef = useRef<Set<number>>(new Set());
   const seenSlotsRef = useRef<Set<number>>(new Set());
+  const seenSpiralSlotsRef = useRef<Set<number>>(new Set());
   const modelParts = useMemo<BatchedModelPart[]>(() => {
     scene.updateMatrixWorld(true);
     const bounds = new THREE.Box3().setFromObject(scene);
@@ -344,7 +354,7 @@ function BatchedNormalProjectileModels({ projectiles }: { projectiles: readonly 
     bounds.getSize(size);
     bounds.getCenter(center);
     const normalization = Math.max(size.x, size.y, size.z) > 0
-      ? 0.288 / Math.max(size.x, size.y, size.z)
+      ? 2 / Math.max(size.x, size.y, size.z)
       : 1;
     const normalizationMatrix = new THREE.Matrix4()
       .makeTranslation(-center.x * normalization, -center.y * normalization, -center.z * normalization)
@@ -364,8 +374,11 @@ function BatchedNormalProjectileModels({ projectiles }: { projectiles: readonly 
 
   useFrame(({ clock }) => {
     const seenSlots = seenSlotsRef.current;
+    const seenSpiralSlots = seenSpiralSlotsRef.current;
     seenSlots.clear();
+    seenSpiralSlots.clear();
     let highestSlot = -1;
+    let highestSpiralSlot = -1;
     _batchedModelRotation.setFromEuler(_batchedModelEuler.set(
       clock.getElapsedTime() * 1.6,
       clock.getElapsedTime() * 2.4,
@@ -373,14 +386,51 @@ function BatchedNormalProjectileModels({ projectiles }: { projectiles: readonly 
     ));
 
     for (const projectile of projectiles) {
-      if (projectile.type !== "normal" && projectile.type) continue;
+      if (!isPlayerProjectile(projectile)) continue;
       const motion = projectilePhysicsMap.get(projectile.id);
       if (!motion || motion.slot >= MAX_BATCHED_PROJECTILES) continue;
+      if (projectile.type === "spiral") {
+        const alive = motion.subSphereAlive ?? projectile.subSphereAlive ?? [true, true, true];
+        const phase = motion.spiralAngle ?? projectile.spiralAngle ?? 0;
+        for (let subIndex = 0; subIndex < 3; subIndex++) {
+          const spiralSlot = motion.slot * 3 + subIndex;
+          seenSpiralSlots.add(spiralSlot);
+          highestSpiralSlot = Math.max(highestSpiralSlot, spiralSlot);
+          const [x, y, z] = _getSpiralSubPos(
+            motion.position[0],
+            motion.position[1],
+            motion.position[2],
+            motion.direction[0],
+            motion.direction[1],
+            phase,
+            subIndex,
+          );
+          _batchedModelPosition.set(x, y, z);
+          _batchedModelScale.setScalar(alive[subIndex] ? SPIRAL_SUB_SCALE : 0);
+          _batchedModelTransform.compose(
+            _batchedModelPosition,
+            _batchedModelRotation,
+            _batchedModelScale,
+          );
+          for (let partIndex = 0; partIndex < modelParts.length; partIndex++) {
+            const mesh = spiralMeshRefs.current[partIndex];
+            if (!mesh) continue;
+            _batchedModelInstanceMatrix.multiplyMatrices(
+              _batchedModelTransform,
+              modelParts[partIndex].localMatrix,
+            );
+            mesh.setMatrixAt(spiralSlot, _batchedModelInstanceMatrix);
+          }
+        }
+        continue;
+      }
       const slot = motion.slot;
       seenSlots.add(slot);
       highestSlot = Math.max(highestSlot, slot);
       _batchedModelPosition.set(motion.position[0], motion.position[1], motion.position[2]);
-      _batchedModelScale.setScalar(projectile.isCharged ? 1.5 : 1);
+      _batchedModelScale.setScalar(
+        getPlayerProjectileVisualScale(projectile, motion.spawnScale ?? projectile.spawnScale ?? 1),
+      );
       _batchedModelTransform.compose(
         _batchedModelPosition,
         _batchedModelRotation,
@@ -405,10 +455,22 @@ function BatchedNormalProjectileModels({ projectiles }: { projectiles: readonly 
       activeSlots.delete(slot);
     }
     for (const slot of seenSlots) activeSlots.add(slot);
+    const activeSpiralSlots = activeSpiralSlotsRef.current;
+    for (const slot of activeSpiralSlots) {
+      if (seenSpiralSlots.has(slot)) continue;
+      for (const mesh of spiralMeshRefs.current) mesh?.setMatrixAt(slot, _batchedProjectileDummy.matrix);
+      activeSpiralSlots.delete(slot);
+    }
+    for (const slot of seenSpiralSlots) activeSpiralSlots.add(slot);
 
     for (const mesh of meshRefs.current) {
       if (!mesh) continue;
       mesh.count = highestSlot + 1;
+      mesh.instanceMatrix.needsUpdate = true;
+    }
+    for (const mesh of spiralMeshRefs.current) {
+      if (!mesh) continue;
+      mesh.count = highestSpiralSlot + 1;
       mesh.instanceMatrix.needsUpdate = true;
     }
   });
@@ -423,12 +485,20 @@ function BatchedNormalProjectileModels({ projectiles }: { projectiles: readonly 
           frustumCulled={false}
         />
       ))}
+      {modelParts.map((part, index) => (
+        <instancedMesh
+          key={`spiral-${index}`}
+          ref={(mesh) => { spiralMeshRefs.current[index] = mesh; }}
+          args={[part.geometry, part.material, MAX_BATCHED_PROJECTILES * 3]}
+          frustumCulled={false}
+        />
+      ))}
     </>
   );
 }
 
 /**
- * Shared rendering path for normal and rapid-blaster shots. Their transforms
+ * Shared rendering path for every player-owned discrete shot. Their transforms
  * already live in gameRuntime, so keeping every active shot in a single
  * instanced layer avoids cloning a textured player model, material set, and
  * frame callback for each trigger pull.
@@ -442,6 +512,7 @@ function ProjectileVisualBatch({
 }) {
   const coreRef = useRef<THREE.InstancedMesh>(null);
   const glowRef = useRef<THREE.InstancedMesh>(null);
+  const chargedAuraRef = useRef<THREE.InstancedMesh>(null);
   const rapidTrailRef = useRef<THREE.InstancedMesh>(null);
   const activeSlotsRef = useRef<Set<number>>(new Set());
   const seenSlotsRef = useRef<Set<number>>(new Set());
@@ -472,6 +543,15 @@ function ProjectileVisualBatch({
     toneMapped: false,
     blending: THREE.AdditiveBlending,
   }));
+  const [chargedAuraMaterial] = useState(() => new THREE.MeshBasicMaterial({
+    color: "#ffdd33",
+    transparent: true,
+    opacity: 0.82,
+    depthWrite: false,
+    depthTest: false,
+    toneMapped: false,
+    blending: THREE.AdditiveBlending,
+  }));
 
   useEffect(() => {
     glowMaterial.color.set(skinColors.glow);
@@ -482,13 +562,15 @@ function ProjectileVisualBatch({
     coreMaterial.dispose();
     glowMaterial.dispose();
     rapidTrailMaterial.dispose();
-  }, [coreMaterial, glowMaterial, rapidTrailMaterial]);
+    chargedAuraMaterial.dispose();
+  }, [chargedAuraMaterial, coreMaterial, glowMaterial, rapidTrailMaterial]);
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
     const coreMesh = coreRef.current;
     const glowMesh = glowRef.current;
+    const chargedAuraMesh = chargedAuraRef.current;
     const rapidTrailMesh = rapidTrailRef.current;
-    if (!coreMesh || !glowMesh || !rapidTrailMesh) return;
+    if (!coreMesh || !glowMesh || !chargedAuraMesh || !rapidTrailMesh) return;
 
     runtimeDiagnostics.beginProjectileVisuals();
     const seenSlots = seenSlotsRef.current;
@@ -497,6 +579,9 @@ function ProjectileVisualBatch({
     let instances = 0;
 
     for (const projectile of projectiles) {
+      // Spiral owns three independently positioned pooled model instances in
+      // BatchedPlayerProjectileModels; never add a fourth center core here.
+      if (projectile.type === "spiral") continue;
       const motion = projectilePhysicsMap.get(projectile.id);
       if (!motion || motion.slot >= MAX_BATCHED_PROJECTILES) continue;
 
@@ -506,9 +591,10 @@ function ProjectileVisualBatch({
       instances++;
 
       const isRapid = projectile.type === "rapidblaster";
-      const scale = isRapid
-        ? (projectile.isCharged ? 0.165 : 0.11)
-        : (projectile.isCharged ? 0.216 : 0.144);
+      const scale = getPlayerProjectileVisualScale(
+        projectile,
+        motion.spawnScale ?? projectile.spawnScale ?? 1,
+      );
 
       _batchedProjectileDummy.position.set(...motion.position);
       _batchedProjectileDummy.quaternion.identity();
@@ -522,6 +608,20 @@ function ProjectileVisualBatch({
       _batchedProjectileDummy.scale.setScalar(scale * (isRapid ? 2.0 : 1.85));
       _batchedProjectileDummy.updateMatrix();
       glowMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
+
+      if (shouldRenderChargedProjectileAura(projectile)) {
+        _batchedProjectileDummy.rotation.set(
+          clock.getElapsedTime() * 2.4,
+          clock.getElapsedTime() * 3.1,
+          clock.getElapsedTime() * 1.7,
+        );
+        _batchedProjectileDummy.scale.setScalar(scale * 2.45);
+      } else {
+        _batchedProjectileDummy.rotation.set(0, 0, 0);
+        _batchedProjectileDummy.scale.setScalar(0);
+      }
+      _batchedProjectileDummy.updateMatrix();
+      chargedAuraMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
 
       if (isRapid) {
         const [dx, dy, dz] = motion.direction;
@@ -551,6 +651,7 @@ function ProjectileVisualBatch({
       _batchedProjectileDummy.updateMatrix();
       coreMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
       glowMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
+      chargedAuraMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
       rapidTrailMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
       activeSlots.delete(slot);
     }
@@ -559,9 +660,11 @@ function ProjectileVisualBatch({
     const meshCount = highestSlot + 1;
     coreMesh.count = meshCount;
     glowMesh.count = meshCount;
+    chargedAuraMesh.count = meshCount;
     rapidTrailMesh.count = meshCount;
     coreMesh.instanceMatrix.needsUpdate = true;
     glowMesh.instanceMatrix.needsUpdate = true;
+    chargedAuraMesh.instanceMatrix.needsUpdate = true;
     rapidTrailMesh.instanceMatrix.needsUpdate = true;
     runtimeDiagnostics.endProjectileVisuals(instances);
   });
@@ -581,6 +684,16 @@ function ProjectileVisualBatch({
         renderOrder={19}
       />
       <instancedMesh
+        ref={chargedAuraRef}
+        args={[
+          _batchedChargedAuraGeometry,
+          chargedAuraMaterial,
+          MAX_PLAYER_PROJECTILE_AURA_INSTANCES,
+        ]}
+        frustumCulled={false}
+        renderOrder={21}
+      />
+      <instancedMesh
         ref={rapidTrailRef}
         args={[_batchedRapidTrailGeometry, rapidTrailMaterial, MAX_BATCHED_PROJECTILES]}
         frustumCulled={false}
@@ -590,12 +703,9 @@ function ProjectileVisualBatch({
   );
 }
 
-function ProjectileMesh({ projectile, trailType, skinColor, skinColors }: {
+function ParticleSwarmProjectileOverlay({ projectile, skinColors }: {
   projectile: Projectile;
-  trailType: TrailEffect;
-  skinColor: string;
   skinColors: { core: string; glow: string; emissive: string; accent: string; particles: string[] };
-  equippedSkin: string;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const isCharged     = projectile.isCharged;
@@ -616,40 +726,14 @@ function ProjectileMesh({ projectile, trailType, skinColor, skinColors }: {
      // Do not also bind the stale structural position prop here: rapid-fire
      // store updates can otherwise snap the trail back to the muzzle origin.
      <group ref={groupRef}>
-      {/* Charged shots retain their stronger light; standard-shot lighting is
-          provided by their emissive model and batched cosmetic trail. */}
-      {isCharged && (
-        <pointLight color={skinColors.glow} intensity={12} distance={6} decay={2} />
-      )}
-
-      {/* Charge beam aura — mini orbiting swarm + lightning, outside the scale group
-          so it stays at full size regardless of spawn-in progress */}
-      {isCharged && <ProjectileChargeAura projScale={projScale * groupScale} />}
-
-      {/* Mini player orb at 1/5th scale — FBX model + glow + particles, all skin-matched */}
+      {/* The pooled batch exclusively owns the model, glow, and charged aura.
+          This legacy cosmetic path contributes only its orbiting swarm. */}
       <group scale={groupScale}>
-        <Suspense fallback={null}>
-          <PlayerModel
-            scale={projScale}
-            rotationSpeedX={1.6}
-            rotationSpeedY={2.4}
-          />
-        </Suspense>
-        <PlayerGlow
+        <PlayerParticles
           scale={projScale}
-          coreColor={skinColors.core}
-          glowColor={skinColors.glow}
+          particleColors={[skinColors.core]}
           isRainbow={isRainbow}
         />
-        {/* Particle Swarm — unlockable trail cosmetic: orbiting 3D particles */}
-        {trailType === "particle_swarm" && (
-          <PlayerParticles
-            scale={projScale}
-            particleColors={[skinColors.core]}
-            isRainbow={isRainbow}
-          />
-        )}
-
       </group>
     </group>
   );
@@ -1226,7 +1310,6 @@ function RapidBlasterProjectileMesh({
           blending={THREE.AdditiveBlending}
         />
       </mesh>
-      {isCharged && <ProjectileChargeAura projScale={projScale} />}
     </group>
   );
 }
@@ -1412,7 +1495,6 @@ function HomingProjectileMesh({ projectile }: { projectile: Projectile }) {
         <meshBasicMaterial color="#00ccff" transparent opacity={0.20}
           depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
-      {isCharged && <ProjectileChargeAura projScale={projScale} />}
     </group>
   );
 }
@@ -1598,7 +1680,6 @@ function ScattershotProjectileMesh({ projectile }: { projectile: Projectile }) {
         <meshBasicMaterial color="#ff8800" transparent opacity={0.22}
           depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
-      {isCharged && <ProjectileChargeAura projScale={projScale} />}
     </group>
   );
 }
@@ -1897,21 +1978,15 @@ function SpiralBundleMesh({
         </mesh>
       ))}
 
-      {/* 3 orbiting sub-sphere orbs — player model scaled to 75% */}
+      {/* Weapon-specific orbiting glow remains an overlay; the shared instanced
+          player mesh owns the projectile's textured player-orb core. */}
       {[0, 1, 2].map(si => (
         <group key={`sub-${si}`} ref={subGrpRefs[si]}>
           <pointLight color={SPIRAL_COLORS_HEX[si]} intensity={8} distance={4} decay={2} />
-          <Suspense fallback={null}>
-            <PlayerModel
-              scale={SPIRAL_SUB_SCALE}
-              rotationSpeedX={1.2 + si * 0.4}
-              rotationSpeedY={2.0 + si * 0.35}
-            />
-          </Suspense>
           <PlayerGlow
             scale={SPIRAL_SUB_SCALE}
-            coreColor={SPIRAL_COLORS_HEX[si]}
-            glowColor={SPIRAL_GLOW_HEX[si]}
+            coreColor={skinColors.core}
+            glowColor={skinColors.glow}
           />
         </group>
       ))}
@@ -2081,11 +2156,8 @@ export function Projectiles() {
   const skinColors = useMemo(() => getSkinColors(equippedSkin, 3), [equippedSkin]);
   const projectileColor = skinColors.projectile;
    const batchedProjectiles = useMemo(
-     () => projectiles.filter((projectile) =>
-        projectile.type === "rapidblaster" ||
-        ((projectile.type === "normal" || !projectile.type) && equippedTrail !== "particle_swarm"),
-     ),
-     [equippedTrail, projectiles],
+     () => projectiles.filter(isPlayerProjectile),
+     [projectiles],
    );
 
   // Spawn effects consume successful admission events. This avoids an active
@@ -2789,7 +2861,7 @@ export function Projectiles() {
     <>
        <ProjectileVisualBatch projectiles={batchedProjectiles} skinColors={skinColors} />
        <Suspense fallback={null}>
-         <BatchedNormalProjectileModels projectiles={batchedProjectiles} />
+         <BatchedPlayerProjectileModels projectiles={batchedProjectiles} />
        </Suspense>
       {projectiles.map((proj) =>
         proj.type === "overcharged" ? (
@@ -2820,17 +2892,13 @@ export function Projectiles() {
             projectile={proj}
           />
          ) : proj.type === "rapidblaster" ? null
-         : (proj.type === "normal" || !proj.type) && equippedTrail !== "particle_swarm" ? null
-         : (
-           <ProjectileMesh
+         : shouldRenderParticleSwarmOverlay(proj, equippedTrail) ? (
+           <ParticleSwarmProjectileOverlay
              key={proj.id}
              projectile={proj}
-             trailType={equippedTrail}
-             skinColor={projectileColor}
              skinColors={skinColors}
-             equippedSkin={equippedSkin}
            />
-         )
+         ) : null
       )}
       {shockwaves.map(sw => (
         <OcShockwaveRing key={sw.id} position={sw.pos} />

@@ -35,6 +35,14 @@ import {
   setGraphicsPreset,
 } from "../src/game-runtime/PerformanceToggles";
 import { getGameplayGateMode } from "../src/game-runtime/GameplayGateState";
+import {
+  getPlayerProjectileVisualScale,
+  isPlayerProjectile,
+  MAX_PLAYER_PROJECTILE_AURA_INSTANCES,
+  PLAYER_PROJECTILE_TYPES,
+  shouldRenderChargedProjectileAura,
+  shouldRenderParticleSwarmOverlay,
+} from "../src/components/game/PlayerProjectileVisualConfig";
 
 const makeProjectile = (id: string): Projectile => ({
   id,
@@ -192,6 +200,35 @@ describe("gameplay runtime invariants", () => {
     expect(pool.active).toBe(2);
     expect(reused.slot).toBe(first.slot);
     expect(second.slot).not.toBe(reused.slot);
+  });
+
+  it("classifies every store-backed projectile type as player-owned", () => {
+    for (const type of PLAYER_PROJECTILE_TYPES) {
+      expect(isPlayerProjectile({ type })).toBe(true);
+    }
+    expect(isPlayerProjectile({ type: undefined })).toBe(true);
+  });
+
+  it("preserves authored player-projectile visual sizes", () => {
+    expect(getPlayerProjectileVisualScale({ type: "normal", isCharged: false })).toBe(0.144);
+    expect(getPlayerProjectileVisualScale({ type: "normal", isCharged: true })).toBeCloseTo(0.216);
+    expect(getPlayerProjectileVisualScale({ type: "rapidblaster", isCharged: false })).toBe(0.11);
+    expect(getPlayerProjectileVisualScale({ type: "scattershot", isCharged: true })).toBeCloseTo(0.195);
+    expect(getPlayerProjectileVisualScale({ type: "spiral", isCharged: false })).toBe(0.324);
+    expect(getPlayerProjectileVisualScale({ type: "subblaster", isCharged: false })).toBe(0.075);
+    expect(getPlayerProjectileVisualScale({ type: "overcharged", isCharged: true }, 0.5)).toBeCloseTo(0.6235);
+  });
+
+  it("keeps the shared player-projectile aura within the runtime pool", () => {
+    expect(MAX_PLAYER_PROJECTILE_AURA_INSTANCES).toBe(MAX_RUNTIME_PROJECTILES);
+  });
+
+  it("keeps particle swarm as an overlay on the single shared projectile core", () => {
+    const normalProjectile = { type: "normal" as const, isCharged: true };
+    expect(isPlayerProjectile(normalProjectile)).toBe(true);
+    expect(shouldRenderParticleSwarmOverlay(normalProjectile, "particle_swarm")).toBe(true);
+    expect(shouldRenderChargedProjectileAura(normalProjectile)).toBe(true);
+    expect(shouldRenderParticleSwarmOverlay(normalProjectile, "fire")).toBe(false);
   });
 
   it("drops only presentation spawn events when their bounded queue is full", () => {
