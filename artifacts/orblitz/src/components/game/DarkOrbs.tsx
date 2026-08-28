@@ -754,6 +754,7 @@ export function DarkOrbs() {
       return;
     }
     if (currentOrbs.length === 0) return;
+    runtimeDiagnostics.beginEnemySimulation();
 
     const playerX = playerPosition[0];
     const playerY = playerPosition[1];
@@ -931,6 +932,7 @@ export function DarkOrbs() {
       updateDarkOrbs(newOrbs);
       runtimeDiagnostics.noteStoreWrite();
     }
+    runtimeDiagnostics.endEnemySimulation();
   });
 
   runtimeDiagnostics.noteEnemyRender();

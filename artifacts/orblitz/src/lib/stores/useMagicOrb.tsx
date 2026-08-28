@@ -288,6 +288,7 @@ export interface MagicOrbState {
   activateDistortField: () => void;
   
   addDarkOrb: (orb: DarkOrb) => void;
+  addDarkOrbs: (orbs: DarkOrb[]) => number;
   removeDarkOrb: (id: string) => void;
   updateDarkOrbs: (orbs: DarkOrb[]) => void;
   markOrbDestroying: (id: string, position?: [number, number, number]) => void;
@@ -1576,11 +1577,13 @@ export const useMagicOrb = create<MagicOrbState>()(
         toPosition: [...bestPos] as [number, number, number],
       };
       
+      runtimeDiagnostics.noteImpactEffect();
       set({ 
         playerPosition: bestPos,
         spatialRelocationCooldown: get().spatialRelocationMaxCooldown,
         impactEffects: [...impactEffects, relocationEffect],
       });
+      runtimeDiagnostics.noteStoreWrite();
     },
     
     spawnDefenseOrbs: () => {
@@ -1671,13 +1674,33 @@ export const useMagicOrb = create<MagicOrbState>()(
       darkOrbs: state.darkOrbs.map((orb) => ({ ...orb, frozen: false }))
     })),
     
-    addDarkOrb: (orb) => set((state) => {
+    addDarkOrb: (orb) => {
       // Cap active orbs to prevent unbounded GPU instance-buffer growth.
       // Each dark orb mounts a DarkOrbModel with 5 InstancedMeshes (174 slots).
-      if (state.darkOrbs.length >= 20) return state;
+      if (get().darkOrbs.length >= 20) return;
+      runtimeDiagnostics.beginSpawnAdmission();
       balanceTelemetry.recordEnemySpawn();
-      return { darkOrbs: [...state.darkOrbs, orb] };
-    }),
+      set((state) => ({ darkOrbs: [...state.darkOrbs, orb] }));
+      runtimeDiagnostics.noteEnemySpawns(1);
+      runtimeDiagnostics.noteStoreWrite();
+      runtimeDiagnostics.endSpawnAdmission();
+    },
+
+    addDarkOrbs: (orbs) => {
+      if (orbs.length === 0) return 0;
+      const available = Math.max(0, 20 - get().darkOrbs.length);
+      const admitted = Math.min(available, orbs.length);
+      if (admitted === 0) return 0;
+      runtimeDiagnostics.beginSpawnAdmission();
+      for (let index = 0; index < admitted; index++) balanceTelemetry.recordEnemySpawn();
+      set((state) => ({
+        darkOrbs: [...state.darkOrbs, ...orbs.slice(0, Math.max(0, 20 - state.darkOrbs.length))],
+      }));
+      runtimeDiagnostics.noteEnemySpawns(admitted);
+      runtimeDiagnostics.noteStoreWrite();
+      runtimeDiagnostics.endSpawnAdmission();
+      return admitted;
+    },
     
     removeDarkOrb: (id) => set((state) => ({ 
       darkOrbs: state.darkOrbs.filter((o) => o.id !== id) 
@@ -1715,6 +1738,7 @@ export const useMagicOrb = create<MagicOrbState>()(
       runtimeDiagnostics.noteProjectileSpawn();
       balanceTelemetry.recordProjectile(projectile.type);
       set((state) => ({ projectiles: [...state.projectiles, projectile] }));
+      runtimeDiagnostics.noteStoreWrite();
       gameRuntime.projectileSpawns.enqueue(projectile);
       return true;
     },
@@ -1766,9 +1790,13 @@ export const useMagicOrb = create<MagicOrbState>()(
     
     updateParticles: (particles) => set({ particles }),
     
-    addImpactEffect: (effect) => set((state) => ({
-      impactEffects: [...state.impactEffects, effect]
-    })),
+    addImpactEffect: (effect) => {
+      runtimeDiagnostics.noteImpactEffect();
+      set((state) => ({
+        impactEffects: [...state.impactEffects, effect],
+      }));
+      runtimeDiagnostics.noteStoreWrite();
+    },
     
     updateImpactEffects: (effects) => set({ impactEffects: effects }),
 

@@ -15,7 +15,7 @@ import {
   getAuthoredBossProgression,
 } from "../src/game-runtime/BossProgression";
 import { SimulationPipeline } from "../src/game-runtime/SimulationPipeline";
-import { useMagicOrb, type PowerUp, type Projectile } from "../src/lib/stores/useMagicOrb";
+import { useMagicOrb, type DarkOrb, type PowerUp, type Projectile } from "../src/lib/stores/useMagicOrb";
 import { useShop } from "../src/lib/stores/useShop";
 import {
   AdaptiveRenderQualityController,
@@ -28,6 +28,7 @@ import {
   releaseProjectileMotion,
 } from "../src/components/game/ProjectilePhysics";
 import { gameRuntime } from "../src/game-runtime/GameRuntime";
+import { runtimeDiagnostics } from "../src/game-runtime/RuntimeDiagnostics";
 import {
   getGraphicsPreset,
   isPerformanceFeatureEnabled,
@@ -50,6 +51,17 @@ const makePowerUp = (id: string): PowerUp => ({
   velocity: [2, -1, 0],
 });
 
+const makeEnemy = (id: string): DarkOrb => ({
+  id,
+  position: [10, 0, 0],
+  direction: [-1, 0, 0],
+  speed: 1,
+  size: 0.5,
+  seed: 0.5,
+  shape: "circle",
+  pattern: "direct",
+});
+
 describe("gameplay runtime invariants", () => {
   beforeEach(() => {
     gameRuntime.enemies.reset();
@@ -57,6 +69,7 @@ describe("gameplay runtime invariants", () => {
     useShop.setState({ coins: 0 });
     useMagicOrb.setState({
       hasDoubleCoins: false,
+      darkOrbs: [],
       projectiles: [],
       starFlowEvents: [],
     });
@@ -65,7 +78,7 @@ describe("gameplay runtime invariants", () => {
   afterEach(() => {
     gameRuntime.enemies.reset();
     gameRuntime.boss.reset();
-    useMagicOrb.setState({ projectiles: [], starFlowEvents: [] });
+    useMagicOrb.setState({ darkOrbs: [], projectiles: [], starFlowEvents: [] });
   });
 
   it("commits star rewards when the gameplay event is created", () => {
@@ -95,6 +108,59 @@ describe("gameplay runtime invariants", () => {
 
     expect(useMagicOrb.getState().canAddProjectiles(2)).toBe(true);
     expect(useMagicOrb.getState().canAddProjectiles(3)).toBe(false);
+  });
+
+  it("admits a multi-enemy wave in one bounded structural update", () => {
+    let darkOrbUpdates = 0;
+    const unsubscribe = useMagicOrb.subscribe(
+      (state) => state.darkOrbs,
+      () => { darkOrbUpdates++; },
+    );
+
+    const admitted = useMagicOrb.getState().addDarkOrbs([
+      makeEnemy("wave-1"),
+      makeEnemy("wave-2"),
+      makeEnemy("wave-3"),
+    ]);
+
+    unsubscribe();
+    expect(admitted).toBe(3);
+    expect(darkOrbUpdates).toBe(1);
+    expect(useMagicOrb.getState().darkOrbs.map((orb) => orb.id)).toEqual([
+      "wave-1", "wave-2", "wave-3",
+    ]);
+  });
+
+  it("attributes enemy and impact hot-path publications without overlap", () => {
+    runtimeDiagnostics.beginFrame();
+    useMagicOrb.getState().addDarkOrb(makeEnemy("diagnostic-enemy"));
+    useMagicOrb.getState().addImpactEffect({
+      id: "diagnostic-impact",
+      position: [1, 0, 0],
+      timer: 0.4,
+      maxTimer: 0.4,
+      seed: 0.25,
+    });
+
+    const snapshot = runtimeDiagnostics.snapshot();
+    expect(snapshot.enemySpawns).toBe(1);
+    expect(snapshot.impactEffects).toBe(1);
+    expect(snapshot.hotPathStoreWrites).toBe(2);
+  });
+
+  it("keeps batched enemy admission within the authored active cap", () => {
+    useMagicOrb.setState({
+      darkOrbs: Array.from({ length: 19 }, (_, index) => makeEnemy(`existing-${index}`)),
+    });
+
+    const admitted = useMagicOrb.getState().addDarkOrbs([
+      makeEnemy("last-slot"),
+      makeEnemy("over-cap"),
+    ]);
+
+    expect(admitted).toBe(1);
+    expect(useMagicOrb.getState().darkOrbs).toHaveLength(20);
+    expect(useMagicOrb.getState().darkOrbs.at(-1)?.id).toBe("last-slot");
   });
 
   it("reserves projectile capacity for player-originated fire over autonomous fire", () => {

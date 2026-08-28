@@ -51,7 +51,7 @@ export function GameLogic() {
   const gameMode              = useMagicOrb(s => s.gameMode);
   const arcadeLevel           = useMagicOrb(s => s.arcadeLevel);
   const boss                  = useMagicOrb(s => s.boss);
-  const addDarkOrb            = useMagicOrb(s => s.addDarkOrb);
+  const addDarkOrbs           = useMagicOrb(s => s.addDarkOrbs);
   const addProjectile         = useMagicOrb(s => s.addProjectile);
   const addPowerUp            = useMagicOrb(s => s.addPowerUp);
   const spawnRate             = useMagicOrb(s => s.spawnRate);
@@ -220,7 +220,7 @@ export function GameLogic() {
     return hasRapidFireRef.current ? baseInterval * 0.8 : baseInterval;
   };
   
-  const spawnDarkOrb = useCallback(() => {
+  const createDarkOrb = useCallback((): DarkOrb => {
     const angle = Math.random() * Math.PI * 2;
     const distance = 18 + Math.random() * 4;
     
@@ -271,8 +271,8 @@ export function GameLogic() {
       frozen: distortActiveRef.current,
     };
     
-    addDarkOrb(orb);
-  }, [addDarkOrb, difficultyMultiplier]);
+    return orb;
+  }, []);
   
   const spawnPowerUp = useCallback(() => {
     const availableTypes: PowerUpType[] = ["chargeBeam", "shield", "healing", "doubleCoins", "rapidFire"];
@@ -763,36 +763,37 @@ export function GameLogic() {
     
     if (lastOrbSpawn.current >= effectiveSpawnRate && !isDying && !isBossLevel && !bossDefeating && !survivalBossPending) {
       lastOrbSpawn.current = 0;
-      spawnDarkOrb();
+      const spawnBatch = [createDarkOrb()];
       
       if (gameMode === "survival") {
         if (difficultyMultiplier > 1.5 && Math.random() < 0.3) {
-          spawnDarkOrb();
+          spawnBatch.push(createDarkOrb());
         }
         if (difficultyMultiplier > 2.5 && Math.random() < 0.3) {
-          spawnDarkOrb();
+          spawnBatch.push(createDarkOrb());
         }
       } else if (gameMode === "arcade") {
         const subLevel = Math.round((arcadeLevel % 1) * 10);
         if (subLevel >= 5 && Math.random() < 0.35) {
-          spawnDarkOrb();
+          spawnBatch.push(createDarkOrb());
         }
         if (worldLevel >= 2 && Math.random() < 0.25) {
-          spawnDarkOrb();
+          spawnBatch.push(createDarkOrb());
         }
       } else if (gameMode === "chill") {
-        spawnDarkOrb();
+        spawnBatch.push(createDarkOrb());
         if (Math.random() < 0.5) {
-          spawnDarkOrb();
+          spawnBatch.push(createDarkOrb());
         }
       } else if (gameMode === "gauntlet") {
         if (gameTime > 30 && Math.random() < 0.3) {
-          spawnDarkOrb();
+          spawnBatch.push(createDarkOrb());
         }
         if (gameTime > 60 && Math.random() < 0.3) {
-          spawnDarkOrb();
+          spawnBatch.push(createDarkOrb());
         }
       }
+      addDarkOrbs(spawnBatch);
     }
     
     lastPowerUpSpawn.current += delta;
