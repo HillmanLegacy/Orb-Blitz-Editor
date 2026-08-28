@@ -7,6 +7,7 @@ import { gameRuntime } from "@/game-runtime/GameRuntime";
 import { balanceTelemetry } from "@/game-runtime/BalanceTelemetry";
 import { getArcadeRequiredOrbs, getAuthoredBossProgression } from "@/game-runtime/BossProgression";
 import { MAX_RUNTIME_PROJECTILES, PLAYER_PROJECTILE_RESERVE } from "@/game-runtime/ProjectileRuntime";
+import { ENEMY_DEFEAT_DURATION } from "@/game-runtime/EnemyLifecycle";
 
 export type GamePhase = "menu" | "loading" | "playing" | "paused" | "gameOver" | "levelComplete" | "modeSelect" | "arcadeComplete";
 export type LoadingType = "entering" | "exiting" | "exiting_to_menu" | "nextLevel" | null;
@@ -1121,7 +1122,7 @@ export const useMagicOrb = create<MagicOrbState>()(
         const defeatedOrbs = darkOrbs.map(o => ({
           ...o,
           destroying: true,
-          destroyTimer: 0.6,
+          destroyTimer: ENEMY_DEFEAT_DURATION,
           bossDefeatColor: boss.bossType,
         }));
         
@@ -1716,7 +1717,7 @@ export const useMagicOrb = create<MagicOrbState>()(
                 ...o,
                 position: position ? [position[0], position[1], position[2]] : o.position,
                 destroying: true,
-                destroyTimer: 0.6,
+                destroyTimer: ENEMY_DEFEAT_DURATION,
               }
             : o
         )
@@ -2044,7 +2045,9 @@ export const useMagicOrb = create<MagicOrbState>()(
         magiOrb2TargetPositions: targetPositions,
         // Mark all targets as destroying immediately
         darkOrbs: darkOrbs.map(o =>
-          targetIds.has(o.id) ? { ...o, destroying: true } : o
+          targetIds.has(o.id)
+            ? { ...o, destroying: true, destroyTimer: ENEMY_DEFEAT_DURATION }
+            : o
         ),
       });
 

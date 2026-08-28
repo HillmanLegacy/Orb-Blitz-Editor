@@ -1,14 +1,10 @@
 import { useRef, useMemo, memo, Suspense, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { useMagicOrb, DarkOrb, BossType } from "@/lib/stores/useMagicOrb";
+import { useMagicOrb, DarkOrb } from "@/lib/stores/useMagicOrb";
 import { useAudio } from "@/lib/stores/useAudio";
 import { playBossDefeatSound } from "@/lib/audio/SynthSounds";
 import { DarkOrbModel } from "./DarkOrbModel";
-import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
-import { FireExplosionVFX } from "./FireExplosionVFX";
-import { StarSupernovaVFX } from "./StarSupernovaVFX";
-import { CrystalCrackExplosionVFX } from "./CrystalCrackExplosionVFX";
 import { MiniFireOrb } from "./MiniFireOrb";
 import { MiniStarOrb } from "./MiniStarOrb";
 import { MiniCrystalOrb } from "./MiniCrystalOrb";
@@ -23,6 +19,8 @@ import { addExplosionImpulse } from "./Background";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
 import { runtimeDiagnostics } from "@/game-runtime/RuntimeDiagnostics";
 import { usePerformanceFeature } from "@/game-runtime/PerformanceToggles";
+import { EnemyDefeatVFX } from "./EnemyDefeatVFX";
+import { ENEMY_DEFEAT_DURATION } from "@/game-runtime/EnemyLifecycle";
 
 const DISTORT_FIELD_RADIUS    = 7.125;
 const DISTORT_FIELD_RADIUS_SQ = DISTORT_FIELD_RADIUS * DISTORT_FIELD_RADIUS; // 50.77
@@ -31,19 +29,6 @@ const HURT_FLASH_DURATION     = 0.15;
 // Compatibility alias for world-specific renderers. The shared game runtime is
 // the only owner of these mutable transforms.
 const orbPhysicsMap = gameRuntime.enemies.byId;
-
-const BOSS_ORB_COLORS: Record<BossType, { primary: string; secondary: string; glow: string }> = {
-  circle:    { primary: "#6a2a8a", secondary: "#aa44cc", glow: "#8844aa" },
-  star:      { primary: "#2a4a8a", secondary: "#6699ff", glow: "#4488ff" },
-  arrow:     { primary: "#8a5a2a", secondary: "#ff6622", glow: "#ff8844" },
-  triangle:  { primary: "#2a6a4a", secondary: "#33cc66", glow: "#44ff88" },
-  trapezoid: { primary: "#8a2a4a", secondary: "#cc4488", glow: "#ff4488" },
-  cube:      { primary: "#4a4a8a", secondary: "#6666cc", glow: "#8888ff" },
-  cloud:     { primary: "#5a5a6a", secondary: "#8899aa", glow: "#aaaacc" },
-  tentacle:  { primary: "#2a6a6a", secondary: "#44ccaa", glow: "#44ffcc" },
-  monster:   { primary: "#6a2a2a", secondary: "#ff4444", glow: "#ff4444" },
-  bird:      { primary: "#4a6a2a", secondary: "#88cc44", glow: "#aaff44" },
-};
 
 // ── HD red hurt-flash overlay ─────────────────────────────────────────────────
 function FireHurtFlash({ hurtTimer }: { hurtTimer: number }) {
@@ -77,16 +62,7 @@ function BossOrbMesh({ orb }: { orb: DarkOrb }) {
   });
 
   if (orb.destroying) {
-    const destroyProgress = orb.destroying ? 1 - (orb.destroyTimer || 0) / 0.6 : 0;
-    const colors = BOSS_ORB_COLORS[bossType] || BOSS_ORB_COLORS.circle;
-    if (bossType === "circle")   return <group position={orb.position}><FireExplosionVFX progress={destroyProgress} scale={orb.size} /></group>;
-    if (bossType === "star")     return <group position={orb.position}><StarSupernovaVFX progress={destroyProgress} scale={orb.size} /></group>;
-    if (bossType === "triangle") return <group position={orb.position}><CrystalCrackExplosionVFX progress={destroyProgress} scale={orb.size} /></group>;
-    return (
-      <group position={orb.position}>
-        <EnergyDissipationVFX progress={destroyProgress} color={colors.primary} glowColor={colors.glow} scale={orb.size} seed={Math.round(orb.seed * 1000)} />
-      </group>
-    );
+    return null;
   }
 
   if (bossType === "circle")   return <group ref={groupRef} position={orb.position!}><pointLight color="#ff6600" intensity={2} distance={5} decay={2} /><MiniFireOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
@@ -146,15 +122,6 @@ function UnifiedDarkOrbMesh({ orb }: { orb: DarkOrb }) {
   const eyePupilRefs    = useRef<(THREE.Mesh  | null)[]>(Array(eyeData.count).fill(null));
   const eyeInnerRefs    = useRef<(THREE.Mesh  | null)[]>(Array(eyeData.count).fill(null));
   const eyeHighRefs     = useRef<(THREE.Mesh  | null)[]>(Array(eyeData.count).fill(null));
-
-  const deathVariation = useMemo(() => {
-    const defaultColors    = ["#660033","#440022","#880044","#ff00ff","#aa0066","#ffaaff"];
-    const getBossColors    = (bt: string) => {
-      const c = BOSS_ORB_COLORS[bt as BossType] || BOSS_ORB_COLORS.circle;
-      return [c.glow, c.primary, c.secondary, c.glow, c.primary];
-    };
-    return { colors: orb.bossDefeatColor ? getBossColors(orb.bossDefeatColor) : defaultColors };
-  }, [orb.bossDefeatColor]);
 
   // ── Imperative per-frame: position, scale, rotation, feature animations ──────
   useFrame((state) => {
@@ -252,14 +219,7 @@ function UnifiedDarkOrbMesh({ orb }: { orb: DarkOrb }) {
   const frozenTint = orb.frozen;
 
   if (orb.destroying) {
-    const destroyProgress = 1 - (orb.destroyTimer || 0) / 0.6;
-    const deathColor = orb.bossDefeatColor ? deathVariation.colors[0] : "#8800cc";
-    const deathGlow  = orb.bossDefeatColor ? deathVariation.colors[1] : "#440066";
-    return (
-      <group position={orb.position}>
-        <EnergyDissipationVFX progress={destroyProgress} color={deathColor} glowColor={deathGlow} scale={orb.size} seed={Math.round(orb.seed * 999)} />
-      </group>
-    );
+    return null;
   }
 
   // ── Static JSX structure — refs attached for imperative animation ─────────────
@@ -435,13 +395,7 @@ function World1EnemyMesh({ orb }: { orb: DarkOrb }) {
     groupRef.current.scale.setScalar(orb.size * pulse);
   });
   if (orb.destroying) {
-    const dp = (orb.destroyTimer || 0) / 0.6;
-    return (
-      <group position={orb.position}>
-        <EnergyDissipationVFX progress={dp} color="#ff4400" glowColor="#ffaa00" scale={orb.size} seed={Math.round(orb.seed * 999)} />
-        {dp > 0.80 && <group scale={orb.size}><MiniFireOrb /></group>}
-      </group>
-    );
+    return null;
   }
   return <group ref={groupRef} position={orb.position!}><MiniFireOrb particleCount={20} showParticles={false} showLight={false} />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
 }
@@ -457,13 +411,7 @@ function World2EnemyMesh({ orb }: { orb: DarkOrb }) {
     groupRef.current.scale.setScalar(orb.size * pulse);
   });
   if (orb.destroying) {
-    const dp = (orb.destroyTimer || 0) / 0.6;
-    return (
-      <group position={orb.position}>
-        <StarSupernovaVFX progress={dp} scale={orb.size} />
-        {dp > 0.80 && <group scale={orb.size}><MiniStarOrb /></group>}
-      </group>
-    );
+    return null;
   }
   return <group ref={groupRef} position={orb.position!}><MiniStarOrb particleCount={10} showParticles={false} showLight={false} />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
 }
@@ -479,13 +427,7 @@ function World3EnemyMesh({ orb }: { orb: DarkOrb }) {
     groupRef.current.scale.setScalar(orb.size * pulse);
   });
   if (orb.destroying) {
-    const dp = (orb.destroyTimer || 0) / 0.6;
-    return (
-      <group position={orb.position}>
-        <CrystalCrackExplosionVFX progress={dp} scale={orb.size} />
-        {dp > 0.80 && <group scale={orb.size}><MiniCrystalOrb /></group>}
-      </group>
-    );
+    return null;
   }
   return <group ref={groupRef} position={orb.position!}><MiniCrystalOrb showLight={false} />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
 }
@@ -501,13 +443,7 @@ function World4EnemyMesh({ orb }: { orb: DarkOrb }) {
     groupRef.current.scale.setScalar(orb.size * pulse);
   });
   if (orb.destroying) {
-    const dp = (orb.destroyTimer || 0) / 0.6;
-    return (
-      <group position={orb.position}>
-        <EnergyDissipationVFX progress={dp} color="#8a2a4a" glowColor="#ff4488" scale={orb.size} seed={Math.round(orb.seed*999)} />
-        {dp > 0.80 && <group scale={orb.size}><MiniToxicOrb /></group>}
-      </group>
-    );
+    return null;
   }
   return <group ref={groupRef} position={orb.position!}><MiniToxicOrb particleCount={5} showParticles={false} showLight={false} />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
 }
@@ -523,13 +459,7 @@ function World5EnemyMesh({ orb }: { orb: DarkOrb }) {
     groupRef.current.scale.setScalar(orb.size * pulse);
   });
   if (orb.destroying) {
-    const dp = (orb.destroyTimer || 0) / 0.6;
-    return (
-      <group position={orb.position}>
-        <EnergyDissipationVFX progress={dp} color="#4a4a8a" glowColor="#8888ff" scale={orb.size} seed={Math.round(orb.seed*999)} />
-        {dp > 0.80 && <group scale={orb.size}><MiniPlasmaOrb /></group>}
-      </group>
-    );
+    return null;
   }
   return <group ref={groupRef} position={orb.position!}><MiniPlasmaOrb particleCount={5} showParticles={false} showLight={false} />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
 }
@@ -545,13 +475,7 @@ function World6EnemyMesh({ orb }: { orb: DarkOrb }) {
     groupRef.current.scale.setScalar(orb.size * pulse);
   });
   if (orb.destroying) {
-    const dp = (orb.destroyTimer || 0) / 0.6;
-    return (
-      <group position={orb.position}>
-        <EnergyDissipationVFX progress={dp} color="#5a5a6a" glowColor="#aaaacc" scale={orb.size} seed={Math.round(orb.seed*999)} />
-        {dp > 0.80 && <group scale={orb.size}><MiniDiamondOrb /></group>}
-      </group>
-    );
+    return null;
   }
   return <group ref={groupRef} position={orb.position!}><MiniDiamondOrb particleCount={4} showParticles={false} showLight={false} />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
 }
@@ -567,13 +491,7 @@ function World7EnemyMesh({ orb }: { orb: DarkOrb }) {
     groupRef.current.scale.setScalar(orb.size * pulse);
   });
   if (orb.destroying) {
-    const dp = (orb.destroyTimer || 0) / 0.6;
-    return (
-      <group position={orb.position}>
-        <EnergyDissipationVFX progress={dp} color="#8a5a2a" glowColor="#ff8844" scale={orb.size} seed={Math.round(orb.seed*999)} />
-        {dp > 0.80 && <group scale={orb.size}><MiniRainbowOrb /></group>}
-      </group>
-    );
+    return null;
   }
   return <group ref={groupRef} position={orb.position!}><MiniRainbowOrb particleCount={18} showParticles={false} showLight={false} />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
 }
@@ -589,13 +507,7 @@ function World8EnemyMesh({ orb }: { orb: DarkOrb }) {
     groupRef.current.scale.setScalar(orb.size * pulse);
   });
   if (orb.destroying) {
-    const dp = (orb.destroyTimer || 0) / 0.6;
-    return (
-      <group position={orb.position}>
-        <EnergyDissipationVFX progress={dp} color="#2a6a6a" glowColor="#44ffcc" scale={orb.size} seed={Math.round(orb.seed*999)} />
-        {dp > 0.80 && <group scale={orb.size}><MiniMechaOrb /></group>}
-      </group>
-    );
+    return null;
   }
   return <group ref={groupRef} position={orb.position!}><MiniMechaOrb showLight={false} />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
 }
@@ -611,13 +523,7 @@ function World9EnemyMesh({ orb }: { orb: DarkOrb }) {
     groupRef.current.scale.setScalar(orb.size * pulse);
   });
   if (orb.destroying) {
-    const dp = (orb.destroyTimer || 0) / 0.6;
-    return (
-      <group position={orb.position}>
-        <EnergyDissipationVFX progress={dp} color="#6a2a2a" glowColor="#ff4444" scale={orb.size} seed={Math.round(orb.seed*999)} />
-        {dp > 0.80 && <group scale={orb.size}><MiniMonsterOrb /></group>}
-      </group>
-    );
+    return null;
   }
   return <group ref={groupRef} position={orb.position!}><MiniMonsterOrb particleCount={50} showParticles={false} showLight={false} />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
 }
@@ -866,7 +772,7 @@ export function DarkOrbs() {
           }
             // Write back position so VFX spawns at right place
             phy.position[0] = x; phy.position[1] = y; phy.position[2] = z;
-            newOrbs.push({ ...orb, position: [x, y, z] as [number,number,number], direction: [dx,dy,dz] as [number,number,number], destroying: true, destroyTimer: 0.6 });
+            newOrbs.push({ ...orb, position: [x, y, z] as [number,number,number], direction: [dx,dy,dz] as [number,number,number], destroying: true, destroyTimer: ENEMY_DEFEAT_DURATION });
             structuralChanged = true;
             continue;
         }
@@ -883,7 +789,7 @@ export function DarkOrbs() {
           takeDamage();
         }
         phy.position[0] = x; phy.position[1] = y; phy.position[2] = z;
-        newOrbs.push({ ...orb, position: [x, y, z] as [number,number,number], direction: [dx,dy,dz] as [number,number,number], destroying: true, destroyTimer: 0.6 });
+        newOrbs.push({ ...orb, position: [x, y, z] as [number,number,number], direction: [dx,dy,dz] as [number,number,number], destroying: true, destroyTimer: ENEMY_DEFEAT_DURATION });
         structuralChanged = true;
         continue;
       }
@@ -896,7 +802,7 @@ export function DarkOrbs() {
       if ((orb.hurtTimer || 0) > 0 && newHurtTimer <= 0) {
         addStarFlowEvent([x, y, z], 5);
         phy.position[0] = x; phy.position[1] = y; phy.position[2] = z;
-        newOrbs.push({ ...orb, position: [x, y, z] as [number,number,number], direction: [dx,dy,dz] as [number,number,number], hurtTimer: 0, destroying: true, destroyTimer: 0.6 });
+        newOrbs.push({ ...orb, position: [x, y, z] as [number,number,number], direction: [dx,dy,dz] as [number,number,number], hurtTimer: 0, destroying: true, destroyTimer: ENEMY_DEFEAT_DURATION });
         structuralChanged = true;
         continue;
       }
@@ -941,6 +847,7 @@ export function DarkOrbs() {
       {showEnemyVisuals && darkOrbs.map((orb) => (
         <MemoizedDarkOrbMesh key={orb.id} orb={orb} arcadeLevel={arcadeLevel} gameMode={gameMode} />
       ))}
+      {showEnemyVisuals && <EnemyDefeatVFX />}
       {showEnemyVisuals && <StandardEnemyParticles />}
     </>
   );

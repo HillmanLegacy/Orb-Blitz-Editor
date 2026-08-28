@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   MAX_RUNTIME_PROJECTILES,
   PLAYER_PROJECTILE_RESERVE,
@@ -50,6 +50,14 @@ import {
   getBossDefeatPalette,
 } from "../src/components/game/BossDefeatPalette";
 import { BOSS_DEFEAT_PARTICLE_COUNTS } from "../src/components/game/FireExplosionVFX";
+import {
+  ENEMY_DEFEAT_DURATION,
+  ENEMY_DEFEAT_PROFILES,
+  getBossTypeForEnemyShape,
+  getEnemyDefeatParticleTotal,
+  getEnemyDefeatProgress,
+  resolveEnemyDefeatBossType,
+} from "../src/components/game/EnemyDefeatConfig";
 
 const makeProjectile = (id: string): Projectile => ({
   id,
@@ -114,6 +122,96 @@ describe("gameplay runtime invariants", () => {
       corona: 60,
     });
     expect(Object.values(BOSS_DEFEAT_PARTICLE_COUNTS).reduce((sum, count) => sum + count, 0)).toBe(796);
+  });
+
+  it("maps every world enemy texture to its authored boss defeat palette", () => {
+    expect(getBossTypeForEnemyShape("circle")).toBe("circle");
+    expect(getBossTypeForEnemyShape("star")).toBe("star");
+    expect(getBossTypeForEnemyShape("triangle")).toBe("triangle");
+    expect(getBossTypeForEnemyShape("trapezoid")).toBe("trapezoid");
+    expect(getBossTypeForEnemyShape("cube")).toBe("cube");
+    expect(getBossTypeForEnemyShape("lightning")).toBe("cloud");
+    expect(getBossTypeForEnemyShape("arrow")).toBe("arrow");
+    expect(getBossTypeForEnemyShape("tentacle")).toBe("tentacle");
+    expect(getBossTypeForEnemyShape("monster")).toBe("monster");
+    expect(getBossTypeForEnemyShape("sphere")).toBe("circle");
+    expect(getBossTypeForEnemyShape("tetrahedron")).toBe("triangle");
+    expect(getBossTypeForEnemyShape("octahedron")).toBe("cloud");
+    expect(getBossTypeForEnemyShape("dodecahedron")).toBe("cube");
+    expect(getBossTypeForEnemyShape("bird")).toBe("bird");
+    expect(getBossTypeForEnemyShape("launcher")).toBe("circle");
+  });
+
+  it("resolves defeat identity from the visible boss type before mode or legacy colors", () => {
+    const typedOrb = {
+      isBossOrb: true,
+      bossType: "star" as const,
+      bossDefeatColor: "monster" as const,
+      shape: "circle" as const,
+    };
+    expect(resolveEnemyDefeatBossType(typedOrb, "arcade", 9.4)).toBe("star");
+    expect(resolveEnemyDefeatBossType(typedOrb, "survival", 1)).toBe("star");
+    expect(resolveEnemyDefeatBossType(typedOrb, "chill", 1)).toBe("star");
+    expect(resolveEnemyDefeatBossType(typedOrb, "gauntlet", 1)).toBe("star");
+
+    const legacyBossOrb = {
+      isBossOrb: true,
+      bossType: undefined,
+      bossDefeatColor: "tentacle" as const,
+      shape: "circle" as const,
+    };
+    expect(resolveEnemyDefeatBossType(legacyBossOrb, "survival", 1)).toBe("tentacle");
+  });
+
+  it("uses world progression in arcade and texture shapes in survival and chill", () => {
+    const standardEnemy = {
+      isBossOrb: false,
+      bossType: undefined,
+      bossDefeatColor: "monster" as const,
+      shape: "lightning" as const,
+    };
+    expect(resolveEnemyDefeatBossType(standardEnemy, "arcade", 2.6)).toBe("star");
+    expect(resolveEnemyDefeatBossType(standardEnemy, "survival", 2.6)).toBe("cloud");
+    expect(resolveEnemyDefeatBossType(standardEnemy, "chill", 2.6)).toBe("cloud");
+  });
+
+  it("keeps mini defeat effects bounded and lighter than the full boss effect", () => {
+    expect(ENEMY_DEFEAT_DURATION).toBe(0.6);
+    expect(getEnemyDefeatProgress(ENEMY_DEFEAT_DURATION)).toBe(0);
+    expect(getEnemyDefeatProgress(ENEMY_DEFEAT_DURATION / 2)).toBe(0.5);
+    expect(getEnemyDefeatProgress(0)).toBe(1);
+
+    const bossTotal = Object.values(BOSS_DEFEAT_PARTICLE_COUNTS).reduce((sum, count) => sum + count, 0);
+    expect(ENEMY_DEFEAT_PROFILES.high.maxActive).toBe(16);
+    expect(ENEMY_DEFEAT_PROFILES.standard.maxActive).toBeLessThan(ENEMY_DEFEAT_PROFILES.high.maxActive);
+    expect(ENEMY_DEFEAT_PROFILES.low.maxActive).toBeLessThan(ENEMY_DEFEAT_PROFILES.standard.maxActive);
+
+    for (const profile of Object.values(ENEMY_DEFEAT_PROFILES)) {
+      expect(getEnemyDefeatParticleTotal(profile)).toBeLessThan(bossTotal);
+      expect(profile.sizeMultiplier).toBeLessThan(1);
+    }
+    expect(getEnemyDefeatParticleTotal(ENEMY_DEFEAT_PROFILES.high)).toBe(87);
+  });
+
+  it("gives Magi-Orb II targets the standard mini defeat lifetime", () => {
+    vi.useFakeTimers();
+    try {
+      useMagicOrb.setState({
+        magiOrb2Cooldown: 0,
+        darkOrbs: [makeEnemy("magi-orb-2-target")],
+      });
+
+      useMagicOrb.getState().activateMagiOrb2();
+
+      expect(useMagicOrb.getState().darkOrbs[0]).toMatchObject({
+        id: "magi-orb-2-target",
+        destroying: true,
+        destroyTimer: ENEMY_DEFEAT_DURATION,
+      });
+      vi.runAllTimers();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   afterEach(() => {
