@@ -311,8 +311,6 @@ const _batchedProjectileCoreGeometry = new THREE.SphereGeometry(1, 10, 7);
 const _batchedProjectileGlowGeometry = new THREE.SphereGeometry(1, 8, 6);
 const _batchedRapidTrailGeometry = new THREE.CylinderGeometry(1, 1, 1, 5, 1, true);
 const _batchedProjectileDummy = new THREE.Object3D();
-const _batchedProjectileCoreColor = new THREE.Color();
-const _batchedProjectileGlowColor = new THREE.Color();
 const _batchedProjectileAxis = new THREE.Vector3(0, 1, 0);
 const _batchedProjectileDirection = new THREE.Vector3();
 const _batchedModelTransform = new THREE.Matrix4();
@@ -448,26 +446,37 @@ function ProjectileVisualBatch({
   const activeSlotsRef = useRef<Set<number>>(new Set());
   const seenSlotsRef = useRef<Set<number>>(new Set());
   const [coreMaterial] = useState(() => new THREE.MeshBasicMaterial({
+    color: "#ffffff",
     transparent: true,
     opacity: 0.96,
     depthWrite: false,
-    vertexColors: true,
+    depthTest: false,
+    toneMapped: false,
     blending: THREE.AdditiveBlending,
   }));
   const [glowMaterial] = useState(() => new THREE.MeshBasicMaterial({
+    color: skinColors.glow,
     transparent: true,
-    opacity: 0.25,
+    opacity: 0.38,
     depthWrite: false,
-    vertexColors: true,
+    depthTest: false,
+    toneMapped: false,
     blending: THREE.AdditiveBlending,
   }));
   const [rapidTrailMaterial] = useState(() => new THREE.MeshBasicMaterial({
+    color: skinColors.glow,
     transparent: true,
-    opacity: 0.7,
+    opacity: 0.82,
     depthWrite: false,
-    vertexColors: true,
+    depthTest: false,
+    toneMapped: false,
     blending: THREE.AdditiveBlending,
   }));
+
+  useEffect(() => {
+    glowMaterial.color.set(skinColors.glow);
+    rapidTrailMaterial.color.set(skinColors.glow);
+  }, [glowMaterial, rapidTrailMaterial, skinColors.glow]);
 
   useEffect(() => () => {
     coreMaterial.dispose();
@@ -509,15 +518,10 @@ function ProjectileVisualBatch({
       _batchedProjectileDummy.scale.setScalar(scale);
       _batchedProjectileDummy.updateMatrix();
       coreMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
-      _batchedProjectileCoreColor.set(isRapid ? "#ffffff" : skinColors.core);
-      coreMesh.setColorAt(slot, _batchedProjectileCoreColor);
 
       _batchedProjectileDummy.scale.setScalar(scale * (isRapid ? 2.0 : 1.85));
       _batchedProjectileDummy.updateMatrix();
       glowMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
-      _batchedProjectileGlowColor.set(skinColors.glow);
-      if (projectile.isCharged) _batchedProjectileGlowColor.multiplyScalar(1.35);
-      glowMesh.setColorAt(slot, _batchedProjectileGlowColor);
 
       if (isRapid) {
         const [dx, dy, dz] = motion.direction;
@@ -531,7 +535,6 @@ function ProjectileVisualBatch({
         _batchedProjectileDummy.scale.set(0.038, 1.1, 0.038);
         _batchedProjectileDummy.updateMatrix();
         rapidTrailMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
-        rapidTrailMesh.setColorAt(slot, _batchedProjectileGlowColor);
       } else {
         _batchedProjectileDummy.scale.setScalar(0);
         _batchedProjectileDummy.updateMatrix();
@@ -560,9 +563,6 @@ function ProjectileVisualBatch({
     coreMesh.instanceMatrix.needsUpdate = true;
     glowMesh.instanceMatrix.needsUpdate = true;
     rapidTrailMesh.instanceMatrix.needsUpdate = true;
-    if (coreMesh.instanceColor) coreMesh.instanceColor.needsUpdate = true;
-    if (glowMesh.instanceColor) glowMesh.instanceColor.needsUpdate = true;
-    if (rapidTrailMesh.instanceColor) rapidTrailMesh.instanceColor.needsUpdate = true;
     runtimeDiagnostics.endProjectileVisuals(instances);
   });
 
@@ -572,16 +572,19 @@ function ProjectileVisualBatch({
         ref={coreRef}
         args={[_batchedProjectileCoreGeometry, coreMaterial, MAX_BATCHED_PROJECTILES]}
         frustumCulled={false}
+        renderOrder={20}
       />
       <instancedMesh
         ref={glowRef}
         args={[_batchedProjectileGlowGeometry, glowMaterial, MAX_BATCHED_PROJECTILES]}
         frustumCulled={false}
+        renderOrder={19}
       />
       <instancedMesh
         ref={rapidTrailRef}
         args={[_batchedRapidTrailGeometry, rapidTrailMaterial, MAX_BATCHED_PROJECTILES]}
         frustumCulled={false}
+        renderOrder={18}
       />
     </>
   );
