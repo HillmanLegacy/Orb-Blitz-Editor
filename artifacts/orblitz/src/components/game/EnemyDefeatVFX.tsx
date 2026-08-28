@@ -57,6 +57,7 @@ type EffectSlot = {
   active: boolean;
   id: string;
   bossType: BossType;
+  isBossOrb: boolean;
   x: number;
   y: number;
   z: number;
@@ -218,6 +219,7 @@ export function EnemyDefeatVFX() {
       active: false,
       id: "",
       bossType: "circle",
+      isBossOrb: false,
       x: 0,
       y: 0,
       z: 0,
@@ -307,11 +309,13 @@ export function EnemyDefeatVFX() {
         slot.active = true;
         slot.id = orb.id;
         slot.bossType = bossType;
+        slot.isBossOrb = orb.isBossOrb === true;
         slot.x = position[0];
         slot.y = position[1];
         slot.z = position[2];
         slot.sourceScale = orb.size;
-        slot.scale = Math.max(0.18, Math.min(1.4, slot.sourceScale * profile.sizeMultiplier));
+        const sizeMultiplier = slot.isBossOrb ? profile.bossOrbSizeMultiplier : profile.sizeMultiplier;
+        slot.scale = Math.max(0.36, Math.min(2.8, slot.sourceScale * sizeMultiplier));
         slot.angle = seeded(orb.seed * 1000 + 31, slotIndex) * Math.PI * 2;
         slot.lastPreset = "";
         idToSlotRef.current.set(orb.id, slotIndex);
@@ -320,7 +324,8 @@ export function EnemyDefeatVFX() {
       const slot = slotsRef.current[slotIndex];
       slot.seenFrame = currentFrame;
       slot.bossType = bossType;
-      slot.scale = Math.max(0.18, Math.min(1.4, slot.sourceScale * profile.sizeMultiplier));
+      const sizeMultiplier = slot.isBossOrb ? profile.bossOrbSizeMultiplier : profile.sizeMultiplier;
+      slot.scale = Math.max(0.36, Math.min(2.8, slot.sourceScale * sizeMultiplier));
       if (slot.lastPreset !== presetRef.current) {
         clearSlot(slotIndex);
         slot.lastPreset = presetRef.current;
@@ -449,6 +454,7 @@ export function EnemyDefeatVFX() {
       idToSlotRef.current.delete(slot.id);
       slot.active = false;
       slot.id = "";
+      slot.isBossOrb = false;
       slot.lastPreset = "";
       clearSlot(i);
     }

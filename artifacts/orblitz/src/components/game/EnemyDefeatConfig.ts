@@ -6,6 +6,7 @@ import {
 import type { BossType, DarkOrb, GameMode, OrbShape } from "@/lib/stores/useMagicOrb";
 
 export { ENEMY_DEFEAT_DURATION, getEnemyDefeatProgress };
+export const STANDARD_ENEMY_DEFEAT_SIZE_SCALE = 2;
 
 export type EnemyDefeatQuality = "low" | "standard" | "high";
 
@@ -16,6 +17,7 @@ export type EnemyDefeatProfile = Readonly<{
   fragments: number;
   corona: number;
   sizeMultiplier: number;
+  bossOrbSizeMultiplier: number;
 }>;
 
 export const ENEMY_DEFEAT_PROFILES: Record<EnemyDefeatQuality, EnemyDefeatProfile> = {
@@ -25,7 +27,8 @@ export const ENEMY_DEFEAT_PROFILES: Record<EnemyDefeatQuality, EnemyDefeatProfil
     embers: 12,
     fragments: 3,
     corona: 8,
-    sizeMultiplier: 0.8,
+    sizeMultiplier: 0.8 * STANDARD_ENEMY_DEFEAT_SIZE_SCALE,
+    bossOrbSizeMultiplier: 0.8,
   },
   standard: {
     maxActive: 12,
@@ -33,7 +36,8 @@ export const ENEMY_DEFEAT_PROFILES: Record<EnemyDefeatQuality, EnemyDefeatProfil
     embers: 8,
     fragments: 2,
     corona: 6,
-    sizeMultiplier: 0.76,
+    sizeMultiplier: 0.76 * STANDARD_ENEMY_DEFEAT_SIZE_SCALE,
+    bossOrbSizeMultiplier: 0.76,
   },
   low: {
     maxActive: 8,
@@ -41,7 +45,8 @@ export const ENEMY_DEFEAT_PROFILES: Record<EnemyDefeatQuality, EnemyDefeatProfil
     embers: 6,
     fragments: 2,
     corona: 4,
-    sizeMultiplier: 0.72,
+    sizeMultiplier: 0.72 * STANDARD_ENEMY_DEFEAT_SIZE_SCALE,
+    bossOrbSizeMultiplier: 0.72,
   },
 };
 

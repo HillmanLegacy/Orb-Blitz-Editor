@@ -53,6 +53,7 @@ import { BOSS_DEFEAT_PARTICLE_COUNTS } from "../src/components/game/FireExplosio
 import {
   ENEMY_DEFEAT_DURATION,
   ENEMY_DEFEAT_PROFILES,
+  STANDARD_ENEMY_DEFEAT_SIZE_SCALE,
   getBossTypeForEnemyShape,
   getEnemyDefeatParticleTotal,
   getEnemyDefeatProgress,
@@ -188,7 +189,8 @@ describe("gameplay runtime invariants", () => {
 
     for (const profile of Object.values(ENEMY_DEFEAT_PROFILES)) {
       expect(getEnemyDefeatParticleTotal(profile)).toBeLessThan(bossTotal);
-      expect(profile.sizeMultiplier).toBeLessThan(1);
+      expect(profile.sizeMultiplier).toBeGreaterThan(1);
+      expect(profile.sizeMultiplier / profile.bossOrbSizeMultiplier).toBe(STANDARD_ENEMY_DEFEAT_SIZE_SCALE);
     }
     expect(getEnemyDefeatParticleTotal(ENEMY_DEFEAT_PROFILES.high)).toBe(87);
   });
