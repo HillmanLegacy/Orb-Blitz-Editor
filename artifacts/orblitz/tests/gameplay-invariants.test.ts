@@ -62,8 +62,9 @@ import {
   resolveEnemyDefeatBossType,
 } from "../src/components/game/EnemyDefeatConfig";
 import {
-  PLAYER_SKIN_MODEL_PATHS,
-  getPlayerSkinModelPath,
+  PLAYER_PROJECTILE_BASE_MODEL_PATH,
+  PLAYER_SKIN_TEXTURE_SOURCE_PATHS,
+  getPlayerSkinTextureSourcePath,
   getPlayerSkinTrailPalette,
   getPlayerSkinTrailColor,
 } from "../src/components/game/PlayerSkinVisualConfig";
@@ -357,13 +358,14 @@ describe("gameplay runtime invariants", () => {
     expect(SHOP_ITEMS.some((item) => item.value === "electric")).toBe(false);
   });
 
-  it("maps every player skin to an authored textured projectile model", () => {
+  it("keeps one player-orb projectile model and maps skins to texture sources", () => {
     const skins = ["default", ...BOSS_SKIN_TYPES] as const;
-    const modelPaths = skins.map(getPlayerSkinModelPath);
+    const texturePaths = skins.map(getPlayerSkinTextureSourcePath);
 
-    expect(modelPaths).toEqual(skins.map((skin) => PLAYER_SKIN_MODEL_PATHS[skin]));
-    expect(modelPaths.every((path) => path.endsWith("_texture.glb"))).toBe(true);
-    expect(new Set(modelPaths).size).toBe(skins.length);
+    expect(PLAYER_PROJECTILE_BASE_MODEL_PATH).toBe("/models/player_orb_texture.glb");
+    expect(texturePaths).toEqual(skins.map((skin) => PLAYER_SKIN_TEXTURE_SOURCE_PATHS[skin]));
+    expect(texturePaths.every((path) => path.endsWith("_texture.glb"))).toBe(true);
+    expect(new Set(texturePaths).size).toBe(skins.length);
   });
 
   it("uses white for default trails and skin colors for boss-skin trails", () => {
@@ -410,6 +412,7 @@ describe("gameplay runtime invariants", () => {
     expect(shouldRenderParticleSwarmOverlay(normalProjectile, "particle_swarm")).toBe(true);
     expect(shouldRenderChargedProjectileAura(normalProjectile)).toBe(true);
     expect(shouldRenderParticleSwarmOverlay(normalProjectile, "fire")).toBe(false);
+    expect(shouldRenderChargedProjectileAura({ type: "overcharged", isCharged: true })).toBe(false);
   });
 
   it("drops only presentation spawn events when their bounded queue is full", () => {

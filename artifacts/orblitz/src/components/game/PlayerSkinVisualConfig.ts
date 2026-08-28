@@ -1,6 +1,8 @@
 import type { OrbSkin } from "@/lib/stores/useShop";
 
-export const PLAYER_SKIN_MODEL_PATHS: Record<OrbSkin, string> = {
+export const PLAYER_PROJECTILE_BASE_MODEL_PATH = "/models/player_orb_texture.glb";
+
+export const PLAYER_SKIN_TEXTURE_SOURCE_PATHS: Record<OrbSkin, string> = {
   default: "/models/player_orb_texture.glb",
   fire: "/models/boss_orb_1_texture.glb",
   star: "/models/boss_orb_2_star_texture.glb",
@@ -26,8 +28,8 @@ const PLAYER_SKIN_TRAIL_COLORS: Record<OrbSkin, string> = {
   monster: "#aa33ff",
 };
 
-export function getPlayerSkinModelPath(skin: OrbSkin): string {
-  return PLAYER_SKIN_MODEL_PATHS[skin];
+export function getPlayerSkinTextureSourcePath(skin: OrbSkin): string {
+  return PLAYER_SKIN_TEXTURE_SOURCE_PATHS[skin];
 }
 
 export function getPlayerSkinTrailColor(skin: OrbSkin): string {

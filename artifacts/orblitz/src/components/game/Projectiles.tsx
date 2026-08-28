@@ -6,7 +6,7 @@ import { useMagicOrb, DarkOrb, Projectile, Particle, ImpactEffect } from "@/lib/
 import { StarBossTeleportVFX, StarTeleportVFXState } from "./StarBossTeleportVFX";
 import { useAudio } from "@/lib/stores/useAudio";
 import { useShop, TrailEffect } from "@/lib/stores/useShop";
-import { getSkinColors, PlayerGlow } from "./PlayerOrb";
+import { getSkinColors } from "./PlayerOrb";
 import { PlayerParticles } from "./PlayerParticles";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 import {
@@ -29,8 +29,9 @@ import {
   shouldRenderParticleSwarmOverlay,
 } from "./PlayerProjectileVisualConfig";
 import {
-  getPlayerSkinModelPath,
+  getPlayerSkinTextureSourcePath,
   getPlayerSkinTrailPalette,
+  PLAYER_PROJECTILE_BASE_MODEL_PATH,
   type PlayerSkinTrailPalette,
 } from "./PlayerSkinVisualConfig";
 
@@ -335,22 +336,25 @@ type BatchedModelPart = {
   geometry: THREE.BufferGeometry;
   material: THREE.Material | THREE.Material[];
   localMatrix: THREE.Matrix4;
+  ownedMaterials?: THREE.Material[];
 };
 
 /**
- * Preserves the textured mini-orb used by standard shots, but turns each GLTF
- * mesh part into one instanced draw instead of cloning a whole GLTF scene and
- * its materials for every active projectile.
+ * The projectile silhouette always comes from the player orb model. Equipped
+ * boss skins contribute their authored texture/material maps only; their larger
+ * boss geometry is never used as a projectile. One cloned material set is
+ * shared by every instance of the currently equipped skin.
  */
 function BatchedPlayerProjectileModels({
   projectiles,
   equippedSkin,
 }: {
   projectiles: readonly Projectile[];
-  equippedSkin: Parameters<typeof getPlayerSkinModelPath>[0];
+  equippedSkin: Parameters<typeof getPlayerSkinTextureSourcePath>[0];
 }) {
-  const modelPath = getPlayerSkinModelPath(equippedSkin);
-  const { scene } = useGLTF(modelPath);
+  const { scene: playerScene } = useGLTF(PLAYER_PROJECTILE_BASE_MODEL_PATH);
+  const skinPath = getPlayerSkinTextureSourcePath(equippedSkin);
+  const { scene: skinScene } = useGLTF(skinPath);
   const meshRefs = useRef<Array<THREE.InstancedMesh | null>>([]);
   const spiralMeshRefs = useRef<Array<THREE.InstancedMesh | null>>([]);
   const activeSlotsRef = useRef<Set<number>>(new Set());
@@ -358,8 +362,9 @@ function BatchedPlayerProjectileModels({
   const seenSlotsRef = useRef<Set<number>>(new Set());
   const seenSpiralSlotsRef = useRef<Set<number>>(new Set());
   const modelParts = useMemo<BatchedModelPart[]>(() => {
-    scene.updateMatrixWorld(true);
-    const bounds = new THREE.Box3().setFromObject(scene);
+    playerScene.updateMatrixWorld(true);
+    skinScene.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(playerScene);
     const size = new THREE.Vector3();
     const center = new THREE.Vector3();
     bounds.getSize(size);
@@ -370,18 +375,69 @@ function BatchedPlayerProjectileModels({
     const normalizationMatrix = new THREE.Matrix4()
       .makeTranslation(-center.x * normalization, -center.y * normalization, -center.z * normalization)
       .multiply(new THREE.Matrix4().makeScale(normalization, normalization, normalization));
-    const parts: BatchedModelPart[] = [];
-    scene.traverse((child) => {
+    const skinMaterials: THREE.Material[] = [];
+    skinScene.traverse((child) => {
       const mesh = child as THREE.Mesh;
       if (!mesh.isMesh) return;
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      skinMaterials.push(...materials);
+    });
+    const parts: BatchedModelPart[] = [];
+    let partIndex = 0;
+    playerScene.traverse((child) => {
+      const mesh = child as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const baseMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      const ownedMaterials: THREE.Material[] = [];
+      const materials = equippedSkin === "default"
+        ? mesh.material
+        : baseMaterials.map((baseMaterial, materialIndex) => {
+          const sourceMaterial = skinMaterials.length > 0
+            ? skinMaterials[(partIndex + materialIndex) % skinMaterials.length]
+            : undefined;
+          const cloned = baseMaterial.clone();
+          if (sourceMaterial) {
+            const source = sourceMaterial as THREE.MeshStandardMaterial;
+            const target = cloned as THREE.MeshStandardMaterial;
+            const textureProperties = [
+              "map",
+              "normalMap",
+              "roughnessMap",
+              "metalnessMap",
+              "aoMap",
+              "emissiveMap",
+              "bumpMap",
+              "alphaMap",
+              "displacementMap",
+            ] as const;
+            for (const property of textureProperties) {
+              const texture = source[property];
+              if (texture) (target as any)[property] = texture;
+            }
+            if (source.color && target.color) target.color.copy(source.color);
+            if (source.emissive && target.emissive) target.emissive.copy(source.emissive);
+            target.emissiveIntensity = source.emissiveIntensity;
+            target.needsUpdate = true;
+          }
+          ownedMaterials.push(cloned);
+          return cloned;
+        });
       parts.push({
         geometry: mesh.geometry,
-        material: mesh.material,
+        material: materials,
         localMatrix: normalizationMatrix.clone().multiply(mesh.matrixWorld),
+        ownedMaterials: ownedMaterials.length > 0 ? ownedMaterials : undefined,
       });
+      partIndex++;
     });
     return parts;
-  }, [scene]);
+  }, [equippedSkin, playerScene, skinScene]);
+
+  useEffect(() => () => {
+    for (const part of modelParts) {
+      part.ownedMaterials?.forEach((material) => material.dispose());
+    }
+  }, [modelParts]);
 
   useFrame(({ clock }) => {
     const seenSlots = seenSlotsRef.current;
@@ -490,7 +546,7 @@ function BatchedPlayerProjectileModels({
     <>
       {modelParts.map((part, index) => (
         <instancedMesh
-          key={`${modelPath}-${index}`}
+          key={`${skinPath}-${index}`}
           ref={(mesh) => { meshRefs.current[index] = mesh; }}
           args={[part.geometry, part.material, MAX_BATCHED_PROJECTILES]}
           frustumCulled={false}
@@ -498,7 +554,7 @@ function BatchedPlayerProjectileModels({
       ))}
       {modelParts.map((part, index) => (
         <instancedMesh
-          key={`${modelPath}-spiral-${index}`}
+          key={`${skinPath}-spiral-${index}`}
           ref={(mesh) => { spiralMeshRefs.current[index] = mesh; }}
           args={[part.geometry, part.material, MAX_BATCHED_PROJECTILES * 3]}
           frustumCulled={false}
@@ -1803,11 +1859,9 @@ function OverchargedProjectileMesh({
 
 function SpiralBundleMesh({
   projectile,
-  skinColors,
   trailPalette,
 }: {
   projectile: Projectile;
-  skinColors: { core: string; glow: string };
   trailPalette: PlayerSkinTrailPalette;
 }) {
   const groupRef = useRef<THREE.Group>(null);
@@ -1852,9 +1906,9 @@ function SpiralBundleMesh({
   const deathFlashT   = useRef<[number, number, number]>([-1, -1, -1]);
   const prevAliveRef  = useRef([true, true, true]);
 
-  // Refs for sub-sphere groups and flash meshes
-  const subGrpRefs   = [useRef<THREE.Group>(null), useRef<THREE.Group>(null), useRef<THREE.Group>(null)];
-  const flashRefs    = [useRef<THREE.Mesh>(null),  useRef<THREE.Mesh>(null),  useRef<THREE.Mesh>(null)];
+  // Only death flashes remain here; the pooled player-orb batch owns all three
+  // live sub-sphere cores so an older PlayerGlow cannot fight it on screen.
+  const flashRefs = [useRef<THREE.Mesh>(null), useRef<THREE.Mesh>(null), useRef<THREE.Mesh>(null)];
 
   useFrame((_, delta) => {
     const proj = projRef.current;
@@ -1876,10 +1930,6 @@ function SpiralBundleMesh({
 
     for (let si = 0; si < 3; si++) {
       const [spx, spy, spz] = _getSpiralSubPos(cx, cy, cz, fdx, fdy, phase, si);
-
-      // Position sub-sphere group (relative to parent at proj center)
-      const grp = subGrpRefs[si].current;
-      if (grp) { grp.position.set(spx - cx, spy - cy, spz - cz); grp.visible = alive[si]; }
 
       // Death flash
       const flash = flashRefs[si].current;
@@ -1962,18 +2012,6 @@ function SpiralBundleMesh({
         </mesh>
       ))}
 
-      {/* Weapon-specific orbiting glow remains an overlay; the shared instanced
-          player mesh owns the projectile's textured player-orb core. */}
-      {[0, 1, 2].map(si => (
-        <group key={`sub-${si}`} ref={subGrpRefs[si]}>
-          <pointLight color={SPIRAL_COLORS_HEX[si]} intensity={8} distance={4} decay={2} />
-          <PlayerGlow
-            scale={SPIRAL_SUB_SCALE}
-            coreColor={skinColors.core}
-            glowColor={skinColors.glow}
-          />
-        </group>
-      ))}
     </group>
   );
 }
@@ -2867,7 +2905,6 @@ export function Projectiles() {
           <SpiralBundleMesh
             key={proj.id}
             projectile={proj}
-            skinColors={skinColors}
             trailPalette={defaultTrailPalette}
           />
         ) : proj.type === "homing" ? (

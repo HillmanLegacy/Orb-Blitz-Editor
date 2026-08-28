@@ -39,7 +39,11 @@ export function shouldRenderParticleSwarmOverlay(
 export function shouldRenderChargedProjectileAura(
   projectile: Pick<Projectile, "type" | "isCharged">,
 ): boolean {
-  return isPlayerProjectile(projectile) && projectile.isCharged;
+  // Overcharged owns its larger ring/ribbon treatment. Adding the generic
+  // charged torus on top creates a second flat halo around the projectile.
+  return isPlayerProjectile(projectile) &&
+    projectile.isCharged &&
+    projectile.type !== "overcharged";
 }
 
 export function getPlayerProjectileVisualScale(
