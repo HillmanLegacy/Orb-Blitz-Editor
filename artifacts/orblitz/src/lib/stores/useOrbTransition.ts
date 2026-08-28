@@ -15,13 +15,23 @@ import { create } from "zustand";
 // be revealed as orbs exit.
 
 type SweepMode = "fast" | "loading";
+type LoadingStage = "idle" | "code" | "models" | "renderer" | "ready" | "fallback";
 
 let transitionTimers: number[] = [];
 let transitionRun = 0;
+let loadingSweepStartedAt = 0;
+let gameplayRevealTimer: number | null = null;
 
 function clearTransitionTimers() {
   transitionTimers.forEach((timer) => window.clearTimeout(timer));
   transitionTimers = [];
+}
+
+function clearGameplayReveal() {
+  if (gameplayRevealTimer !== null) {
+    window.clearTimeout(gameplayRevealTimer);
+    gameplayRevealTimer = null;
+  }
 }
 
 function scheduleTransition(run: number, delay: number, callback: () => void) {
@@ -39,6 +49,14 @@ interface OrbTransitionState {
   isMidpointPassed: boolean;
   /** Controls PauseMenu render gate. False during pause sweep-in, true otherwise. */
   pauseMenuVisible: boolean;
+  loadingReady: boolean;
+  loadingCompleted: number;
+  loadingTotal: number;
+  loadingLabel: string;
+  loadingStage: LoadingStage;
+  /** Opaque curtain that remains above the first gameplay frame while it fades in. */
+  loadingReveal: boolean;
+  loadingRevealFading: boolean;
 
   /** General fast sweep (resume, etc.). onMidpoint fires at 480 ms. */
   fastSweep: (onMidpoint: () => void) => void;
@@ -48,6 +66,13 @@ interface OrbTransitionState {
 
   /** Loading sweep. Optional onMidpoint fires at 550 ms (backdrop fully opaque). */
   loadingSweep: (onMidpoint?: () => void) => void;
+  setLoadingProgress: (progress: {
+    completed: number;
+    total: number;
+    label: string;
+    stage: Exclude<LoadingStage, "idle">;
+  }) => void;
+  completeLoadingSweep: (revealGameplay?: boolean) => void;
 
   _done: () => void;
 }
@@ -58,10 +83,19 @@ export const useOrbTransition = create<OrbTransitionState>((set, get) => ({
   mode:             "fast",
   isMidpointPassed: false,
   pauseMenuVisible: true,
+  loadingReady: true,
+  loadingCompleted: 0,
+  loadingTotal: 0,
+  loadingLabel: "",
+  loadingStage: "idle",
+  loadingReveal: false,
+  loadingRevealFading: false,
 
   fastSweep: (onMidpoint) => {
     if (get().isActive) return;
     clearTransitionTimers();
+    clearGameplayReveal();
+    set({ loadingReveal: false, loadingRevealFading: false });
     const run = ++transitionRun;
     set((s) => ({
       isActive: true, sweepKey: s.sweepKey + 1,
@@ -79,6 +113,8 @@ export const useOrbTransition = create<OrbTransitionState>((set, get) => ({
   pauseSweep: () => {
     if (get().isActive) return;
     clearTransitionTimers();
+    clearGameplayReveal();
+    set({ loadingReveal: false, loadingRevealFading: false });
     const run = ++transitionRun;
     set((s) => ({
       isActive: true, sweepKey: s.sweepKey + 1,
@@ -96,10 +132,15 @@ export const useOrbTransition = create<OrbTransitionState>((set, get) => ({
   loadingSweep: (onMidpoint) => {
     if (get().isActive) return;
     clearTransitionTimers();
+    clearGameplayReveal();
     const run = ++transitionRun;
+    loadingSweepStartedAt = performance.now();
     set((s) => ({
       isActive: true, sweepKey: s.sweepKey + 1,
       mode: "loading", isMidpointPassed: false, pauseMenuVisible: true,
+      loadingReady: false, loadingCompleted: 0, loadingTotal: 0,
+      loadingLabel: "Preparing arena", loadingStage: "code",
+      loadingReveal: false, loadingRevealFading: false,
     }));
     // 550 ms: backdrop fully opaque (0.15 × 3 100 ms = 465 ms) + 85 ms buffer
     scheduleTransition(run, 550, () => {
@@ -107,12 +148,56 @@ export const useOrbTransition = create<OrbTransitionState>((set, get) => ({
       if (run === transitionRun) set({ isMidpointPassed: true });
     });
     // worst-case: max stagger (1 730 ms) + max duration (1 220 ms) = 2 950 ms → pad
-    scheduleTransition(run, 3200, () => get()._done());
+    scheduleTransition(run, 3200, () => {
+      if (get().loadingReady) get()._done();
+    });
+  },
+
+  setLoadingProgress: ({ completed, total, label, stage }) => {
+    set({ loadingCompleted: completed, loadingTotal: total, loadingLabel: label, loadingStage: stage });
+  },
+
+  completeLoadingSweep: (revealGameplay = true) => {
+    if (!get().isActive || get().mode !== "loading") return;
+    set({
+      loadingReady: true,
+      loadingReveal: revealGameplay,
+      loadingRevealFading: false,
+    });
+    if (revealGameplay) {
+      const run = transitionRun;
+      // Keep one fully-black painted frame between the phase switch and the
+      // fade so the new gameplay canvas can never clip through the menu.
+      window.requestAnimationFrame(() => {
+        if (run === transitionRun) set({ loadingRevealFading: true });
+      });
+      if (gameplayRevealTimer !== null) window.clearTimeout(gameplayRevealTimer);
+      gameplayRevealTimer = window.setTimeout(() => {
+        if (run === transitionRun) {
+          set({ loadingReveal: false, loadingRevealFading: false });
+        }
+        gameplayRevealTimer = null;
+      }, 2100);
+    }
+    const elapsed = performance.now() - loadingSweepStartedAt;
+    if (elapsed >= 3200) {
+      const run = transitionRun;
+      scheduleTransition(run, 360, () => get()._done());
+    }
   },
 
   _done: () => {
     ++transitionRun;
     clearTransitionTimers();
-    set({ isActive: false, isMidpointPassed: false, pauseMenuVisible: true });
+    set({
+      isActive: false,
+      isMidpointPassed: false,
+      pauseMenuVisible: true,
+      loadingReady: true,
+      loadingCompleted: 0,
+      loadingTotal: 0,
+      loadingLabel: "",
+      loadingStage: "idle",
+    });
   },
 }));

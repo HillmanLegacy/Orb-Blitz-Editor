@@ -6,8 +6,9 @@ import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
 import { useAudio } from "@/lib/stores/useAudio";
 import { useOrbTransition } from "@/lib/stores/useOrbTransition";
-import { preloadImminentGameAssets, preloadMenuAssets } from "@/lib/preloadAssets";
+import { prepareGameSection, preloadMenuAssets, warmNextGameSection } from "@/lib/preloadAssets";
 import { GameScene, preloadGameplayScene } from "@/components/game/GameScene";
+import { requestRendererWarmup } from "@/game-runtime/RendererWarmup";
 import { SoundManager } from "@/components/game/SoundManager";
 import { GameUI } from "@/components/ui/GameUI";
 import { GameOver } from "@/components/ui/GameOver";
@@ -28,6 +29,8 @@ function App() {
   const phase = useMagicOrb(s => s.phase);
   const gameMode = useMagicOrb(s => s.gameMode);
   const pendingLevel = useMagicOrb(s => s.pendingLevel);
+  const arcadeLevel = useMagicOrb(s => s.arcadeLevel);
+  const loadingType = useMagicOrb(s => s.loadingType);
   const { addCoins, shopOpen, inventoryOpen } = useShop(useShallow(s => ({
     addCoins: s.addCoins,
     shopOpen: s.shopOpen,
@@ -47,7 +50,7 @@ function App() {
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
   const [shopLayerVisible, setShopLayerVisible] = useState(false);
   const [inventoryLayerVisible, setInventoryLayerVisible] = useState(false);
-  const musicFiredRef = useRef(false);
+  const loadingRunRef = useRef(0);
   const handleStartupLoadingComplete = useCallback(() => {
     setShowStartupLoading(false);
     // Menu sounds are small and immediately useful. Gameplay assets wait until
@@ -79,31 +82,64 @@ function App() {
     }
   }, [addCoins]);
 
-  // ── Loading phase: music transition + finishLoading ───────────────────────
-  // The orb sweep (loadingSweep) is triggered from each call site at tap time.
-  // startLoading() fires at the sweep midpoint (550 ms), so finishLoading needs
-  // only 1 800 ms from here (total from tap ≈ 2 350 ms, within the opaque
-  // backdrop window that ends at 2 604 ms).
+  // ── Loading phase: readiness-aware transition ──────────────────────────────
+  // startLoading() fires once the sweep is opaque. Gameplay is revealed only
+  // after the selected section's code, critical models, and bounded renderer
+  // warmup have settled. The sweep holds if preparation exceeds its normal run.
   useEffect(() => {
-    if (phase !== "loading") {
-      musicFiredRef.current = false;
-      return;
-    }
+    if (phase !== "loading") return;
+    const run = ++loadingRunRef.current;
+    let cancelled = false;
+    const transition = useOrbTransition.getState();
 
-    if (!musicFiredRef.current) {
-      musicFiredRef.current = true;
-      // Start the gameplay module and selected run's critical requests while
-      // the transition is opaque. Neither request gates the transition.
-      preloadGameplayScene();
-      void preloadImminentGameAssets({ gameMode, level: pendingLevel });
-    }
+    const complete = async () => {
+      if (loadingType === "entering" || loadingType === "nextLevel") {
+        await prepareGameSection({
+          gameMode,
+          level: pendingLevel,
+          loadGameplayCode: preloadGameplayScene,
+          warmRenderer: () => requestRendererWarmup(1800),
+          onProgress: (progress) => {
+            if (!cancelled && run === loadingRunRef.current) {
+              useOrbTransition.getState().setLoadingProgress(progress);
+            }
+          },
+        });
+      } else {
+        transition.setLoadingProgress({
+          completed: 0,
+          total: 1,
+          label: loadingType === "exiting_to_menu" ? "Returning to command" : "Preparing level select",
+          stage: "code",
+        });
+        await new Promise((resolve) => window.setTimeout(resolve, 650));
+        transition.setLoadingProgress({
+          completed: 1,
+          total: 1,
+          label: "Ready",
+          stage: "ready",
+        });
+      }
 
-    const finishTimer = window.setTimeout(() => {
+      if (cancelled || run !== loadingRunRef.current) return;
+      useOrbTransition.getState().completeLoadingSweep(
+        loadingType === "entering" || loadingType === "nextLevel",
+      );
       useMagicOrb.getState().finishLoading();
-    }, 1800);
+    };
 
-    return () => window.clearTimeout(finishTimer);
-  }, [gameMode, pendingLevel, phase]);
+    void complete();
+    return () => {
+      cancelled = true;
+    };
+  }, [gameMode, loadingType, pendingLevel, phase]);
+
+  // Once play is responsive, use idle time to prepare the current world's boss
+  // (or the next world's model after a boss) without blocking simulation.
+  useEffect(() => {
+    if (phase !== "playing") return;
+    return warmNextGameSection(gameMode, arcadeLevel);
+  }, [arcadeLevel, gameMode, phase]);
 
   const handleShowLevelSelect = useCallback(() => setInitialMenuState("worlds"), []);
   const handleShowMainMenu    = useCallback(() => setInitialMenuState("root"),   []);

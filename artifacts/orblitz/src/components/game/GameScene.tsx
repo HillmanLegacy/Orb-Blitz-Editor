@@ -1,4 +1,4 @@
-import { Component, Suspense, type ComponentType, type ReactNode, useEffect, useRef, useState } from "react";
+import { Component, Suspense, type ComponentType, type ReactNode, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { EffectComposer, Bloom, SMAA, ChromaticAberration, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
@@ -7,6 +7,11 @@ import { AdaptiveRenderQuality, useRenderQuality } from "./AdaptiveRenderQuality
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
 import { getGameplayGateMode } from "@/game-runtime/GameplayGateState";
+import {
+  getRendererWarmupGeneration,
+  markRendererWarmupComplete,
+  subscribeRendererWarmup,
+} from "@/game-runtime/RendererWarmup";
 import {
   performanceFeatureSnapshot,
   setPerformanceFeatureEnabled,
@@ -19,8 +24,8 @@ const loadGameplayScene = () => import("./GameplayScene");
 let loadedGameplayScene: ComponentType | null = null;
 
 /** Start downloading the heavy gameplay chunk before the gameplay gate mounts. */
-export function preloadGameplayScene(): void {
-  void loadGameplayScene();
+export function preloadGameplayScene(): Promise<void> {
+  return loadGameplayScene().then(() => undefined);
 }
 
 // ── Renderer configuration ────────────────────────────────────────────────────
@@ -97,35 +102,45 @@ function PerformanceToggleInvalidator() {
 function ShaderPrewarm() {
   const { gl, scene, camera } = useThree();
   const phase = useMagicOrb(s => s.phase);
-  const done = useRef(false);
+  const requestedGeneration = useSyncExternalStore(
+    subscribeRendererWarmup,
+    getRendererWarmupGeneration,
+    getRendererWarmupGeneration,
+  );
+  const completedGeneration = useRef(0);
 
   useEffect(() => {
-    if (phase !== "playing" || done.current) return;
+    if (
+      phase !== "loading" ||
+      requestedGeneration === 0 ||
+      completedGeneration.current >= requestedGeneration
+    ) return;
 
-    // Do not compete with the first playable frame. Give the lazy gameplay
-    // scene one paint to mount, then use idle time for shader warmup.
-    const run = () => {
-      done.current = true;
-      (gl as THREE.WebGLRenderer).compile(scene, camera);
-    };
-    let idleId: number | null = null;
-    const begin = () => {
-      if (typeof requestIdleCallback !== "undefined") {
-        idleId = requestIdleCallback(run, { timeout: 2200 });
-      } else {
-        idleId = window.setTimeout(run, 600);
-      }
-    };
-    const delay = window.setTimeout(begin, 250);
+    // The request is emitted only after critical GLTF cache promises resolve.
+    // Two paints let their Suspense branches commit before this compile pass.
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(async () => {
+        try {
+          const renderer = gl as THREE.WebGLRenderer & {
+            compileAsync?: (scene: THREE.Scene, camera: THREE.Camera) => Promise<void>;
+          };
+          if (renderer.compileAsync) await renderer.compileAsync(scene, camera);
+          else renderer.compile(scene, camera);
+        } catch (error) {
+          console.warn("[loading] renderer warmup unavailable", error);
+        } finally {
+          completedGeneration.current = requestedGeneration;
+          markRendererWarmupComplete(requestedGeneration);
+        }
+      });
+    });
 
     return () => {
-      window.clearTimeout(delay);
-      if (idleId !== null) {
-        if (typeof requestIdleCallback !== "undefined") cancelIdleCallback(idleId);
-        else window.clearTimeout(idleId);
-      }
+      cancelAnimationFrame(firstFrame);
+      if (secondFrame) cancelAnimationFrame(secondFrame);
     };
-  }, [gl, scene, camera, phase]);
+  }, [gl, scene, camera, phase, requestedGeneration]);
 
   return null;
 }
@@ -296,7 +311,12 @@ function GameplayGate() {
   if (gateMode === "hidden") return null;
   if (gateMode === "chunk-loading" || !GameplayScene) return <GameplayLoadingPlayer />;
   const ResolvedGameplayScene = GameplayScene;
-  return <ResolvedGameplayScene />;
+  return (
+    <>
+      <ResolvedGameplayScene />
+      <ShaderPrewarm />
+    </>
+  );
 }
 
 /** Visible only while the gameplay JavaScript chunk is loading. */
@@ -446,7 +466,6 @@ export function GameScene() {
           <AdaptiveRenderQuality />
           <GameRuntimeLifecycle />
           <RendererSetup />
-          <ShaderPrewarm />
           <CameraController />
 
           {/* Lightweight background — gameplay GPU systems mount below only when needed */}

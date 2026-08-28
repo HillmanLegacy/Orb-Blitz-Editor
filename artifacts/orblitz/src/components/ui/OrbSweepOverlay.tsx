@@ -163,7 +163,19 @@ function drawFrame(
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export function OrbSweepOverlay() {
-  const { isActive, sweepKey, mode } = useOrbTransition();
+  const {
+    isActive,
+    sweepKey,
+    mode,
+    isMidpointPassed,
+    loadingReady,
+    loadingCompleted,
+    loadingTotal,
+    loadingLabel,
+    loadingStage,
+    loadingReveal,
+    loadingRevealFading,
+  } = useOrbTransition();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef    = useRef<number>(0);
 
@@ -202,20 +214,102 @@ export function OrbSweepOverlay() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, sweepKey]);
 
-  if (!isActive) return null;
+  if (!isActive && !loadingReveal) return null;
+
+  const showLoadingStatus =
+    mode === "loading" && isMidpointPassed && !loadingReady && loadingTotal > 0;
+  const progress = loadingTotal > 0
+    ? Math.max(0, Math.min(1, loadingCompleted / loadingTotal))
+    : 0;
 
   return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        position:      "fixed",
-        inset:          0,
-        width:          "100%",
-        height:         "100%",
-        zIndex:         9999,
-        pointerEvents: "none",
-        // Single compositor layer — no filter, no will-change proliferation
-      }}
-    />
+    <>
+      {mode === "loading" && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9998,
+            pointerEvents: "none",
+            background: "#000",
+            opacity: isMidpointPassed && !loadingReady ? 1 : 0,
+            transition: "opacity 360ms ease-out",
+          }}
+        />
+      )}
+      {loadingReveal && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10001,
+            pointerEvents: "none",
+            background: "#000",
+            opacity: loadingRevealFading ? 0 : 1,
+            transition: "opacity 2000ms ease-in-out",
+          }}
+        />
+      )}
+      <canvas
+        ref={canvasRef}
+        style={{
+          position:      "fixed",
+          inset:          0,
+          width:          "100%",
+          height:         "100%",
+          zIndex:         9999,
+          pointerEvents: "none",
+          // Single compositor layer — no filter, no will-change proliferation
+        }}
+      />
+      {showLoadingStatus && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: "fixed",
+            left: "50%",
+            bottom: "clamp(34px, 8vh, 82px)",
+            zIndex: 10000,
+            width: "min(320px, calc(100vw - 48px))",
+            transform: "translateX(-50%)",
+            pointerEvents: "none",
+            color: "#dffaff",
+            textAlign: "center",
+            fontFamily: "Inter, system-ui, sans-serif",
+            textShadow: "0 0 18px rgba(38, 207, 255, 0.7)",
+          }}
+        >
+          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.18em", textTransform: "uppercase" }}>
+            {loadingStage === "fallback" ? "Launching with safe visuals" : loadingLabel}
+          </div>
+          <div
+            style={{
+              height: 2,
+              marginTop: 12,
+              overflow: "hidden",
+              borderRadius: 2,
+              background: "rgba(149, 235, 255, 0.18)",
+            }}
+          >
+            <div
+              style={{
+                width: `${Math.round(progress * 100)}%`,
+                height: "100%",
+                borderRadius: 2,
+                background: "linear-gradient(90deg, #138dff, #6cf8ff)",
+                boxShadow: "0 0 12px rgba(63, 223, 255, 0.85)",
+                transition: "width 180ms ease-out",
+              }}
+            />
+          </div>
+          <div style={{ marginTop: 7, fontSize: 10, opacity: 0.62, letterSpacing: "0.1em" }}>
+            {loadingCompleted} / {loadingTotal} READY
+          </div>
+        </div>
+      )}
+    </>
   );
 }
