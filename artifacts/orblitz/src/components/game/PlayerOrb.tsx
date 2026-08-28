@@ -17,23 +17,23 @@ const sharedPlaneGeo = new THREE.PlaneGeometry(1, 1);
 
 export const getSkinColors = (skin: OrbSkin, health: number) => {
   switch (skin) {
-    case "golden":
+    case "fire":
       return { 
-        core: "#ffd700", 
-        glow: "#ffaa00", 
-        emissive: "#ff8800",
-        accent: "#fff4cc",
-        projectile: "#ffd700",
-        particles: ["#ffd700", "#ffaa00", "#ffffff", "#fff4cc"]
+        core: "#ff4400",
+        glow: "#ff8800",
+        emissive: "#ffcc00",
+        accent: "#ffaa44",
+        projectile: "#ff6600",
+        particles: ["#ff4400", "#ff8800", "#ffcc00", "#ff0000"]
       };
-    case "neon":
+    case "star":
       return { 
-        core: "#00ff88", 
-        glow: "#00ffff", 
-        emissive: "#ff00ff",
-        accent: "#88ffff",
-        projectile: "#00ff88",
-        particles: ["#00ff88", "#00ffff", "#ff00ff", "#88ff88"]
+        core: "#ffcc00",
+        glow: "#fff066",
+        emissive: "#ffdd44",
+        accent: "#fff4aa",
+        projectile: "#ffcc00",
+        particles: ["#ffcc00", "#fff066", "#ffffff", "#ffdd44"]
       };
     case "rainbow":
       return { 
@@ -45,69 +45,32 @@ export const getSkinColors = (skin: OrbSkin, health: number) => {
         projectile: "#ff00ff",
         particles: ["#ff0000", "#ff8800", "#ffff00", "#00ff00", "#00ffff", "#ff00ff"]
       };
-    case "crystal":
+    case "mecha":
       return { 
-        core: "#aaddff", 
-        glow: "#ffffff", 
-        emissive: "#88aaff", 
-        transparent: true,
-        accent: "#eeffff",
-        projectile: "#88ddff",
-        particles: ["#aaddff", "#ffffff", "#88ccff", "#ccffff"]
+        core: "#cfefff",
+        glow: "#44bbff",
+        emissive: "#2266aa",
+        accent: "#ffffff",
+        projectile: "#44bbff",
+        particles: ["#cfefff", "#44bbff", "#2266aa", "#ffffff"]
       };
-    case "void":
-      return { 
-        core: "#440066", 
-        glow: "#660088", 
-        emissive: "#8800aa",
-        accent: "#aa66cc",
-        projectile: "#9933ff",
-        particles: ["#440066", "#660088", "#8800aa", "#330044"]
+    case "monster":
+      return {
+        core: "#440088",
+        glow: "#cc55ff",
+        emissive: "#8800ff",
+        accent: "#ee99ff",
+        projectile: "#aa33ff",
+        particles: ["#440088", "#8800ff", "#cc55ff", "#ffffff"]
       };
     case "plasma":
       return {
-        core: "#ff44ff",
-        glow: "#aa00ff",
-        emissive: "#ff00aa",
-        accent: "#ff88ff",
-        projectile: "#ff44ff",
-        particles: ["#ff44ff", "#aa00ff", "#ff00aa", "#ff88ff"]
-      };
-    case "galaxy":
-      return {
-        core: "#4400ff",
-        glow: "#0088ff",
-        emissive: "#8800ff",
-        accent: "#88aaff",
-        projectile: "#6644ff",
-        particles: ["#4400ff", "#0088ff", "#8800ff", "#ffffff"]
-      };
-    case "phoenix":
-      return {
-        core: "#ff4400",
-        glow: "#ff8800",
-        emissive: "#ffcc00",
-        accent: "#ffaa44",
-        projectile: "#ff6600",
-        particles: ["#ff4400", "#ff8800", "#ffcc00", "#ff0000"]
-      };
-    case "shadow":
-      return {
-        core: "#222233",
-        glow: "#444466",
-        emissive: "#666688",
-        accent: "#8888aa",
-        projectile: "#6666aa",
-        particles: ["#222233", "#444466", "#666688", "#333344"]
-      };
-    case "aurora":
-      return {
-        core: "#00ffaa",
-        glow: "#00aaff",
-        emissive: "#ff00aa",
-        accent: "#88ffcc",
-        projectile: "#00ffcc",
-        particles: ["#00ffaa", "#00aaff", "#ff00aa", "#88ffcc"]
+        core: "#4488ff",
+        glow: "#aa44ff",
+        emissive: "#2244cc",
+        accent: "#bbccff",
+        projectile: "#6688ff",
+        particles: ["#4488ff", "#aa44ff", "#2244cc", "#ffffff"]
       };
     case "diamond":
       return {
@@ -118,41 +81,23 @@ export const getSkinColors = (skin: OrbSkin, health: number) => {
         projectile: "#aaddff",
         particles: ["#ffffff", "#aaddff", "#ccffff", "#88aaff"]
       };
-    case "inferno":
-      return {
-        core: "#ff2200",
-        glow: "#ff6600",
-        emissive: "#ff0000",
-        accent: "#ffaa00",
-        projectile: "#ff4400",
-        particles: ["#ff2200", "#ff6600", "#ff0000", "#ffaa00"]
-      };
-    case "frost":
-      return {
-        core: "#88ddff",
-        glow: "#aaeeff",
-        emissive: "#66ccff",
-        accent: "#ffffff",
-        projectile: "#88eeff",
-        particles: ["#88ddff", "#aaeeff", "#ffffff", "#66ccff"]
-      };
     case "toxic":
       return {
-        core: "#88ff00",
-        glow: "#aaff44",
-        emissive: "#66cc00",
+        core: "#44ff22",
+        glow: "#66ff44",
+        emissive: "#22aa08",
         accent: "#ccff88",
-        projectile: "#88ff00",
-        particles: ["#88ff00", "#aaff44", "#66cc00", "#ccff88"]
+        projectile: "#44ff22",
+        particles: ["#44ff22", "#66ff44", "#22aa08", "#ccff88"]
       };
-    case "electric":
+    case "crystal":
       return {
-        core: "#ffff00",
-        glow: "#88ffff",
-        emissive: "#ffffff",
-        accent: "#ffffaa",
-        projectile: "#ffff44",
-        particles: ["#ffff00", "#88ffff", "#ffffff", "#ffffaa"]
+        core: "#00ffcc",
+        glow: "#aaffee",
+        emissive: "#88ddff",
+        accent: "#eeffff",
+        projectile: "#00ffcc",
+        particles: ["#00ffcc", "#aaffee", "#88ddff", "#ffffff"]
       };
     default:
       return { 

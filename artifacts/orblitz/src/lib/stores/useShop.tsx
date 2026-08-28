@@ -2,7 +2,10 @@ import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import { useMagicOrb } from "./useMagicOrb";
 
-export type OrbSkin = "default" | "golden" | "neon" | "rainbow" | "crystal" | "void" | "plasma" | "galaxy" | "phoenix" | "shadow" | "aurora" | "diamond" | "inferno" | "frost" | "toxic" | "electric";
+export type OrbSkin = "default" | "fire" | "star" | "crystal" | "toxic" | "plasma" | "diamond" | "rainbow" | "mecha" | "monster";
+export const BOSS_SKIN_TYPES: readonly Exclude<OrbSkin, "default">[] = [
+  "fire", "star", "crystal", "toxic", "plasma", "diamond", "rainbow", "mecha", "monster",
+];
 export type TrailEffect = "none" | "sparkle" | "fire" | "ice" | "cosmic" | "lightning" | "rainbow" | "plasma" | "shadow" | "stardust" | "meteor" | "spirit" | "neon" | "sakura" | "galaxy" | "particle_swarm" | "flame_aura";
 export type RingStyle = "default" | "none" | "eclipse_horizon" | "singularity_event" | "celestial_aegis" | "chronos_clockwork" | "void_tendril" | "hyper_collider" | "solar_corona" | "prismatic_lattice" | "zero_tesla" | "astral_nebula";
 export type WeaponType = "none" | "orbital_rapid_blaster" | "orbital_scattershot" | "spiral_shooter" | "overcharged_blaster" | "homing_launcher" | "sub_blaster";
@@ -19,21 +22,15 @@ export interface ShopItem {
 }
 
 export const SHOP_ITEMS: ShopItem[] = [
-  { id: "skin_golden", name: "Golden Orb", description: "A luxurious golden glow with sparkle particles", price: 500, category: "skin", value: "golden" },
-  { id: "skin_neon", name: "Neon Surge", description: "Electric neon colors with pulse effect", price: 500, category: "skin", value: "neon" },
-  { id: "skin_rainbow", name: "Rainbow Prism", description: "Constantly shifting colors with light rays", price: 500, category: "skin", value: "rainbow" },
-  { id: "skin_crystal", name: "Crystal Core", description: "Transparent crystalline look with refraction", price: 500, category: "skin", value: "crystal" },
-  { id: "skin_void", name: "Void Walker", description: "Dark matter essence with particle absorption", price: 500, category: "skin", value: "void" },
-  { id: "skin_plasma", name: "Plasma Core", description: "Unstable plasma energy with electric arcs", price: 500, category: "skin", value: "plasma" },
-  { id: "skin_galaxy", name: "Galaxy Soul", description: "Swirling cosmos with stars and nebulae", price: 500, category: "skin", value: "galaxy" },
-  { id: "skin_phoenix", name: "Phoenix Flame", description: "Eternal fire with rising ember particles", price: 500, category: "skin", value: "phoenix" },
-  { id: "skin_shadow", name: "Shadow Essence", description: "Dark wisps with smoke trail effects", price: 500, category: "skin", value: "shadow" },
-  { id: "skin_aurora", name: "Aurora Borealis", description: "Northern lights with color waves", price: 500, category: "skin", value: "aurora" },
-  { id: "skin_diamond", name: "Diamond Core", description: "Brilliant faceted gem with light prisma", price: 500, category: "skin", value: "diamond" },
-  { id: "skin_inferno", name: "Inferno Heart", description: "Molten core with lava cracks", price: 500, category: "skin", value: "inferno" },
-  { id: "skin_frost", name: "Frost Nova", description: "Frozen essence with ice crystals", price: 500, category: "skin", value: "frost" },
-  { id: "skin_toxic", name: "Toxic Glow", description: "Radioactive aura with dripping particles", price: 500, category: "skin", value: "toxic" },
-  { id: "skin_electric", name: "Electric Storm", description: "Lightning charged with bolt effects", price: 500, category: "skin", value: "electric" },
+  { id: "skin_fire", name: "Fire Boss Skin", description: "The blazing core of the Fire Boss", price: 1000, category: "skin", value: "fire" },
+  { id: "skin_star", name: "Star Boss Skin", description: "The radiant gold of the Star Boss", price: 1000, category: "skin", value: "star" },
+  { id: "skin_crystal", name: "Crystal Boss Skin", description: "The luminous crystal energy of the Crystal Boss", price: 1000, category: "skin", value: "crystal" },
+  { id: "skin_toxic", name: "Toxic Boss Skin", description: "The radioactive green glow of the Toxic Boss", price: 1000, category: "skin", value: "toxic" },
+  { id: "skin_plasma", name: "Plasma Boss Skin", description: "The blue-violet plasma of the Plasma Boss", price: 1000, category: "skin", value: "plasma" },
+  { id: "skin_diamond", name: "Diamond Boss Skin", description: "The prismatic brilliance of the Diamond Boss", price: 1000, category: "skin", value: "diamond" },
+  { id: "skin_rainbow", name: "Rainbow Boss Skin", description: "The shifting spectrum of the Rainbow Boss", price: 1000, category: "skin", value: "rainbow" },
+  { id: "skin_mecha", name: "Mecha Boss Skin", description: "The charged steel of the Mecha Boss", price: 1000, category: "skin", value: "mecha" },
+  { id: "skin_monster", name: "Monster Boss Skin", description: "The deep void energy of the Monster Boss", price: 1000, category: "skin", value: "monster" },
   
   { id: "trail_sparkle", name: "Sparkle Trail", description: "Leaves sparkling star particles", price: 300, category: "trail", value: "sparkle" },
   { id: "trail_fire", name: "Fire Trail", description: "Blazing fire with ember particles", price: 300, category: "trail", value: "fire" },
@@ -177,10 +174,26 @@ const getStoredShopData = (): StoredShopData => {
       const equippedRing = _validRings.has(data.equippedRing) ? data.equippedRing : "none";
       if (!_validRings.has(data.equippedRing)) needsSave = true;
 
-      const result: StoredShopData = {
+       const validSkinValues = new Set<OrbSkin>(["default", ...BOSS_SKIN_TYPES]);
+       const retiredSkinIds = new Set([
+         "skin_golden", "skin_neon", "skin_rainbow", "skin_crystal", "skin_void",
+         "skin_plasma", "skin_galaxy", "skin_phoenix", "skin_shadow", "skin_aurora",
+         "skin_diamond", "skin_inferno", "skin_frost", "skin_toxic", "skin_electric",
+       ]);
+       const migratedOwnedItems = ownedItems.filter((id: string) => !retiredSkinIds.has(id));
+       if (migratedOwnedItems.length !== ownedItems.length) {
+         ownedItems = migratedOwnedItems;
+         needsSave = true;
+       }
+       const equippedSkin = validSkinValues.has(data.equippedSkin)
+         ? data.equippedSkin
+         : "default";
+       if (equippedSkin !== data.equippedSkin) needsSave = true;
+
+       const result: StoredShopData = {
         coins: data.coins ?? 0,
         ownedItems,
-        equippedSkin: data.equippedSkin ?? "default",
+         equippedSkin,
         equippedTrail: data.equippedTrail ?? "none",
         equippedRing,
         equippedWeapon: equippedWeapon === "orbital_teletransfer" ? "none" as WeaponType : equippedWeapon,

@@ -16,7 +16,7 @@ import {
 } from "../src/game-runtime/BossProgression";
 import { SimulationPipeline } from "../src/game-runtime/SimulationPipeline";
 import { useMagicOrb, type DarkOrb, type PowerUp, type Projectile } from "../src/lib/stores/useMagicOrb";
-import { useShop } from "../src/lib/stores/useShop";
+import { BOSS_SKIN_TYPES, SHOP_ITEMS, useShop } from "../src/lib/stores/useShop";
 import {
   AdaptiveRenderQualityController,
   getVisualBudget,
@@ -200,6 +200,18 @@ describe("gameplay runtime invariants", () => {
     expect(pool.active).toBe(2);
     expect(reused.slot).toBe(first.slot);
     expect(second.slot).not.toBe(reused.slot);
+  });
+
+  it("lists exactly the current boss roster as purchasable player skins", () => {
+    const skinValues = SHOP_ITEMS
+      .filter((item) => item.category === "skin")
+      .map((item) => item.value);
+
+    expect(skinValues).toEqual(BOSS_SKIN_TYPES);
+    expect(new Set(skinValues).size).toBe(BOSS_SKIN_TYPES.length);
+    expect(SHOP_ITEMS.some((item) => item.value === "golden")).toBe(false);
+    expect(SHOP_ITEMS.some((item) => item.value === "void")).toBe(false);
+    expect(SHOP_ITEMS.some((item) => item.value === "electric")).toBe(false);
   });
 
   it("classifies every store-backed projectile type as player-owned", () => {
