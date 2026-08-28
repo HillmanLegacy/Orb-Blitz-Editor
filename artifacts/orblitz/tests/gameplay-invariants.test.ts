@@ -61,6 +61,12 @@ import {
   getEnemyDefeatProgress,
   resolveEnemyDefeatBossType,
 } from "../src/components/game/EnemyDefeatConfig";
+import {
+  PLAYER_SKIN_MODEL_PATHS,
+  getPlayerSkinModelPath,
+  getPlayerSkinTrailPalette,
+  getPlayerSkinTrailColor,
+} from "../src/components/game/PlayerSkinVisualConfig";
 
 const makeProjectile = (id: string): Projectile => ({
   id,
@@ -349,6 +355,32 @@ describe("gameplay runtime invariants", () => {
     expect(SHOP_ITEMS.some((item) => item.value === "golden")).toBe(false);
     expect(SHOP_ITEMS.some((item) => item.value === "void")).toBe(false);
     expect(SHOP_ITEMS.some((item) => item.value === "electric")).toBe(false);
+  });
+
+  it("maps every player skin to an authored textured projectile model", () => {
+    const skins = ["default", ...BOSS_SKIN_TYPES] as const;
+    const modelPaths = skins.map(getPlayerSkinModelPath);
+
+    expect(modelPaths).toEqual(skins.map((skin) => PLAYER_SKIN_MODEL_PATHS[skin]));
+    expect(modelPaths.every((path) => path.endsWith("_texture.glb"))).toBe(true);
+    expect(new Set(modelPaths).size).toBe(skins.length);
+  });
+
+  it("uses white for default trails and skin colors for boss-skin trails", () => {
+    expect(getPlayerSkinTrailColor("default")).toBe("#ffffff");
+    for (const skin of BOSS_SKIN_TYPES) {
+      expect(getPlayerSkinTrailColor(skin)).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(getPlayerSkinTrailColor(skin)).not.toBe("#ffffff");
+    }
+  });
+
+  it("preserves gradient endpoints and three distinct spiral strands per skin", () => {
+    for (const skin of ["default", ...BOSS_SKIN_TYPES] as const) {
+      const palette = getPlayerSkinTrailPalette(skin);
+      expect(palette.base).toBe(getPlayerSkinTrailColor(skin));
+      expect(palette.head).not.toBe(palette.tail);
+      expect(new Set(palette.strands).size).toBe(3);
+    }
   });
 
   it("classifies every store-backed projectile type as player-owned", () => {
