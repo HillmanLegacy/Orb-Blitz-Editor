@@ -3,7 +3,6 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb, MovementPattern } from "@/lib/stores/useMagicOrb";
 import { useAudio } from "@/lib/stores/useAudio";
-import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 import { FireBoss } from "./FireBoss";
 import { PlasmaBoss } from "./PlasmaBoss";
 import { DiamondBoss } from "./DiamondBoss";
@@ -14,9 +13,8 @@ import { ToxicBoss } from "./ToxicBoss";
 import { MechaBoss } from "./MechaBoss";
 import { MonsterBoss } from "./MonsterBoss";
 import { FireExplosionVFX } from "./FireExplosionVFX";
-import { StarSupernovaVFX } from "./StarSupernovaVFX";
+import { BOSS_DEFEAT_DURATION } from "./BossDefeatPalette";
 import { StarBossTeleportVFX, StarTeleportVFXState } from "./StarBossTeleportVFX";
-import { CrystalCrackExplosionVFX } from "./CrystalCrackExplosionVFX";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
 
 
@@ -1253,54 +1251,15 @@ export function Boss() {
   const bossType = boss.bossType || "circle";
   
   if (boss.destroying) {
-    const totalTime = 3.5;
+    const totalTime = BOSS_DEFEAT_DURATION;
     const progress = 1 - ((boss.destroyTimer || 0) / totalTime);
 
-    // Fire Boss gets its own massive fire explosion
-    if (bossType === "circle") {
-      return (
-        <group position={[boss.position[0], boss.position[1], boss.position[2]]}>
-          <FireExplosionVFX progress={progress} scale={3.5} />
-        </group>
-      );
-    }
-
-    // Star Boss: HD gold supernova
-    if (bossType === "star") {
-      return (
-        <group position={[boss.position[0], boss.position[1], boss.position[2]]}>
-          <StarSupernovaVFX progress={progress} scale={3.4} />
-        </group>
-      );
-    }
-
-    // Crystal Boss (triangle / level 3.9): rock-crack then explode with chunks
-    if (bossType === "triangle") {
-      return (
-        <group position={[boss.position[0], boss.position[1], boss.position[2]]}>
-          <CrystalCrackExplosionVFX progress={progress} scale={3.2} />
-        </group>
-      );
-    }
-
-    const bossTypeColors: Record<string, { color: string; glow: string }> = {
-      circle:  { color: "#ff3366", glow: "#ff99bb" },
-      star:    { color: "#ffcc00", glow: "#fff066" },
-      triangle:{ color: "#00ffcc", glow: "#aaffee" },
-      square:  { color: "#6699ff", glow: "#bbccff" },
-      octagon: { color: "#ff66ff", glow: "#ffbbff" },
-      cross:   { color: "#ff9933", glow: "#ffcc88" },
-    };
-    const deathBossType = boss.bossType || "circle";
-    const deathPalette = bossTypeColors[deathBossType] ?? bossTypeColors.circle;
     return (
       <group position={[boss.position[0], boss.position[1], boss.position[2]]}>
-        <EnergyDissipationVFX
+        <FireExplosionVFX
           progress={progress}
-          color={deathPalette.color}
-          glowColor={deathPalette.glow}
-          scale={3.2}
-          seed={13}
+          bossType={bossType}
+          scale={3.5}
         />
       </group>
     );

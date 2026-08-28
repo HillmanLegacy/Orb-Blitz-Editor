@@ -43,6 +43,13 @@ import {
   shouldRenderChargedProjectileAura,
   shouldRenderParticleSwarmOverlay,
 } from "../src/components/game/PlayerProjectileVisualConfig";
+import {
+  BOSS_DEFEAT_DURATION,
+  BOSS_DEFEAT_PALETTES,
+  MAIN_BOSS_TYPES,
+  getBossDefeatPalette,
+} from "../src/components/game/BossDefeatPalette";
+import { BOSS_DEFEAT_PARTICLE_COUNTS } from "../src/components/game/FireExplosionVFX";
 
 const makeProjectile = (id: string): Projectile => ({
   id,
@@ -81,6 +88,32 @@ describe("gameplay runtime invariants", () => {
       projectiles: [],
       starFlowEvents: [],
     });
+  });
+
+  it("defines a complete defeat palette for every authored main boss", () => {
+    expect(MAIN_BOSS_TYPES).toHaveLength(9);
+    expect(new Set(MAIN_BOSS_TYPES).size).toBe(9);
+    expect(Object.keys(BOSS_DEFEAT_PALETTES).sort()).toEqual([...MAIN_BOSS_TYPES].sort());
+
+    for (const bossType of MAIN_BOSS_TYPES) {
+      const palette = getBossDefeatPalette(bossType);
+      expect(palette.primary).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(palette.secondary).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(palette.glow).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(palette.highlight).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(palette.shadow).toMatch(/^#[0-9a-f]{6}$/i);
+    }
+  });
+
+  it("preserves the 1.9 defeat duration and authored particle budget", () => {
+    expect(BOSS_DEFEAT_DURATION).toBe(3.5);
+    expect(BOSS_DEFEAT_PARTICLE_COUNTS).toEqual({
+      main: 600,
+      embers: 120,
+      fragments: 16,
+      corona: 60,
+    });
+    expect(Object.values(BOSS_DEFEAT_PARTICLE_COUNTS).reduce((sum, count) => sum + count, 0)).toBe(796);
   });
 
   afterEach(() => {

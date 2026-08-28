@@ -1,5 +1,5 @@
 /**
- * FireExplosionVFX — defeat animation for the Fire Boss
+ * FireExplosionVFX — shared 1.9-style main-boss defeat animation
  *
  * Layers (progress 0 → 1):
  *  0.00 – 0.50  Fire corona aura burst — 60 embers radiating outward (scaled-down boss aura)
@@ -12,11 +12,20 @@
 import { useRef, useMemo, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import type { BossType } from "@/lib/stores/useMagicOrb";
+import { getBossDefeatPalette } from "./BossDefeatPalette";
 
-const PARTICLE_COUNT   = 600;
-const EMBER_COUNT      = 120;
-const MINI_ORB_COUNT   = 16;   // mini-boss fragments — pure visual, no hitboxes
-const CORONA_BURST_COUNT = 60; // scaled-down fire aura radiating at the start
+export const BOSS_DEFEAT_PARTICLE_COUNTS = {
+  main: 600,
+  embers: 120,
+  fragments: 16,
+  corona: 60,
+} as const;
+
+const PARTICLE_COUNT = BOSS_DEFEAT_PARTICLE_COUNTS.main;
+const EMBER_COUNT = BOSS_DEFEAT_PARTICLE_COUNTS.embers;
+const MINI_ORB_COUNT = BOSS_DEFEAT_PARTICLE_COUNTS.fragments;
+const CORONA_BURST_COUNT = BOSS_DEFEAT_PARTICLE_COUNTS.corona;
 
 const _dummy = new THREE.Object3D();
 
@@ -57,11 +66,23 @@ interface CoronaBurstDatum {
 interface Props {
   progress: number;
   scale?:   number;
+  bossType?: BossType;
 }
 
-export function FireExplosionVFX({ progress, scale = 3.0 }: Props) {
+export function FireExplosionVFX({ progress, scale = 3.0, bossType = "circle" }: Props) {
   const progressRef = useRef(progress);
   progressRef.current = progress;
+  const palette = useMemo(() => {
+    const source = getBossDefeatPalette(bossType);
+    return {
+      primary: new THREE.Color(source.primary),
+      secondary: new THREE.Color(source.secondary),
+      glow: new THREE.Color(source.glow),
+      highlight: new THREE.Color(source.highlight),
+      shadow: new THREE.Color(source.shadow),
+      rainbow: source.rainbow === true,
+    };
+  }, [bossType]);
 
   // ── Mesh refs ──────────────────────────────────────────────────────────────
   const mainRef      = useRef<THREE.InstancedMesh>(null);
@@ -208,7 +229,16 @@ export function FireExplosionVFX({ progress, scale = 3.0 }: Props) {
         _dummy.updateMatrix();
         mainRef.current.setMatrixAt(i, _dummy.matrix);
 
-        color.setHSL(d.hue, 1.0, 0.55 + (1 - localP) * 0.3);
+        const colorT = d.hue / 0.13;
+        if (palette.rainbow) {
+          color.setHSL((t * 0.18 + colorT * 0.2 + i * 0.002) % 1, 1.0, 0.55 + (1 - localP) * 0.3);
+        } else if (colorT < 0.5) {
+          color.lerpColors(palette.primary, palette.secondary, colorT * 2);
+          color.multiplyScalar(0.78 + (1 - localP) * 0.22);
+        } else {
+          color.lerpColors(palette.secondary, palette.highlight, (colorT - 0.5) * 2);
+          color.multiplyScalar(0.72 + (1 - localP) * 0.28);
+        }
         mainRef.current.setColorAt(i, color);
       }
       mainRef.current.instanceMatrix.needsUpdate = true;
@@ -243,8 +273,13 @@ export function FireExplosionVFX({ progress, scale = 3.0 }: Props) {
         _dummy.updateMatrix();
         coronaRef.current.setMatrixAt(i, _dummy.matrix);
 
-        // orange → yellow, same palette as the live corona
-        color.setHSL(c.hue - localP * 0.04, 1.0, 0.52 + localP * 0.25);
+        const colorT = Math.max(0, Math.min(1, c.hue / 0.13));
+        if (palette.rainbow) {
+          color.setHSL((t * 0.18 + colorT * 0.2 + i * 0.006) % 1, 1.0, 0.52 + localP * 0.25);
+        } else {
+          color.lerpColors(palette.secondary, palette.glow, colorT);
+          color.multiplyScalar(0.78 + localP * 0.22);
+        }
         coronaRef.current.setColorAt(i, color);
       }
       coronaRef.current.instanceMatrix.needsUpdate = true;
@@ -289,10 +324,14 @@ export function FireExplosionVFX({ progress, scale = 3.0 }: Props) {
         _dummy.updateMatrix();
         miniOrbRef.current.setMatrixAt(i, _dummy.matrix);
 
-        // Fire color — cycles from orange-red at birth toward yellow-orange at peak
-        // then dims to deep-red at extinction (matches the full-size boss color ramp)
         const brightness = 0.50 + (1 - localP) * 0.32;
-        color.setHSL(o.hue + localP * 0.04, 1.0, brightness);
+        const colorT = Math.max(0, Math.min(1, o.hue / 0.12));
+        if (palette.rainbow) {
+          color.setHSL((t * 0.18 + colorT * 0.22 + i * 0.01) % 1, 1.0, brightness);
+        } else {
+          color.lerpColors(palette.glow, palette.secondary, colorT);
+          color.multiplyScalar(0.72 + (1 - localP) * 0.28);
+        }
         miniOrbRef.current.setColorAt(i, color);
       }
       miniOrbRef.current.instanceMatrix.needsUpdate = true;
@@ -321,7 +360,13 @@ export function FireExplosionVFX({ progress, scale = 3.0 }: Props) {
         _dummy.updateMatrix();
         emberRef.current.setMatrixAt(i, _dummy.matrix);
 
-        color.setHSL(d.hue, 1.0, 0.6);
+        const colorT = Math.max(0, Math.min(1, (d.hue - 0.07) / 0.08));
+        if (palette.rainbow) {
+          color.setHSL((t * 0.18 + colorT * 0.25 + i * 0.01) % 1, 1.0, 0.6);
+        } else {
+          color.lerpColors(palette.shadow, palette.glow, colorT);
+          color.multiplyScalar(0.72);
+        }
         emberRef.current.setColorAt(i, color);
       }
       emberRef.current.instanceMatrix.needsUpdate = true;
@@ -333,6 +378,7 @@ export function FireExplosionVFX({ progress, scale = 3.0 }: Props) {
       const flashLocal = p < 0.1 ? p / 0.1 : Math.max(0, 1 - (p - 0.1) / 0.55);
       flashRef.current.scale.setScalar(scale * 0.9 * flashLocal);
       const mat = flashRef.current.material as THREE.MeshBasicMaterial;
+      mat.color.copy(palette.highlight);
       mat.opacity = flashLocal * 0.95;
     }
   });
