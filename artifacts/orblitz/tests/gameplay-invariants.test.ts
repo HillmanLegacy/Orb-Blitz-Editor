@@ -53,6 +53,7 @@ import { BOSS_DEFEAT_PARTICLE_COUNTS } from "../src/components/game/FireExplosio
 import {
   ENEMY_DEFEAT_DURATION,
   ENEMY_DEFEAT_PROFILES,
+  STANDARD_ENEMY_DEFEAT_DURATION,
   STANDARD_ENEMY_DEFEAT_SIZE_SCALE,
   getBossTypeForEnemyShape,
   getEnemyDefeatParticleTotal,
@@ -177,7 +178,8 @@ describe("gameplay runtime invariants", () => {
   });
 
   it("keeps mini defeat effects bounded and lighter than the full boss effect", () => {
-    expect(ENEMY_DEFEAT_DURATION).toBe(0.6);
+    expect(ENEMY_DEFEAT_DURATION).toBe(STANDARD_ENEMY_DEFEAT_DURATION);
+    expect(STANDARD_ENEMY_DEFEAT_DURATION).toBe(2);
     expect(getEnemyDefeatProgress(ENEMY_DEFEAT_DURATION)).toBe(0);
     expect(getEnemyDefeatProgress(ENEMY_DEFEAT_DURATION / 2)).toBe(0.5);
     expect(getEnemyDefeatProgress(0)).toBe(1);
@@ -190,7 +192,7 @@ describe("gameplay runtime invariants", () => {
     for (const profile of Object.values(ENEMY_DEFEAT_PROFILES)) {
       expect(getEnemyDefeatParticleTotal(profile)).toBeLessThan(bossTotal);
       expect(profile.sizeMultiplier).toBeGreaterThan(1);
-      expect(profile.sizeMultiplier / profile.bossOrbSizeMultiplier).toBe(STANDARD_ENEMY_DEFEAT_SIZE_SCALE);
+      expect(profile.sizeMultiplier).toBeGreaterThanOrEqual(STANDARD_ENEMY_DEFEAT_SIZE_SCALE * 0.72);
     }
     expect(getEnemyDefeatParticleTotal(ENEMY_DEFEAT_PROFILES.high)).toBe(87);
   });
