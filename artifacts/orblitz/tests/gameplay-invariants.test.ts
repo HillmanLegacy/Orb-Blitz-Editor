@@ -38,9 +38,7 @@ import { getGameplayGateMode } from "../src/game-runtime/GameplayGateState";
 import {
   getPlayerProjectileVisualScale,
   isPlayerProjectile,
-  MAX_PLAYER_PROJECTILE_AURA_INSTANCES,
   PLAYER_PROJECTILE_TYPES,
-  shouldRenderChargedProjectileAura,
   shouldRenderParticleSwarmOverlay,
 } from "../src/components/game/PlayerProjectileVisualConfig";
 import {
@@ -402,17 +400,11 @@ describe("gameplay runtime invariants", () => {
     expect(getPlayerProjectileVisualScale({ type: "overcharged", isCharged: true }, 0.5)).toBeCloseTo(0.6235);
   });
 
-  it("keeps the shared player-projectile aura within the runtime pool", () => {
-    expect(MAX_PLAYER_PROJECTILE_AURA_INSTANCES).toBe(MAX_RUNTIME_PROJECTILES);
-  });
-
   it("keeps particle swarm as an overlay on the single shared projectile core", () => {
     const normalProjectile = { type: "normal" as const, isCharged: true };
     expect(isPlayerProjectile(normalProjectile)).toBe(true);
     expect(shouldRenderParticleSwarmOverlay(normalProjectile, "particle_swarm")).toBe(true);
-    expect(shouldRenderChargedProjectileAura(normalProjectile)).toBe(true);
     expect(shouldRenderParticleSwarmOverlay(normalProjectile, "fire")).toBe(false);
-    expect(shouldRenderChargedProjectileAura({ type: "overcharged", isCharged: true })).toBe(false);
   });
 
   it("drops only presentation spawn events when their bounded queue is full", () => {

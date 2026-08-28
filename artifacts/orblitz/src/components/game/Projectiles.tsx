@@ -24,8 +24,6 @@ import { sweptSphereHit } from "./ProjectileCollision";
 import {
   getPlayerProjectileVisualScale,
   isPlayerProjectile,
-  MAX_PLAYER_PROJECTILE_AURA_INSTANCES,
-  shouldRenderChargedProjectileAura,
   shouldRenderParticleSwarmOverlay,
 } from "./PlayerProjectileVisualConfig";
 import {
@@ -319,8 +317,6 @@ function ProjectileChargeAura({ projScale }: { projScale: number }) {
 // SpiralBraidMesh removed — replaced by the full OrbitalSpiralBlaster SpiralBundleMesh below
 
 const MAX_BATCHED_PROJECTILES = MAX_RUNTIME_PROJECTILES;
-const _batchedProjectileGlowGeometry = new THREE.SphereGeometry(1, 8, 6);
-const _batchedChargedAuraGeometry = new THREE.TorusGeometry(1, 0.12, 5, 16);
 const _batchedRapidTrailGeometry = new THREE.CylinderGeometry(1, 1, 1, 5, 1, true);
 const _batchedProjectileDummy = new THREE.Object3D();
 const _batchedProjectileAxis = new THREE.Vector3(0, 1, 0);
@@ -334,9 +330,9 @@ const _batchedModelPosition = new THREE.Vector3();
 
 type BatchedModelPart = {
   geometry: THREE.BufferGeometry;
-  material: THREE.Material | THREE.Material[];
+  material: THREE.Material;
   localMatrix: THREE.Matrix4;
-  ownedMaterials?: THREE.Material[];
+  ownedMaterial?: THREE.Material;
 };
 
 /**
@@ -387,46 +383,24 @@ function BatchedPlayerProjectileModels({
     playerScene.traverse((child) => {
       const mesh = child as THREE.Mesh;
       if (!mesh.isMesh) return;
-      const baseMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      const ownedMaterials: THREE.Material[] = [];
-      const materials = equippedSkin === "default"
-        ? mesh.material
-        : baseMaterials.map((baseMaterial, materialIndex) => {
-          const sourceMaterial = skinMaterials.length > 0
-            ? skinMaterials[(partIndex + materialIndex) % skinMaterials.length]
-            : undefined;
-          const cloned = baseMaterial.clone();
-          if (sourceMaterial) {
-            const source = sourceMaterial as THREE.MeshStandardMaterial;
-            const target = cloned as THREE.MeshStandardMaterial;
-            const textureProperties = [
-              "map",
-              "normalMap",
-              "roughnessMap",
-              "metalnessMap",
-              "aoMap",
-              "emissiveMap",
-              "bumpMap",
-              "alphaMap",
-              "displacementMap",
-            ] as const;
-            for (const property of textureProperties) {
-              const texture = source[property];
-              if (texture) (target as any)[property] = texture;
-            }
-            if (source.color && target.color) target.color.copy(source.color);
-            if (source.emissive && target.emissive) target.emissive.copy(source.emissive);
-            target.emissiveIntensity = source.emissiveIntensity;
-            target.needsUpdate = true;
-          }
-          ownedMaterials.push(cloned);
-          return cloned;
-        });
+      const baseMaterial = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+      const sourceMaterial = skinMaterials.length > 0
+        ? skinMaterials[partIndex % skinMaterials.length]
+        : baseMaterial;
+      const material = sourceMaterial.clone();
+      const source = sourceMaterial as THREE.MeshStandardMaterial;
+      const target = material as THREE.MeshStandardMaterial;
+      // GLTFLoader already configured the source texture color spaces and PBR
+      // channels. Cloning the complete source material preserves those settings
+      // while keeping one batch-owned material safe to dispose.
+      if (source.color && target.color) target.color.copy(source.color);
+      if (source.emissive && target.emissive) target.emissive.copy(source.emissive);
+      material.needsUpdate = true;
       parts.push({
         geometry: mesh.geometry,
-        material: materials,
+        material,
         localMatrix: normalizationMatrix.clone().multiply(mesh.matrixWorld),
-        ownedMaterials: ownedMaterials.length > 0 ? ownedMaterials : undefined,
+        ownedMaterial: material,
       });
       partIndex++;
     });
@@ -435,17 +409,19 @@ function BatchedPlayerProjectileModels({
 
   useEffect(() => () => {
     for (const part of modelParts) {
-      part.ownedMaterials?.forEach((material) => material.dispose());
+      part.ownedMaterial?.dispose();
     }
   }, [modelParts]);
 
   useFrame(({ clock }) => {
+    runtimeDiagnostics.beginProjectileVisuals();
     const seenSlots = seenSlotsRef.current;
     const seenSpiralSlots = seenSpiralSlotsRef.current;
     seenSlots.clear();
     seenSpiralSlots.clear();
     let highestSlot = -1;
     let highestSpiralSlot = -1;
+    let visibleModels = 0;
     _batchedModelRotation.setFromEuler(_batchedModelEuler.set(
       clock.getElapsedTime() * 1.6,
       clock.getElapsedTime() * 2.4,
@@ -488,11 +464,13 @@ function BatchedPlayerProjectileModels({
             );
             mesh.setMatrixAt(spiralSlot, _batchedModelInstanceMatrix);
           }
+          if (alive[subIndex]) visibleModels++;
         }
         continue;
       }
       const slot = motion.slot;
       seenSlots.add(slot);
+      visibleModels++;
       highestSlot = Math.max(highestSlot, slot);
       _batchedModelPosition.set(motion.position[0], motion.position[1], motion.position[2]);
       _batchedModelScale.setScalar(
@@ -540,6 +518,7 @@ function BatchedPlayerProjectileModels({
       mesh.count = highestSpiralSlot + 1;
       mesh.instanceMatrix.needsUpdate = true;
     }
+    runtimeDiagnostics.endProjectileVisuals(visibleModels);
   });
 
   return (
@@ -570,29 +549,16 @@ function BatchedPlayerProjectileModels({
  * instanced layer avoids cloning a textured player model, material set, and
  * frame callback for each trigger pull.
  */
-function ProjectileVisualBatch({
+function RapidProjectileTrailBatch({
   projectiles,
-  skinColors,
   trailColor,
 }: {
   projectiles: readonly Projectile[];
-  skinColors: { core: string; glow: string; emissive: string };
   trailColor: string;
 }) {
-  const glowRef = useRef<THREE.InstancedMesh>(null);
-  const chargedAuraRef = useRef<THREE.InstancedMesh>(null);
   const rapidTrailRef = useRef<THREE.InstancedMesh>(null);
   const activeSlotsRef = useRef<Set<number>>(new Set());
   const seenSlotsRef = useRef<Set<number>>(new Set());
-  const [glowMaterial] = useState(() => new THREE.MeshBasicMaterial({
-    color: skinColors.glow,
-    transparent: true,
-    opacity: 0.38,
-    depthWrite: false,
-    depthTest: false,
-    toneMapped: false,
-    blending: THREE.AdditiveBlending,
-  }));
   const [rapidTrailMaterial] = useState(() => new THREE.MeshBasicMaterial({
     color: trailColor,
     transparent: true,
@@ -602,94 +568,41 @@ function ProjectileVisualBatch({
     toneMapped: false,
     blending: THREE.AdditiveBlending,
   }));
-  const [chargedAuraMaterial] = useState(() => new THREE.MeshBasicMaterial({
-    color: "#ffdd33",
-    transparent: true,
-    opacity: 0.82,
-    depthWrite: false,
-    depthTest: false,
-    toneMapped: false,
-    blending: THREE.AdditiveBlending,
-  }));
-
   useEffect(() => {
-    glowMaterial.color.set(skinColors.glow);
     rapidTrailMaterial.color.set(trailColor);
-  }, [glowMaterial, rapidTrailMaterial, skinColors.glow, trailColor]);
+  }, [rapidTrailMaterial, trailColor]);
 
   useEffect(() => () => {
-    glowMaterial.dispose();
     rapidTrailMaterial.dispose();
-    chargedAuraMaterial.dispose();
-  }, [chargedAuraMaterial, glowMaterial, rapidTrailMaterial]);
+  }, [rapidTrailMaterial]);
 
-  useFrame(({ clock }) => {
-    const glowMesh = glowRef.current;
-    const chargedAuraMesh = chargedAuraRef.current;
+  useFrame(() => {
     const rapidTrailMesh = rapidTrailRef.current;
-    if (!glowMesh || !chargedAuraMesh || !rapidTrailMesh) return;
+    if (!rapidTrailMesh) return;
 
-    runtimeDiagnostics.beginProjectileVisuals();
     const seenSlots = seenSlotsRef.current;
     seenSlots.clear();
     let highestSlot = -1;
-    let instances = 0;
 
     for (const projectile of projectiles) {
-      // Spiral owns three independently positioned pooled model instances in
-      // BatchedPlayerProjectileModels; never add a fourth center core here.
-      if (projectile.type === "spiral") continue;
+      if (projectile.type !== "rapidblaster") continue;
       const motion = projectilePhysicsMap.get(projectile.id);
       if (!motion || motion.slot >= MAX_BATCHED_PROJECTILES) continue;
 
       const slot = motion.slot;
       seenSlots.add(slot);
       highestSlot = Math.max(highestSlot, slot);
-      instances++;
-
-      const isRapid = projectile.type === "rapidblaster";
-      const scale = getPlayerProjectileVisualScale(
-        projectile,
-        motion.spawnScale ?? projectile.spawnScale ?? 1,
+      const [dx, dy, dz] = motion.direction;
+      _batchedProjectileDirection.set(dx, dy, dz).normalize();
+      _batchedProjectileDummy.position.set(
+        motion.position[0] - dx * 0.55,
+        motion.position[1] - dy * 0.55,
+        motion.position[2] - dz * 0.55,
       );
-
-      _batchedProjectileDummy.position.set(...motion.position);
-      _batchedProjectileDummy.quaternion.identity();
-      _batchedProjectileDummy.scale.setScalar(scale * (isRapid ? 2.0 : 1.85));
+      _batchedProjectileDummy.quaternion.setFromUnitVectors(_batchedProjectileAxis, _batchedProjectileDirection);
+      _batchedProjectileDummy.scale.set(0.038, 1.1, 0.038);
       _batchedProjectileDummy.updateMatrix();
-      glowMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
-
-      if (shouldRenderChargedProjectileAura(projectile)) {
-        _batchedProjectileDummy.rotation.set(
-          clock.getElapsedTime() * 2.4,
-          clock.getElapsedTime() * 3.1,
-          clock.getElapsedTime() * 1.7,
-        );
-        _batchedProjectileDummy.scale.setScalar(scale * 2.45);
-      } else {
-        _batchedProjectileDummy.rotation.set(0, 0, 0);
-        _batchedProjectileDummy.scale.setScalar(0);
-      }
-      _batchedProjectileDummy.updateMatrix();
-      chargedAuraMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
-
-      if (isRapid) {
-        const [dx, dy, dz] = motion.direction;
-        _batchedProjectileDirection.set(dx, dy, dz).normalize();
-        _batchedProjectileDummy.position.set(
-          motion.position[0] - dx * 0.55,
-          motion.position[1] - dy * 0.55,
-          motion.position[2] - dz * 0.55,
-        );
-        _batchedProjectileDummy.quaternion.setFromUnitVectors(_batchedProjectileAxis, _batchedProjectileDirection);
-        _batchedProjectileDummy.scale.set(0.038, 1.1, 0.038);
-        _batchedProjectileDummy.updateMatrix();
-        rapidTrailMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
-      } else {
-        _batchedProjectileDummy.scale.setScalar(0);
-        _batchedProjectileDummy.updateMatrix();
-        rapidTrailMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
-      }
+      rapidTrailMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
     }
 
     const activeSlots = activeSlotsRef.current;
@@ -699,48 +612,23 @@ function ProjectileVisualBatch({
       _batchedProjectileDummy.quaternion.identity();
       _batchedProjectileDummy.scale.setScalar(0);
       _batchedProjectileDummy.updateMatrix();
-      glowMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
-      chargedAuraMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
       rapidTrailMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
       activeSlots.delete(slot);
     }
     for (const slot of seenSlots) activeSlots.add(slot);
 
     const meshCount = highestSlot + 1;
-    glowMesh.count = meshCount;
-    chargedAuraMesh.count = meshCount;
     rapidTrailMesh.count = meshCount;
-    glowMesh.instanceMatrix.needsUpdate = true;
-    chargedAuraMesh.instanceMatrix.needsUpdate = true;
     rapidTrailMesh.instanceMatrix.needsUpdate = true;
-    runtimeDiagnostics.endProjectileVisuals(instances);
   });
 
   return (
-    <>
-      <instancedMesh
-        ref={glowRef}
-        args={[_batchedProjectileGlowGeometry, glowMaterial, MAX_BATCHED_PROJECTILES]}
-        frustumCulled={false}
-        renderOrder={19}
-      />
-      <instancedMesh
-        ref={chargedAuraRef}
-        args={[
-          _batchedChargedAuraGeometry,
-          chargedAuraMaterial,
-          MAX_PLAYER_PROJECTILE_AURA_INSTANCES,
-        ]}
-        frustumCulled={false}
-        renderOrder={21}
-      />
-      <instancedMesh
-        ref={rapidTrailRef}
-        args={[_batchedRapidTrailGeometry, rapidTrailMaterial, MAX_BATCHED_PROJECTILES]}
-        frustumCulled={false}
-        renderOrder={18}
-      />
-    </>
+    <instancedMesh
+      ref={rapidTrailRef}
+      args={[_batchedRapidTrailGeometry, rapidTrailMaterial, MAX_BATCHED_PROJECTILES]}
+      frustumCulled={false}
+      renderOrder={18}
+    />
   );
 }
 
@@ -1174,11 +1062,6 @@ function SubblasterProjectileMesh({
     <group ref={groupRef}>
       <pointLight color="#22ddff" intensity={8} distance={2.5} decay={2} />
       <mesh geometry={ribbonGeo} material={ribbonMat} />
-      <mesh scale={0.18}>
-        <sphereGeometry args={[1, 5, 3]} />
-        <meshBasicMaterial color="#44eeff" transparent opacity={0.28}
-          depthWrite={false} blending={THREE.AdditiveBlending} />
-      </mesh>
     </group>
   );
 }
@@ -1356,8 +1239,6 @@ function RapidBlasterProjectileMesh({
 // ── Orbital Homing Blaster — swirling trail + lock-on ring flash ──────────────
 const _HM_TRAIL_N  = 20;
 const _HM_TRAIL_HW = 0.068;
-const _hmCoreGeo = new THREE.SphereGeometry(1, 8, 6);
-
 // Lock-on ring: 270° arc torus
 const _hmRingGeo  = new THREE.TorusGeometry(1, 0.09, 6, 32, Math.PI * 1.5);
 const _hmRingGeo2 = new THREE.TorusGeometry(1, 0.05, 5, 24, Math.PI * 1.5);
@@ -1415,12 +1296,6 @@ function HomingProjectileMesh({
   const groupRef = useRef<THREE.Group>(null);
   const trailHead = useMemo(() => new THREE.Color(trailPalette.head), [trailPalette.head]);
   const trailTail = useMemo(() => new THREE.Color(trailPalette.tail), [trailPalette.tail]);
-  const bornRef     = useRef<number | null>(null);
-  const flashRef    = useRef<THREE.Mesh>(null);
-  const flashMatRef = useRef(new THREE.MeshBasicMaterial({
-    color: "#88ffff", transparent: true, opacity: 0,
-    depthWrite: false, blending: THREE.AdditiveBlending,
-  }));
 
   const ribbonGeo = useMemo(() => {
     const geo  = new THREE.BufferGeometry();
@@ -1444,7 +1319,7 @@ function HomingProjectileMesh({
   }), []);
 
   useEffect(() => () => {
-    ribbonGeo.dispose(); ribbonMat.dispose(); flashMatRef.current.dispose();
+    ribbonGeo.dispose(); ribbonMat.dispose();
   }, [ribbonGeo, ribbonMat]);
 
   const posHistRef = useRef(new Float32Array(_HM_TRAIL_N * 3));
@@ -1458,16 +1333,7 @@ function HomingProjectileMesh({
     if (!motion) return;
     if (groupRef.current) groupRef.current.position.set(...motion.position);
     const [wx, wy, wz] = motion.position;
-    if (bornRef.current === null) bornRef.current = clock.getElapsedTime();
-    const age = clock.getElapsedTime() - bornRef.current;
-
-    // Birth flash (0.08 s)
-    if (flashRef.current) {
-      const FLASH_DUR = 0.08;
-      const op = age < FLASH_DUR ? (1 - age / FLASH_DUR) * 0.88 : 0;
-      flashMatRef.current.opacity = op;
-      flashRef.current.scale.setScalar(0.34 + (1 - (op / 0.88)) * 0.12);
-    }
+    const age = clock.getElapsedTime();
 
     // Swirling ribbon — stores position history, adds sine wiggle perpendicular to travel
     const N   = _HM_TRAIL_N;
@@ -1512,7 +1378,6 @@ function HomingProjectileMesh({
   });
 
   const isCharged = projectile.isCharged;
-  const projScale = isCharged ? 0.195 : 0.13; // 1.5× when charge beam active
 
   useFrame(() => {
     const motion = getLiveProjectileMotion(projectile);
@@ -1526,13 +1391,7 @@ function HomingProjectileMesh({
         intensity={isCharged ? 12 : 8}
         distance={isCharged ? 6 : 4}
         decay={2} />
-      <mesh ref={flashRef} geometry={_hmCoreGeo} material={flashMatRef.current} scale={0.34} />
       <mesh geometry={ribbonGeo} material={ribbonMat} />
-      <mesh scale={projScale * 2.4}>
-        <sphereGeometry args={[1, 6, 4]} />
-        <meshBasicMaterial color="#00ccff" transparent opacity={0.20}
-          depthWrite={false} blending={THREE.AdditiveBlending} />
-      </mesh>
     </group>
   );
 }
@@ -1540,7 +1399,6 @@ function HomingProjectileMesh({
 // ── Orbital Scattershot — plasma bolt + ribbon trail + muzzle arc ─────────────
 const _SC_TRAIL_N  = 14;
 const _SC_TRAIL_HW = 0.072; // wider than rapid-blaster
-const _scFlashGeo = new THREE.SphereGeometry(1, 8, 6);
 
 // Muzzle arc — 180° torus half-ring, wide and flat
 const _scArcGeo  = new THREE.TorusGeometry(1, 0.10, 6, 32, Math.PI);
@@ -1598,12 +1456,6 @@ function ScattershotProjectileMesh({
   const groupRef = useRef<THREE.Group>(null);
   const trailHead = useMemo(() => new THREE.Color(trailPalette.head), [trailPalette.head]);
   const trailTail = useMemo(() => new THREE.Color(trailPalette.tail), [trailPalette.tail]);
-  const bornRef    = useRef<number | null>(null);
-  const flashRef   = useRef<THREE.Mesh>(null);
-  const flashMatRef = useRef(new THREE.MeshBasicMaterial({
-    color: "#ffee88", transparent: true, opacity: 0,
-    depthWrite: false, blending: THREE.AdditiveBlending,
-  }));
 
   const ribbonGeo = useMemo(() => {
     const geo  = new THREE.BufferGeometry();
@@ -1627,7 +1479,7 @@ function ScattershotProjectileMesh({
   }), []);
 
   useEffect(() => () => {
-    ribbonGeo.dispose(); ribbonMat.dispose(); flashMatRef.current.dispose();
+    ribbonGeo.dispose(); ribbonMat.dispose();
   }, [ribbonGeo, ribbonMat]);
 
   const posHistRef = useRef(new Float32Array(_SC_TRAIL_N * 3));
@@ -1635,23 +1487,12 @@ function ScattershotProjectileMesh({
   const projRef    = useRef(projectile);
   projRef.current  = projectile;
 
-  useFrame(({ clock }, delta) => {
+  useFrame(() => {
     const proj   = projRef.current;
     const motion = getLiveProjectileMotion(proj);
     if (!motion) return;
     if (groupRef.current) groupRef.current.position.set(...motion.position);
     const [wx, wy, wz] = motion.position;
-    if (bornRef.current === null) bornRef.current = clock.getElapsedTime();
-
-    // Muzzle flash (0.07 s)
-    if (flashRef.current) {
-      const age = clock.getElapsedTime() - bornRef.current;
-      const FLASH_DUR = 0.07;
-      const op = age < FLASH_DUR ? (1 - age / FLASH_DUR) * 0.90 : 0;
-      flashMatRef.current.opacity = op;
-      flashRef.current.scale.setScalar(0.32 + (1 - (op / 0.90)) * 0.15);
-    }
-
     // Ribbon trail — position history
     const N   = _SC_TRAIL_N;
     const len = Math.min(histLenRef.current + 1, N);
@@ -1695,7 +1536,6 @@ function ScattershotProjectileMesh({
   });
 
   const isCharged = projectile.isCharged;
-  const projScale = isCharged ? 0.195 : 0.13; // 1.5× when charge beam active
 
   useFrame(() => {
     const motion = getLiveProjectileMotion(projectile);
@@ -1709,22 +1549,12 @@ function ScattershotProjectileMesh({
         intensity={isCharged ? 12 : 8}
         distance={isCharged ? 6 : 4}
         decay={2} />
-      <mesh ref={flashRef} geometry={_scFlashGeo} material={flashMatRef.current} scale={0.32} />
       <mesh geometry={ribbonGeo} material={ribbonMat} />
-      <mesh scale={projScale * 2.2}>
-        <sphereGeometry args={[1, 6, 4]} />
-        <meshBasicMaterial color="#ff8800" transparent opacity={0.22}
-          depthWrite={false} blending={THREE.AdditiveBlending} />
-      </mesh>
     </group>
   );
 }
 
 // ── Overcharged Blaster visual ────────────────────────────────────────────────
-const _ocRingGeo     = new THREE.TorusGeometry(1, 0.055, 7, 48);
-const _ocRingMat  = new THREE.MeshBasicMaterial({ color: "#33aaff", transparent: true, opacity: 0.75, depthWrite: false, blending: THREE.AdditiveBlending });
-const _ocRing2Mat = new THREE.MeshBasicMaterial({ color: "#aaccff", transparent: true, opacity: 0.50, depthWrite: false, blending: THREE.AdditiveBlending });
-
 const _RIBBON_N  = 16;
 const _RIBBON_HW = 0.22; // half-width at head
 
@@ -1737,8 +1567,6 @@ function OverchargedProjectileMesh({
   const spawnGroupRef = useRef<THREE.Group>(null);
   const trailHead = useMemo(() => new THREE.Color(trailPalette.head), [trailPalette.head]);
   const trailTail = useMemo(() => new THREE.Color(trailPalette.tail), [trailPalette.tail]);
-  const ringOneRef = useRef<THREE.Group>(null);
-  const ringTwoRef = useRef<THREE.Group>(null);
   const glowLightRef = useRef<THREE.PointLight>(null);
 
   // ── Trailing ribbon geometry ─────────────────────────────────────────────────
@@ -1788,8 +1616,6 @@ function OverchargedProjectileMesh({
     const travelTimer = motion?.travelTimer ?? 0;
     const chargeT = Math.max(0, Math.min(1, (travelTimer - (OC_TRAVEL_TIME - 0.5)) / 0.5));
     const pulse = 0.5 + 0.5 * Math.sin(clock.getElapsedTime() * (4.5 + chargeT * 18));
-    if (ringOneRef.current) ringOneRef.current.rotation.set(clock.getElapsedTime() * 2.1, 0, (clock.getElapsedTime() * 1.6 + 1.05) * 0.6);
-    if (ringTwoRef.current) ringTwoRef.current.rotation.set((clock.getElapsedTime() * 1.6 + 1.05) * 0.5, clock.getElapsedTime() * 2.1 * 0.8, 0);
     if (glowLightRef.current) glowLightRef.current.intensity = 8 + pulse * 4;
     const [wx, wy, wz] = motion?.position ?? proj.position;
 
@@ -1844,12 +1670,6 @@ function OverchargedProjectileMesh({
       <group ref={spawnGroupRef} scale={spawnScale}>
         <pointLight ref={glowLightRef} color="#55aaff" intensity={8} distance={9} decay={2} />
         <pointLight color="#ffffff" intensity={4}              distance={3} decay={2} />
-        <group ref={ringOneRef}>
-          <mesh geometry={_ocRingGeo} material={_ocRingMat}  scale={1.72} />
-        </group>
-        <group ref={ringTwoRef}>
-          <mesh geometry={_ocRingGeo} material={_ocRing2Mat} scale={1.55} />
-        </group>
       </group>
     </group>
   );
@@ -2882,9 +2702,8 @@ export function Projectiles() {
   runtimeDiagnostics.noteProjectileRender();
   return (
     <>
-       <ProjectileVisualBatch
+       <RapidProjectileTrailBatch
          projectiles={batchedProjectiles}
-         skinColors={skinColors}
          trailColor={defaultTrailPalette.base}
        />
        <Suspense fallback={null}>

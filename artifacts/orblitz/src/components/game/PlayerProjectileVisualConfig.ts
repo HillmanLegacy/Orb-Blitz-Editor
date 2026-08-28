@@ -36,16 +36,6 @@ export function shouldRenderParticleSwarmOverlay(
   return isPlayerProjectile(projectile) && trail === "particle_swarm";
 }
 
-export function shouldRenderChargedProjectileAura(
-  projectile: Pick<Projectile, "type" | "isCharged">,
-): boolean {
-  // Overcharged owns its larger ring/ribbon treatment. Adding the generic
-  // charged torus on top creates a second flat halo around the projectile.
-  return isPlayerProjectile(projectile) &&
-    projectile.isCharged &&
-    projectile.type !== "overcharged";
-}
-
 export function getPlayerProjectileVisualScale(
   projectile: Pick<Projectile, "type" | "isCharged">,
   spawnScale = 1,
@@ -59,5 +49,3 @@ export function getPlayerProjectileVisualScale(
   const animatedScale = type === "overcharged" ? spawnScale : 1;
   return BASE_VISUAL_SCALE[type] * chargedMultiplier * animatedScale;
 }
-
-export const MAX_PLAYER_PROJECTILE_AURA_INSTANCES = 512;
