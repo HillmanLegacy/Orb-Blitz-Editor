@@ -106,7 +106,6 @@ export function GameLogic() {
   
   const { camera, gl } = useThree();
   const lastOrbSpawn = useRef(0);
-  const lastPowerUpSpawn = useRef(0);
   const lastFireTime = useRef(0);
   
   const cameraRef = useRef(camera);
@@ -292,8 +291,11 @@ export function GameLogic() {
     const isTop = Math.random() > 0.5;
     const fromLeft = Math.random() > 0.5;
     
-    const y = isTop ? 9 : -9;
-    const x = fromLeft ? -18 : 18;
+    // Keep the pickup just inside the runtime's despawn envelope. Spawning at
+    // ±18 caused PowerUpRuntime's first tick (which removes |x| > 15) to
+    // delete every pickup before it could enter the playfield.
+    const y = isTop ? 8 : -8;
+    const x = fromLeft ? -14 : 14;
     const z = 0;
     
     const speed = 1.5 + Math.random() * 0.5;
@@ -796,10 +798,11 @@ export function GameLogic() {
       addDarkOrbs(spawnBatch);
     }
     
-    lastPowerUpSpawn.current += delta;
-    if (lastPowerUpSpawn.current >= 18 + Math.random() * 12 && !isDying) {
-      lastPowerUpSpawn.current = 0;
-      spawnPowerUp();
+    if (!isDying) {
+      // The scheduler lives in GameRuntime, so pausing freezes elapsed time
+      // even though the gameplay tree unmounts. Runtime reset starts a fresh
+      // randomized interval only when a run or arcade level truly ends.
+      if (gameRuntime.powerUpSpawns.tick(delta)) spawnPowerUp();
     }
   });
   

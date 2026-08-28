@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as THREE from "three";
 import {
   MAX_RUNTIME_PROJECTILES,
   PLAYER_PROJECTILE_RESERVE,
@@ -6,6 +7,11 @@ import {
 } from "../src/game-runtime/ProjectileRuntime";
 import { ProjectileSpawnEvents } from "../src/game-runtime/ProjectileSpawnEvents";
 import { RuntimeClock } from "../src/game-runtime/RuntimeClock";
+import {
+  POWER_UP_MAX_SPAWN_INTERVAL,
+  POWER_UP_MIN_SPAWN_INTERVAL,
+  PowerUpSpawnScheduler,
+} from "../src/game-runtime/PowerUpSpawnScheduler";
 import {
   POWER_UP_DESTROY_DURATION,
   PowerUpRuntime,
@@ -66,6 +72,7 @@ import {
   getPlayerSkinTrailPalette,
   getPlayerSkinTrailColor,
 } from "../src/components/game/PlayerSkinVisualConfig";
+import { clonePlayerOrbMaterial } from "../src/components/game/PlayerOrbMaterial";
 
 const makeProjectile = (id: string): Projectile => ({
   id,
@@ -344,6 +351,32 @@ describe("gameplay runtime invariants", () => {
     expect(second.slot).not.toBe(reused.slot);
   });
 
+  it("spaces power-up spawns with a randomized but bounded interval", () => {
+    const scheduler = new PowerUpSpawnScheduler(() => 0.5);
+    const interval = (POWER_UP_MIN_SPAWN_INTERVAL + POWER_UP_MAX_SPAWN_INTERVAL) / 2;
+
+    expect(scheduler.tick(POWER_UP_MIN_SPAWN_INTERVAL - 0.01)).toBe(false);
+    expect(scheduler.tick(0.01)).toBe(false);
+    expect(scheduler.tick(interval - POWER_UP_MIN_SPAWN_INTERVAL - 0.01)).toBe(false);
+    expect(scheduler.tick(0.01)).toBe(true);
+    expect(POWER_UP_MIN_SPAWN_INTERVAL).toBeGreaterThanOrEqual(20);
+    expect(POWER_UP_MAX_SPAWN_INTERVAL).toBeLessThanOrEqual(32);
+    expect(scheduler.tick(POWER_UP_MIN_SPAWN_INTERVAL)).toBe(false);
+  });
+
+  it("preserves power-up cooldown progress while gameplay is paused", () => {
+    const scheduler = new PowerUpSpawnScheduler(() => 0);
+
+    expect(scheduler.tick(12)).toBe(false);
+    // A pause does not tick or reset the persistent runtime scheduler.
+    expect(scheduler.tick(7.99)).toBe(false);
+    expect(scheduler.tick(0.01)).toBe(true);
+
+    scheduler.reset();
+    expect(scheduler.tick(19.99)).toBe(false);
+    expect(scheduler.tick(0.01)).toBe(true);
+  });
+
   it("lists exactly the current boss roster as purchasable player skins", () => {
     const skinValues = SHOP_ITEMS
       .filter((item) => item.category === "skin")
@@ -364,6 +397,48 @@ describe("gameplay runtime invariants", () => {
     expect(texturePaths).toEqual(skins.map((skin) => PLAYER_SKIN_TEXTURE_SOURCE_PATHS[skin]));
     expect(texturePaths.every((path) => path.endsWith("_texture.glb"))).toBe(true);
     expect(new Set(texturePaths).size).toBe(skins.length);
+  });
+
+  it("gives projectile textures the same opaque PBR treatment as the player", () => {
+    const base = new THREE.MeshStandardMaterial({
+      color: "#ffffff",
+      opacity: 1,
+      transparent: false,
+      depthWrite: true,
+      depthTest: true,
+      side: THREE.DoubleSide,
+      emissiveIntensity: 1,
+    });
+    const textureSource = new THREE.MeshStandardMaterial();
+    const skinMap = new THREE.Texture();
+    const normalMap = new THREE.Texture();
+    textureSource.map = skinMap;
+    textureSource.normalMap = normalMap;
+
+    const projectileMaterial = clonePlayerOrbMaterial({
+      baseMaterial: base,
+      textureMaterial: textureSource,
+      coreColor: "#ff4400",
+      glowColor: "#ff8800",
+    }) as THREE.MeshStandardMaterial;
+
+    expect(projectileMaterial).not.toBe(base);
+    expect(projectileMaterial.map).toBe(skinMap);
+    expect(projectileMaterial.normalMap).toBe(normalMap);
+    expect(projectileMaterial.transparent).toBe(base.transparent);
+    expect(projectileMaterial.opacity).toBe(base.opacity);
+    expect(projectileMaterial.depthWrite).toBe(base.depthWrite);
+    expect(projectileMaterial.depthTest).toBe(base.depthTest);
+    expect(projectileMaterial.side).toBe(base.side);
+    expect(projectileMaterial.color.getHexString()).toBe("ff4400");
+    expect(projectileMaterial.emissive.getHexString()).toBe("ff8800");
+    expect(projectileMaterial.emissiveIntensity).toBe(0.45);
+
+    projectileMaterial.dispose();
+    base.dispose();
+    textureSource.dispose();
+    skinMap.dispose();
+    normalMap.dispose();
   });
 
   it("uses white for default trails and skin colors for boss-skin trails", () => {
@@ -501,6 +576,29 @@ describe("gameplay runtime invariants", () => {
       id: "pickup-one",
       patch: { hurtTimer: 0, destroying: true, destroyTimer: POWER_UP_DESTROY_DURATION },
     }]);
+  });
+
+  it("keeps power-ups alive when they enter from every authored edge spawn", () => {
+    const starts: Array<Pick<PowerUp, "position" | "velocity">> = [
+      { position: [-14, 8, 0], velocity: [2, 0, 0] },
+      { position: [-14, -8, 0], velocity: [2, 0, 0] },
+      { position: [14, 8, 0], velocity: [-2, 0, 0] },
+      { position: [14, -8, 0], velocity: [-2, 0, 0] },
+    ];
+
+    starts.forEach((start, index) => {
+      const runtime = new PowerUpRuntime();
+      const powerUp: PowerUp = {
+        ...makePowerUp(`edge-pickup-${index}`),
+        position: start.position,
+        velocity: start.velocity,
+      };
+      runtime.sync([powerUp]);
+
+      const result = runtime.tick(1 / 60);
+      expect(result.removedIds).toEqual([]);
+      expect(runtime.get(powerUp.id)).toBeDefined();
+    });
   });
 
   it("preserves the existing authored arcade progression values", () => {

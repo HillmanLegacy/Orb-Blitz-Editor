@@ -2,6 +2,7 @@ import { useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
+import { clonePlayerOrbMaterial } from "./PlayerOrbMaterial";
 
 interface PlayerModelProps {
   scale: number;
@@ -62,19 +63,13 @@ export function PlayerModel({
       // clone() gives us new geometry but SHARED materials — clone them too
       // so we can safely mutate color without affecting the GLTF cache.
       const rawMats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      const clonedMats = rawMats.map((m) => {
-        const c = (m as THREE.MeshStandardMaterial).clone();
-         // The shared GLTF is authored with a white base so it can be
-         // recoloured per equipped skin. Keep the texture detail, but tint
-         // the cloned material so boss skins are visible on the player mesh.
-         c.color.set(coreColor);
-         // Some model surfaces also use emissive lighting. Tint and soften
-         // that channel as well; an untouched white emissive map can obscure
-         // the equipped skin even when the base material is recoloured.
-         c.emissive.set(glowColor);
-         c.emissiveIntensity = Math.min(c.emissiveIntensity, 0.45);
-        return c as THREE.MeshStandardMaterial;
-      });
+      const clonedMats = rawMats.map((material) =>
+        clonePlayerOrbMaterial({
+          baseMaterial: material,
+          coreColor,
+          glowColor,
+        }) as THREE.MeshStandardMaterial,
+      );
       mesh.material = clonedMats.length === 1 ? clonedMats[0] : clonedMats;
       materialsRef.current.push(...clonedMats);
     });

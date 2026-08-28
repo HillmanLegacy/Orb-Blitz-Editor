@@ -5,6 +5,7 @@ import { ParticleRuntime } from "./ParticleRuntime";
 import { ProjectileSpawnEvents } from "./ProjectileSpawnEvents";
 import { ProjectileRuntime } from "./ProjectileRuntime";
 import { PowerUpRuntime } from "./PowerUpRuntime";
+import { PowerUpSpawnScheduler } from "./PowerUpSpawnScheduler";
 import { RuntimeClock } from "./RuntimeClock";
 import { TrailRuntime } from "./TrailRuntime";
 import { runtimeDiagnostics } from "./RuntimeDiagnostics";
@@ -16,6 +17,7 @@ export class GameRuntime {
   readonly boss = new BossRuntime();
   readonly projectiles = new ProjectileRuntime();
   readonly powerUps = new PowerUpRuntime();
+  readonly powerUpSpawns = new PowerUpSpawnScheduler();
   readonly enemies = new EnemyRuntime();
   readonly particles = new ParticleRuntime();
   readonly trails = new TrailRuntime();
@@ -28,6 +30,7 @@ export class GameRuntime {
     this.boss.reset();
     this.projectiles.reset();
     this.powerUps.reset();
+    this.powerUpSpawns.reset();
     this.enemies.reset();
     this.particles.reset();
     this.trails.reset();

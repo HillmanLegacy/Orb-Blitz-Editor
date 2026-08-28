@@ -32,6 +32,7 @@ import {
   PLAYER_PROJECTILE_BASE_MODEL_PATH,
   type PlayerSkinTrailPalette,
 } from "./PlayerSkinVisualConfig";
+import { clonePlayerOrbMaterial } from "./PlayerOrbMaterial";
 
 /** Projectile collision always reads live enemy transforms, never store snapshots. */
 function liveOrbPosition(orb: DarkOrb): [number, number, number] {
@@ -344,9 +345,11 @@ type BatchedModelPart = {
 function BatchedPlayerProjectileModels({
   projectiles,
   equippedSkin,
+  skinColors,
 }: {
   projectiles: readonly Projectile[];
   equippedSkin: Parameters<typeof getPlayerSkinTextureSourcePath>[0];
+  skinColors: { core: string; glow: string };
 }) {
   const { scene: playerScene } = useGLTF(PLAYER_PROJECTILE_BASE_MODEL_PATH);
   const skinPath = getPlayerSkinTextureSourcePath(equippedSkin);
@@ -387,15 +390,12 @@ function BatchedPlayerProjectileModels({
       const sourceMaterial = skinMaterials.length > 0
         ? skinMaterials[partIndex % skinMaterials.length]
         : baseMaterial;
-      const material = sourceMaterial.clone();
-      const source = sourceMaterial as THREE.MeshStandardMaterial;
-      const target = material as THREE.MeshStandardMaterial;
-      // GLTFLoader already configured the source texture color spaces and PBR
-      // channels. Cloning the complete source material preserves those settings
-      // while keeping one batch-owned material safe to dispose.
-      if (source.color && target.color) target.color.copy(source.color);
-      if (source.emissive && target.emissive) target.emissive.copy(source.emissive);
-      material.needsUpdate = true;
+      const material = clonePlayerOrbMaterial({
+        baseMaterial,
+        textureMaterial: sourceMaterial,
+        coreColor: skinColors.core,
+        glowColor: skinColors.glow,
+      });
       parts.push({
         geometry: mesh.geometry,
         material,
@@ -405,7 +405,7 @@ function BatchedPlayerProjectileModels({
       partIndex++;
     });
     return parts;
-  }, [equippedSkin, playerScene, skinScene]);
+  }, [equippedSkin, playerScene, skinColors.core, skinColors.glow, skinScene]);
 
   useEffect(() => () => {
     for (const part of modelParts) {
@@ -564,7 +564,7 @@ function RapidProjectileTrailBatch({
     transparent: true,
     opacity: 0.82,
     depthWrite: false,
-    depthTest: false,
+    depthTest: true,
     toneMapped: false,
     blending: THREE.AdditiveBlending,
   }));
@@ -595,12 +595,14 @@ function RapidProjectileTrailBatch({
       const [dx, dy, dz] = motion.direction;
       _batchedProjectileDirection.set(dx, dy, dz).normalize();
       _batchedProjectileDummy.position.set(
-        motion.position[0] - dx * 0.55,
-        motion.position[1] - dy * 0.55,
-        motion.position[2] - dz * 0.55,
+        motion.position[0] - dx * 0.72,
+        motion.position[1] - dy * 0.72,
+        motion.position[2] - dz * 0.72,
       );
       _batchedProjectileDummy.quaternion.setFromUnitVectors(_batchedProjectileAxis, _batchedProjectileDirection);
-      _batchedProjectileDummy.scale.set(0.038, 1.1, 0.038);
+      // Leave the front of the trail behind the orb so additive pixels never
+      // wash over the opaque textured projectile core.
+      _batchedProjectileDummy.scale.set(0.038, 1.0, 0.038);
       _batchedProjectileDummy.updateMatrix();
       rapidTrailMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
     }
@@ -627,7 +629,6 @@ function RapidProjectileTrailBatch({
       ref={rapidTrailRef}
       args={[_batchedRapidTrailGeometry, rapidTrailMaterial, MAX_BATCHED_PROJECTILES]}
       frustumCulled={false}
-      renderOrder={18}
     />
   );
 }
@@ -2710,6 +2711,7 @@ export function Projectiles() {
          <BatchedPlayerProjectileModels
            projectiles={batchedProjectiles}
            equippedSkin={equippedSkin}
+            skinColors={skinColors}
          />
        </Suspense>
       {projectiles.map((proj) =>
