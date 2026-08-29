@@ -31,6 +31,7 @@ import {
 import {
   getPlayerSkinModelPath,
   getPlayerSkinTrailPalette,
+  getPlayerSkinVisualYaw,
   type PlayerSkinTrailPalette,
 } from "./PlayerSkinVisualConfig";
 import { clonePlayerOrbMaterial } from "./PlayerOrbMaterial";
@@ -414,11 +415,10 @@ function BatchedPlayerProjectileModels({
     let highestSlot = -1;
     let highestSpiralSlot = -1;
     let visibleModels = 0;
-    _batchedModelRotation.setFromEuler(_batchedModelEuler.set(
-      clock.getElapsedTime() * 1.6,
-      clock.getElapsedTime() * 2.4,
-      0,
-    ));
+    const elapsed = clock.getElapsedTime();
+    _batchedModelRotation.setFromEuler(
+      _batchedModelEuler.set(0, getPlayerSkinVisualYaw(equippedSkin, elapsed), 0),
+    );
 
     for (const projectile of projectiles) {
       if (!usesSharedPlayerProjectileCore(projectile)) continue;

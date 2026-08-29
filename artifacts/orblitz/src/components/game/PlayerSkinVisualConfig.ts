@@ -13,6 +13,18 @@ export const PLAYER_SKIN_MODEL_PATHS: Record<OrbSkin, string> = {
   monster: "/models/boss_orb_9_shadow_texture.glb",
 };
 
+const PLAYER_SKIN_ROTATION_ARC = 0.18;
+const PLAYER_SKIN_ROTATION_SPEED = 0.55;
+
+/**
+ * Keep the authored front of every player skin facing the camera while adding
+ * a subtle, fluid yaw. A bounded arc avoids rotating a texture atlas seam into
+ * view, which a continuous 360-degree spin would inevitably do.
+ */
+export function getPlayerSkinVisualYaw(_skin: OrbSkin, elapsedSeconds: number): number {
+  return Math.sin(elapsedSeconds * PLAYER_SKIN_ROTATION_SPEED) * PLAYER_SKIN_ROTATION_ARC;
+}
+
 const PLAYER_SKIN_TRAIL_COLORS: Record<OrbSkin, string> = {
   default: "#ffffff",
   fire: "#ff6600",

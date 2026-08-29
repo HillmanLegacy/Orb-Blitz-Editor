@@ -7,6 +7,7 @@
 import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { getPlayerSkinVisualYaw } from "./PlayerSkinVisualConfig";
 
 // ── Star shader ────────────────────────────────────────────────────────────────
 
@@ -169,11 +170,14 @@ export function MiniStarOrb({ radius = 1, healthPercent = 1, particleCount = MIN
 
   const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
 
-  useFrame((state, delta) => {
+  useFrame((state) => {
     if (matRef.current) matRef.current.uniforms.uTime.value = state.clock.getElapsedTime();
     if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 1.2;
-      groupRef.current.rotation.z += delta * 0.6;
+      groupRef.current.rotation.set(
+        0,
+        getPlayerSkinVisualYaw("star", state.clock.getElapsedTime()),
+        0,
+      );
     }
   });
 

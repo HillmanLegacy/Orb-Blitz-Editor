@@ -7,6 +7,7 @@
 import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { getPlayerSkinVisualYaw } from "./PlayerSkinVisualConfig";
 
 // ── Spectral aura shader (identical to RainbowBoss) ───────────────────────────
 
@@ -189,9 +190,15 @@ export function MiniRainbowOrb({ radius = 1, particleCount = PARTICLE_COUNT, sho
   const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
   const lightRef = useRef<THREE.PointLight>(null);
 
-  useFrame((state, delta) => {
+  useFrame((state) => {
     if (matRef.current) matRef.current.uniforms.uTime.value = state.clock.getElapsedTime();
-    if (groupRef.current) groupRef.current.rotation.y += delta * 0.3;
+    if (groupRef.current) {
+      groupRef.current.rotation.set(
+        0,
+        getPlayerSkinVisualYaw("rainbow", state.clock.getElapsedTime()),
+        0,
+      );
+    }
     if (lightRef.current) lightRef.current.color.setHSL(fract(state.clock.getElapsedTime() * 0.15), 1.0, 0.6);
   });
 

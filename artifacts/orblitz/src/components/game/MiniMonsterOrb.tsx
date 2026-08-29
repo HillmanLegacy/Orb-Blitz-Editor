@@ -8,6 +8,7 @@ import { useRef, useEffect, useMemo } from "react";
 import { useFrame }   from "@react-three/fiber";
 import { useGLTF }    from "@react-three/drei";
 import * as THREE     from "three";
+import { getPlayerSkinVisualYaw } from "./PlayerSkinVisualConfig";
 
 // ── Fresnel void rim shader (same GLSL as boss, reused) ───────────────────────
 const rimVert = /* glsl */ `
@@ -319,10 +320,13 @@ export function MiniMonsterOrb({ radius = 1, particleCount = MINI_PARTICLE_COUNT
     };
   }, [modelScene, radius]);
 
-  useFrame((_, delta) => {
+  useFrame(({ clock }) => {
     if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 1.2;
-      groupRef.current.rotation.x += delta * 0.4;
+      groupRef.current.rotation.set(
+        0,
+        getPlayerSkinVisualYaw("monster", clock.getElapsedTime()),
+        0,
+      );
     }
   });
 

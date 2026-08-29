@@ -8,6 +8,7 @@ import { useRef, useEffect } from "react";
 import { useFrame }          from "@react-three/fiber";
 import { useGLTF }           from "@react-three/drei";
 import * as THREE            from "three";
+import { getPlayerSkinVisualYaw } from "./PlayerSkinVisualConfig";
 
 interface MiniMechaOrbProps {
   radius?: number;
@@ -72,10 +73,13 @@ export function MiniMechaOrb({ radius = 1, showLight = true }: MiniMechaOrbProps
     };
   }, [modelScene, radius]);
 
-  useFrame((_, delta) => {
+  useFrame(({ clock }) => {
     if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 1.8;
-      groupRef.current.rotation.x += delta * 0.6;
+      groupRef.current.rotation.set(
+        0,
+        getPlayerSkinVisualYaw("mecha", clock.getElapsedTime()),
+        0,
+      );
     }
   });
 

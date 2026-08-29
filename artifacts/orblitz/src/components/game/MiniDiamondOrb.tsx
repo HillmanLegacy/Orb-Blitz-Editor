@@ -7,6 +7,7 @@
 import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { getPlayerSkinVisualYaw } from "./PlayerSkinVisualConfig";
 
 // ── Prismatic shimmer shader (identical palette to DiamondBoss) ───────────────
 
@@ -185,9 +186,15 @@ export function MiniDiamondOrb({ radius = 1, particleCount = SHARD_COUNT, showPa
   const groupRef = useRef<THREE.Group>(null);
   const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
 
-  useFrame((state, delta) => {
+  useFrame((state) => {
     if (matRef.current) matRef.current.uniforms.uTime.value = state.clock.getElapsedTime();
-    if (groupRef.current) groupRef.current.rotation.y += delta * 0.25;
+    if (groupRef.current) {
+      groupRef.current.rotation.set(
+        0,
+        getPlayerSkinVisualYaw("diamond", state.clock.getElapsedTime()),
+        0,
+      );
+    }
   });
 
   return (

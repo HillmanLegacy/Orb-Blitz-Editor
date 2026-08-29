@@ -7,6 +7,7 @@
 import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { getPlayerSkinVisualYaw } from "./PlayerSkinVisualConfig";
 
 // ── Drip surface shader (identical to ToxicBoss) ────────────────────────────
 
@@ -186,10 +187,15 @@ export function MiniToxicOrb({ radius = 1, particleCount = DRIP_COUNT, showParti
   const groupRef = useRef<THREE.Group>(null);
   const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
 
-  useFrame((state, delta) => {
+  useFrame((state) => {
     if (matRef.current) matRef.current.uniforms.uTime.value = state.clock.getElapsedTime();
-    // Slow rotation like the boss
-    if (groupRef.current) groupRef.current.rotation.y += delta * 0.15;
+    if (groupRef.current) {
+      groupRef.current.rotation.set(
+        0,
+        getPlayerSkinVisualYaw("toxic", state.clock.getElapsedTime()),
+        0,
+      );
+    }
   });
 
   return (

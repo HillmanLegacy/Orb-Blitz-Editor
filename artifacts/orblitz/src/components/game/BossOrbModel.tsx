@@ -2,6 +2,7 @@ import { useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
+import { getPlayerSkinVisualYaw } from "./PlayerSkinVisualConfig";
 
 interface BossOrbModelProps {
   scale?: number;
@@ -90,10 +91,13 @@ export function BossOrbModel({ scale = 2.5, healthPercent = 1 }: BossOrbModelPro
     };
   }, [textureScene, scale]);
 
-  useFrame((_, delta) => {
+  useFrame(({ clock }) => {
     if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 0.8;
-      groupRef.current.rotation.x += delta * 0.3;
+      groupRef.current.rotation.set(
+        0,
+        getPlayerSkinVisualYaw("fire", clock.getElapsedTime()),
+        0,
+      );
     }
     // Pulse red tint when low health
     if (healthPercent < 0.3) {

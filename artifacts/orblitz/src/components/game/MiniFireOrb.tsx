@@ -17,6 +17,7 @@
 import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { getPlayerSkinVisualYaw } from "./PlayerSkinVisualConfig";
 
 // ── Shaders — exact copy from FireBoss.tsx ────────────────────────────────────
 
@@ -192,13 +193,17 @@ export function MiniFireOrb({
     []
   );
 
-  useFrame((state, delta) => {
+  useFrame((state) => {
     if (matRef.current) {
       matRef.current.uniforms.uTime.value   = state.clock.getElapsedTime();
       matRef.current.uniforms.uHealth.value = healthPercent;
     }
     if (groupRef.current) {
-      groupRef.current.rotation.z += delta * 0.18;
+      groupRef.current.rotation.set(
+        0,
+        getPlayerSkinVisualYaw("fire", state.clock.getElapsedTime()),
+        0,
+      );
     }
   });
 

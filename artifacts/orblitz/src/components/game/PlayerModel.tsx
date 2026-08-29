@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { clonePlayerOrbMaterial } from "./PlayerOrbMaterial";
+import { getPlayerSkinVisualYaw } from "./PlayerSkinVisualConfig";
 
 interface PlayerModelProps {
   scale: number;
@@ -87,13 +88,16 @@ export function PlayerModel({
     };
   }, [texScene, scale, coreColor, glowColor]);
 
-  useFrame((state, delta) => {
+  useFrame(({ clock }) => {
     if (modelGroupRef.current) {
-      modelGroupRef.current.rotation.x += delta * rotationSpeedX;
-      modelGroupRef.current.rotation.y += delta * rotationSpeedY;
+      modelGroupRef.current.rotation.set(
+        0,
+        getPlayerSkinVisualYaw("default", clock.getElapsedTime()),
+        0,
+      );
     }
     if (isRainbow) {
-      const hue = (state.clock.getElapsedTime() * 0.18) % 1;
+      const hue = (clock.getElapsedTime() * 0.18) % 1;
       materialsRef.current.forEach((m) => m.color.setHSL(hue, 1, 0.6));
     }
   });

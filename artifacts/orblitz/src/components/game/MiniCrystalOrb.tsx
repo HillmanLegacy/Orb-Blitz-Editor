@@ -7,6 +7,7 @@
 import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { getPlayerSkinVisualYaw } from "./PlayerSkinVisualConfig";
 
 // ── Crystal shader ─────────────────────────────────────────────────────────────
 
@@ -88,11 +89,14 @@ export function MiniCrystalOrb({ radius = 1, showLight = true }: MiniCrystalOrbP
 
   const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
 
-  useFrame((state, delta) => {
+  useFrame((state) => {
     if (matRef.current) matRef.current.uniforms.uTime.value = state.clock.getElapsedTime();
     if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 0.9;
-      groupRef.current.rotation.x += delta * 0.5;
+      groupRef.current.rotation.set(
+        0,
+        getPlayerSkinVisualYaw("crystal", state.clock.getElapsedTime()),
+        0,
+      );
     }
   });
 
