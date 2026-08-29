@@ -410,18 +410,24 @@ describe("gameplay runtime invariants", () => {
   it("gives projectile textures the same opaque PBR treatment as the player", () => {
     const base = new THREE.MeshStandardMaterial({
       color: "#ffffff",
-      opacity: 1,
-      transparent: false,
-      depthWrite: true,
-      depthTest: true,
+      opacity: 0.25,
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
       side: THREE.DoubleSide,
       emissiveIntensity: 1,
+      blending: THREE.AdditiveBlending,
+      premultipliedAlpha: true,
     });
     const textureSource = new THREE.MeshStandardMaterial();
     const skinMap = new THREE.Texture();
     const normalMap = new THREE.Texture();
     textureSource.map = skinMap;
     textureSource.normalMap = normalMap;
+    textureSource.transparent = true;
+    textureSource.opacity = 0.1;
+    textureSource.depthWrite = false;
+    textureSource.blending = THREE.AdditiveBlending;
 
     const projectileMaterial = clonePlayerOrbMaterial({
       baseMaterial: base,
@@ -433,10 +439,15 @@ describe("gameplay runtime invariants", () => {
     expect(projectileMaterial).not.toBe(base);
     expect(projectileMaterial.map).toBe(skinMap);
     expect(projectileMaterial.normalMap).toBe(normalMap);
-    expect(projectileMaterial.transparent).toBe(base.transparent);
-    expect(projectileMaterial.opacity).toBe(base.opacity);
-    expect(projectileMaterial.depthWrite).toBe(base.depthWrite);
-    expect(projectileMaterial.depthTest).toBe(base.depthTest);
+    expect(projectileMaterial.transparent).toBe(false);
+    expect(projectileMaterial.opacity).toBe(1);
+    expect(projectileMaterial.alphaTest).toBe(0);
+    expect(projectileMaterial.alphaHash).toBe(false);
+    expect(projectileMaterial.depthWrite).toBe(true);
+    expect(projectileMaterial.depthTest).toBe(true);
+    expect(projectileMaterial.blending).toBe(THREE.NormalBlending);
+    expect(projectileMaterial.premultipliedAlpha).toBe(false);
+    expect(projectileMaterial.visible).toBe(true);
     expect(projectileMaterial.side).toBe(base.side);
     expect(projectileMaterial.color.getHexString()).toBe("ff4400");
     expect(projectileMaterial.emissive.getHexString()).toBe("ff8800");

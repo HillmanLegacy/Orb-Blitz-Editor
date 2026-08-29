@@ -38,9 +38,19 @@ export function clonePlayerOrbMaterial({
     }
   }
 
-  // Match PlayerModel's visible PBR treatment. Keeping the GLB's original
-  // opacity/depth/side settings makes the small projectile silhouette render
-  // exactly like the player instead of behaving like an additive VFX layer.
+  // Player and projectile cores are solid PBR meshes, not translucent VFX.
+  // Normalize these flags explicitly so an equipped skin can contribute maps
+  // without leaking alpha/blending state into the shared orb silhouette.
+  material.transparent = false;
+  material.opacity = 1;
+  material.alphaTest = 0;
+  material.alphaHash = false;
+  material.depthTest = true;
+  material.depthWrite = true;
+  material.blending = THREE.NormalBlending;
+  material.premultipliedAlpha = false;
+  material.visible = true;
+
   if (target.color) target.color.set(coreColor);
   if (target.emissive) target.emissive.set(glowColor);
   if (typeof target.emissiveIntensity === "number") {
