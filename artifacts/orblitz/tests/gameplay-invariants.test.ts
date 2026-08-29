@@ -51,6 +51,7 @@ import {
 import { getGameplayGateMode } from "../src/game-runtime/GameplayGateState";
 import {
   getPlayerProjectileVisualScale,
+  getPlayerOrbScale,
   isPlayerProjectile,
   PLAYER_PROJECTILE_TYPES,
   shouldRenderParticleSwarmOverlay,
@@ -493,13 +494,15 @@ describe("gameplay runtime invariants", () => {
     expect(isPlayerProjectile({ type: undefined })).toBe(true);
   });
 
-  it("preserves authored player-projectile visual sizes", () => {
-    expect(getPlayerProjectileVisualScale({ type: "normal", isCharged: false })).toBe(0.144);
-    expect(getPlayerProjectileVisualScale({ type: "normal", isCharged: true })).toBeCloseTo(0.216);
-    expect(getPlayerProjectileVisualScale({ type: "rapidblaster", isCharged: false })).toBe(0.11);
-    expect(getPlayerProjectileVisualScale({ type: "scattershot", isCharged: true })).toBeCloseTo(0.195);
-    expect(getPlayerProjectileVisualScale({ type: "spiral", isCharged: false })).toBe(0.324);
-    expect(getPlayerProjectileVisualScale({ type: "subblaster", isCharged: false })).toBe(0.075);
+  it("sizes every non-overcharged projectile at half the current player size", () => {
+    expect(getPlayerOrbScale(10, 10)).toBe(0.72);
+    expect(getPlayerOrbScale(5, 10)).toBe(0.576);
+    expect(getPlayerOrbScale(0, 10)).toBe(0.432);
+    for (const type of PLAYER_PROJECTILE_TYPES) {
+      if (type === "overcharged") continue;
+      expect(getPlayerProjectileVisualScale({ type, isCharged: false }, 1, 0.72)).toBe(0.36);
+      expect(getPlayerProjectileVisualScale({ type, isCharged: true }, 1, 0.432)).toBe(0.216);
+    }
     expect(getPlayerProjectileVisualScale({ type: "overcharged", isCharged: true }, 0.5)).toBeCloseTo(0.6235);
   });
 

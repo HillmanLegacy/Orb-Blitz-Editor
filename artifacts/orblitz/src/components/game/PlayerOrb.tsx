@@ -6,6 +6,7 @@ import { useShop, OrbSkin } from "@/lib/stores/useShop";
 import { ToonOrbLayer, CelOutline, RayTracedGlow, AmbientOcclusionLayer, GlobalIlluminationBounce, ScreenSpaceReflection, CausticPattern } from "./ToonShaders";
 import { PlayerModel } from "./PlayerModel";
 import { PlayerBossSkin } from "./PlayerBossSkin";
+import { getPlayerOrbScale } from "./PlayerProjectileVisualConfig";
 import { PlayerParticles } from "./PlayerParticles";
 import { FlameAura } from "./FlameAura";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
@@ -833,10 +834,8 @@ export function PlayerOrb() {
   const healthRatio = health / maxHealth;
   
   const scale = useMemo(() => {
-    const baseScale = 0.72;
-    const minScale = 0.432;
-    return minScale + (baseScale - minScale) * healthRatio;
-  }, [healthRatio]);
+    return getPlayerOrbScale(health, maxHealth);
+  }, [health, maxHealth]);
   
   const dimFactor = useMemo(() => {
     return 0.3 + healthRatio * 0.7;

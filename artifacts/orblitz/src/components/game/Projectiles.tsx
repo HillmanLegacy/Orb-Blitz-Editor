@@ -22,6 +22,7 @@ import { MAX_RUNTIME_PROJECTILES } from "@/game-runtime/ProjectileRuntime";
 import { usePerformanceFeature } from "@/game-runtime/PerformanceToggles";
 import { sweptSphereHit } from "./ProjectileCollision";
 import {
+  getPlayerOrbScale,
   getPlayerProjectileVisualScale,
   isPlayerProjectile,
   shouldRenderParticleSwarmOverlay,
@@ -349,10 +350,12 @@ function BatchedPlayerProjectileModels({
   projectiles,
   equippedSkin,
   skinColors,
+  playerScale,
 }: {
   projectiles: readonly Projectile[];
   equippedSkin: Parameters<typeof getPlayerSkinTextureSourcePath>[0];
   skinColors: { core: string; glow: string };
+  playerScale: number;
 }) {
   const { scene: playerScene } = useGLTF(PLAYER_PROJECTILE_BASE_MODEL_PATH);
   const skinPath = getPlayerSkinTextureSourcePath(equippedSkin);
@@ -439,6 +442,7 @@ function BatchedPlayerProjectileModels({
       if (projectile.type === "spiral") {
         const alive = motion.subSphereAlive ?? projectile.subSphereAlive ?? [true, true, true];
         const phase = motion.spiralAngle ?? projectile.spiralAngle ?? 0;
+        const visualScale = getPlayerProjectileVisualScale(projectile, 1, playerScale);
         for (let subIndex = 0; subIndex < 3; subIndex++) {
           const spiralSlot = motion.slot * 3 + subIndex;
           seenSpiralSlots.add(spiralSlot);
@@ -453,7 +457,7 @@ function BatchedPlayerProjectileModels({
             subIndex,
           );
           _batchedModelPosition.set(x, y, z);
-          _batchedModelScale.setScalar(alive[subIndex] ? SPIRAL_SUB_SCALE : 0);
+          _batchedModelScale.setScalar(alive[subIndex] ? visualScale : 0);
           _batchedModelTransform.compose(
             _batchedModelPosition,
             _batchedModelRotation,
@@ -478,7 +482,11 @@ function BatchedPlayerProjectileModels({
       highestSlot = Math.max(highestSlot, slot);
       _batchedModelPosition.set(motion.position[0], motion.position[1], motion.position[2]);
       _batchedModelScale.setScalar(
-        getPlayerProjectileVisualScale(projectile, motion.spawnScale ?? projectile.spawnScale ?? 1),
+        getPlayerProjectileVisualScale(
+          projectile,
+          motion.spawnScale ?? projectile.spawnScale ?? 1,
+          playerScale,
+        ),
       );
       _batchedModelTransform.compose(
         _batchedModelPosition,
@@ -551,13 +559,15 @@ function ExactPlayerProjectileModel({
   projectile,
   equippedSkin,
   skinColors,
+  playerScale,
 }: {
   projectile: Projectile;
   equippedSkin: Parameters<typeof getPlayerSkinTextureSourcePath>[0];
   skinColors: { core: string; glow: string };
+  playerScale: number;
 }) {
   const groupRef = useRef<THREE.Group>(null);
-  const scale = getPlayerProjectileVisualScale(projectile);
+  const scale = getPlayerProjectileVisualScale(projectile, 1, playerScale);
 
   useFrame(() => {
     const motion = getLiveProjectileMotion(projectile);
@@ -1952,6 +1962,8 @@ let impactIdCounter = 0;
 
 export function Projectiles() {
   const projectiles            = useMagicOrb(s => s.projectiles);
+  const playerHealth           = useMagicOrb(s => s.health);
+  const playerMaxHealth        = useMagicOrb(s => s.maxHealth);
   const updateProjectiles      = useMagicOrb(s => s.updateProjectiles);
   const darkOrbs               = useMagicOrb(s => s.darkOrbs);
   const markOrbDestroying      = useMagicOrb(s => s.markOrbDestroying);
@@ -2041,6 +2053,10 @@ export function Projectiles() {
   }, []);
   
   const skinColors = useMemo(() => getSkinColors(equippedSkin, 3), [equippedSkin]);
+  const playerScale = useMemo(
+    () => getPlayerOrbScale(playerHealth, playerMaxHealth),
+    [playerHealth, playerMaxHealth],
+  );
   const projectileColor = skinColors.projectile;
   const defaultTrailPalette = useMemo(() => getPlayerSkinTrailPalette(equippedSkin), [equippedSkin]);
    const batchedProjectiles = useMemo(
@@ -2755,7 +2771,8 @@ export function Projectiles() {
          <BatchedPlayerProjectileModels
            projectiles={batchedProjectiles}
            equippedSkin={equippedSkin}
-            skinColors={skinColors}
+           skinColors={skinColors}
+           playerScale={playerScale}
          />
          {batchedProjectiles.filter(usesExactPlayerVisual).map((projectile) => (
            <ExactPlayerProjectileModel
@@ -2763,6 +2780,7 @@ export function Projectiles() {
              projectile={projectile}
              equippedSkin={equippedSkin}
              skinColors={skinColors}
+             playerScale={playerScale}
            />
          ))}
        </Suspense>
