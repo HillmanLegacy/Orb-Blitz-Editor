@@ -17,7 +17,7 @@ run = "pnpm --filter @workspace/orblitz run dev"
 [services.production]
 build = [ "pnpm", "--filter", "@workspace/orblitz", "run", "build" ]
 serve = "static"
-publicDir = "artifacts/orblitz/dist/public"
+publicDir = "artifacts/orblitz/dist"
 
 [[services.production.rewrites]]
 from = "/*"
