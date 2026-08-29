@@ -21,6 +21,11 @@ import { runtimeDiagnostics } from "@/game-runtime/RuntimeDiagnostics";
 import { usePerformanceFeature } from "@/game-runtime/PerformanceToggles";
 import { EnemyDefeatVFX } from "./EnemyDefeatVFX";
 import { ENEMY_DEFEAT_DURATION } from "@/game-runtime/EnemyLifecycle";
+import {
+  getPerspectiveViewAtPlane,
+  isOutsideBossProjectileDespawnBounds,
+  isOutsideEnemyDespawnBounds,
+} from "@/game-runtime/EnemySpawnConfig";
 
 const DISTORT_FIELD_RADIUS    = 7.125;
 const DISTORT_FIELD_RADIUS_SQ = DISTORT_FIELD_RADIUS * DISTORT_FIELD_RADIUS; // 50.77
@@ -631,7 +636,7 @@ export function DarkOrbs() {
   // Clean up physics map when component unmounts (e.g. game restart)
   useEffect(() => () => { gameRuntime.enemies.reset(); }, []);
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     gameRuntime.pipeline.enter("enemies");
     const {
       darkOrbs: currentOrbs,
@@ -664,6 +669,15 @@ export function DarkOrbs() {
 
     const playerX = playerPosition[0];
     const playerY = playerPosition[1];
+    const viewCamera = state.camera as THREE.PerspectiveCamera;
+    const enemyView = getPerspectiveViewAtPlane({
+      cameraX: viewCamera.position.x,
+      cameraY: viewCamera.position.y,
+      cameraZ: viewCamera.position.z,
+      planeZ: 0,
+      verticalFovDegrees: viewCamera.fov,
+      aspect: viewCamera.aspect,
+    });
 
     let structuralChanged = false;
     const newOrbs: DarkOrb[] = [];
@@ -751,8 +765,12 @@ export function DarkOrbs() {
         default:               { x += dx * speed * delta; y += dy * speed * delta; break; }
       }
 
-      // Cull out-of-bounds
-      if (Math.abs(x) > 28 || Math.abs(y) > 18) {
+      // Retain camera-relative edge spawns long enough to enter the playfield,
+      // including when the player has moved or the viewport is extra wide.
+      const outsideDespawnBounds = orb.isBossOrb
+        ? isOutsideBossProjectileDespawnBounds([x, y, z])
+        : isOutsideEnemyDespawnBounds([x, y, z], enemyView);
+      if (outsideDespawnBounds) {
         gameRuntime.enemies.release(orb.id);
         structuralChanged = true;
         continue;

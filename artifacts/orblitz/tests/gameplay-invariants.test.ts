@@ -13,6 +13,14 @@ import {
   PowerUpSpawnScheduler,
 } from "../src/game-runtime/PowerUpSpawnScheduler";
 import {
+  ENEMY_DESPAWN_MARGIN,
+  ENEMY_SPAWN_MARGIN,
+  getEnemySpawnPoint,
+  getPerspectiveViewAtPlane,
+  isOutsideBossProjectileDespawnBounds,
+  isOutsideEnemyDespawnBounds,
+} from "../src/game-runtime/EnemySpawnConfig";
+import {
   POWER_UP_DESTROY_DURATION,
   PowerUpRuntime,
 } from "../src/game-runtime/PowerUpRuntime";
@@ -599,6 +607,79 @@ describe("gameplay runtime invariants", () => {
       expect(result.removedIds).toEqual([]);
       expect(runtime.get(powerUp.id)).toBeDefined();
     });
+  });
+
+  it("spawns regular enemies beyond every camera edge", () => {
+    const view = {
+      centerX: 2,
+      centerY: -1,
+      halfWidth: 10,
+      halfHeight: 6,
+    };
+    const edgeSamples = [
+      [0.01, 0.5],
+      [0.26, 0.5],
+      [0.51, 0.5],
+      [0.76, 0.5],
+    ] as const;
+
+    for (const [sideSample, laneSample] of edgeSamples) {
+      let randomCalls = 0;
+      const [x, y] = getEnemySpawnPoint(view, () => (
+        randomCalls++ === 0 ? sideSample : laneSample
+      ));
+      const side = Math.floor(sideSample * 4);
+      if (side === 0) expect(x).toBe(view.centerX - view.halfWidth - ENEMY_SPAWN_MARGIN);
+      if (side === 1) expect(x).toBe(view.centerX + view.halfWidth + ENEMY_SPAWN_MARGIN);
+      if (side === 2) expect(y).toBe(view.centerY - view.halfHeight - ENEMY_SPAWN_MARGIN);
+      if (side === 3) expect(y).toBe(view.centerY + view.halfHeight + ENEMY_SPAWN_MARGIN);
+    }
+  });
+
+  it("retains off-screen enemy spawns for moved and wide cameras", () => {
+    const scenarios = [
+      { cameraX: 11, cameraY: 4, cameraZ: 16, aspect: 16 / 9 },
+      { cameraX: -11, cameraY: -4, cameraZ: 16, aspect: 21 / 9 },
+      { cameraX: 0, cameraY: 0, cameraZ: 10, aspect: 9 / 16 },
+    ];
+
+    for (const scenario of scenarios) {
+      const view = getPerspectiveViewAtPlane({
+        ...scenario,
+        planeZ: 0,
+        verticalFovDegrees: 60,
+      });
+      for (const sideSample of [0.01, 0.26, 0.51, 0.76]) {
+        let randomCalls = 0;
+        const [x, y] = getEnemySpawnPoint(view, () => (
+          randomCalls++ === 0 ? sideSample : 0.5
+        ));
+
+        const outsideView =
+          Math.abs(x - view.centerX) > view.halfWidth ||
+          Math.abs(y - view.centerY) > view.halfHeight;
+        expect(outsideView).toBe(true);
+        expect(isOutsideEnemyDespawnBounds([x, y, 0], view)).toBe(false);
+      }
+    }
+    expect(ENEMY_DESPAWN_MARGIN).toBeGreaterThan(ENEMY_SPAWN_MARGIN);
+  });
+
+  it("preserves the original world bounds for boss projectiles", () => {
+    const portraitShiftedView = getPerspectiveViewAtPlane({
+      cameraX: -11,
+      cameraY: 0,
+      cameraZ: 16,
+      planeZ: 0,
+      verticalFovDegrees: 60,
+      aspect: 9 / 16,
+    });
+    const bossProjectile: [number, number, number] = [12, 0, 0.5];
+
+    expect(isOutsideEnemyDespawnBounds(bossProjectile, portraitShiftedView)).toBe(true);
+    expect(isOutsideBossProjectileDespawnBounds(bossProjectile)).toBe(false);
+    expect(isOutsideBossProjectileDespawnBounds([28.01, 0, 0.5])).toBe(true);
+    expect(isOutsideBossProjectileDespawnBounds([0, 18.01, 0.5])).toBe(true);
   });
 
   it("preserves the existing authored arcade progression values", () => {

@@ -16,3 +16,4 @@
 - [Orblitz runtime collision transforms](orblitz-runtime-collision-transforms.md) — When transforms move out of Zustand, every collision path must resolve the runtime position, with store values only as spawn fallback.
 - [Orblitz graphics presets](orblitz-graphics-presets.md) — Player-selected Low/Standard/High presets are persisted and authoritative; quality changes remain presentation-only.
 - [Orblitz power-up scheduling](orblitz-power-up-scheduling.md) — Cooldowns persist through pause in GameRuntime; edge spawns must begin inside runtime despawn bounds.
+- [Orblitz enemy entry bounds](orblitz-enemy-entry-bounds.md) — Regular enemies spawn/cull relative to the live camera; boss attack orbs retain fixed world cleanup bounds.

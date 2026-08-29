@@ -5,6 +5,10 @@ import { useMagicOrb, DarkOrb, Projectile, PowerUp, PowerUpType, OrbShape, Movem
 import { useShop } from "@/lib/stores/useShop";
 import { useAudio } from "@/lib/stores/useAudio";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
+import {
+  getEnemySpawnPoint,
+  getPerspectiveViewAtPlane,
+} from "@/game-runtime/EnemySpawnConfig";
 
 const orbShapes: OrbShape[] = ["sphere", "cube", "tetrahedron", "octahedron", "dodecahedron"];
 const allOrbShapes: OrbShape[] = ["sphere", "cube", "tetrahedron", "octahedron", "dodecahedron", "circle", "star", "arrow", "triangle", "trapezoid", "lightning", "tentacle", "monster", "bird"];
@@ -220,11 +224,16 @@ export function GameLogic() {
   };
   
   const createDarkOrb = useCallback((): DarkOrb => {
-    const angle = Math.random() * Math.PI * 2;
-    const distance = 18 + Math.random() * 4;
-    
-    const x = Math.cos(angle) * distance;
-    const y = Math.sin(angle) * distance;
+    const viewCamera = cameraRef.current as THREE.PerspectiveCamera;
+    const spawnView = getPerspectiveViewAtPlane({
+      cameraX: viewCamera.position.x,
+      cameraY: viewCamera.position.y,
+      cameraZ: viewCamera.position.z,
+      planeZ: 0,
+      verticalFovDegrees: viewCamera.fov,
+      aspect: viewCamera.aspect,
+    });
+    const [x, y] = getEnemySpawnPoint(spawnView);
     const z = 0;
     
     const { gameMode: mode, arcadeLevel: level, killSpeedBonus, timeDifficultyBonus } = useMagicOrb.getState();
@@ -254,8 +263,12 @@ export function GameLogic() {
       pattern = movementPatterns[Math.floor(Math.random() * movementPatterns.length)];
     }
     
-    const dirX = -x / distance;
-    const dirY = -y / distance;
+    const playerPos = playerPositionRef.current;
+    const toPlayerX = playerPos[0] - x;
+    const toPlayerY = playerPos[1] - y;
+    const toPlayerLength = Math.sqrt(toPlayerX * toPlayerX + toPlayerY * toPlayerY) || 1;
+    const dirX = toPlayerX / toPlayerLength;
+    const dirY = toPlayerY / toPlayerLength;
     
     const orb: DarkOrb = {
       id: `orb-${orbIdCounter++}`,
