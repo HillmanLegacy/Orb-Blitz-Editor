@@ -489,6 +489,29 @@ describe("gameplay runtime invariants", () => {
     authored.dispose();
   });
 
+  it("can add neutral projectile illumination without changing the authored color", () => {
+    const authored = new THREE.MeshStandardMaterial({
+      color: "#4d8cff",
+      emissive: "#102040",
+      emissiveIntensity: 0.05,
+    });
+
+    const projectileMaterial = clonePlayerOrbMaterial({
+      baseMaterial: authored,
+      coreColor: "#ff4400",
+      glowColor: "#ff8800",
+      tintColors: false,
+      emissiveBoost: 0.5,
+    }) as THREE.MeshStandardMaterial;
+
+    expect(projectileMaterial.color.getHexString()).toBe("4d8cff");
+    expect(projectileMaterial.emissive.getHexString()).toBe("ffffff");
+    expect(projectileMaterial.emissiveIntensity).toBe(0.5);
+
+    projectileMaterial.dispose();
+    authored.dispose();
+  });
+
   it("uses white for default trails and skin colors for boss-skin trails", () => {
     expect(getPlayerSkinTrailColor("default")).toBe("#ffffff");
     for (const skin of BOSS_SKIN_TYPES) {
