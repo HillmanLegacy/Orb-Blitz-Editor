@@ -7,6 +7,7 @@
 import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { BossOrbModel } from "./BossOrbModel";
 
 // ── GLSL ──────────────────────────────────────────────────────────────────────
 
@@ -219,16 +220,8 @@ export function FireBoss({
 
   return (
     <group ref={groupRef} scale={angerScale}>
-      {/* Fire shader sphere */}
-      <mesh>
-        <sphereGeometry args={[radius, 64, 48]} />
-        <shaderMaterial
-          ref={matRef}
-          uniforms={uniforms}
-          vertexShader={vertexShader}
-          fragmentShader={fragmentShader}
-        />
-      </mesh>
+      {/* Use the same textured Fire Boss Orb asset sold in the shop. */}
+      <BossOrbModel scale={radius} healthPercent={healthPercent} />
 
       {/* Ember corona */}
       <FireCorona radius={radius} />
