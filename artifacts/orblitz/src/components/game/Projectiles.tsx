@@ -329,6 +329,7 @@ const _batchedModelRotation = new THREE.Quaternion();
 const _batchedModelEuler = new THREE.Euler();
 const _batchedModelScale = new THREE.Vector3(1, 1, 1);
 const _batchedModelPosition = new THREE.Vector3();
+const _rapidGlowGeometry = new THREE.SphereGeometry(1, 8, 6);
 
 type BatchedModelPart = {
   geometry: THREE.BufferGeometry;
@@ -572,11 +573,14 @@ function ProjectileEffectsGate({
 function RapidProjectileTrailBatch({
   projectiles,
   trailColor,
+  playerScale,
 }: {
   projectiles: readonly Projectile[];
   trailColor: string;
+  playerScale: number;
 }) {
   const rapidTrailRef = useRef<THREE.InstancedMesh>(null);
+  const rapidGlowRef = useRef<THREE.InstancedMesh>(null);
   const activeSlotsRef = useRef<Set<number>>(new Set());
   const seenSlotsRef = useRef<Set<number>>(new Set());
   const [rapidTrailMaterial] = useState(() => new THREE.MeshBasicMaterial({
@@ -588,17 +592,28 @@ function RapidProjectileTrailBatch({
     toneMapped: false,
     blending: THREE.AdditiveBlending,
   }));
+  const [rapidGlowMaterial] = useState(() => new THREE.MeshBasicMaterial({
+    color: "#ffffff",
+    transparent: true,
+    opacity: 0.3,
+    depthWrite: false,
+    depthTest: true,
+    toneMapped: false,
+    blending: THREE.AdditiveBlending,
+  }));
   useEffect(() => {
     rapidTrailMaterial.color.set(trailColor);
   }, [rapidTrailMaterial, trailColor]);
 
   useEffect(() => () => {
     rapidTrailMaterial.dispose();
-  }, [rapidTrailMaterial]);
+    rapidGlowMaterial.dispose();
+  }, [rapidGlowMaterial, rapidTrailMaterial]);
 
   useFrame(() => {
     const rapidTrailMesh = rapidTrailRef.current;
-    if (!rapidTrailMesh) return;
+    const rapidGlowMesh = rapidGlowRef.current;
+    if (!rapidTrailMesh || !rapidGlowMesh) return;
 
     const seenSlots = seenSlotsRef.current;
     seenSlots.clear();
@@ -625,6 +640,20 @@ function RapidProjectileTrailBatch({
       _batchedProjectileDummy.scale.set(0.038, 1.0, 0.038);
       _batchedProjectileDummy.updateMatrix();
       rapidTrailMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
+
+      // A shared additive shell simulates emissive light without allocating
+      // one PointLight or React subtree per rapid-fire projectile.
+      _batchedProjectileDummy.position.set(...motion.position);
+      _batchedProjectileDummy.quaternion.identity();
+      _batchedProjectileDummy.scale.setScalar(
+        getPlayerProjectileVisualScale(
+          projectile,
+          motion.spawnScale ?? projectile.spawnScale ?? 1,
+          playerScale,
+        ) * 1.18,
+      );
+      _batchedProjectileDummy.updateMatrix();
+      rapidGlowMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
     }
 
     const activeSlots = activeSlotsRef.current;
@@ -635,6 +664,7 @@ function RapidProjectileTrailBatch({
       _batchedProjectileDummy.scale.setScalar(0);
       _batchedProjectileDummy.updateMatrix();
       rapidTrailMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
+      rapidGlowMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
       activeSlots.delete(slot);
     }
     for (const slot of seenSlots) activeSlots.add(slot);
@@ -642,14 +672,24 @@ function RapidProjectileTrailBatch({
     const meshCount = highestSlot + 1;
     rapidTrailMesh.count = meshCount;
     rapidTrailMesh.instanceMatrix.needsUpdate = true;
+    rapidGlowMesh.count = meshCount;
+    rapidGlowMesh.instanceMatrix.needsUpdate = true;
   });
 
   return (
-    <instancedMesh
-      ref={rapidTrailRef}
-      args={[_batchedRapidTrailGeometry, rapidTrailMaterial, MAX_BATCHED_PROJECTILES]}
-      frustumCulled={false}
-    />
+    <>
+      <instancedMesh
+        ref={rapidTrailRef}
+        args={[_batchedRapidTrailGeometry, rapidTrailMaterial, MAX_BATCHED_PROJECTILES]}
+        frustumCulled={false}
+      />
+      <instancedMesh
+        ref={rapidGlowRef}
+        args={[_rapidGlowGeometry, rapidGlowMaterial, MAX_BATCHED_PROJECTILES]}
+        frustumCulled={false}
+        renderOrder={3}
+      />
+    </>
   );
 }
 
@@ -2709,6 +2749,7 @@ export function Projectiles() {
        <RapidProjectileTrailBatch
          projectiles={batchedProjectiles}
          trailColor={defaultTrailPalette.base}
+         playerScale={playerScale}
        />
        <Suspense fallback={null}>
          <BatchedPlayerProjectileModels
