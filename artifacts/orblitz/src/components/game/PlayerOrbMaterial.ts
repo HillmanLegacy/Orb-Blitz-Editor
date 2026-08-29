@@ -64,6 +64,13 @@ export function clonePlayerOrbMaterial({
     target.emissiveIntensity = Math.min(base.emissiveIntensity ?? 1, 0.45);
   }
   if (emissiveBoost > 0 && target.emissive) {
+    // Small projectile cores can leave the player's local lights and lose the
+    // readable detail from their base-color map. Reuse that same authored map
+    // as the emissive mask instead of applying a flat white emissive layer,
+    // which would wash the projectile into an untextured white orb.
+    if (!target.emissiveMap && target.map) {
+      target.emissiveMap = target.map;
+    }
     target.emissive.set("#ffffff");
     target.emissiveIntensity = Math.max(target.emissiveIntensity ?? 0, emissiveBoost);
   }
