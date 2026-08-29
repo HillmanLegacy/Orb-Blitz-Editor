@@ -11,15 +11,18 @@ export function BossOrbModel({ scale = 2.5, healthPercent = 1 }: BossOrbModelPro
   const groupRef = useRef<THREE.Group>(null);
   const materialsRef = useRef<THREE.MeshBasicMaterial[]>([]);
 
-  const { scene: modelScene } = useGLTF("/models/boss_orb_1.glb");
-  const { scene: texScene } = useGLTF("/models/boss_orb_1_texture.glb");
+  // The textured GLB contains the authoritative Fire Boss geometry, UVs, and
+  // texture. Do not pair its texture with the older untextured base GLB: that
+  // file uses a different flat source mesh.
+  const { scene: textureScene } = useGLTF("/models/boss_orb_1_texture.glb");
 
   useEffect(() => {
     if (!groupRef.current) return;
 
-    // Extract first texture from texture GLB
+    // Extract the authored map so every cloned material uses the exact shop
+    // texture, even if the asset later gains multiple material groups.
     let orbTexture: THREE.Texture | null = null;
-    texScene.traverse((child) => {
+    textureScene.traverse((child) => {
       if (orbTexture) return;
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
@@ -37,7 +40,7 @@ export function BossOrbModel({ scale = 2.5, healthPercent = 1 }: BossOrbModelPro
       }
     });
 
-    const cloned = modelScene.clone(true);
+    const cloned = textureScene.clone(true);
     materialsRef.current = [];
 
     // Normalize size to fit within scale radius
@@ -55,12 +58,25 @@ export function BossOrbModel({ scale = 2.5, healthPercent = 1 }: BossOrbModelPro
     cloned.traverse((child: THREE.Object3D) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
-        const mat = new THREE.MeshBasicMaterial({
-          map: orbTexture ?? undefined,
-          color: new THREE.Color("#ffffff"),
+        const sourceMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        const clonedMaterials = sourceMaterials.map((sourceMaterial) => {
+          const source = sourceMaterial as THREE.MeshBasicMaterial;
+          const map = source.map ?? orbTexture ?? undefined;
+          if (map) {
+            map.colorSpace = THREE.SRGBColorSpace;
+            map.needsUpdate = true;
+          }
+          return new THREE.MeshBasicMaterial({
+            map,
+            color: new THREE.Color("#ffffff"),
+            transparent: source.transparent,
+            opacity: source.opacity,
+            alphaTest: source.alphaTest,
+            side: source.side,
+          });
         });
-        mesh.material = mat;
-        materialsRef.current.push(mat);
+        mesh.material = clonedMaterials.length === 1 ? clonedMaterials[0] : clonedMaterials;
+        materialsRef.current.push(...clonedMaterials);
       }
     });
 
@@ -72,7 +88,7 @@ export function BossOrbModel({ scale = 2.5, healthPercent = 1 }: BossOrbModelPro
     return () => {
       materialsRef.current.forEach((m) => m.dispose());
     };
-  }, [modelScene, texScene, scale]);
+  }, [textureScene, scale]);
 
   useFrame((_, delta) => {
     if (groupRef.current) {
