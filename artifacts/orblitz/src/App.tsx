@@ -53,6 +53,7 @@ function App() {
   const loadingRunRef = useRef(0);
   const handleStartupLoadingComplete = useCallback(() => {
     setShowStartupLoading(false);
+    setSkipIntro(true);
     // Menu sounds are small and immediately useful. Gameplay assets wait until
     // the player has chosen a mode/level, avoiding speculative music and boss
     // downloads during menu browsing.

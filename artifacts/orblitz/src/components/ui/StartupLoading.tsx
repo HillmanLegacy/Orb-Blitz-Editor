@@ -15,6 +15,8 @@ export function StartupLoading({ onComplete }: Props) {
   const [fadingOut, setFadingOut] = useState(false);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
   const doneRef = useRef(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const completionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ambientOrbs = useMemo(() => Array.from({ length: 18 }, (_, i) => {
     const angle = (i / 18) * Math.PI * 2;
     const r = 130 + (i % 3) * 55;
@@ -28,26 +30,33 @@ export function StartupLoading({ onComplete }: Props) {
     };
   }), []);
 
+  const complete = () => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    if (intervalRef.current !== null) clearInterval(intervalRef.current);
+    setFadingOut(true);
+    completionTimeoutRef.current = setTimeout(onComplete, 350);
+  };
+
   const tryStartAudio = () => {
-    if (!audioUnlocked) {
-      setAudioUnlocked(true);
-    }
+    if (!audioUnlocked) setAudioUnlocked(true);
+    complete();
   };
 
   useEffect(() => {
     const startTime = Date.now();
-    const tick = setInterval(() => {
+    intervalRef.current = setInterval(() => {
       const elapsed = Date.now() - startTime;
       const p = Math.min(1, elapsed / LOAD_DURATION);
       setProgress(p);
       if (p >= 1 && !doneRef.current) {
-        doneRef.current = true;
-        clearInterval(tick);
-        setFadingOut(true);
-        setTimeout(() => onComplete(), 850);
+        complete();
       }
     }, 40);
-    return () => clearInterval(tick);
+    return () => {
+      if (intervalRef.current !== null) clearInterval(intervalRef.current);
+      if (completionTimeoutRef.current !== null) clearTimeout(completionTimeoutRef.current);
+    };
   }, [onComplete]);
 
   return (
@@ -134,6 +143,16 @@ export function StartupLoading({ onComplete }: Props) {
           />
         </div>
       </motion.div>
+
+      <motion.p
+        className="relative z-10 mt-5 text-[0.62rem] font-semibold uppercase tracking-[0.28em]"
+        style={{ color: "rgba(190, 240, 255, 0.55)" }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.55 }}
+      >
+        Tap or click to continue
+      </motion.p>
     </motion.div>
   );
 }
