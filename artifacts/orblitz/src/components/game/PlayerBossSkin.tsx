@@ -1,7 +1,7 @@
 import type { OrbSkin } from "../../lib/stores/useShop";
+import { BossOrbModel } from "./BossOrbModel";
 import { MiniCrystalOrb } from "./MiniCrystalOrb";
 import { MiniDiamondOrb } from "./MiniDiamondOrb";
-import { MiniFireOrb } from "./MiniFireOrb";
 import { MiniMechaOrb } from "./MiniMechaOrb";
 import { MiniMonsterOrb } from "./MiniMonsterOrb";
 import { MiniPlasmaOrb } from "./MiniPlasmaOrb";
@@ -29,7 +29,9 @@ export function PlayerBossSkin({
 }: PlayerBossSkinProps) {
   switch (skin) {
     case "fire":
-      return <MiniFireOrb radius={radius} healthPercent={healthPercent} showParticles={showEffects} showLight={false} />;
+      // The shop Fire Boss Skin, the 1.9 boss, and player projectiles all use
+      // the same authored texture from boss_orb_1_texture.glb.
+      return <BossOrbModel scale={radius} healthPercent={healthPercent} />;
     case "star":
       return <MiniStarOrb radius={radius} healthPercent={healthPercent} showParticles={showEffects} showLight={false} />;
     case "crystal":
