@@ -13,6 +13,7 @@ interface PlayerBossSkinProps {
   skin: Exclude<OrbSkin, "default">;
   radius: number;
   healthPercent: number;
+  showEffects?: boolean;
 }
 
 /**
@@ -20,25 +21,30 @@ interface PlayerBossSkinProps {
  * shop skin's procedural texture, internal motion, and rotation intact instead
  * of flattening the appearance into a single material colour.
  */
-export function PlayerBossSkin({ skin, radius, healthPercent }: PlayerBossSkinProps) {
+export function PlayerBossSkin({
+  skin,
+  radius,
+  healthPercent,
+  showEffects = true,
+}: PlayerBossSkinProps) {
   switch (skin) {
     case "fire":
-      return <MiniFireOrb radius={radius} healthPercent={healthPercent} showLight={false} />;
+      return <MiniFireOrb radius={radius} healthPercent={healthPercent} showParticles={showEffects} showLight={false} />;
     case "star":
-      return <MiniStarOrb radius={radius} healthPercent={healthPercent} showLight={false} />;
+      return <MiniStarOrb radius={radius} healthPercent={healthPercent} showParticles={showEffects} showLight={false} />;
     case "crystal":
       return <MiniCrystalOrb radius={radius} showLight={false} />;
     case "toxic":
-      return <MiniToxicOrb radius={radius} showLight={false} />;
+      return <MiniToxicOrb radius={radius} showParticles={showEffects} showLight={false} />;
     case "plasma":
-      return <MiniPlasmaOrb radius={radius} showLight={false} />;
+      return <MiniPlasmaOrb radius={radius} showParticles={showEffects} showLight={false} />;
     case "diamond":
-      return <MiniDiamondOrb radius={radius} showLight={false} />;
+      return <MiniDiamondOrb radius={radius} showParticles={showEffects} showLight={false} />;
     case "rainbow":
-      return <MiniRainbowOrb radius={radius} showLight={false} />;
+      return <MiniRainbowOrb radius={radius} showParticles={showEffects} showLight={false} />;
     case "mecha":
       return <MiniMechaOrb radius={radius} showLight={false} />;
     case "monster":
-      return <MiniMonsterOrb radius={radius} showLight={false} />;
+      return <MiniMonsterOrb radius={radius} showParticles={showEffects} showLight={false} />;
   }
 }

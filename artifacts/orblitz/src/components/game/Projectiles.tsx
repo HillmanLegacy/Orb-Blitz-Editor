@@ -25,6 +25,7 @@ import {
   getPlayerProjectileVisualScale,
   isPlayerProjectile,
   shouldRenderParticleSwarmOverlay,
+  usesExactPlayerVisual,
 } from "./PlayerProjectileVisualConfig";
 import {
   getPlayerSkinTextureSourcePath,
@@ -33,6 +34,8 @@ import {
   type PlayerSkinTrailPalette,
 } from "./PlayerSkinVisualConfig";
 import { clonePlayerOrbMaterial } from "./PlayerOrbMaterial";
+import { PlayerModel } from "./PlayerModel";
+import { PlayerBossSkin } from "./PlayerBossSkin";
 
 /** Projectile collision always reads live enemy transforms, never store snapshots. */
 function liveOrbPosition(orb: DarkOrb): [number, number, number] {
@@ -430,6 +433,7 @@ function BatchedPlayerProjectileModels({
 
     for (const projectile of projectiles) {
       if (!isPlayerProjectile(projectile)) continue;
+      if (usesExactPlayerVisual(projectile)) continue;
       const motion = projectilePhysicsMap.get(projectile.id);
       if (!motion || motion.slot >= MAX_BATCHED_PROJECTILES) continue;
       if (projectile.type === "spiral") {
@@ -540,6 +544,46 @@ function BatchedPlayerProjectileModels({
         />
       ))}
     </>
+  );
+}
+
+function ExactPlayerProjectileModel({
+  projectile,
+  equippedSkin,
+  skinColors,
+}: {
+  projectile: Projectile;
+  equippedSkin: Parameters<typeof getPlayerSkinTextureSourcePath>[0];
+  skinColors: { core: string; glow: string };
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const scale = getPlayerProjectileVisualScale(projectile);
+
+  useFrame(() => {
+    const motion = getLiveProjectileMotion(projectile);
+    if (!motion || !groupRef.current) return;
+    groupRef.current.position.set(...motion.position);
+  });
+
+  return (
+    <group ref={groupRef} position={projectile.position}>
+      {equippedSkin === "default" ? (
+        <PlayerModel
+          scale={scale}
+          coreColor={skinColors.core}
+          glowColor={skinColors.glow}
+          rotationSpeedX={0.3}
+          rotationSpeedY={0.8}
+        />
+      ) : (
+        <PlayerBossSkin
+          skin={equippedSkin}
+          radius={scale}
+          healthPercent={1}
+          showEffects={false}
+        />
+      )}
+    </group>
   );
 }
 
@@ -2713,6 +2757,14 @@ export function Projectiles() {
            equippedSkin={equippedSkin}
             skinColors={skinColors}
          />
+         {batchedProjectiles.filter(usesExactPlayerVisual).map((projectile) => (
+           <ExactPlayerProjectileModel
+             key={projectile.id}
+             projectile={projectile}
+             equippedSkin={equippedSkin}
+             skinColors={skinColors}
+           />
+         ))}
        </Suspense>
       {projectiles.map((proj) =>
         proj.type === "overcharged" ? (

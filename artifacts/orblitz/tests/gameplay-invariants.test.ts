@@ -54,6 +54,7 @@ import {
   isPlayerProjectile,
   PLAYER_PROJECTILE_TYPES,
   shouldRenderParticleSwarmOverlay,
+  usesExactPlayerVisual,
 } from "../src/components/game/PlayerProjectileVisualConfig";
 import {
   BOSS_DEFEAT_DURATION,
@@ -405,6 +406,14 @@ describe("gameplay runtime invariants", () => {
     expect(texturePaths).toEqual(skins.map((skin) => PLAYER_SKIN_TEXTURE_SOURCE_PATHS[skin]));
     expect(texturePaths.every((path) => path.endsWith("_texture.glb"))).toBe(true);
     expect(new Set(texturePaths).size).toBe(skins.length);
+  });
+
+  it("uses the exact active player renderer for baseline shots only", () => {
+    expect(usesExactPlayerVisual({ type: undefined })).toBe(true);
+    expect(usesExactPlayerVisual({ type: "normal" })).toBe(true);
+    for (const type of PLAYER_PROJECTILE_TYPES) {
+      if (type !== "normal") expect(usesExactPlayerVisual({ type })).toBe(false);
+    }
   });
 
   it("gives projectile textures the same opaque PBR treatment as the player", () => {

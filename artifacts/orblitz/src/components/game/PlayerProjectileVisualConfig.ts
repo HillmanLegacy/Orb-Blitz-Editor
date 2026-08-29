@@ -29,6 +29,10 @@ export function isPlayerProjectile(projectile: Pick<Projectile, "type">): boolea
   return PLAYER_PROJECTILE_TYPES.includes(getPlayerProjectileType(projectile));
 }
 
+export function usesExactPlayerVisual(projectile: Pick<Projectile, "type">): boolean {
+  return getPlayerProjectileType(projectile) === "normal";
+}
+
 export function shouldRenderParticleSwarmOverlay(
   projectile: Pick<Projectile, "type">,
   trail: TrailEffect,
