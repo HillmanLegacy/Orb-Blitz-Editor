@@ -1,10 +1,10 @@
 ---
 name: Imported artifact preview routing
-description: Imported web artifacts can have healthy managed workflows while preview catalog helpers cannot resolve the artifact.
+description: Artifact catalog helpers may fail for imports even when the real HTTPS preview route is healthy.
 ---
 
-Imported web projects may expose the expected port and serve successfully locally while the preview/catalog layer still reports that the app cannot be reached. This is a forwarding or registration problem, not evidence that the frontend process failed.
+Imported web projects may not resolve through artifact catalog helpers even while their actual browser preview works normally. Do not equate a helper's “artifact not found” result with a broken application route.
 
-**Why:** The imported Orblitz project served HTTP 200 on its configured port and its workflow reported the port open, but preview resolution could not find the imported artifact.
+**Why:** The imported Orblitz project served HTTP 200 locally and through its HTTPS `.replit.dev` route, and a real browser loaded the menu, while artifact screenshot/catalog helpers still could not resolve its imported ID.
 
-**How to apply:** Check workflow status, bind address, and localhost HTTP response before changing app code or repeatedly restarting. If all three are healthy, avoid port/config churn and treat the remaining issue as platform-side artifact forwarding.
+**How to apply:** Check workflow status, bind address, localhost HTTP, the HTTPS development URL, and a real browser run. Use HTTPS for `.replit.dev`; do not diagnose forwarding failure from a plain-HTTP check or catalog-helper failure alone.
