@@ -8,6 +8,7 @@ import { useAudio } from "@/lib/stores/useAudio";
 import { useShop, TrailEffect } from "@/lib/stores/useShop";
 import { getSkinColors } from "./PlayerOrb";
 import { PlayerParticles } from "./PlayerParticles";
+import { MiniStarOrb } from "./MiniStarOrb";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 import {
   getProjectileMotion,
@@ -340,9 +341,9 @@ type BatchedModelPart = {
 };
 
 /**
- * Every player-owned projectile uses one instanced copy of the equipped skin's
- * authored GLTF geometry and material groups. Weapon components render effects
- * only, so this is the sole owner of opaque projectile cores.
+ * Every non-Star player-owned projectile uses one instanced copy of the
+ * equipped skin's authored GLTF geometry and material groups. Star uses the
+ * same procedural MiniStarOrb renderer as the equipped player skin below.
  */
 function BatchedPlayerProjectileModels({
   projectiles,
@@ -518,6 +519,11 @@ function BatchedPlayerProjectileModels({
     runtimeDiagnostics.endProjectileVisuals(visibleModels);
   });
 
+  // The equipped Star player uses the procedural MiniStarOrb renderer. Hide
+  // this GLTF batch for Star so the old star texture cannot remain visible
+  // when the equipped skin changes at runtime.
+  if (equippedSkin === "star") return null;
+
   return (
     <>
       {modelParts.map((part, index) => (
@@ -539,6 +545,109 @@ function BatchedPlayerProjectileModels({
         />
       ))}
     </>
+  );
+}
+
+/**
+ * Star's player skin is procedural rather than GLB-backed. Render the same
+ * MiniStarOrb core for each projectile so the projectile surface and the
+ * equipped player surface come from the exact same shader/material path.
+ *
+ * Spiral weapons keep their three independently orbiting sub-orbs; only the
+ * visual core source changes from the generic GLB batch to MiniStarOrb.
+ */
+function StarPlayerProjectileCores({
+  projectiles,
+  playerScale,
+}: {
+  projectiles: readonly Projectile[];
+  playerScale: number;
+}) {
+  return (
+    <>
+      {projectiles.map((projectile) => (
+        <StarPlayerProjectileCore
+          key={projectile.id}
+          projectile={projectile}
+          playerScale={playerScale}
+        />
+      ))}
+    </>
+  );
+}
+
+function StarPlayerProjectileCore({
+  projectile,
+  playerScale,
+}: {
+  projectile: Projectile;
+  playerScale: number;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const orbRefs = useRef<Array<THREE.Group | null>>([]);
+
+  useFrame(() => {
+    const group = groupRef.current;
+    const motion = getLiveProjectileMotion(projectile);
+    if (!group || !motion) {
+      if (group) group.visible = false;
+      return;
+    }
+
+    group.visible = true;
+    const isSpiral = projectile.type === "spiral";
+    const visualScale = getPlayerProjectileVisualScale(
+      projectile,
+      isSpiral ? 1 : (motion.spawnScale ?? projectile.spawnScale ?? 1),
+      playerScale,
+    );
+
+    if (!isSpiral) {
+      group.position.set(motion.position[0], motion.position[1], motion.position[2]);
+      const orb = orbRefs.current[0];
+      if (orb) {
+        orb.position.set(0, 0, 0);
+        orb.scale.setScalar(visualScale);
+      }
+      for (let index = 1; index < orbRefs.current.length; index++) {
+        orbRefs.current[index]?.scale.setScalar(0);
+      }
+      return;
+    }
+
+    group.position.set(0, 0, 0);
+    const alive = motion.subSphereAlive ?? projectile.subSphereAlive ?? [true, true, true];
+    const phase = motion.spiralAngle ?? projectile.spiralAngle ?? 0;
+    for (let subIndex = 0; subIndex < 3; subIndex++) {
+      const orb = orbRefs.current[subIndex];
+      if (!orb) continue;
+      const [x, y, z] = _getSpiralSubPos(
+        motion.position[0],
+        motion.position[1],
+        motion.position[2],
+        motion.direction[0],
+        motion.direction[1],
+        phase,
+        subIndex,
+      );
+      orb.position.set(x, y, z);
+      orb.scale.setScalar(alive[subIndex] ? visualScale : 0);
+    }
+  });
+
+  return (
+    <group ref={groupRef} visible={false}>
+      {[0, 1, 2].map((index) => (
+        <group
+          key={index}
+          ref={(group) => {
+            orbRefs.current[index] = group;
+          }}
+        >
+          <MiniStarOrb radius={1} showParticles={false} showLight={false} />
+        </group>
+      ))}
+    </group>
   );
 }
 
@@ -2759,6 +2868,12 @@ export function Projectiles() {
            skinColors={skinColors}
            playerScale={playerScale}
          />
+         {equippedSkin === "star" && (
+           <StarPlayerProjectileCores
+             projectiles={batchedProjectiles}
+             playerScale={playerScale}
+           />
+         )}
          {projectiles.map((proj) => (
            <ProjectileEffectsGate key={proj.id} projectile={proj}>
              {proj.type === "overcharged" ? (
