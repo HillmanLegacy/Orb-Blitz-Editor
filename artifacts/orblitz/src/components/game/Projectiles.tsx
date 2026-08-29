@@ -384,6 +384,7 @@ function BatchedPlayerProjectileModels({
           baseMaterial: sourceMaterial,
           coreColor: skinColors.core,
           glowColor: skinColors.glow,
+          tintColors: false,
         }),
       );
       parts.push({

@@ -22,11 +22,14 @@ export function clonePlayerOrbMaterial({
   textureMaterial = baseMaterial,
   coreColor,
   glowColor,
+  tintColors = true,
 }: {
   baseMaterial: THREE.Material;
   textureMaterial?: THREE.Material;
   coreColor: string;
   glowColor: string;
+  /** Keep the authored GLTF color/emissive values when false. */
+  tintColors?: boolean;
 }): THREE.Material {
   const material = baseMaterial.clone();
   const target = material as THREE.MeshStandardMaterial;
@@ -51,9 +54,9 @@ export function clonePlayerOrbMaterial({
   material.premultipliedAlpha = false;
   material.visible = true;
 
-  if (target.color) target.color.set(coreColor);
-  if (target.emissive) target.emissive.set(glowColor);
-  if (typeof target.emissiveIntensity === "number") {
+  if (tintColors && target.color) target.color.set(coreColor);
+  if (tintColors && target.emissive) target.emissive.set(glowColor);
+  if (tintColors && typeof target.emissiveIntensity === "number") {
     const base = baseMaterial as THREE.MeshStandardMaterial;
     target.emissiveIntensity = Math.min(base.emissiveIntensity ?? 1, 0.45);
   }
