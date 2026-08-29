@@ -55,7 +55,7 @@ import {
   isPlayerProjectile,
   PLAYER_PROJECTILE_TYPES,
   shouldRenderParticleSwarmOverlay,
-  usesExactPlayerVisual,
+  usesSharedPlayerProjectileCore,
 } from "../src/components/game/PlayerProjectileVisualConfig";
 import {
   BOSS_DEFEAT_DURATION,
@@ -76,9 +76,8 @@ import {
   resolveEnemyDefeatBossType,
 } from "../src/components/game/EnemyDefeatConfig";
 import {
-  PLAYER_PROJECTILE_BASE_MODEL_PATH,
-  PLAYER_SKIN_TEXTURE_SOURCE_PATHS,
-  getPlayerSkinTextureSourcePath,
+  PLAYER_SKIN_MODEL_PATHS,
+  getPlayerSkinModelPath,
   getPlayerSkinTrailPalette,
   getPlayerSkinTrailColor,
 } from "../src/components/game/PlayerSkinVisualConfig";
@@ -399,21 +398,19 @@ describe("gameplay runtime invariants", () => {
     expect(SHOP_ITEMS.some((item) => item.value === "electric")).toBe(false);
   });
 
-  it("keeps one player-orb projectile model and maps skins to texture sources", () => {
+  it("maps every equipped skin directly to its authored projectile model", () => {
     const skins = ["default", ...BOSS_SKIN_TYPES] as const;
-    const texturePaths = skins.map(getPlayerSkinTextureSourcePath);
+    const modelPaths = skins.map(getPlayerSkinModelPath);
 
-    expect(PLAYER_PROJECTILE_BASE_MODEL_PATH).toBe("/models/player_orb_texture.glb");
-    expect(texturePaths).toEqual(skins.map((skin) => PLAYER_SKIN_TEXTURE_SOURCE_PATHS[skin]));
-    expect(texturePaths.every((path) => path.endsWith("_texture.glb"))).toBe(true);
-    expect(new Set(texturePaths).size).toBe(skins.length);
+    expect(modelPaths).toEqual(skins.map((skin) => PLAYER_SKIN_MODEL_PATHS[skin]));
+    expect(modelPaths.every((path) => path.endsWith("_texture.glb"))).toBe(true);
+    expect(new Set(modelPaths).size).toBe(skins.length);
   });
 
-  it("uses the exact active player renderer for baseline shots only", () => {
-    expect(usesExactPlayerVisual({ type: undefined })).toBe(true);
-    expect(usesExactPlayerVisual({ type: "normal" })).toBe(true);
+  it("uses one shared skin-aware core renderer for every player projectile", () => {
+    expect(usesSharedPlayerProjectileCore({ type: undefined })).toBe(true);
     for (const type of PLAYER_PROJECTILE_TYPES) {
-      if (type !== "normal") expect(usesExactPlayerVisual({ type })).toBe(false);
+      expect(usesSharedPlayerProjectileCore({ type })).toBe(true);
     }
   });
 

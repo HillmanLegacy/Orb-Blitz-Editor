@@ -1,4 +1,4 @@
-import { useRef, useMemo, memo, Suspense, useState, useEffect } from "react";
+import { useRef, useMemo, memo, Suspense, useState, useEffect, type ReactNode } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
@@ -26,17 +26,14 @@ import {
   getPlayerProjectileVisualScale,
   isPlayerProjectile,
   shouldRenderParticleSwarmOverlay,
-  usesExactPlayerVisual,
+  usesSharedPlayerProjectileCore,
 } from "./PlayerProjectileVisualConfig";
 import {
-  getPlayerSkinTextureSourcePath,
+  getPlayerSkinModelPath,
   getPlayerSkinTrailPalette,
-  PLAYER_PROJECTILE_BASE_MODEL_PATH,
   type PlayerSkinTrailPalette,
 } from "./PlayerSkinVisualConfig";
 import { clonePlayerOrbMaterial } from "./PlayerOrbMaterial";
-import { PlayerModel } from "./PlayerModel";
-import { PlayerBossSkin } from "./PlayerBossSkin";
 
 /** Projectile collision always reads live enemy transforms, never store snapshots. */
 function liveOrbPosition(orb: DarkOrb): [number, number, number] {
@@ -335,16 +332,15 @@ const _batchedModelPosition = new THREE.Vector3();
 
 type BatchedModelPart = {
   geometry: THREE.BufferGeometry;
-  material: THREE.Material;
+  material: THREE.Material | THREE.Material[];
   localMatrix: THREE.Matrix4;
-  ownedMaterial?: THREE.Material;
+  ownedMaterials: THREE.Material[];
 };
 
 /**
- * The projectile silhouette always comes from the player orb model. Equipped
- * boss skins contribute their authored texture/material maps only; their larger
- * boss geometry is never used as a projectile. One cloned material set is
- * shared by every instance of the currently equipped skin.
+ * Every player-owned projectile uses one instanced copy of the equipped skin's
+ * authored GLTF geometry and material groups. Weapon components render effects
+ * only, so this is the sole owner of opaque projectile cores.
  */
 function BatchedPlayerProjectileModels({
   projectiles,
@@ -353,12 +349,11 @@ function BatchedPlayerProjectileModels({
   playerScale,
 }: {
   projectiles: readonly Projectile[];
-  equippedSkin: Parameters<typeof getPlayerSkinTextureSourcePath>[0];
+  equippedSkin: Parameters<typeof getPlayerSkinModelPath>[0];
   skinColors: { core: string; glow: string };
   playerScale: number;
 }) {
-  const { scene: playerScene } = useGLTF(PLAYER_PROJECTILE_BASE_MODEL_PATH);
-  const skinPath = getPlayerSkinTextureSourcePath(equippedSkin);
+  const skinPath = getPlayerSkinModelPath(equippedSkin);
   const { scene: skinScene } = useGLTF(skinPath);
   const meshRefs = useRef<Array<THREE.InstancedMesh | null>>([]);
   const spiralMeshRefs = useRef<Array<THREE.InstancedMesh | null>>([]);
@@ -367,9 +362,8 @@ function BatchedPlayerProjectileModels({
   const seenSlotsRef = useRef<Set<number>>(new Set());
   const seenSpiralSlotsRef = useRef<Set<number>>(new Set());
   const modelParts = useMemo<BatchedModelPart[]>(() => {
-    playerScene.updateMatrixWorld(true);
     skinScene.updateMatrixWorld(true);
-    const bounds = new THREE.Box3().setFromObject(playerScene);
+    const bounds = new THREE.Box3().setFromObject(skinScene);
     const size = new THREE.Vector3();
     const center = new THREE.Vector3();
     bounds.getSize(size);
@@ -380,42 +374,31 @@ function BatchedPlayerProjectileModels({
     const normalizationMatrix = new THREE.Matrix4()
       .makeTranslation(-center.x * normalization, -center.y * normalization, -center.z * normalization)
       .multiply(new THREE.Matrix4().makeScale(normalization, normalization, normalization));
-    const skinMaterials: THREE.Material[] = [];
+    const parts: BatchedModelPart[] = [];
     skinScene.traverse((child) => {
       const mesh = child as THREE.Mesh;
       if (!mesh.isMesh) return;
-      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      skinMaterials.push(...materials);
-    });
-    const parts: BatchedModelPart[] = [];
-    let partIndex = 0;
-    playerScene.traverse((child) => {
-      const mesh = child as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      const baseMaterial = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
-      const sourceMaterial = skinMaterials.length > 0
-        ? skinMaterials[partIndex % skinMaterials.length]
-        : baseMaterial;
-      const material = clonePlayerOrbMaterial({
-        baseMaterial,
-        textureMaterial: sourceMaterial,
-        coreColor: skinColors.core,
-        glowColor: skinColors.glow,
-      });
+      const sourceMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      const ownedMaterials = sourceMaterials.map((sourceMaterial) =>
+        clonePlayerOrbMaterial({
+          baseMaterial: sourceMaterial,
+          coreColor: skinColors.core,
+          glowColor: skinColors.glow,
+        }),
+      );
       parts.push({
         geometry: mesh.geometry,
-        material,
+        material: Array.isArray(mesh.material) ? ownedMaterials : ownedMaterials[0],
         localMatrix: normalizationMatrix.clone().multiply(mesh.matrixWorld),
-        ownedMaterial: material,
+        ownedMaterials,
       });
-      partIndex++;
     });
     return parts;
-  }, [equippedSkin, playerScene, skinColors.core, skinColors.glow, skinScene]);
+  }, [equippedSkin, skinColors.core, skinColors.glow, skinScene]);
 
   useEffect(() => () => {
     for (const part of modelParts) {
-      part.ownedMaterial?.dispose();
+      for (const material of part.ownedMaterials) material.dispose();
     }
   }, [modelParts]);
 
@@ -435,9 +418,8 @@ function BatchedPlayerProjectileModels({
     ));
 
     for (const projectile of projectiles) {
-      if (!isPlayerProjectile(projectile)) continue;
-      if (usesExactPlayerVisual(projectile)) continue;
-      const motion = projectilePhysicsMap.get(projectile.id);
+      if (!usesSharedPlayerProjectileCore(projectile)) continue;
+      const motion = getLiveProjectileMotion(projectile);
       if (!motion || motion.slot >= MAX_BATCHED_PROJECTILES) continue;
       if (projectile.type === "spiral") {
         const alive = motion.subSphereAlive ?? projectile.subSphereAlive ?? [true, true, true];
@@ -541,6 +523,7 @@ function BatchedPlayerProjectileModels({
           ref={(mesh) => { meshRefs.current[index] = mesh; }}
           args={[part.geometry, part.material, MAX_BATCHED_PROJECTILES]}
           frustumCulled={false}
+          renderOrder={2}
         />
       ))}
       {modelParts.map((part, index) => (
@@ -549,52 +532,34 @@ function BatchedPlayerProjectileModels({
           ref={(mesh) => { spiralMeshRefs.current[index] = mesh; }}
           args={[part.geometry, part.material, MAX_BATCHED_PROJECTILES * 3]}
           frustumCulled={false}
+          renderOrder={2}
         />
       ))}
     </>
   );
 }
 
-function ExactPlayerProjectileModel({
+/**
+ * Weapon effects mount with their projectile record but stay invisible until
+ * the authoritative runtime slot exists. This keeps lights and additive trails
+ * from appearing at the origin or outliving their opaque core.
+ */
+function ProjectileEffectsGate({
   projectile,
-  equippedSkin,
-  skinColors,
-  playerScale,
+  children,
 }: {
   projectile: Projectile;
-  equippedSkin: Parameters<typeof getPlayerSkinTextureSourcePath>[0];
-  skinColors: { core: string; glow: string };
-  playerScale: number;
+  children: ReactNode;
 }) {
   const groupRef = useRef<THREE.Group>(null);
-  const scale = getPlayerProjectileVisualScale(projectile, 1, playerScale);
 
   useFrame(() => {
-    const motion = getLiveProjectileMotion(projectile);
-    if (!motion || !groupRef.current) return;
-    groupRef.current.position.set(...motion.position);
+    if (groupRef.current) {
+      groupRef.current.visible = getLiveProjectileMotion(projectile) !== undefined;
+    }
   });
 
-  return (
-    <group ref={groupRef} position={projectile.position}>
-      {equippedSkin === "default" ? (
-        <PlayerModel
-          scale={scale}
-          coreColor={skinColors.core}
-          glowColor={skinColors.glow}
-          rotationSpeedX={0.3}
-          rotationSpeedY={0.8}
-        />
-      ) : (
-        <PlayerBossSkin
-          skin={equippedSkin}
-          radius={scale}
-          healthPercent={1}
-          showEffects={false}
-        />
-      )}
-    </group>
-  );
+  return <group ref={groupRef} visible={false}>{children}</group>;
 }
 
 /**
@@ -1125,14 +1090,6 @@ function SubblasterProjectileMesh({
 const _RB_TRAIL_N  = 12;
 const _RB_TRAIL_HW = 0.045; // narrow ribbon half-width
 
-const _rbCoreGeo = new THREE.SphereGeometry(1, 8, 6);
-const _rbCoreMat = new THREE.MeshBasicMaterial({
-  color: "#ffffff",
-  transparent: true,
-  opacity: 0.95,
-  depthWrite: false,
-  blending: THREE.AdditiveBlending,
-});
 const _rbFlashGeo = new THREE.SphereGeometry(1, 8, 6);
 const _rbFlashMat = new THREE.MeshBasicMaterial({
   color: "#fffbe8",
@@ -1252,8 +1209,6 @@ function RapidBlasterProjectileMesh({
   });
 
   const isCharged = projectile.isCharged;
-  const projScale = isCharged ? 0.165 : 0.11; // 1.5× when charge beam active
-
   useFrame(() => {
     const motion = getLiveProjectileMotion(projectile);
     if (!motion) return;
@@ -1274,19 +1229,6 @@ function RapidBlasterProjectileMesh({
       {/* Narrow trailing ribbon — rendered at world origin, offsets in geometry */}
       <mesh geometry={ribbonGeo} material={ribbonMat} position={[0, 0, 0]} />
 
-      {/* Bright projectile core at 100% scale */}
-      <mesh geometry={_rbCoreGeo} material={_rbCoreMat} scale={projScale} />
-      {/* Glow halo */}
-      <mesh scale={projScale * 2.0}>
-        <sphereGeometry args={[1, 8, 6]} />
-        <meshBasicMaterial
-          color={skinColors.glow}
-          transparent
-          opacity={0.18}
-          depthWrite={false}
-          blending={THREE.AdditiveBlending}
-        />
-      </mesh>
     </group>
   );
 }
@@ -2774,57 +2716,44 @@ export function Projectiles() {
            skinColors={skinColors}
            playerScale={playerScale}
          />
-         {batchedProjectiles.filter(usesExactPlayerVisual).map((projectile) => (
-           <ExactPlayerProjectileModel
-             key={projectile.id}
-             projectile={projectile}
-             equippedSkin={equippedSkin}
-             skinColors={skinColors}
-             playerScale={playerScale}
-           />
+         {projectiles.map((proj) => (
+           <ProjectileEffectsGate key={proj.id} projectile={proj}>
+             {proj.type === "overcharged" ? (
+               <OverchargedProjectileMesh
+                 projectile={proj}
+                 spawnScale={proj.spawnScale ?? 1}
+                 trailPalette={defaultTrailPalette}
+               />
+             ) : proj.type === "spiral" ? (
+               <SpiralBundleMesh
+                 projectile={proj}
+                 trailPalette={defaultTrailPalette}
+               />
+             ) : proj.type === "homing" ? (
+               <HomingProjectileMesh
+                 projectile={proj}
+                 trailPalette={defaultTrailPalette}
+               />
+             ) : proj.type === "scattershot" ? (
+               <ScattershotProjectileMesh
+                 projectile={proj}
+                 trailPalette={defaultTrailPalette}
+               />
+             ) : proj.type === "subblaster" ? (
+               <SubblasterProjectileMesh
+                 projectile={proj}
+                 trailPalette={defaultTrailPalette}
+               />
+             ) : proj.type === "rapidblaster" ? null
+             : shouldRenderParticleSwarmOverlay(proj, equippedTrail) ? (
+               <ParticleSwarmProjectileOverlay
+                 projectile={proj}
+                 skinColors={skinColors}
+               />
+             ) : null}
+           </ProjectileEffectsGate>
          ))}
        </Suspense>
-      {projectiles.map((proj) =>
-        proj.type === "overcharged" ? (
-          <OverchargedProjectileMesh
-            key={proj.id}
-            projectile={proj}
-            spawnScale={proj.spawnScale ?? 1}
-            trailPalette={defaultTrailPalette}
-          />
-        ) : proj.type === "spiral" ? (
-          <SpiralBundleMesh
-            key={proj.id}
-            projectile={proj}
-            trailPalette={defaultTrailPalette}
-          />
-        ) : proj.type === "homing" ? (
-          <HomingProjectileMesh
-            key={proj.id}
-            projectile={proj}
-            trailPalette={defaultTrailPalette}
-          />
-        ) : proj.type === "scattershot" ? (
-          <ScattershotProjectileMesh
-            key={proj.id}
-            projectile={proj}
-            trailPalette={defaultTrailPalette}
-          />
-        ) : proj.type === "subblaster" ? (
-          <SubblasterProjectileMesh
-            key={proj.id}
-            projectile={proj}
-            trailPalette={defaultTrailPalette}
-          />
-         ) : proj.type === "rapidblaster" ? null
-         : shouldRenderParticleSwarmOverlay(proj, equippedTrail) ? (
-           <ParticleSwarmProjectileOverlay
-             key={proj.id}
-             projectile={proj}
-             skinColors={skinColors}
-           />
-         ) : null
-      )}
       {shockwaves.map(sw => (
         <OcShockwaveRing key={sw.id} position={sw.pos} />
       ))}
