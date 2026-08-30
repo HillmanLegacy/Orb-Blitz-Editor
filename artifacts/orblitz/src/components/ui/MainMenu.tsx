@@ -212,7 +212,7 @@ export function MainMenu({ onShowHowToPlay, onShowModeSelect, onShowSettings }: 
   }), []);
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-auto overflow-hidden">
+    <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-auto overflow-y-auto">
       <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-violet-900" />
       
       {/* Animated grid pattern */}
@@ -488,6 +488,7 @@ export function MainMenu({ onShowHowToPlay, onShowModeSelect, onShowSettings }: 
         {showContent && (
           <motion.div
             className="relative z-10 text-center px-4 md:px-8 flex flex-col md:flex-row items-center gap-4 md:gap-12 w-full max-w-4xl"
+            style={{ maxHeight: "calc(100dvh - 24px)", overflowY: "auto", scrollbarWidth: "thin" }}
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
