@@ -4,9 +4,11 @@ export const ENEMY_SPAWN_MARGIN = 1.5;
 export const ENEMY_DESPAWN_MARGIN = 12;
 export const BOSS_PROJECTILE_DESPAWN_X = 28;
 export const BOSS_PROJECTILE_DESPAWN_Y = 18;
-/** Chill deliberately admits one harmless ambient target roughly every six seconds. */
-export const CHILL_AMBIENT_SPAWN_INTERVAL = 6;
-export const CHILL_AMBIENT_MAX_ACTIVE = 8;
+/** Chill is a dense ambient mode: small grouped pairs fill the playfield without attacking. */
+export const CHILL_AMBIENT_SPAWN_INTERVAL = 0.75;
+export const CHILL_AMBIENT_BATCH_SIZE = 2;
+export const CHILL_AMBIENT_MAX_ACTIVE = 20;
+export const CHILL_AMBIENT_CLUSTER_SIZE = 4;
 export const CHILL_AMBIENT_EDGE_PADDING = 1;
 
 /**
@@ -85,6 +87,38 @@ export function getEnemySpawnPoint(
         view.centerY + view.halfHeight + ENEMY_SPAWN_MARGIN,
       ];
   }
+}
+
+/**
+ * Place Chill targets in compact pairs around an inner camera ring. The
+ * admission index advances the ring between groups, while nearby admissions
+ * share a cluster so a dense Chill scene reads as intentional formations
+ * instead of unrelated dots scattered across the viewport.
+ */
+export function getChillAmbientSpawnPoint(
+  view: EnemySpawnView,
+  admission: number,
+  random: RandomSource = Math.random,
+): [number, number] {
+  const cluster = Math.floor(Math.max(0, admission) / CHILL_AMBIENT_CLUSTER_SIZE);
+  const angle = (cluster % 6) * (Math.PI / 3);
+  const usableHalfWidth = Math.max(0, view.halfWidth - 0.65);
+  const usableHalfHeight = Math.max(0, view.halfHeight - 0.65);
+  const radiusX = Math.min(usableHalfWidth, view.halfWidth * 0.42);
+  const radiusY = Math.min(usableHalfHeight, view.halfHeight * 0.42);
+  const jitterX = (Math.max(0, Math.min(0.999999, random())) * 2 - 1) *
+    Math.min(0.55, usableHalfWidth * 0.16);
+  const jitterY = (Math.max(0, Math.min(0.999999, random())) * 2 - 1) *
+    Math.min(0.55, usableHalfHeight * 0.16);
+  const minX = view.centerX - usableHalfWidth;
+  const maxX = view.centerX + usableHalfWidth;
+  const minY = view.centerY - usableHalfHeight;
+  const maxY = view.centerY + usableHalfHeight;
+
+  return [
+    Math.max(minX, Math.min(maxX, view.centerX + Math.cos(angle) * radiusX + jitterX)),
+    Math.max(minY, Math.min(maxY, view.centerY + Math.sin(angle) * radiusY + jitterY)),
+  ];
 }
 
 /** Select deterministically so a Chill admission cycles through all visual types. */

@@ -6,9 +6,11 @@ import { useShop } from "@/lib/stores/useShop";
 import { useAudio } from "@/lib/stores/useAudio";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
 import {
+  CHILL_AMBIENT_BATCH_SIZE,
   CHILL_AMBIENT_MAX_ACTIVE,
   CHILL_AMBIENT_SPAWN_INTERVAL,
   getChillAmbientDirection,
+  getChillAmbientSpawnPoint,
   getChillAmbientShape,
   getEnemySpawnPoint,
   getPerspectiveViewAtPlane,
@@ -238,10 +240,12 @@ export function GameLogic() {
       verticalFovDegrees: viewCamera.fov,
       aspect: viewCamera.aspect,
     });
-    const [x, y] = getEnemySpawnPoint(spawnView);
-    const z = 0;
-    
     const { gameMode: mode, arcadeLevel: level, killSpeedBonus, timeDifficultyBonus } = useMagicOrb.getState();
+    const chillAdmission = mode === "chill" ? chillAdmissionCount.current : 0;
+    const [x, y] = mode === "chill"
+      ? getChillAmbientSpawnPoint(spawnView, chillAdmission)
+      : getEnemySpawnPoint(spawnView);
+    const z = 0;
     
     let shape: OrbShape;
     let pattern: MovementPattern;
@@ -592,6 +596,7 @@ export function GameLogic() {
     if (phase !== "playing" && phase !== "paused") {
       armorApplied.current = false;
       defenseOrbsSpawned.current = false;
+      chillAdmissionCount.current = 0;
     }
     
     if (phase === "playing" && hasDefenseSystemRef.current && !defenseOrbsSpawned.current) {
@@ -790,7 +795,10 @@ export function GameLogic() {
       : 0;
     if (lastOrbSpawn.current >= effectiveSpawnRate && !isDying && !isBossLevel && !bossDefeating && !survivalBossPending && (gameMode !== "chill" || chillAmbientCount < CHILL_AMBIENT_MAX_ACTIVE)) {
       lastOrbSpawn.current = 0;
-      const spawnBatch = [createDarkOrb()];
+      const chillBatchSize = gameMode === "chill"
+        ? Math.min(CHILL_AMBIENT_BATCH_SIZE, CHILL_AMBIENT_MAX_ACTIVE - chillAmbientCount)
+        : 1;
+      const spawnBatch = Array.from({ length: chillBatchSize }, () => createDarkOrb());
       
       if (gameMode === "survival") {
         if (difficultyMultiplier > 1.5 && Math.random() < 0.3) {

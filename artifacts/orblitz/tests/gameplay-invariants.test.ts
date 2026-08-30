@@ -14,12 +14,15 @@ import {
 } from "../src/game-runtime/PowerUpSpawnScheduler";
 import {
   CHILL_AMBIENT_MAX_ACTIVE,
+  CHILL_AMBIENT_BATCH_SIZE,
+  CHILL_AMBIENT_CLUSTER_SIZE,
   CHILL_AMBIENT_SHAPES,
   CHILL_AMBIENT_SPAWN_INTERVAL,
   ENEMY_DESPAWN_MARGIN,
   ENEMY_SPAWN_MARGIN,
   bounceChillAmbientAtEdge,
   getChillAmbientDirection,
+  getChillAmbientSpawnPoint,
   getChillAmbientShape,
   getEnemySpawnPoint,
   getPerspectiveViewAtPlane,
@@ -776,15 +779,29 @@ describe("gameplay runtime invariants", () => {
     }
   });
 
-  it("uses a sparse bounded Chill admission policy and cycles ambient visuals", () => {
-    expect(CHILL_AMBIENT_SPAWN_INTERVAL).toBe(6);
-    expect(CHILL_AMBIENT_MAX_ACTIVE).toBe(8);
+  it("uses a dense bounded Chill admission policy and cycles ambient visuals", () => {
+    expect(CHILL_AMBIENT_SPAWN_INTERVAL).toBe(0.75);
+    expect(CHILL_AMBIENT_BATCH_SIZE).toBe(2);
+    expect(CHILL_AMBIENT_MAX_ACTIVE).toBe(20);
+    expect(CHILL_AMBIENT_CLUSTER_SIZE).toBe(4);
     const cycle = Array.from({ length: CHILL_AMBIENT_SHAPES.length }, (_, index) =>
       getChillAmbientShape(index),
     );
     expect(cycle).toEqual(CHILL_AMBIENT_SHAPES);
     expect(getChillAmbientShape(CHILL_AMBIENT_SHAPES.length)).toBe(CHILL_AMBIENT_SHAPES[0]);
     expect(cycle).not.toContain("launcher");
+  });
+
+  it("keeps Chill admissions grouped inside the camera view", () => {
+    const view = { centerX: 2, centerY: -1, halfWidth: 10, halfHeight: 6 };
+    const first = getChillAmbientSpawnPoint(view, 0, () => 0.5);
+    const second = getChillAmbientSpawnPoint(view, 1, () => 0.5);
+    const nextCluster = getChillAmbientSpawnPoint(view, CHILL_AMBIENT_CLUSTER_SIZE, () => 0.5);
+
+    expect(Math.hypot(first[0] - second[0], first[1] - second[1])).toBe(0);
+    expect(Math.hypot(first[0] - nextCluster[0], first[1] - nextCluster[1])).toBeGreaterThan(1);
+    expect(Math.abs(first[0] - view.centerX)).toBeLessThan(view.halfWidth);
+    expect(Math.abs(first[1] - view.centerY)).toBeLessThan(view.halfHeight);
   });
 
   it("gives Chill targets independent drift and bounces them at camera edges", () => {
