@@ -52,6 +52,7 @@ import {
   getProjectileEnemyCollisionRadius,
   getStandardEnemyBodyRadius,
 } from "./PhysicalBodyRadii";
+import { getEnemyStarRewardCount } from "@/game-runtime/EnemyLifecycle";
 
 /** Projectile collision always reads live enemy transforms, never store snapshots. */
 function liveOrbPosition(orb: DarkOrb): [number, number, number] {
@@ -2446,7 +2447,7 @@ export function Projectiles() {
             if (Math.sqrt((px-ox)**2+(py-oy)**2+(pz-oz)**2) < OC_EXPLODE_RADIUS + getStandardEnemyBodyRadius(orb)) {
               markOrbDestroying(orb.id, [ox, oy, oz]);
               addScore(10); incrementGauntletOrbs();
-              addStarFlowEvent([ox, oy, oz], 5);
+              addStarFlowEvent([ox, oy, oz], getEnemyStarRewardCount(gameMode, orb.isBossOrb));
               if (gameMode === "arcade") incrementOrbsDestroyed();
               addImpactEffect({ id: `impact-${impactIdCounter++}`, position: [ox, oy, oz], timer: 0.4, maxTimer: 0.4, seed: Math.random() });
             }
@@ -2551,7 +2552,7 @@ export function Projectiles() {
               hitOrbsThisFrame.current.add(orb.id);
               markOrbDestroying(orb.id, [ox, oy, oz]);
               addScore(10); incrementGauntletOrbs(); playHit();
-              addStarFlowEvent([ox, oy, oz], 5);
+               addStarFlowEvent([ox, oy, oz], getEnemyStarRewardCount(gameMode, orb.isBossOrb));
               if (gameMode === "arcade") incrementOrbsDestroyed();
               addImpactEffect({ id: `impact-${impactIdCounter++}`, position: [_spx, _spy, _spz], timer: 0.4, maxTimer: 0.4, seed: Math.random() });
               _ph.add(orb.id); projectileOrbHits.current.set(proj.id, _ph);
@@ -2690,7 +2691,7 @@ export function Projectiles() {
           markOrbDestroying(orb.id, [ox, oy, oz]);
           addScore(10);
           incrementGauntletOrbs();
-          addStarFlowEvent([ox, oy, oz], 5);
+           addStarFlowEvent([ox, oy, oz], getEnemyStarRewardCount(gameMode, orb.isBossOrb));
           playHit();
           
           if (gameMode === "arcade") {

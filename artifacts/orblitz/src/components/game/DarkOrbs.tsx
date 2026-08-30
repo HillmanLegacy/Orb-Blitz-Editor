@@ -22,6 +22,7 @@ import { usePerformanceFeature } from "@/game-runtime/PerformanceToggles";
 import { EnemyDefeatVFX } from "./EnemyDefeatVFX";
 import {
   ENEMY_DEFEAT_DURATION,
+  getEnemyStarRewardCount,
   getEnemyDefeatRemovalDecision,
 } from "@/game-runtime/EnemyLifecycle";
 import {
@@ -808,7 +809,7 @@ export function DarkOrbs() {
         if (dtp2sq < 12.25 && dtp2sq > 0.25) { // 3.5²=12.25, 0.5²=0.25
           addImpactEffect({ id: `barrier-impact-${Date.now()}-${Math.random()}`, position: [x, y, 0], timer: 0.5, maxTimer: 0.5, seed: Math.random() });
           addScore(10);
-          addStarFlowEvent([x, y, z], 5);
+          addStarFlowEvent([x, y, z], getEnemyStarRewardCount(gm, orb.isBossOrb));
           if (gm === "arcade" && !orb.isBossOrb) {
             if (orbsDestroyedInLevel + 1 >= orbsRequiredForLevel) completeLevel();
           }
@@ -848,7 +849,7 @@ export function DarkOrbs() {
       // Hurt-timer countdown → transition to destroying
       const newHurtTimer = Math.max(0, (orb.hurtTimer || 0) - delta);
       if ((orb.hurtTimer || 0) > 0 && newHurtTimer <= 0) {
-        addStarFlowEvent([x, y, z], 5);
+        addStarFlowEvent([x, y, z], getEnemyStarRewardCount(gm, orb.isBossOrb));
         phy.position[0] = x; phy.position[1] = y; phy.position[2] = z;
         newOrbs.push({ ...orb, position: [x, y, z] as [number,number,number], direction: [dx,dy,dz] as [number,number,number], hurtTimer: 0, destroying: true, destroyTimer: ENEMY_DEFEAT_DURATION });
         structuralChanged = true;

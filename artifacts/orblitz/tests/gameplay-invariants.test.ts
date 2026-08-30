@@ -96,7 +96,12 @@ import {
   getEnemySpawnReverseProgress,
   resolveEnemyDefeatBossType,
 } from "../src/components/game/EnemyDefeatConfig";
-import { getEnemyDefeatRemovalDecision } from "../src/game-runtime/EnemyLifecycle";
+import {
+  BOSS_ORB_STAR_REWARD,
+  getEnemyDefeatRemovalDecision,
+  getEnemyStarRewardCount,
+  STANDARD_ENEMY_STAR_REWARDS,
+} from "../src/game-runtime/EnemyLifecycle";
 import {
   getPowerUpDestroyPresentation,
   getPowerUpEvaporationRemnantCount,
@@ -353,6 +358,16 @@ describe("gameplay runtime invariants", () => {
     expect(isOverchargedDirectContact({ type: "overcharged" })).toBe(true);
     expect(isOverchargedDirectContact({ type: "normal" })).toBe(false);
     expect(isOverchargedDirectContact({ type: undefined })).toBe(false);
+  });
+
+  it("limits Chill standard-enemy rewards to one star", () => {
+    expect(STANDARD_ENEMY_STAR_REWARDS.chill).toBe(1);
+    expect(getEnemyStarRewardCount("chill")).toBe(STANDARD_ENEMY_STAR_REWARDS.chill);
+    expect(getEnemyStarRewardCount("chill", false)).toBe(STANDARD_ENEMY_STAR_REWARDS.chill);
+    expect(getEnemyStarRewardCount("chill", true)).toBe(BOSS_ORB_STAR_REWARD);
+    expect(getEnemyStarRewardCount("survival")).toBe(STANDARD_ENEMY_STAR_REWARDS.survival);
+    expect(getEnemyStarRewardCount("arcade")).toBe(STANDARD_ENEMY_STAR_REWARDS.arcade);
+    expect(getEnemyStarRewardCount("gauntlet")).toBe(STANDARD_ENEMY_STAR_REWARDS.gauntlet);
   });
 
   it("derives collision bodies from the authored player, projectile, enemy, boss, and power-up scales", () => {
