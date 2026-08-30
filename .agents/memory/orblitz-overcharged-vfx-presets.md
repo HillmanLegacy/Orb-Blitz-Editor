@@ -12,3 +12,5 @@ The Overcharged Blaster detonation and its existing shockwave must remain visibl
 Presentation admission must also occur before any collision-feature early return. Collision profiling may skip gameplay hit work, but it must not prevent the timed visual event from reaching the pool.
 
 Pooled R3F effects that hide inactive instances with zero-scale matrices must not also declare a parent `visible={false}` and imperatively toggle it in `useFrame`. React reconciliation can restore the false prop when the detonation removes its projectile, hiding the entire pool.
+
+The guaranteed detonation core uses ordinary persistent meshes, while optional particles use bounded `Points` buffers. Pool generations remain monotonic across resets so immediate reset/re-emission cannot reuse a mounted view's cached generation.

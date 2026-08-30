@@ -143,7 +143,9 @@ export function emitOverchargedExplosion(
 export function resetOverchargedExplosionPool(
   pool: OverchargedExplosionPool,
 ): void {
-  pool.generation = 0;
+  // Keep generations monotonic so an immediate reset/re-emit cannot reuse the
+  // generation still cached by a mounted presentation slot.
+  pool.generation++;
   for (const slot of pool.slots) {
     slot.active = false;
     slot.id = "";
@@ -151,16 +153,6 @@ export function resetOverchargedExplosionPool(
     slot.generation = 0;
   }
 }
-
-type BuildDatum = Readonly<{
-  angle: number;
-  radius: number;
-  elevation: number;
-  size: number;
-  spin: number;
-  phase: number;
-  tone: number;
-}>;
 
 type BurstDatum = Readonly<{
   angle: number;
@@ -172,75 +164,438 @@ type BurstDatum = Readonly<{
   tone: number;
 }>;
 
-const MAX_PROFILE = OVERCHARGED_EXPLOSION_PROFILES.high;
-const FLASH_CAPACITY = OVERCHARGED_EXPLOSION_MAX_ACTIVE;
-const RING_CAPACITY = OVERCHARGED_EXPLOSION_MAX_ACTIVE * 2;
-const BUILD_CAPACITY = OVERCHARGED_EXPLOSION_MAX_ACTIVE * MAX_PROFILE.build;
-const PLASMA_CAPACITY = OVERCHARGED_EXPLOSION_MAX_ACTIVE * MAX_PROFILE.plasma;
-const SPARK_CAPACITY = OVERCHARGED_EXPLOSION_MAX_ACTIVE * MAX_PROFILE.sparks;
-const SHARD_CAPACITY = OVERCHARGED_EXPLOSION_MAX_ACTIVE * MAX_PROFILE.shards;
-const EFFECT_RADIUS = 4.8;
-
-const hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
 const dummy = new THREE.Object3D();
-const color = new THREE.Color();
-const axis = new THREE.Vector3(0, 1, 0);
-const direction = new THREE.Vector3();
+const pointDirection = new THREE.Vector3();
+const groupPosition = new THREE.Vector3();
+const FLASH_RADIUS = 2.25;
+const RING_RADIUS = 4.8;
+const HIDDEN_POINT = 10_000;
 
 function seeded(index: number, offset: number): number {
   const x = Math.sin((index + 1) * 127.1 + offset * 311.7) * 43758.5453;
   return x - Math.floor(x);
 }
 
-const BUILD_DATA: BuildDatum[] = Array.from(
-  { length: MAX_PROFILE.build },
-  (_, index) => ({
-    angle: (index / MAX_PROFILE.build) * Math.PI * 2 + seeded(index, 1) * 0.7,
-    radius: 0.7 + seeded(index, 2) * 1.1,
-    elevation: (seeded(index, 3) - 0.5) * 1.2,
-    size: 0.045 + seeded(index, 4) * 0.09,
-    spin: 3.2 + seeded(index, 5) * 3.8,
-    phase: seeded(index, 6) * Math.PI * 2,
-    tone: seeded(index, 7),
-  }),
-);
-
-function makeBurstData(count: number, speedMin: number, speedRange: number): BurstDatum[] {
+function makeBurstData(
+  count: number,
+  speedMin: number,
+  speedRange: number,
+): BurstDatum[] {
   return Array.from({ length: count }, (_, index) => ({
     angle: (index / count) * Math.PI * 2 + seeded(index, 11) * 0.55,
     elevation: (seeded(index, 12) - 0.5) * 0.9,
     speed: speedMin + seeded(index, 13) * speedRange,
-    size: 0.04 + seeded(index, 14) * 0.12,
+    size: 0.08 + seeded(index, 14) * 0.14,
     delay: seeded(index, 15) * 0.08,
     life: 0.34 + seeded(index, 16) * 0.38,
     tone: seeded(index, 17),
   }));
 }
 
-const PLASMA_DATA = makeBurstData(MAX_PROFILE.plasma, 2.4, 5.2);
-const SPARK_DATA = makeBurstData(MAX_PROFILE.sparks, 7.5, 11);
-const SHARD_DATA = makeBurstData(MAX_PROFILE.shards, 3.5, 5);
+const BUILD_DATA = makeBurstData(20, 0.3, 0.8);
+const PLASMA_DATA = makeBurstData(30, 2.4, 5.2);
+const SPARK_DATA = makeBurstData(48, 7.5, 11);
+const SHARD_DATA = makeBurstData(10, 3.5, 5);
 
-function hideRange(
-  mesh: THREE.InstancedMesh | null,
-  start: number,
-  count: number,
-): void {
-  if (!mesh) return;
-  for (let i = 0; i < count; i++) mesh.setMatrixAt(start + i, hiddenMatrix);
-}
-
-function writeEnergyColor(tone: number, brightness: number): void {
-  if (tone < 0.28) color.set("#ffffff");
-  else if (tone < 0.64) color.set("#61efff");
-  else if (tone < 0.86) color.set("#3978ff");
-  else color.set("#9d4dff");
-  color.multiplyScalar(Math.max(0, brightness));
+function configurePoints(
+  geometry: THREE.BufferGeometry,
+  capacity: number,
+): Float32Array {
+  const positions = new Float32Array(capacity * 3);
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setDrawRange(0, 0);
+  return positions;
 }
 
 function smoothstep(t: number): number {
-  const clamped = Math.max(0, Math.min(1, t));
-  return clamped * clamped * (3 - 2 * clamped);
+  const value = Math.max(0, Math.min(1, t));
+  return value * value * (3 - 2 * value);
+}
+
+function setOpacity(
+  material: THREE.Material | THREE.Material[],
+  opacity: number,
+): void {
+  const materials = Array.isArray(material) ? material : [material];
+  for (const item of materials) {
+    const transparentMaterial = item as THREE.Material & {
+      opacity?: number;
+      transparent?: boolean;
+    };
+    transparentMaterial.opacity = opacity;
+    transparentMaterial.transparent = true;
+  }
+}
+
+function writePoint(
+  positions: Float32Array,
+  index: number,
+  x: number,
+  y: number,
+  z: number,
+): void {
+  const offset = index * 3;
+  positions[offset] = x;
+  positions[offset + 1] = y;
+  positions[offset + 2] = z;
+}
+
+function ExplosionSlotView({
+  slot,
+  preset,
+}: {
+  slot: ExplosionSlot;
+  preset: GraphicsPreset;
+}) {
+  const profile = OVERCHARGED_EXPLOSION_PROFILES[preset];
+  const coreRef = useRef<THREE.Mesh>(null);
+  const haloRef = useRef<THREE.Mesh>(null);
+  const ringRef = useRef<THREE.Mesh>(null);
+  const ringSecondaryRef = useRef<THREE.Mesh>(null);
+  const buildRef = useRef<THREE.Points>(null);
+  const plasmaRef = useRef<THREE.Points>(null);
+  const sparkRef = useRef<THREE.Points>(null);
+  const shardRef = useRef<THREE.Points>(null);
+  const generationRef = useRef(0);
+  const disposalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [buildGeometry] = useState(() => {
+    const geometry = new THREE.BufferGeometry();
+    configurePoints(geometry, 20);
+    return geometry;
+  });
+  const [plasmaGeometry] = useState(() => {
+    const geometry = new THREE.BufferGeometry();
+    configurePoints(geometry, 30);
+    return geometry;
+  });
+  const [sparkGeometry] = useState(() => {
+    const geometry = new THREE.BufferGeometry();
+    configurePoints(geometry, 48);
+    return geometry;
+  });
+  const [shardGeometry] = useState(() => {
+    const geometry = new THREE.BufferGeometry();
+    configurePoints(geometry, 10);
+    return geometry;
+  });
+
+  const buildPositions = buildGeometry.getAttribute("position").array as Float32Array;
+  const plasmaPositions = plasmaGeometry.getAttribute("position").array as Float32Array;
+  const sparkPositions = sparkGeometry.getAttribute("position").array as Float32Array;
+  const shardPositions = shardGeometry.getAttribute("position").array as Float32Array;
+
+  useFrame((_, delta) => {
+    const core = coreRef.current;
+    const halo = haloRef.current;
+    const ring = ringRef.current;
+    const secondaryRing = ringSecondaryRef.current;
+    const build = buildRef.current;
+    const plasma = plasmaRef.current;
+    const spark = sparkRef.current;
+    const shard = shardRef.current;
+    if (!core || !halo || !ring || !secondaryRing || !build || !plasma || !spark || !shard) return;
+
+    if (!slot.active) {
+      generationRef.current = -1;
+      core.visible = false;
+      halo.visible = false;
+      ring.visible = false;
+      secondaryRing.visible = false;
+      build.visible = false;
+      plasma.visible = false;
+      spark.visible = false;
+      shard.visible = false;
+      return;
+    }
+
+    if (generationRef.current !== slot.generation) {
+      generationRef.current = slot.generation;
+      core.visible = true;
+      halo.visible = true;
+      ring.visible = true;
+      secondaryRing.visible = true;
+      build.visible = true;
+      plasma.visible = true;
+      spark.visible = true;
+      shard.visible = true;
+    }
+
+    slot.age += Math.min(delta, 0.05);
+    if (slot.age >= OVERCHARGED_EXPLOSION_DURATION) {
+      slot.active = false;
+      core.visible = false;
+      halo.visible = false;
+      ring.visible = false;
+      secondaryRing.visible = false;
+      build.visible = false;
+      plasma.visible = false;
+      spark.visible = false;
+      shard.visible = false;
+      return;
+    }
+
+    const age = slot.age;
+    const phase = getOverchargedExplosionPhase(age);
+    const buildT = Math.min(age / OVERCHARGED_BUILD_DURATION, 1);
+    const buildEase = smoothstep(buildT);
+    const climaxAge = age - OVERCHARGED_BUILD_DURATION;
+    const directionAngle = Math.atan2(slot.direction[1], slot.direction[0]);
+    const seedAngle = slot.seed * Math.PI * 2;
+    groupPosition.set(...slot.position);
+
+    core.position.copy(groupPosition);
+    halo.position.copy(groupPosition);
+    ring.position.copy(groupPosition);
+    secondaryRing.position.copy(groupPosition);
+
+    const coreMaterial = core.material as THREE.MeshBasicMaterial;
+    const haloMaterial = halo.material as THREE.MeshBasicMaterial;
+    const ringMaterial = ring.material as THREE.MeshBasicMaterial;
+    const secondaryRingMaterial = secondaryRing.material as THREE.MeshBasicMaterial;
+
+    if (phase === "building") {
+      const pulse = 0.82 + Math.sin(age * 24) * 0.12;
+      core.scale.setScalar((0.18 + buildEase * 0.72) * pulse);
+      halo.scale.setScalar((0.36 + buildEase * 0.55) * pulse);
+      setOpacity(coreMaterial, 0.95);
+      setOpacity(haloMaterial, 0.22 + buildEase * 0.18);
+      ring.scale.setScalar(0.18);
+      secondaryRing.scale.setScalar(0.1);
+      setOpacity(ringMaterial, 0);
+      setOpacity(secondaryRingMaterial, 0);
+    } else if (phase === "climax") {
+      const flashT = Math.min(climaxAge / 0.2, 1);
+      const flash = 1 - Math.pow(1 - flashT, 3);
+      core.scale.setScalar(FLASH_RADIUS * 0.78 * flash);
+      halo.scale.setScalar(FLASH_RADIUS * (0.9 + flash * 0.65));
+      setOpacity(coreMaterial, Math.max(0.12, 1 - flashT * 0.8));
+      setOpacity(haloMaterial, Math.max(0.1, 0.46 - flashT * 0.3));
+      const ringT = Math.max(0, Math.min(climaxAge / 0.58, 1));
+      ring.scale.setScalar(RING_RADIUS * (0.12 + ringT * 0.9));
+      secondaryRing.scale.setScalar(RING_RADIUS * (0.08 + ringT * 0.62));
+      ring.rotation.z = directionAngle;
+      secondaryRing.rotation.z = directionAngle + Math.PI * 0.5;
+      setOpacity(ringMaterial, Math.max(0.08, 0.92 * (1 - ringT)));
+      setOpacity(secondaryRingMaterial, Math.max(0.05, 0.62 * (1 - ringT)));
+    } else {
+      const afterglowStart = OVERCHARGED_BUILD_DURATION + OVERCHARGED_CLIMAX_DURATION;
+      const afterglowT = Math.min(
+        (age - afterglowStart) / (OVERCHARGED_EXPLOSION_DURATION - afterglowStart),
+        1,
+      );
+      const fade = 1 - smoothstep(afterglowT);
+      core.scale.setScalar(0.55 * fade);
+      halo.scale.setScalar(1.8 * fade);
+      setOpacity(coreMaterial, Math.max(0.04, 0.26 * fade));
+      setOpacity(haloMaterial, Math.max(0.02, 0.12 * fade));
+      ring.scale.setScalar(RING_RADIUS * (1.02 + afterglowT * 0.18));
+      secondaryRing.scale.setScalar(RING_RADIUS * (0.72 + afterglowT * 0.22));
+      setOpacity(ringMaterial, Math.max(0.015, 0.16 * fade));
+      setOpacity(secondaryRingMaterial, Math.max(0.01, 0.1 * fade));
+    }
+
+    const buildCount = phase === "afterglow"
+      ? getOverchargedAfterglowParticleCount(profile)
+      : profile.build;
+    for (let i = 0; i < 20; i++) {
+      if (i >= buildCount || (phase !== "building" && phase !== "afterglow")) {
+        writePoint(buildPositions, i, HIDDEN_POINT, HIDDEN_POINT, HIDDEN_POINT);
+        continue;
+      }
+      const datum = BUILD_DATA[i];
+      const afterglowStart = OVERCHARGED_BUILD_DURATION + OVERCHARGED_CLIMAX_DURATION;
+      const t = phase === "afterglow"
+        ? Math.min((age - afterglowStart) / (OVERCHARGED_EXPLOSION_DURATION - afterglowStart), 1)
+        : 0;
+      const angle = datum.angle + seedAngle + t * 2.4;
+      const radius = phase === "afterglow"
+        ? 0.35 + datum.speed * t * 0.9
+        : (1 - buildEase) * (1.1 + datum.speed) + 0.08;
+      writePoint(
+        buildPositions,
+        i,
+        slot.position[0] + Math.cos(angle) * radius,
+        slot.position[1] + Math.sin(angle) * radius + t * 0.4,
+        slot.position[2] + datum.elevation * radius * 0.35,
+      );
+    }
+    buildGeometry.getAttribute("position").needsUpdate = true;
+    buildGeometry.setDrawRange(0, buildCount);
+
+    const updateBurstLayer = (
+      positions: Float32Array,
+      data: readonly BurstDatum[],
+      count: number,
+      speedScale: number,
+      verticalGravity: number,
+    ) => {
+      for (let i = 0; i < data.length; i++) {
+        const datum = data[i];
+        const localAge = climaxAge - datum.delay;
+        const t = localAge / datum.life;
+        if (i >= count || phase !== "climax" || localAge <= 0 || t >= 1) {
+          writePoint(positions, i, HIDDEN_POINT, HIDDEN_POINT, HIDDEN_POINT);
+          continue;
+        }
+        const angle = datum.angle + seedAngle;
+        pointDirection.set(
+          Math.cos(angle) * 0.78 + Math.cos(directionAngle) * 0.42,
+          Math.sin(angle) * 0.78 + Math.sin(directionAngle) * 0.42,
+          datum.elevation,
+        ).normalize();
+        const distance = datum.speed * speedScale * localAge;
+        writePoint(
+          positions,
+          i,
+          slot.position[0] + pointDirection.x * distance,
+          slot.position[1] + pointDirection.y * distance - localAge * localAge * verticalGravity,
+          slot.position[2] + pointDirection.z * distance,
+        );
+      }
+    };
+
+    updateBurstLayer(plasmaPositions, PLASMA_DATA, profile.plasma, 1, 0.7);
+    updateBurstLayer(sparkPositions, SPARK_DATA, profile.sparks, 1, 1.5);
+    updateBurstLayer(shardPositions, SHARD_DATA, profile.shards, 0.72, 0.8);
+    plasmaGeometry.getAttribute("position").needsUpdate = true;
+    sparkGeometry.getAttribute("position").needsUpdate = true;
+    shardGeometry.getAttribute("position").needsUpdate = true;
+    plasmaGeometry.setDrawRange(0, profile.plasma);
+    sparkGeometry.setDrawRange(0, profile.sparks);
+    shardGeometry.setDrawRange(0, profile.shards);
+    build.visible = phase === "building" || phase === "afterglow";
+    plasma.visible = phase === "climax";
+    spark.visible = phase === "climax";
+    shard.visible = phase === "climax";
+  });
+
+  const pointMaterials = useMemo(() => ({
+    build: new THREE.PointsMaterial({
+      color: "#61efff",
+      size: 0.13,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.95,
+      depthTest: false,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false,
+    }),
+    plasma: new THREE.PointsMaterial({
+      color: "#3978ff",
+      size: 0.22,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.95,
+      depthTest: false,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false,
+    }),
+    spark: new THREE.PointsMaterial({
+      color: "#ffffff",
+      size: 0.18,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 1,
+      depthTest: false,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false,
+    }),
+    shard: new THREE.PointsMaterial({
+      color: "#b47cff",
+      size: 0.26,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.9,
+      depthTest: false,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false,
+    }),
+  }), []);
+
+  useEffect(() => {
+    if (disposalTimerRef.current !== null) {
+      clearTimeout(disposalTimerRef.current);
+      disposalTimerRef.current = null;
+    }
+    return () => {
+      disposalTimerRef.current = setTimeout(() => {
+        buildGeometry.dispose();
+        plasmaGeometry.dispose();
+        sparkGeometry.dispose();
+        shardGeometry.dispose();
+        Object.values(pointMaterials).forEach((material) => material.dispose());
+        disposalTimerRef.current = null;
+      }, 0);
+    };
+  }, [
+    buildGeometry,
+    plasmaGeometry,
+    pointMaterials,
+    shardGeometry,
+    sparkGeometry,
+  ]);
+
+  return (
+    <group>
+      <mesh ref={haloRef} visible={false} renderOrder={30}>
+        <sphereGeometry args={[1, 16, 12]} />
+        <meshBasicMaterial
+          color="#3978ff"
+          transparent
+          opacity={0.2}
+          depthTest={false}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          toneMapped={false}
+        />
+      </mesh>
+      <mesh ref={coreRef} visible={false} renderOrder={31}>
+        <sphereGeometry args={[1, 18, 14]} />
+        <meshBasicMaterial
+          color="#ffffff"
+          transparent
+          opacity={0.95}
+          depthTest={false}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          toneMapped={false}
+        />
+      </mesh>
+      <mesh ref={ringRef} visible={false} renderOrder={29} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[1, 0.06, 8, 64]} />
+        <meshBasicMaterial
+          color="#55e7ff"
+          transparent
+          opacity={0.9}
+          depthTest={false}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          toneMapped={false}
+        />
+      </mesh>
+      <mesh ref={ringSecondaryRef} visible={false} renderOrder={29} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[1, 0.045, 8, 64]} />
+        <meshBasicMaterial
+          color="#b47cff"
+          transparent
+          opacity={0.65}
+          depthTest={false}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          toneMapped={false}
+        />
+      </mesh>
+      <points ref={buildRef} geometry={buildGeometry} material={pointMaterials.build} visible={false} frustumCulled={false} renderOrder={28} />
+      <points ref={plasmaRef} geometry={plasmaGeometry} material={pointMaterials.plasma} visible={false} frustumCulled={false} renderOrder={28} />
+      <points ref={sparkRef} geometry={sparkGeometry} material={pointMaterials.spark} visible={false} frustumCulled={false} renderOrder={28} />
+      <points ref={shardRef} geometry={shardGeometry} material={pointMaterials.shard} visible={false} frustumCulled={false} renderOrder={28} />
+    </group>
+  );
 }
 
 export function OverchargedExplosionVFX({
@@ -249,419 +604,11 @@ export function OverchargedExplosionVFX({
   pool: OverchargedExplosionPool;
 }) {
   const preset = useGraphicsPreset();
-  const presetRef = useRef(preset);
-  presetRef.current = preset;
-  const flashRef = useRef<THREE.InstancedMesh>(null);
-  const ringRef = useRef<THREE.InstancedMesh>(null);
-  const buildRef = useRef<THREE.InstancedMesh>(null);
-  const plasmaRef = useRef<THREE.InstancedMesh>(null);
-  const sparkRef = useRef<THREE.InstancedMesh>(null);
-  const shardRef = useRef<THREE.InstancedMesh>(null);
-  const initializedRef = useRef(false);
-  const lastPresetRef = useRef<GraphicsPreset | "">("");
-  const visibleSlotsRef = useRef(
-    Array.from({ length: OVERCHARGED_EXPLOSION_MAX_ACTIVE }, () => false),
-  );
-
-  const [flashGeometry] = useState(() => new THREE.SphereGeometry(1, 14, 10));
-  const [ringGeometry] = useState(() => new THREE.TorusGeometry(1, 0.055, 5, 48));
-  const [particleGeometry] = useState(() => new THREE.IcosahedronGeometry(1, 0));
-  const [sparkGeometry] = useState(() => new THREE.OctahedronGeometry(1, 0));
-  const [shardGeometry] = useState(() => new THREE.TetrahedronGeometry(1, 0));
-
-  const materials = useMemo(() => ({
-    flash: new THREE.MeshBasicMaterial({
-      transparent: true,
-      opacity: 0.9,
-      depthTest: false,
-      depthWrite: false,
-      toneMapped: false,
-      blending: THREE.AdditiveBlending,
-      vertexColors: true,
-    }),
-    ring: new THREE.MeshBasicMaterial({
-      transparent: true,
-      opacity: 0.88,
-      depthTest: false,
-      depthWrite: false,
-      toneMapped: false,
-      blending: THREE.AdditiveBlending,
-      vertexColors: true,
-    }),
-    build: new THREE.MeshBasicMaterial({
-      transparent: true,
-      opacity: 0.92,
-      depthTest: false,
-      depthWrite: false,
-      toneMapped: false,
-      blending: THREE.AdditiveBlending,
-      vertexColors: true,
-    }),
-    plasma: new THREE.MeshBasicMaterial({
-      transparent: true,
-      opacity: 0.9,
-      depthTest: false,
-      depthWrite: false,
-      toneMapped: false,
-      blending: THREE.AdditiveBlending,
-      vertexColors: true,
-    }),
-    spark: new THREE.MeshBasicMaterial({
-      transparent: true,
-      opacity: 0.95,
-      depthTest: false,
-      depthWrite: false,
-      toneMapped: false,
-      blending: THREE.AdditiveBlending,
-      vertexColors: true,
-    }),
-    shard: new THREE.MeshBasicMaterial({
-      transparent: true,
-      opacity: 0.82,
-      depthTest: false,
-      depthWrite: false,
-      toneMapped: false,
-      blending: THREE.AdditiveBlending,
-      vertexColors: true,
-    }),
-  }), []);
-
-  useEffect(() => () => {
-    flashGeometry.dispose();
-    ringGeometry.dispose();
-    particleGeometry.dispose();
-    sparkGeometry.dispose();
-    shardGeometry.dispose();
-    Object.values(materials).forEach((material) => material.dispose());
-  }, [
-    flashGeometry,
-    materials,
-    particleGeometry,
-    ringGeometry,
-    shardGeometry,
-    sparkGeometry,
-  ]);
-
-  useFrame((_, delta) => {
-    const flashMesh = flashRef.current;
-    const ringMesh = ringRef.current;
-    const buildMesh = buildRef.current;
-    const plasmaMesh = plasmaRef.current;
-    const sparkMesh = sparkRef.current;
-    const shardMesh = shardRef.current;
-    if (!flashMesh || !ringMesh || !buildMesh || !plasmaMesh || !sparkMesh || !shardMesh) return;
-    let buffersChanged = false;
-
-    if (!initializedRef.current) {
-      hideRange(flashMesh, 0, FLASH_CAPACITY);
-      hideRange(ringMesh, 0, RING_CAPACITY);
-      hideRange(buildMesh, 0, BUILD_CAPACITY);
-      hideRange(plasmaMesh, 0, PLASMA_CAPACITY);
-      hideRange(sparkMesh, 0, SPARK_CAPACITY);
-      hideRange(shardMesh, 0, SHARD_CAPACITY);
-      initializedRef.current = true;
-      buffersChanged = true;
-    }
-
-    const profile = OVERCHARGED_EXPLOSION_PROFILES[presetRef.current];
-    if (lastPresetRef.current !== presetRef.current) {
-      hideRange(flashMesh, 0, FLASH_CAPACITY);
-      hideRange(ringMesh, 0, RING_CAPACITY);
-      hideRange(buildMesh, 0, BUILD_CAPACITY);
-      hideRange(plasmaMesh, 0, PLASMA_CAPACITY);
-      hideRange(sparkMesh, 0, SPARK_CAPACITY);
-      hideRange(shardMesh, 0, SHARD_CAPACITY);
-      buildMesh.count = profile.build * OVERCHARGED_EXPLOSION_MAX_ACTIVE;
-      plasmaMesh.count = profile.plasma * OVERCHARGED_EXPLOSION_MAX_ACTIVE;
-      sparkMesh.count = profile.sparks * OVERCHARGED_EXPLOSION_MAX_ACTIVE;
-      shardMesh.count = profile.shards * OVERCHARGED_EXPLOSION_MAX_ACTIVE;
-      visibleSlotsRef.current.fill(false);
-      lastPresetRef.current = presetRef.current;
-      buffersChanged = true;
-    }
-
-    for (let slotIndex = 0; slotIndex < pool.slots.length; slotIndex++) {
-      const slot = pool.slots[slotIndex];
-      const buildStart = slotIndex * profile.build;
-      const plasmaStart = slotIndex * profile.plasma;
-      const sparkStart = slotIndex * profile.sparks;
-      const shardStart = slotIndex * profile.shards;
-      const ringStart = slotIndex * 2;
-
-      if (!slot.active) {
-        if (visibleSlotsRef.current[slotIndex]) {
-          hideRange(flashMesh, slotIndex, 1);
-          hideRange(ringMesh, ringStart, 2);
-          hideRange(buildMesh, buildStart, profile.build);
-          hideRange(plasmaMesh, plasmaStart, profile.plasma);
-          hideRange(sparkMesh, sparkStart, profile.sparks);
-          hideRange(shardMesh, shardStart, profile.shards);
-          visibleSlotsRef.current[slotIndex] = false;
-          buffersChanged = true;
-        }
-        continue;
-      }
-
-      visibleSlotsRef.current[slotIndex] = true;
-      buffersChanged = true;
-      slot.age += Math.min(delta, 0.05);
-      if (slot.age >= OVERCHARGED_EXPLOSION_DURATION) {
-        slot.active = false;
-        hideRange(flashMesh, slotIndex, 1);
-        hideRange(ringMesh, ringStart, 2);
-        hideRange(buildMesh, buildStart, profile.build);
-        hideRange(plasmaMesh, plasmaStart, profile.plasma);
-        hideRange(sparkMesh, sparkStart, profile.sparks);
-        hideRange(shardMesh, shardStart, profile.shards);
-        visibleSlotsRef.current[slotIndex] = false;
-        continue;
-      }
-
-      const age = slot.age;
-      const buildT = Math.min(age / OVERCHARGED_BUILD_DURATION, 1);
-      const buildEase = smoothstep(buildT);
-      const climaxAge = age - OVERCHARGED_BUILD_DURATION;
-      const phase = getOverchargedExplosionPhase(age);
-      const directionAngle = Math.atan2(slot.direction[1], slot.direction[0]);
-      const seedAngle = slot.seed * Math.PI * 2;
-
-      for (let i = 0; i < profile.build; i++) {
-        const index = buildStart + i;
-        const datum = BUILD_DATA[i];
-        if (phase === "afterglow") {
-          const afterglowCount = getOverchargedAfterglowParticleCount(profile);
-          const afterglowStart = OVERCHARGED_BUILD_DURATION + OVERCHARGED_CLIMAX_DURATION;
-          const afterglowT = Math.min(
-            (age - afterglowStart) / (OVERCHARGED_EXPLOSION_DURATION - afterglowStart),
-            1,
-          );
-          if (i >= afterglowCount) {
-            buildMesh.setMatrixAt(index, hiddenMatrix);
-            continue;
-          }
-          const angle = datum.angle + seedAngle + afterglowT * datum.spin * 0.45;
-          const radius = 0.32 + datum.radius * afterglowT * 0.78;
-          const fade = Math.max(0, 1 - smoothstep(afterglowT));
-          dummy.position.set(
-            slot.position[0] + Math.cos(angle) * radius,
-            slot.position[1] + Math.sin(angle) * radius + afterglowT * (0.45 + datum.tone * 0.5),
-            slot.position[2] + datum.elevation * radius * 0.5,
-          );
-          dummy.quaternion.identity();
-          dummy.scale.setScalar(Math.max(0.001, datum.size * fade * 0.8));
-          dummy.updateMatrix();
-          buildMesh.setMatrixAt(index, dummy.matrix);
-          writeEnergyColor(datum.tone, fade * 0.48);
-          buildMesh.setColorAt(index, color);
-          continue;
-        }
-        if (phase !== "building") {
-          buildMesh.setMatrixAt(index, hiddenMatrix);
-          continue;
-        }
-        const angle = datum.angle + seedAngle + datum.spin * buildT;
-        const radius = (1 - buildEase) * datum.radius * 2.1 + 0.08;
-        const pulse = 0.72 + Math.sin(buildT * 18 + datum.phase) * 0.28;
-        dummy.position.set(
-          slot.position[0] + Math.cos(angle) * radius,
-          slot.position[1] + Math.sin(angle) * radius,
-          slot.position[2] + datum.elevation * radius * 0.32,
-        );
-        dummy.quaternion.identity();
-        dummy.scale.setScalar(Math.max(0.001, datum.size * (0.55 + buildEase * 1.45) * pulse));
-        dummy.updateMatrix();
-        buildMesh.setMatrixAt(index, dummy.matrix);
-        writeEnergyColor(datum.tone, 0.55 + buildEase * 0.75);
-        buildMesh.setColorAt(index, color);
-      }
-
-      if (phase === "building") {
-        const pulse = 0.72 + Math.sin(buildT * 24) * 0.16;
-        dummy.position.set(...slot.position);
-        dummy.quaternion.identity();
-        dummy.scale.setScalar((0.2 + buildEase * 0.62) * pulse);
-        dummy.updateMatrix();
-        flashMesh.setMatrixAt(slotIndex, dummy.matrix);
-        color.set("#74eaff").multiplyScalar(0.4 + buildEase * 0.8);
-        flashMesh.setColorAt(slotIndex, color);
-        hideRange(ringMesh, ringStart, 2);
-      } else if (phase === "climax") {
-        const flashT = Math.min(climaxAge / 0.2, 1);
-        dummy.position.set(...slot.position);
-        dummy.quaternion.identity();
-        dummy.scale.setScalar(EFFECT_RADIUS * 0.34 * (1 - Math.pow(1 - flashT, 3)));
-        dummy.updateMatrix();
-        flashMesh.setMatrixAt(slotIndex, dummy.matrix);
-        color.set("#ffffff").multiplyScalar(Math.max(0, 1 - flashT));
-        flashMesh.setColorAt(slotIndex, color);
-
-        for (let ring = 0; ring < 2; ring++) {
-          const localAge = climaxAge - ring * 0.055;
-          const ringT = Math.max(0, Math.min(localAge / (0.52 + ring * 0.08), 1));
-          const index = ringStart + ring;
-          if (localAge <= 0 || ringT >= 1) {
-            ringMesh.setMatrixAt(index, hiddenMatrix);
-            continue;
-          }
-          dummy.position.set(...slot.position);
-          dummy.rotation.set(Math.PI / 2, 0, directionAngle + ring * Math.PI * 0.5);
-          dummy.scale.setScalar(
-            EFFECT_RADIUS * (ring === 0 ? 1.12 : 0.76) * (1 - Math.pow(1 - ringT, 3)),
-          );
-          dummy.updateMatrix();
-          ringMesh.setMatrixAt(index, dummy.matrix);
-          color.set(ring === 0 ? "#55e7ff" : "#b47cff")
-            .multiplyScalar((1 - ringT) * (ring === 0 ? 1 : 0.72));
-          ringMesh.setColorAt(index, color);
-        }
-      } else {
-        flashMesh.setMatrixAt(slotIndex, hiddenMatrix);
-        hideRange(ringMesh, ringStart, 2);
-      }
-
-      for (let i = 0; i < profile.plasma; i++) {
-        const index = plasmaStart + i;
-        const datum = PLASMA_DATA[i];
-        const localAge = climaxAge - datum.delay;
-        const t = localAge / datum.life;
-        if (phase !== "climax" || localAge <= 0 || t >= 1) {
-          plasmaMesh.setMatrixAt(index, hiddenMatrix);
-          continue;
-        }
-        const angle = datum.angle + seedAngle;
-        const forwardBias = 0.42 + datum.tone * 0.28;
-        const dx = Math.cos(angle) + Math.cos(directionAngle) * forwardBias;
-        const dy = Math.sin(angle) + Math.sin(directionAngle) * forwardBias;
-        const length = Math.hypot(dx, dy) || 1;
-        const distance = datum.speed * localAge * (1 - t * 0.36);
-        dummy.position.set(
-          slot.position[0] + (dx / length) * distance,
-          slot.position[1] + (dy / length) * distance,
-          slot.position[2] + datum.elevation * distance,
-        );
-        dummy.quaternion.identity();
-        const size = datum.size * (1 + smoothstep(t) * 1.8) * Math.max(0, 1 - t * t);
-        dummy.scale.setScalar(Math.max(0.001, size));
-        dummy.updateMatrix();
-        plasmaMesh.setMatrixAt(index, dummy.matrix);
-        writeEnergyColor(datum.tone, (1 - t * t) * 1.1);
-        plasmaMesh.setColorAt(index, color);
-      }
-
-      for (let i = 0; i < profile.sparks; i++) {
-        const index = sparkStart + i;
-        const datum = SPARK_DATA[i];
-        const localAge = climaxAge - datum.delay;
-        const t = localAge / datum.life;
-        if (phase !== "climax" || localAge <= 0 || t >= 1) {
-          sparkMesh.setMatrixAt(index, hiddenMatrix);
-          continue;
-        }
-        const angle = datum.angle + seedAngle;
-        direction.set(
-          Math.cos(angle) * 0.78 + Math.cos(directionAngle) * 0.42,
-          Math.sin(angle) * 0.78 + Math.sin(directionAngle) * 0.42,
-          datum.elevation,
-        ).normalize();
-        const distance = datum.speed * localAge;
-        dummy.position.set(
-          slot.position[0] + direction.x * distance,
-          slot.position[1] + direction.y * distance - localAge * localAge * 1.5,
-          slot.position[2] + direction.z * distance,
-        );
-        dummy.quaternion.setFromUnitVectors(axis, direction);
-        const fade = Math.max(0, 1 - t * t);
-        dummy.scale.set(
-          datum.size * 0.2 * fade,
-          datum.size * (2.5 + datum.speed * 0.12) * fade,
-          datum.size * 0.2 * fade,
-        );
-        dummy.updateMatrix();
-        sparkMesh.setMatrixAt(index, dummy.matrix);
-        writeEnergyColor(datum.tone, fade * 1.25);
-        sparkMesh.setColorAt(index, color);
-      }
-
-      for (let i = 0; i < profile.shards; i++) {
-        const index = shardStart + i;
-        const datum = SHARD_DATA[i];
-        const localAge = climaxAge - datum.delay;
-        const t = localAge / Math.min(0.88, datum.life + 0.18);
-        if (phase !== "climax" || localAge <= 0 || t >= 1) {
-          shardMesh.setMatrixAt(index, hiddenMatrix);
-          continue;
-        }
-        const angle = datum.angle + seedAngle;
-        const distance = datum.speed * localAge * (1 - t * 0.24);
-        dummy.position.set(
-          slot.position[0] + Math.cos(angle) * distance,
-          slot.position[1] + Math.sin(angle) * distance - localAge * localAge * 0.8,
-          slot.position[2] + datum.elevation * distance,
-        );
-        dummy.rotation.set(
-          localAge * (5 + datum.tone * 5),
-          localAge * (7 + datum.tone * 4),
-          angle,
-        );
-        const fade = Math.max(0, 1 - t);
-        dummy.scale.set(
-          datum.size * 0.65 * fade,
-          datum.size * 1.55 * fade,
-          datum.size * 0.65 * fade,
-        );
-        dummy.updateMatrix();
-        shardMesh.setMatrixAt(index, dummy.matrix);
-        writeEnergyColor(datum.tone, fade * 0.9);
-        shardMesh.setColorAt(index, color);
-      }
-    }
-
-    if (buffersChanged) {
-      for (const mesh of [flashMesh, ringMesh, buildMesh, plasmaMesh, sparkMesh, shardMesh]) {
-        mesh.instanceMatrix.needsUpdate = true;
-        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-      }
-    }
-  });
-
   return (
-    <group dispose={null}>
-      <instancedMesh
-        ref={ringRef}
-        args={[ringGeometry, materials.ring, RING_CAPACITY]}
-        frustumCulled={false}
-        renderOrder={20}
-      />
-      <instancedMesh
-        ref={buildRef}
-        args={[particleGeometry, materials.build, BUILD_CAPACITY]}
-        frustumCulled={false}
-        renderOrder={20}
-      />
-      <instancedMesh
-        ref={plasmaRef}
-        args={[particleGeometry, materials.plasma, PLASMA_CAPACITY]}
-        frustumCulled={false}
-        renderOrder={20}
-      />
-      <instancedMesh
-        ref={sparkRef}
-        args={[sparkGeometry, materials.spark, SPARK_CAPACITY]}
-        frustumCulled={false}
-        renderOrder={20}
-      />
-      <instancedMesh
-        ref={shardRef}
-        args={[shardGeometry, materials.shard, SHARD_CAPACITY]}
-        frustumCulled={false}
-        renderOrder={20}
-      />
-      <instancedMesh
-        ref={flashRef}
-        args={[flashGeometry, materials.flash, FLASH_CAPACITY]}
-        frustumCulled={false}
-        renderOrder={20}
-      />
+    <group>
+      {pool.slots.map((slot, index) => (
+        <ExplosionSlotView key={index} slot={slot} preset={preset} />
+      ))}
     </group>
   );
 }

@@ -313,9 +313,17 @@ describe("gameplay runtime invariants", () => {
       active: true,
     });
 
+    const generationBeforeReset = pool.generation;
     resetOverchargedExplosionPool(pool);
-    expect(pool.generation).toBe(0);
+    expect(pool.generation).toBeGreaterThan(generationBeforeReset);
     expect(pool.slots.every((slot) => !slot.active && slot.id === "" && slot.age === 0)).toBe(true);
+
+    emitOverchargedExplosion(pool, {
+      id: "post-reset",
+      position: [1, 2, 0],
+      direction: [1, 0, 0],
+    });
+    expect(pool.slots[0].generation).toBeGreaterThan(generationBeforeReset);
   });
 
   it("gives Magi-Orb II targets the standard mini defeat lifetime", () => {
