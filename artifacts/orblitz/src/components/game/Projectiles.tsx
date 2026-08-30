@@ -7,6 +7,7 @@ import { StarBossTeleportVFX, StarTeleportVFXState } from "./StarBossTeleportVFX
 import { useAudio } from "@/lib/stores/useAudio";
 import { useShop, TrailEffect } from "@/lib/stores/useShop";
 import { getSkinColors } from "./PlayerOrb";
+import { FlameAura } from "./FlameAura";
 import { PlayerParticles } from "./PlayerParticles";
 import { MiniStarOrb } from "./MiniStarOrb";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
@@ -263,6 +264,53 @@ function HDTrailEffect({
 }
 
 const MemoizedHDTrailEffect = memo(HDTrailEffect);
+
+export function getBackwardFlameAuraRotation(direction: readonly [number, number, number]): number {
+  return Math.atan2(direction[0], -direction[1]);
+}
+
+/**
+ * Reuses the authored FlameAura particle system as a projectile trail. FlameAura
+ * grows along local +Y, so the wrapper rotates that axis onto the projectile's
+ * live negative flight direction without changing the effect itself.
+ */
+function FlameAuraProjectileTrail({
+  projectile,
+  playerScale,
+}: {
+  projectile: Projectile;
+  playerScale: number;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const projectileRef = useRef(projectile);
+  projectileRef.current = projectile;
+
+  useFrame(() => {
+    const group = groupRef.current;
+    const motion = getLiveProjectileMotion(projectileRef.current);
+    if (!group || !motion) {
+      if (group) group.visible = false;
+      return;
+    }
+
+    group.visible = true;
+    group.position.set(...motion.position);
+    // FlameAura's local +Y points away from the projectile after this rotation.
+    group.rotation.z = getBackwardFlameAuraRotation(motion.direction);
+  });
+
+  const flameScale = getPlayerProjectileVisualScale(
+    projectile,
+    projectile.spawnScale ?? 1,
+    playerScale,
+  ) * 1.25;
+
+  return (
+    <group ref={groupRef} visible={false}>
+      <FlameAura scale={flameScale} />
+    </group>
+  );
+}
 
 // SpiralBraidMesh removed — replaced by the full OrbitalSpiralBlaster SpiralBundleMesh below
 
@@ -2864,41 +2912,49 @@ export function Projectiles() {
          )}
          {projectiles.map((proj) => (
            <ProjectileEffectsGate key={proj.id} projectile={proj}>
-             {proj.type === "overcharged" ? (
-               <OverchargedProjectileMesh
-                 projectile={proj}
-                 spawnScale={proj.spawnScale ?? 1}
-                 trailPalette={defaultTrailPalette}
-               />
-             ) : proj.type === "spiral" ? (
-               <SpiralBundleMesh
-                 projectile={proj}
-                 trailPalette={defaultTrailPalette}
-               />
-             ) : proj.type === "homing" ? (
-               <HomingProjectileMesh
-                 projectile={proj}
-                 trailPalette={defaultTrailPalette}
-               />
-             ) : proj.type === "scattershot" ? (
-               <ScattershotProjectileMesh
-                 projectile={proj}
-                 trailPalette={defaultTrailPalette}
-               />
-             ) : proj.type === "subblaster" ? (
-               <SubblasterProjectileMesh
-                 projectile={proj}
-                 trailPalette={defaultTrailPalette}
-               />
-             ) : proj.type === "rapidblaster" ? (
-               <RapidBlasterProjectileMesh projectile={proj} />
-             )
-             : shouldRenderParticleSwarmOverlay(proj, equippedTrail) ? (
-               <ParticleSwarmProjectileOverlay
-                 projectile={proj}
-                 skinColors={skinColors}
-               />
-             ) : null}
+              <>
+                {proj.type === "overcharged" ? (
+                  <OverchargedProjectileMesh
+                    projectile={proj}
+                    spawnScale={proj.spawnScale ?? 1}
+                    trailPalette={defaultTrailPalette}
+                  />
+                ) : proj.type === "spiral" ? (
+                  <SpiralBundleMesh
+                    projectile={proj}
+                    trailPalette={defaultTrailPalette}
+                  />
+                ) : proj.type === "homing" ? (
+                  <HomingProjectileMesh
+                    projectile={proj}
+                    trailPalette={defaultTrailPalette}
+                  />
+                ) : proj.type === "scattershot" ? (
+                  <ScattershotProjectileMesh
+                    projectile={proj}
+                    trailPalette={defaultTrailPalette}
+                  />
+                ) : proj.type === "subblaster" ? (
+                  <SubblasterProjectileMesh
+                    projectile={proj}
+                    trailPalette={defaultTrailPalette}
+                  />
+                ) : proj.type === "rapidblaster" ? (
+                  <RapidBlasterProjectileMesh projectile={proj} />
+                )
+                : shouldRenderParticleSwarmOverlay(proj, equippedTrail) ? (
+                  <ParticleSwarmProjectileOverlay
+                    projectile={proj}
+                    skinColors={skinColors}
+                  />
+                ) : null}
+                {equippedTrail === "flame_aura" && isPlayerProjectile(proj) && (
+                  <FlameAuraProjectileTrail
+                    projectile={proj}
+                    playerScale={playerScale}
+                  />
+                )}
+              </>
            </ProjectileEffectsGate>
          ))}
        </Suspense>

@@ -66,7 +66,7 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: "trail_sakura", name: "Sakura Trail", description: "Cherry blossom petals floating", price: 300, category: "trail", value: "sakura" },
   { id: "trail_galaxy", name: "Galaxy Trail", description: "Miniature cosmos in your wake", price: 300, category: "trail", value: "galaxy" },
   { id: "trail_particle_swarm", name: "Particle Swarm", description: "A living swarm of energy particles orbits your projectile", price: 600, category: "trail", value: "particle_swarm" },
-  { id: "trail_flame_aura", name: "Flame Aura", description: "Upward-flowing fire embers surround your orb. Awarded for defeating the Fire Boss.", price: 4000, category: "trail", value: "flame_aura" },
+  { id: "trail_flame_aura", name: "Backdraft Trail", description: "The Fire Boss's upward-flowing flame embers stream backward behind every projectile.", price: 4000, category: "trail", value: "flame_aura" },
   
   { id: "ring_eclipse_horizon",   name: "Electrified Aura",      description: "High-voltage Tesla field — Fresnel plasma shell, 40 crackling arc lines, and 200 ionic sparks that burst on impact", price: 700, category: "aura", value: "eclipse_horizon"   },
   { id: "ring_singularity_event", name: "Singularity Event",     description: "Gravitational accretion disk — black event horizon with violent orange/violet eddies", price: 500, category: "aura", value: "singularity_event" },

@@ -122,6 +122,7 @@ import {
   isOverchargedDirectContact,
   isOverchargedDamageReady,
   isOverchargedVfxReady,
+  getBackwardFlameAuraRotation,
   OC_TRAVEL_TIME,
   OVERCHARGED_DAMAGE_TIME,
 } from "../src/components/game/Projectiles";

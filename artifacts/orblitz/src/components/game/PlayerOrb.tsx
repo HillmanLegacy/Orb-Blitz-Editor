@@ -9,7 +9,6 @@ import { PlayerModel } from "./PlayerModel";
 import { PlayerBossSkin } from "./PlayerBossSkin";
 import { getPlayerOrbScale } from "./PlayerProjectileVisualConfig";
 import { PlayerParticles } from "./PlayerParticles";
-import { FlameAura } from "./FlameAura";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
 import { OrbitalRings } from "./OrbitalRings";
 
@@ -1174,9 +1173,6 @@ export function PlayerOrb() {
 
       {/* Orbital Ring cosmetic set */}
       <OrbitalRings style={equippedRing} scale={scale} />
-
-      {/* Flame Aura cosmetic trail */}
-      {equippedTrail === "flame_aura" && <FlameAura scale={scale} />}
 
       {/* Hidden refs kept so useFrame doesn't throw on null checks */}
       <mesh ref={coreRef} visible={false}>
