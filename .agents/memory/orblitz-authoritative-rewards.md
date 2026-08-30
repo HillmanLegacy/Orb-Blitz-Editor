@@ -1,10 +1,10 @@
 ---
 name: Orblitz authoritative rewards
-description: Rewards are granted by the gameplay event and visual star flow is presentation only.
+description: Star rewards are reserved at defeat, credited on visual arrival, and settled before transitions.
 ---
 
-All coin rewards represented by star-flow events must be committed exactly once when the gameplay event is created. The rendered star sequence may be delayed, skipped, pooled out, quality-disabled, or unmounted without changing the payout.
+All coin rewards represented by star-flow events must be reserved exactly once when the gameplay event is created. Visible stars credit the reserved balance as they reach the player; every gameplay transition and reset must atomically settle any remainder before clearing presentation state.
 
-**Why:** Rendering availability is not authoritative gameplay state; tying earnings to particle absorption made rewards dependent on VFX capacity and lifecycle.
+**Why:** The counter should track visible collection, but rendering availability is not authoritative gameplay state. A bounded pending ledger prevents quality limits, disabled VFX, scene unmounts, or transition races from losing or double-paying rewards.
 
-**How to apply:** New reward bursts should use the authoritative event path and must not award currency from R3F frame callbacks or particle-arrival logic.
+**How to apply:** New reward bursts reserve their full snapshotted value first. Presentation may report absorbed amounts, but the store caps credits against the pending balance; transition/reset paths settle the balance before clearing events. Empty settlement must be a no-op.

@@ -47,6 +47,10 @@ import {
   AdaptiveRenderQualityController,
   getVisualBudget,
 } from "../src/components/game/AdaptiveRenderQuality";
+import {
+  getStarHomingRamp,
+  stepStarRewardMotion,
+} from "../src/components/game/StarFlowVFX";
 import { sweptSphereHit } from "../src/components/game/ProjectileCollision";
 import {
   getLiveProjectileMotion,
@@ -350,13 +354,14 @@ describe("gameplay runtime invariants", () => {
   afterEach(() => {
     gameRuntime.enemies.reset();
     gameRuntime.boss.reset();
-    useMagicOrb.setState({ darkOrbs: [], projectiles: [], starFlowEvents: [] });
+    useMagicOrb.setState({ darkOrbs: [], projectiles: [], starFlowEvents: [], pendingStarRewards: 0 });
   });
 
-  it("commits star rewards when the gameplay event is created", () => {
+  it("credits star rewards on arrival and settles the remainder safely", () => {
     useMagicOrb.getState().addStarFlowEvent([1, 2, 0], 5);
 
-    expect(useShop.getState().coins).toBe(5);
+    expect(useShop.getState().coins).toBe(0);
+    expect(useMagicOrb.getState().pendingStarRewards).toBe(5);
     expect(useMagicOrb.getState().starFlowEvents).toHaveLength(1);
     expect(useMagicOrb.getState().starFlowEvents[0]).toMatchObject({
       fromPos: [1, 2, 0],
@@ -364,11 +369,92 @@ describe("gameplay runtime invariants", () => {
       coinsPerStar: 1,
     });
 
+    expect(useMagicOrb.getState().collectStarReward(1)).toBe(1);
+    expect(useShop.getState().coins).toBe(1);
+    expect(useMagicOrb.getState().pendingStarRewards).toBe(4);
+
     useMagicOrb.setState({ hasDoubleCoins: true });
     useMagicOrb.getState().addStarFlowEvent([3, 4, 0], 5);
 
-    expect(useShop.getState().coins).toBe(15);
+    expect(useShop.getState().coins).toBe(1);
+    expect(useMagicOrb.getState().pendingStarRewards).toBe(14);
     expect(useMagicOrb.getState().starFlowEvents[1].coinsPerStar).toBe(2);
+
+    expect(useMagicOrb.getState().settlePendingStarRewards()).toBe(14);
+    expect(useShop.getState().coins).toBe(15);
+    expect(useMagicOrb.getState().pendingStarRewards).toBe(0);
+    expect(useMagicOrb.getState().collectStarReward(2)).toBe(0);
+    expect(useShop.getState().coins).toBe(15);
+  });
+
+  it("settles every in-flight reward when a level completes", () => {
+    useMagicOrb.setState({
+      gameMode: "arcade",
+      arcadeLevel: 1.1,
+      pendingStarRewards: 0,
+      starFlowEvents: [],
+    });
+    useMagicOrb.getState().addStarFlowEvent([2, 3, 0], 5);
+    useMagicOrb.getState().collectStarReward(2);
+
+    useMagicOrb.getState().completeLevel();
+
+    expect(useMagicOrb.getState().phase).toBe("levelComplete");
+    expect(useMagicOrb.getState().pendingStarRewards).toBe(0);
+    expect(useMagicOrb.getState().starFlowEvents).toHaveLength(0);
+    expect(useShop.getState().coins).toBe(5);
+  });
+
+  it("settles rewards before direct level and loading transitions", () => {
+    useMagicOrb.setState({
+      phase: "levelComplete",
+      gameMode: "arcade",
+      pendingStarRewards: 0,
+      starFlowEvents: [],
+    });
+    useMagicOrb.getState().addStarFlowEvent([1, 1, 0], 5);
+    useMagicOrb.getState().startLoading("nextLevel", 1.2);
+    expect(useShop.getState().coins).toBe(5);
+    expect(useMagicOrb.getState().pendingStarRewards).toBe(0);
+
+    useMagicOrb.getState().addStarFlowEvent([2, 2, 0], 5);
+    useMagicOrb.getState().startArcadeLevel(1.2);
+    expect(useShop.getState().coins).toBe(10);
+    expect(useMagicOrb.getState().pendingStarRewards).toBe(0);
+    expect(useMagicOrb.getState().starFlowEvents).toHaveLength(0);
+  });
+
+  it("does not publish store updates when no reward settlement is needed", () => {
+    useMagicOrb.setState({ pendingStarRewards: 0, starFlowEvents: [] });
+    const before = useMagicOrb.getState();
+
+    expect(useMagicOrb.getState().settlePendingStarRewards()).toBe(0);
+    expect(useMagicOrb.getState()).toBe(before);
+  });
+
+  it("curves reward stars from outward momentum into smooth homing", () => {
+    expect(getStarHomingRamp(0, false)).toBe(0);
+    expect(getStarHomingRamp(0.3, false)).toBeGreaterThan(0);
+    expect(getStarHomingRamp(1, false)).toBe(1);
+
+    const particle = new Float32Array(11);
+    particle[8] = 6;
+    particle[9] = 1.5;
+    const targetX = -8;
+    const targetY = 3;
+    const initialDistance = Math.hypot(targetX, targetY);
+
+    stepStarRewardMotion(particle, 0, targetX, targetY, 1 / 60);
+    expect(particle[0]).toBeGreaterThan(0);
+    expect(particle[8]).toBeGreaterThan(0);
+
+    for (let frame = 0; frame < 300; frame++) {
+      stepStarRewardMotion(particle, 0, targetX, targetY, 1 / 60);
+    }
+
+    expect(particle[8]).toBeLessThan(0);
+    expect(Math.hypot(targetX - particle[0], targetY - particle[1]))
+      .toBeLessThan(initialDistance * 0.2);
   });
 
   it("admits complete volleys only when capacity is available", () => {

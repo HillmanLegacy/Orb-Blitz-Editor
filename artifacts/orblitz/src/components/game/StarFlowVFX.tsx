@@ -17,17 +17,12 @@ import { getVisualBudget, useRenderQuality } from "./AdaptiveRenderQuality";
 
 // ─── Star flow config ─────────────────────────────────────────────────────────
 const MAX_PARTICLES   = 700;
-const HOME_SPEED      = 3.5;
 const ABSORB_DIST_SQ  = 0.4 * 0.4;
 
-const BURST_DURATION  = 1.0;
 const BURST_SPEED     = 6.0;
-const BURST_DRAG      = 8.0;
-const HOME_PULL       = 3.0;
 
 const BOSS_BURST_SPEED_MIN = 8.0;
 const BOSS_BURST_SPEED_MAX = 26.0;
-const BOSS_BURST_DRAG      = 4.5;
 
 const LIGHT_POOL      = 16;
 const LIGHT_RANGE     = 2.8;
@@ -49,7 +44,7 @@ const ABSORB_LIGHT_DECAY = 20;
 // ─── Star particle pool ───────────────────────────────────────────────────────
 // Layout (P_STRIDE floats):
 //   [0]px [1]py [2]pz [3]ry [4]vrY [5]age [6]size [7]coinsPerStar
-//   [8]bvx [9]bvy [10]boss
+//   [8]vx [9]vy [10]boss
 const P_STRIDE = 11;
 const _pPool   = new Float32Array(MAX_PARTICLES * P_STRIDE);
 
@@ -75,6 +70,46 @@ const _burstColors = [
   new THREE.Color("#ffffff"),
   new THREE.Color("#ffee44"),
 ];
+
+export function getStarHomingRamp(age: number, isBoss: boolean): number {
+  const start = isBoss ? 0.14 : 0.06;
+  const duration = isBoss ? 0.9 : 0.58;
+  const t = Math.min(1, Math.max(0, (age - start) / duration));
+  return t * t * (3 - 2 * t);
+}
+
+export function stepStarRewardMotion(
+  pool: Float32Array,
+  off: number,
+  targetX: number,
+  targetY: number,
+  delta: number,
+): void {
+  const isBoss = pool[off + 10] > 0;
+  const age = pool[off + 5] + delta;
+  const dx = targetX - pool[off + 0];
+  const dy = targetY - pool[off + 1];
+  const dist = Math.sqrt(dx * dx + dy * dy) + 1e-6;
+  const ramp = getStarHomingRamp(age, isBoss);
+  const drag = Math.exp(-(isBoss ? 2.35 : 3.15) * delta);
+  const acceleration = (isBoss ? 15 : 19) * ramp;
+
+  let vx = pool[off + 8] * drag + (dx / dist) * acceleration * delta;
+  let vy = pool[off + 9] * drag + (dy / dist) * acceleration * delta;
+  const speed = Math.sqrt(vx * vx + vy * vy);
+  const maxSpeed = isBoss ? 22 : 15;
+  if (speed > maxSpeed) {
+    const scale = maxSpeed / speed;
+    vx *= scale;
+    vy *= scale;
+  }
+
+  pool[off + 5] = age;
+  pool[off + 8] = vx;
+  pool[off + 9] = vy;
+  pool[off + 0] += vx * delta;
+  pool[off + 1] += vy * delta;
+}
 
 // ─── Module-level geometries (never mutated, safe to share) ──────────────────
 function createSimpleStarGeometry(): THREE.ShapeGeometry {
@@ -152,19 +187,33 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
   }, []);
 
   useFrame((_, delta) => {
-    const { starFlowEvents, removeStarFlowEvent, playerPosition } = useMagicOrb.getState();
+    const {
+      starFlowEvents,
+      removeStarFlowEvent,
+      collectStarReward,
+      settlePendingStarRewards,
+      pendingStarRewards,
+      playerPosition,
+    } = useMagicOrb.getState();
 
-    // The reward was already committed by addStarFlowEvent. When this visual
-    // tier is disabled, discard only the presentation events rather than
-    // allowing the queue to grow or delaying gameplay state.
     if (!visualEnabled) {
-      for (const evt of starFlowEvents) removeStarFlowEvent(evt.id);
+      pLive.current = 0;
+      sLive.current = 0;
+      if (pendingStarRewards > 0 || starFlowEvents.length > 0) {
+        settlePendingStarRewards();
+      }
       return;
     }
 
-    // These caps govern presentation buffers only. Reward payout has already
-    // occurred, so discarding excess visual particles cannot change currency.
-    pLive.current = Math.min(pLive.current, budget.rewardStars);
+    let frameReward = 0;
+
+    // If quality changes reduce capacity, immediately credit particles that can
+    // no longer be represented so their reserved reward cannot be stranded.
+    const cappedLive = Math.min(pLive.current, budget.rewardStars);
+    for (let i = cappedLive; i < pLive.current; i++) {
+      frameReward += _pPool[i * P_STRIDE + 7];
+    }
+    pLive.current = cappedLive;
     sLive.current = Math.min(sLive.current, budget.rewardSparks);
 
     const ppx = playerPosition[0];
@@ -181,8 +230,18 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
       const fz = evt.fromPos[2];
       const coinsPerStar = evt.coinsPerStar ?? 1;
 
-      for (let i = 0; i < evt.count; i++) {
-        if (pLive.current >= budget.rewardStars) break;
+      const available = Math.max(0, budget.rewardStars - pLive.current);
+      const visualCount = Math.min(evt.count, available);
+      const totalReward = evt.count * coinsPerStar;
+      if (visualCount === 0) {
+        frameReward += totalReward;
+        removeStarFlowEvent(evt.id);
+        continue;
+      }
+      const rewardBase = Math.floor(totalReward / visualCount);
+      const rewardRemainder = totalReward % visualCount;
+
+      for (let i = 0; i < visualCount; i++) {
         const off = pLive.current * P_STRIDE;
         let bvx: number, bvy: number;
         if (evt.isBoss) {
@@ -191,9 +250,10 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
           bvx = Math.cos(angle) * spd;
           bvy = Math.sin(angle) * spd;
         } else {
-          const angle = (i / evt.count) * Math.PI * 2 + Math.random() * 0.9;
-          bvx = Math.cos(angle) * BURST_SPEED;
-          bvy = Math.sin(angle) * BURST_SPEED;
+          const angle = (i / visualCount) * Math.PI * 2 + Math.random() * 0.9;
+          const speed = BURST_SPEED * (0.76 + Math.random() * 0.48);
+          bvx = Math.cos(angle) * speed;
+          bvy = Math.sin(angle) * speed;
         }
         _pPool[off + 0] = fx;
         _pPool[off + 1] = fy;
@@ -202,7 +262,7 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
         _pPool[off + 4] = (Math.random() < 0.5 ? 1 : -1) * (2 + Math.random() * 3);
         _pPool[off + 5] = 0;
         _pPool[off + 6] = 0.184 + Math.random() * 0.115;
-        _pPool[off + 7] = coinsPerStar;
+        _pPool[off + 7] = rewardBase + (i < rewardRemainder ? 1 : 0);
         _pPool[off + 8] = bvx;
         _pPool[off + 9] = bvy;
         _pPool[off + 10] = evt.isBoss ? 1 : 0;
@@ -222,6 +282,7 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
 
       // Absorbed?
       if (dx * dx + dy * dy < ABSORB_DIST_SQ) {
+        frameReward += _pPool[off + 7];
         // ── AAA burst: 36 sphere particles in full 3D spread ─────────────────
         for (let k = 0; k < SPARKS_PER_ABSORB; k++) {
           if (sLive.current >= budget.rewardSparks) break;
@@ -253,31 +314,15 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
         continue;
       }
 
-      const age = _pPool[off + 5] + delta;
-      _pPool[off + 5] = age;
       _pPool[off + 3] += _pPool[off + 4] * delta;
-
-      if (age < BURST_DURATION) {
-        const dragCoeff = _pPool[off + 10] > 0 ? BOSS_BURST_DRAG : BURST_DRAG;
-        const drag = Math.exp(-dragCoeff * delta);
-        _pPool[off + 8] *= drag;
-        _pPool[off + 9] *= drag;
-        _pPool[off + 0] += _pPool[off + 8] * delta;
-        _pPool[off + 1] += _pPool[off + 9] * delta;
-        _pPool[off + 2]  = ppz;
-      } else {
-        const dist = Math.sqrt(dx * dx + dy * dy) + 1e-6;
-        const speedMult = 1.0 + HOME_PULL / (dist + 0.5);
-        const step = Math.min(HOME_SPEED * speedMult * delta, dist);
-        _pPool[off + 0] += (dx / dist) * step;
-        _pPool[off + 1] += (dy / dist) * step;
-        _pPool[off + 2]  = ppz;
-      }
+      stepStarRewardMotion(_pPool, off, ppx, ppy, delta);
+      _pPool[off + 2] = ppz;
 
       if (live !== i) _pPool.copyWithin(live * P_STRIDE, off, off + P_STRIDE);
       live++;
     }
     pLive.current = live;
+    if (frameReward > 0) collectStarReward(frameReward);
 
     // ── Update burst particles ────────────────────────────────────────────────
     let sLiveNext = 0;

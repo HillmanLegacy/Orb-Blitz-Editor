@@ -251,6 +251,7 @@ export interface MagicOrbState {
   impactEffects: ImpactEffect[];
   laserBeams: LaserBeam[];
   starFlowEvents: StarFlowEvent[];
+  pendingStarRewards: number;
 
   backgroundPulse: number;
   backgroundShake: number;
@@ -315,6 +316,8 @@ export interface MagicOrbState {
   updateImpactEffects: (effects: ImpactEffect[]) => void;
   addStarFlowEvent: (pos: [number, number, number], count: number, isBoss?: boolean) => void;
   removeStarFlowEvent: (id: string) => void;
+  collectStarReward: (amount: number) => number;
+  settlePendingStarRewards: () => number;
   
   addLaserBeam: (beam: LaserBeam) => void;
   updateLaserBeams: (beams: LaserBeam[]) => void;
@@ -555,6 +558,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     impactEffects: [],
     laserBeams: [],
     starFlowEvents: [],
+    pendingStarRewards: 0,
 
     backgroundPulse: 0,
     backgroundShake: 0,
@@ -593,10 +597,17 @@ export const useMagicOrb = create<MagicOrbState>()(
     scatterFireSignal: { count: 0, dirX: 0, dirY: 0 },
     homingFireSignal:  { count: 0, dirX: 0, dirY: 0 },
     
-    setPhase: (phase) => set({ phase }),
+    setPhase: (phase) => {
+      const currentPhase = get().phase;
+      if (currentPhase === "playing" && phase !== "playing" && phase !== "paused") {
+        get().settlePendingStarRewards();
+      }
+      set({ phase });
+    },
     setGameMode: (mode) => set({ gameMode: mode }),
     
     startLoading: (type, level) => {
+      get().settlePendingStarRewards();
       set({ 
         phase: "loading", 
         loadingType: type,
@@ -605,6 +616,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     },
     
     finishLoading: () => {
+      get().settlePendingStarRewards();
       const { loadingType, pendingLevel, gameMode, bonusMaxHealth } = get();
       if (loadingType === "entering") {
         balanceTelemetry.beginRun();
@@ -665,6 +677,7 @@ export const useMagicOrb = create<MagicOrbState>()(
           impactEffects: [],
           laserBeams: [],
           starFlowEvents: [],
+          pendingStarRewards: 0,
           backgroundPulse: 0,
           backgroundShake: 0,
           spawnRate: gameMode === "chill" ? 3 : 2,
@@ -741,6 +754,7 @@ export const useMagicOrb = create<MagicOrbState>()(
           impactEffects: [],
           laserBeams: [],
           starFlowEvents: [],
+          pendingStarRewards: 0,
           killSpeedBonus: 0,
           killSpawnBonus: 0,
           gameTime: 0,
@@ -771,6 +785,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     },
     
     startGame: () => {
+      get().settlePendingStarRewards();
       const mode = get().gameMode;
       const maxHP = 3;
       balanceTelemetry.beginRun();
@@ -841,6 +856,7 @@ export const useMagicOrb = create<MagicOrbState>()(
         impactEffects: [],
         laserBeams: [],
         starFlowEvents: [],
+        pendingStarRewards: 0,
         backgroundPulse: 0,
         backgroundShake: 0,
         spawnRate: mode === "chill" ? 3 : 2,
@@ -850,6 +866,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     },
     
     startArcadeLevel: (level) => {
+      get().settlePendingStarRewards();
       const isBossLevel = Math.floor(level * 10) % 10 === 9;
       const worldLevel = Math.floor(level);
       const orbsRequired = getArcadeRequiredOrbs(level);
@@ -966,6 +983,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     completeLevel: () => {
       const { arcadeLevel, gameMode, bonusMaxHealth, defeatedBosses } = get();
       if (gameMode !== "arcade") return;
+      get().settlePendingStarRewards();
       
       const currentWorld = Math.floor(arcadeLevel);
       const currentSub = Math.round((arcadeLevel % 1) * 10);
@@ -1204,6 +1222,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     },
     
     endGame: () => {
+      get().settlePendingStarRewards();
       const { score, highScore } = get();
       const newHighScore = Math.max(score, highScore);
       saveHighScore(newHighScore);
@@ -1214,6 +1233,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     },
     
     returnToMenu: () => {
+      get().settlePendingStarRewards();
       set({
         phase: "menu",
         loadingType: null,
@@ -1806,12 +1826,10 @@ export const useMagicOrb = create<MagicOrbState>()(
 
     addStarFlowEvent: (pos, count, isBoss = false) => {
       const coinsPerStar = get().hasDoubleCoins ? 2 : 1;
-      balanceTelemetry.recordReward(count * coinsPerStar);
-      // Rewards are committed by the gameplay event, not by the rendered stars.
-      // This keeps earnings correct when VFX are disabled, pooled particles are
-      // saturated, or the scene unmounts before a visual burst reaches the player.
-      useShop.getState().addCoins(count * coinsPerStar);
+      const rewardAmount = count * coinsPerStar;
+      balanceTelemetry.recordReward(rewardAmount);
       set((state) => ({
+        pendingStarRewards: state.pendingStarRewards + rewardAmount,
         starFlowEvents: [
           ...state.starFlowEvents,
           { id: `sf-${Date.now()}-${Math.random()}`, fromPos: pos, count, coinsPerStar, isBoss },
@@ -1822,6 +1840,28 @@ export const useMagicOrb = create<MagicOrbState>()(
     removeStarFlowEvent: (id) => set((state) => ({
       starFlowEvents: state.starFlowEvents.filter((e) => e.id !== id),
     })),
+
+    collectStarReward: (amount) => {
+      const requested = Math.max(0, Math.floor(amount));
+      const credited = Math.min(requested, get().pendingStarRewards);
+      if (credited <= 0) return 0;
+      set((state) => ({
+        pendingStarRewards: Math.max(0, state.pendingStarRewards - credited),
+      }));
+      useShop.getState().addCoins(credited);
+      return credited;
+    },
+
+    settlePendingStarRewards: () => {
+      const { pendingStarRewards: pending, starFlowEvents } = get();
+      if (pending <= 0) {
+        if (starFlowEvents.length > 0) set({ starFlowEvents: [] });
+        return 0;
+      }
+      set({ pendingStarRewards: 0, starFlowEvents: [] });
+      useShop.getState().addCoins(pending);
+      return pending;
+    },
     
     addLaserBeam: (beam) => set((state) => ({
       laserBeams: [...state.laserBeams, beam]
