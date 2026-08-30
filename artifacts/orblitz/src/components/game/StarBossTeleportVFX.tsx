@@ -239,7 +239,9 @@ function DepartureVFX({
     // ── Outer pressure ring (expands outward as boss winds up) ──────────────
     if (outerRingRef.current) {
       const rp = Math.min(1, p * 1.9);
-      outerRingRef.current.scale.setScalar(Math.max(0.0001, easeOutExpo(rp) * scale * 2.4));
+      // This is the Star Boss absorption circle. Keep the rest of the
+      // teleport VFX unchanged while reducing this ring by two-thirds.
+      outerRingRef.current.scale.setScalar(Math.max(0.0001, easeOutExpo(rp) * scale * 0.8));
       (outerRingRef.current.material as THREE.MeshBasicMaterial).opacity =
         Math.max(0, (1 - rp) * 0.75);
     }
