@@ -264,6 +264,7 @@ function HDTrailEffect({
 }
 
 const MemoizedHDTrailEffect = memo(HDTrailEffect);
+const BACKDRAFT_TRAIL_SCALE_MULTIPLIER = 1.25 * 1.5;
 
 export function getBackwardFlameAuraRotation(direction: readonly [number, number, number]): number {
   return Math.atan2(direction[0], -direction[1]);
@@ -303,7 +304,7 @@ function FlameAuraProjectileTrail({
     projectile,
     projectile.spawnScale ?? 1,
     playerScale,
-  ) * 1.25;
+  ) * BACKDRAFT_TRAIL_SCALE_MULTIPLIER;
 
   return (
     <group ref={groupRef} visible={false}>
