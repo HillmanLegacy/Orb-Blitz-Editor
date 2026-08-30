@@ -283,6 +283,19 @@ type PlayerFireBurstSlot = {
   phase: number;
 };
 
+type PlayerFireBurstCoreSlot = {
+  active: boolean;
+  age: number;
+  x: number;
+  y: number;
+  z: number;
+  dx: number;
+  dy: number;
+  dz: number;
+  core: string;
+  glow: string;
+};
+
 export type PlayerProjectileSpawnPresentationEvent = {
   type: string | undefined;
   position: readonly [number, number, number];
@@ -290,23 +303,35 @@ export type PlayerProjectileSpawnPresentationEvent = {
 };
 
 export type PlayerFireBurstPool = {
+  bursts: PlayerFireBurstCoreSlot[];
   slots: PlayerFireBurstSlot[];
+  nextBurstSlot: number;
   nextSlot: number;
 };
 
 /** A fixed-size presentation pool: firing effects can never create shot JSX. */
 export function createPlayerFireBurstPool(): PlayerFireBurstPool {
   return {
+    bursts: Array.from({ length: MAX_PLAYER_FIRE_BURSTS }, () => ({
+      active: false, age: 0, x: 0, y: 0, z: 0, dx: 1, dy: 0, dz: 0,
+      core: "#ffffff", glow: "#ffffff",
+    })),
     slots: Array.from({ length: MAX_PLAYER_FIRE_BURST_PARTICLES }, (_, index) => ({
       active: false, age: 0, x: 0, y: 0, z: 0, dx: 1, dy: 0, dz: 0,
       color: "#ffffff", phase: index * 2.399963229728653,
     })),
+    nextBurstSlot: 0,
     nextSlot: 0,
   };
 }
 
 export function resetPlayerFireBurstPool(pool: PlayerFireBurstPool): void {
+  pool.nextBurstSlot = 0;
   pool.nextSlot = 0;
+  for (const burst of pool.bursts) {
+    burst.active = false;
+    burst.age = 0;
+  }
   for (const slot of pool.slots) {
     slot.active = false;
     slot.age = 0;
@@ -332,6 +357,19 @@ export function emitPlayerProjectileFireBurst(
   const dy = event.direction[1] / directionLength;
   const dz = event.direction[2] / directionLength;
 
+  const burst = pool.bursts[pool.nextBurstSlot];
+  pool.nextBurstSlot = (pool.nextBurstSlot + 1) % pool.bursts.length;
+  burst.active = true;
+  burst.age = 0;
+  burst.x = event.position[0];
+  burst.y = event.position[1];
+  burst.z = event.position[2];
+  burst.dx = dx;
+  burst.dy = dy;
+  burst.dz = dz;
+  burst.core = palette.core;
+  burst.glow = palette.glow;
+
   for (let particle = 0; particle < PLAYER_FIRE_BURST_PARTICLES; particle++) {
     const slot = pool.slots[pool.nextSlot];
     pool.nextSlot = (pool.nextSlot + 1) % pool.slots.length;
@@ -349,24 +387,122 @@ export function emitPlayerProjectileFireBurst(
 }
 
 const _playerFireBurstGeometry = new THREE.OctahedronGeometry(1, 0);
+const _playerFireBurstFlashGeometry = new THREE.SphereGeometry(1, 8, 6);
+const _playerFireBurstRingGeometry = new THREE.RingGeometry(0.72, 1, 16);
+const _playerFireBurstStreakGeometry = new THREE.CylinderGeometry(0.72, 0.14, 1, 6, 1, false);
 const _playerFireBurstDummy = new THREE.Object3D();
 const _playerFireBurstColor = new THREE.Color();
+const _playerFireBurstAxisY = new THREE.Vector3(0, 1, 0);
+const _playerFireBurstAxisZ = new THREE.Vector3(0, 0, 1);
+const _playerFireBurstDirection = new THREE.Vector3();
 
 function PlayerProjectileFireBursts({ pool }: { pool: PlayerFireBurstPool }) {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const [material] = useState(() => new THREE.MeshBasicMaterial({
+  const shardMeshRef = useRef<THREE.InstancedMesh>(null);
+  const flashMeshRef = useRef<THREE.InstancedMesh>(null);
+  const ringMeshRef = useRef<THREE.InstancedMesh>(null);
+  const streakMeshRef = useRef<THREE.InstancedMesh>(null);
+  const [shardMaterial] = useState(() => new THREE.MeshBasicMaterial({
     transparent: true,
     opacity: 0.9,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
     toneMapped: false,
   }));
-  useEffect(() => () => material.dispose(), [material]);
+  const [flashMaterial] = useState(() => new THREE.MeshBasicMaterial({
+    transparent: true,
+    opacity: 0.95,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    toneMapped: false,
+  }));
+  const [ringMaterial] = useState(() => new THREE.MeshBasicMaterial({
+    transparent: true,
+    opacity: 0.8,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+    toneMapped: false,
+  }));
+  const [streakMaterial] = useState(() => new THREE.MeshBasicMaterial({
+    transparent: true,
+    opacity: 0.88,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    toneMapped: false,
+  }));
+  useEffect(() => () => {
+    shardMaterial.dispose();
+    flashMaterial.dispose();
+    ringMaterial.dispose();
+    streakMaterial.dispose();
+  }, [flashMaterial, ringMaterial, shardMaterial, streakMaterial]);
 
   useFrame((_, delta) => {
-    const mesh = meshRef.current;
-    if (!mesh) return;
-    const lifetime = 0.16;
+    const shardMesh = shardMeshRef.current;
+    const flashMesh = flashMeshRef.current;
+    const ringMesh = ringMeshRef.current;
+    const streakMesh = streakMeshRef.current;
+    if (!shardMesh || !flashMesh || !ringMesh || !streakMesh) return;
+    const lifetime = 0.22;
+
+    for (let index = 0; index < pool.bursts.length; index++) {
+      const burst = pool.bursts[index];
+      burst.age += delta;
+      if (!burst.active || burst.age >= lifetime) {
+        burst.active = false;
+        _playerFireBurstDummy.scale.setScalar(0);
+        _playerFireBurstDummy.updateMatrix();
+        flashMesh.setMatrixAt(index, _playerFireBurstDummy.matrix);
+        ringMesh.setMatrixAt(index, _playerFireBurstDummy.matrix);
+        streakMesh.setMatrixAt(index, _playerFireBurstDummy.matrix);
+        continue;
+      }
+
+      const t = burst.age / lifetime;
+      const fade = 1 - t;
+      const travel = 0.035 + t * 0.16;
+      const burstX = burst.x + burst.dx * travel;
+      const burstY = burst.y + burst.dy * travel;
+      const burstZ = burst.z + burst.dz * travel;
+
+      // A bright point stays at the orb's surface while a ring and a spear
+      // expand forward, making the projectile feel emitted rather than merely
+      // appearing beside the player.
+      _playerFireBurstDummy.position.set(burstX, burstY, burstZ);
+      _playerFireBurstDummy.rotation.set(0, 0, 0);
+      _playerFireBurstDummy.scale.setScalar(0.08 + fade * 0.16);
+      _playerFireBurstDummy.updateMatrix();
+      flashMesh.setMatrixAt(index, _playerFireBurstDummy.matrix);
+      _playerFireBurstColor.set(burst.core);
+      flashMesh.setColorAt(index, _playerFireBurstColor);
+
+      _playerFireBurstDummy.position.set(burstX, burstY, burstZ);
+      _playerFireBurstDummy.quaternion.setFromUnitVectors(
+        _playerFireBurstAxisZ,
+        _playerFireBurstDirection.set(burst.dx, burst.dy, burst.dz),
+      );
+      _playerFireBurstDummy.scale.setScalar(0.12 + t * 0.72);
+      _playerFireBurstDummy.updateMatrix();
+      ringMesh.setMatrixAt(index, _playerFireBurstDummy.matrix);
+      _playerFireBurstColor.set(burst.glow).multiplyScalar(0.35 + fade * 0.65);
+      ringMesh.setColorAt(index, _playerFireBurstColor);
+
+      _playerFireBurstDummy.position.set(
+        burst.x + burst.dx * (0.20 + t * 0.18),
+        burst.y + burst.dy * (0.20 + t * 0.18),
+        burst.z + burst.dz * (0.20 + t * 0.18),
+      );
+      _playerFireBurstDummy.quaternion.setFromUnitVectors(
+        _playerFireBurstAxisY,
+        _playerFireBurstDirection.set(burst.dx, burst.dy, burst.dz),
+      );
+      _playerFireBurstDummy.scale.set(0.035 + fade * 0.045, 0.28 + fade * 0.34, 0.035 + fade * 0.045);
+      _playerFireBurstDummy.updateMatrix();
+      streakMesh.setMatrixAt(index, _playerFireBurstDummy.matrix);
+      _playerFireBurstColor.set(burst.core).multiplyScalar(0.45 + fade * 0.55);
+      streakMesh.setColorAt(index, _playerFireBurstColor);
+    }
+
     for (let index = 0; index < pool.slots.length; index++) {
       const slot = pool.slots[index];
       slot.age += delta;
@@ -374,7 +510,7 @@ function PlayerProjectileFireBursts({ pool }: { pool: PlayerFireBurstPool }) {
         slot.active = false;
         _playerFireBurstDummy.scale.setScalar(0);
         _playerFireBurstDummy.updateMatrix();
-        mesh.setMatrixAt(index, _playerFireBurstDummy.matrix);
+        shardMesh.setMatrixAt(index, _playerFireBurstDummy.matrix);
         continue;
       }
       const t = slot.age / lifetime;
@@ -387,23 +523,49 @@ function PlayerProjectileFireBursts({ pool }: { pool: PlayerFireBurstPool }) {
         slot.y + slot.dy * forward + lateralY * lateral,
         slot.z + slot.dz * forward + Math.cos(slot.phase) * t * 0.08,
       );
-      _playerFireBurstDummy.scale.setScalar((1 - t) * 0.045);
+      _playerFireBurstDummy.scale.setScalar((1 - t) * 0.06);
       _playerFireBurstDummy.updateMatrix();
-      mesh.setMatrixAt(index, _playerFireBurstDummy.matrix);
+      shardMesh.setMatrixAt(index, _playerFireBurstDummy.matrix);
       _playerFireBurstColor.set(slot.color);
-      mesh.setColorAt(index, _playerFireBurstColor);
+      shardMesh.setColorAt(index, _playerFireBurstColor);
     }
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    flashMesh.instanceMatrix.needsUpdate = true;
+    ringMesh.instanceMatrix.needsUpdate = true;
+    streakMesh.instanceMatrix.needsUpdate = true;
+    shardMesh.instanceMatrix.needsUpdate = true;
+    if (flashMesh.instanceColor) flashMesh.instanceColor.needsUpdate = true;
+    if (ringMesh.instanceColor) ringMesh.instanceColor.needsUpdate = true;
+    if (streakMesh.instanceColor) streakMesh.instanceColor.needsUpdate = true;
+    if (shardMesh.instanceColor) shardMesh.instanceColor.needsUpdate = true;
   });
 
   return (
-    <instancedMesh
-      ref={meshRef}
-      args={[_playerFireBurstGeometry, material, MAX_PLAYER_FIRE_BURST_PARTICLES]}
-      frustumCulled={false}
-      renderOrder={3}
-    />
+    <>
+      <instancedMesh
+        ref={flashMeshRef}
+        args={[_playerFireBurstFlashGeometry, flashMaterial, MAX_PLAYER_FIRE_BURSTS]}
+        frustumCulled={false}
+        renderOrder={5}
+      />
+      <instancedMesh
+        ref={ringMeshRef}
+        args={[_playerFireBurstRingGeometry, ringMaterial, MAX_PLAYER_FIRE_BURSTS]}
+        frustumCulled={false}
+        renderOrder={4}
+      />
+      <instancedMesh
+        ref={streakMeshRef}
+        args={[_playerFireBurstStreakGeometry, streakMaterial, MAX_PLAYER_FIRE_BURSTS]}
+        frustumCulled={false}
+        renderOrder={4}
+      />
+      <instancedMesh
+        ref={shardMeshRef}
+        args={[_playerFireBurstGeometry, shardMaterial, MAX_PLAYER_FIRE_BURST_PARTICLES]}
+        frustumCulled={false}
+        renderOrder={3}
+      />
+    </>
   );
 }
 

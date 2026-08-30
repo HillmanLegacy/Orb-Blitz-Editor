@@ -609,12 +609,22 @@ describe("gameplay runtime invariants", () => {
     // More bursts than capacity must remain bounded while retaining the latest
     // spawn transform/palette in the recycled slots.
     for (let i = 0; i < 17; i++) emitPlayerProjectileFireBurst(pool, event, palette);
+    expect(pool.bursts).toHaveLength(16);
+    expect(pool.bursts.filter((burst) => burst.active)).toHaveLength(16);
+    expect(pool.bursts.some((burst) =>
+      burst.y === 3 &&
+      burst.dy === 1 &&
+      burst.core === "#111111" &&
+      burst.glow === "#222222"
+    )).toBe(true);
     expect(pool.slots).toHaveLength(96);
     expect(pool.slots.filter((slot) => slot.active)).toHaveLength(96);
     expect(pool.slots.some((slot) => slot.y === 3 && slot.dy === 1 && slot.color === "#00ff00")).toBe(true);
 
     resetPlayerFireBurstPool(pool);
+    expect(pool.nextBurstSlot).toBe(0);
     expect(pool.nextSlot).toBe(0);
+    expect(pool.bursts.every((burst) => !burst.active && burst.age === 0)).toBe(true);
     expect(pool.slots.every((slot) => !slot.active && slot.age === 0)).toBe(true);
   });
 
