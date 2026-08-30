@@ -265,6 +265,7 @@ function HDTrailEffect({
 
 const MemoizedHDTrailEffect = memo(HDTrailEffect);
 const BACKDRAFT_TRAIL_SCALE_MULTIPLIER = 1.25 * 1.5;
+const BACKDRAFT_TRAIL_OFFSET_MULTIPLIER = 0.6;
 
 export function getBackwardFlameAuraRotation(direction: readonly [number, number, number]): number {
   return Math.atan2(direction[0], -direction[1]);
@@ -285,6 +286,11 @@ function FlameAuraProjectileTrail({
   const groupRef = useRef<THREE.Group>(null);
   const projectileRef = useRef(projectile);
   projectileRef.current = projectile;
+  const flameScale = getPlayerProjectileVisualScale(
+    projectile,
+    projectile.spawnScale ?? 1,
+    playerScale,
+  ) * BACKDRAFT_TRAIL_SCALE_MULTIPLIER;
 
   useFrame(() => {
     const group = groupRef.current;
@@ -295,16 +301,15 @@ function FlameAuraProjectileTrail({
     }
 
     group.visible = true;
-    group.position.set(...motion.position);
+    const trailOffset = flameScale * BACKDRAFT_TRAIL_OFFSET_MULTIPLIER;
+    group.position.set(
+      motion.position[0] - motion.direction[0] * trailOffset,
+      motion.position[1] - motion.direction[1] * trailOffset,
+      motion.position[2] - motion.direction[2] * trailOffset,
+    );
     // FlameAura's local +Y points away from the projectile after this rotation.
     group.rotation.z = getBackwardFlameAuraRotation(motion.direction);
   });
-
-  const flameScale = getPlayerProjectileVisualScale(
-    projectile,
-    projectile.spawnScale ?? 1,
-    playerScale,
-  ) * BACKDRAFT_TRAIL_SCALE_MULTIPLIER;
 
   return (
     <group ref={groupRef} visible={false}>
