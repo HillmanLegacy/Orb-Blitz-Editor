@@ -18,6 +18,12 @@
 //   • Throttles on hot paths prevent audio-thread flooding during rapid fire
 // ═══════════════════════════════════════════════════════════════════════════════
 
+import {
+  createSfxVariationBank,
+  SFX_VARIATION_PROFILES,
+  type SfxVariation,
+} from "./SfxVariation";
+
 // ── Audio context + master bus ────────────────────────────────────────────────
 
 let _ctx: AudioContext | null = null;
@@ -149,6 +155,7 @@ let _tShoot  = 0;   // 30 ms  – shoot
 let _tHit    = 0;   // 75 ms  – hit
 let _tNearM  = 0;   // 200 ms – near miss (quiet)
 const _sfxTimestamps = new Map<string, number>();
+const _sfxVariations = createSfxVariationBank();
 
 /**
  * Audio graph construction is synchronous on the main thread even though
@@ -163,10 +170,28 @@ function allowSfx(key: string, minimumIntervalMs: number): boolean {
   return true;
 }
 
-// ── Convenience: pitch randomisation ─────────────────────────────────────────
-function _pr(semis: number): number { return Math.pow(2, semis / 12); }
+// ── Convenience: continuous random values for procedural layers ───────────────
 function _rand(lo: number, hi: number) { return lo + Math.random() * (hi - lo); }
-function _rv(semis: number): number { return _pr(_rand(-semis, semis)); }
+
+function _variationFrequency(frequency: number, variation: SfxVariation): number {
+  return frequency * variation.pitchRatio;
+}
+
+function _variationTime(seconds: number, variation: SfxVariation): number {
+  return seconds * variation.durationRatio;
+}
+
+function _variationGain(gain: number, variation: SfxVariation): number {
+  return gain * variation.gainRatio;
+}
+
+function _variationFilter(frequency: number, variation: SfxVariation): number {
+  return frequency * variation.filterRatio;
+}
+
+function _variationTexture(frequency: number, variation: SfxVariation): number {
+  return frequency * (0.9 + variation.texture * 0.2);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // COMBAT SOUNDS
@@ -183,25 +208,25 @@ export function playShootSound(volume = 0.25) {
     const ctx = getAudioContext();
     const d   = dst(ctx);
     const t   = ctx.currentTime;
-    const pv  = _rv(1.5);   // ±1.5 semitone pitch variation
+    const variation = _sfxVariations.next("shoot", SFX_VARIATION_PROFILES.projectile);
 
     // Layer 1 — square body (main pitch sweep)
     const o1 = ctx.createOscillator();
     o1.type = 'square';
-    o1.frequency.setValueAtTime(1400 * pv, t);
-    o1.frequency.exponentialRampToValueAtTime(240 * pv, t + 0.08);
+    o1.frequency.setValueAtTime(_variationFrequency(1400, variation), t);
+    o1.frequency.exponentialRampToValueAtTime(_variationFrequency(240, variation), t + _variationTime(0.08, variation));
 
     // Layer 2 — saw harmonic (adds bite)
     const o2 = ctx.createOscillator();
     o2.type = 'sawtooth';
-    o2.frequency.setValueAtTime(700 * pv, t);
-    o2.frequency.exponentialRampToValueAtTime(120 * pv, t + 0.07);
+    o2.frequency.setValueAtTime(_variationFrequency(700, variation), t);
+    o2.frequency.exponentialRampToValueAtTime(_variationFrequency(120, variation), t + _variationTime(0.07, variation));
 
     // Layer 3 — sine click transient (sharp attack definition)
     const ck = ctx.createOscillator();
     ck.type = 'sine';
-    ck.frequency.setValueAtTime(5200 * pv, t);
-    ck.frequency.exponentialRampToValueAtTime(900 * pv, t + 0.012);
+    ck.frequency.setValueAtTime(_variationFrequency(5200, variation), t);
+    ck.frequency.exponentialRampToValueAtTime(_variationFrequency(900, variation), t + _variationTime(0.012, variation));
 
     // Waveshaper — subtle saturation gives the "laser" character
     const ws = ctx.createWaveShaper();
@@ -210,28 +235,28 @@ export function playShootSound(volume = 0.25) {
     // Lowpass sweep
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
-    lp.frequency.setValueAtTime(8000, t);
-    lp.frequency.exponentialRampToValueAtTime(1000, t + 0.09);
+    lp.frequency.setValueAtTime(_variationFilter(8000, variation), t);
+    lp.frequency.exponentialRampToValueAtTime(_variationFilter(1000, variation), t + _variationTime(0.09, variation));
     lp.Q.value = 1.5;
 
     // Envelope
     const g  = ctx.createGain();
     g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(volume * 0.72, t + 0.002);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.11);
+    g.gain.linearRampToValueAtTime(_variationGain(volume * 0.72, variation), t + _variationTime(0.002, variation));
+    g.gain.exponentialRampToValueAtTime(0.001, t + _variationTime(0.11, variation));
 
     const gck = ctx.createGain();
-    gck.gain.setValueAtTime(volume * 0.5, t);
-    gck.gain.exponentialRampToValueAtTime(0.001, t + 0.018);
+    gck.gain.setValueAtTime(_variationGain(volume * 0.5, variation), t);
+    gck.gain.exponentialRampToValueAtTime(0.001, t + _variationTime(0.018, variation));
 
     o1.connect(ws); o2.connect(ws);
     ws.connect(lp); lp.connect(g); g.connect(d);
     ck.connect(gck); gck.connect(d);
 
-    const stop = t + 0.13;
+    const stop = t + _variationTime(0.13, variation);
     o1.start(t); o1.stop(stop);
     o2.start(t); o2.stop(stop - 0.02);
-    ck.start(t); ck.stop(t + 0.025);
+    ck.start(t); ck.stop(t + _variationTime(0.025, variation));
   } catch (_) {}
 }
 
@@ -247,51 +272,51 @@ export function playHitSound(volume = 0.3) {
     const d   = dst(ctx);
     const r   = rev();
     const t   = ctx.currentTime;
-    const pv  = _rv(2.5);
+    const variation = _sfxVariations.next("hit", SFX_VARIATION_PROFILES.impact);
 
     // Distorted thud
     const o1 = ctx.createOscillator();
     o1.type = 'sawtooth';
-    o1.frequency.setValueAtTime(380 * pv, t);
-    o1.frequency.exponentialRampToValueAtTime(68 * pv, t + 0.14);
+    o1.frequency.setValueAtTime(_variationFrequency(380, variation), t);
+    o1.frequency.exponentialRampToValueAtTime(_variationFrequency(68, variation), t + _variationTime(0.14, variation));
 
     const o2 = ctx.createOscillator();
     o2.type = 'square';
-    o2.frequency.setValueAtTime(760 * pv, t);
-    o2.frequency.exponentialRampToValueAtTime(135 * pv, t + 0.1);
+    o2.frequency.setValueAtTime(_variationFrequency(760, variation), t);
+    o2.frequency.exponentialRampToValueAtTime(_variationFrequency(135, variation), t + _variationTime(0.1, variation));
 
     const ws = ctx.createWaveShaper();
     ws.curve = _distCurve(30);
 
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
-    lp.frequency.setValueAtTime(5000, t);
-    lp.frequency.exponentialRampToValueAtTime(320, t + 0.16);
+    lp.frequency.setValueAtTime(_variationFilter(5000, variation), t);
+    lp.frequency.exponentialRampToValueAtTime(_variationFilter(320, variation), t + _variationTime(0.16, variation));
     lp.Q.value = 4.5;
 
     const g = ctx.createGain();
-    g.gain.setValueAtTime(volume * 0.65, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    g.gain.setValueAtTime(_variationGain(volume * 0.65, variation), t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + _variationTime(0.2, variation));
 
     // Noise texture
     const ns = ctx.createBufferSource();
     ns.buffer = noise(ctx, 'sm');
     const nb = ctx.createBiquadFilter();
     nb.type = 'bandpass';
-    nb.frequency.value = 1600;
+    nb.frequency.value = _variationTexture(1600, variation);
     nb.Q.value = 1.5;
     const ng = ctx.createGain();
-    ng.gain.setValueAtTime(volume * 0.35, t);
-    ng.gain.exponentialRampToValueAtTime(0.001, t + 0.11);
+    ng.gain.setValueAtTime(_variationGain(volume * 0.35, variation), t);
+    ng.gain.exponentialRampToValueAtTime(0.001, t + _variationTime(0.11, variation));
 
     // Click transient
     const ck = ctx.createOscillator();
     ck.type = 'sine';
-    ck.frequency.setValueAtTime(3200 * pv, t);
-    ck.frequency.exponentialRampToValueAtTime(600 * pv, t + 0.012);
+    ck.frequency.setValueAtTime(_variationFrequency(3200, variation), t);
+    ck.frequency.exponentialRampToValueAtTime(_variationFrequency(600, variation), t + _variationTime(0.012, variation));
     const cg = ctx.createGain();
-    cg.gain.setValueAtTime(volume * 0.55, t);
-    cg.gain.exponentialRampToValueAtTime(0.001, t + 0.018);
+    cg.gain.setValueAtTime(_variationGain(volume * 0.55, variation), t);
+    cg.gain.exponentialRampToValueAtTime(0.001, t + _variationTime(0.018, variation));
 
     o1.connect(ws); o2.connect(ws);
     ws.connect(lp); lp.connect(g); g.connect(d);
@@ -302,8 +327,8 @@ export function playHitSound(volume = 0.3) {
     const stop = t + 0.22;
     o1.start(t); o1.stop(stop);
     o2.start(t); o2.stop(stop - 0.04);
-    ns.start(t); ns.stop(t + 0.14);
-    ck.start(t); ck.stop(t + 0.025);
+    ns.start(t); ns.stop(t + _variationTime(0.14, variation));
+    ck.start(t); ck.stop(t + _variationTime(0.025, variation));
   } catch (_) {}
 }
 
@@ -317,30 +342,31 @@ export function playBossHitSound(volume = 0.4) {
     const d   = dst(ctx);
     const r   = rev();
     const t   = ctx.currentTime;
+    const variation = _sfxVariations.next("boss-hit", SFX_VARIATION_PROFILES.impact);
 
     // Sub kick: sine pitch drops to near-zero (physical impact feel)
     const sub = ctx.createOscillator();
     sub.type = 'sine';
-    sub.frequency.setValueAtTime(95, t);
-    sub.frequency.exponentialRampToValueAtTime(22, t + 0.38);
+    sub.frequency.setValueAtTime(_variationFrequency(95, variation), t);
+    sub.frequency.exponentialRampToValueAtTime(_variationFrequency(22, variation), t + _variationTime(0.38, variation));
     const sg = ctx.createGain();
-    sg.gain.setValueAtTime(volume * 1.1, t);
-    sg.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    sg.gain.setValueAtTime(_variationGain(volume * 1.1, variation), t);
+    sg.gain.exponentialRampToValueAtTime(0.001, t + _variationTime(0.4, variation));
 
     // Metallic body — distorted oscillator cluster
     const om = ctx.createOscillator();
     om.type = 'sawtooth';
-    om.frequency.setValueAtTime(460, t);
-    om.frequency.exponentialRampToValueAtTime(90, t + 0.22);
+    om.frequency.setValueAtTime(_variationFrequency(460, variation), t);
+    om.frequency.exponentialRampToValueAtTime(_variationFrequency(90, variation), t + _variationTime(0.22, variation));
     const om2 = ctx.createOscillator();
     om2.type = 'square';
-    om2.frequency.setValueAtTime(680, t);
-    om2.frequency.exponentialRampToValueAtTime(120, t + 0.18);
+    om2.frequency.setValueAtTime(_variationFrequency(680, variation), t);
+    om2.frequency.exponentialRampToValueAtTime(_variationFrequency(120, variation), t + _variationTime(0.18, variation));
     const mws = ctx.createWaveShaper();
     mws.curve = _distCurve(42);
     const mlp = ctx.createBiquadFilter();
     mlp.type = 'lowpass';
-    mlp.frequency.setValueAtTime(4500, t);
+    mlp.frequency.setValueAtTime(_variationFilter(4500, variation), t);
     mlp.frequency.exponentialRampToValueAtTime(180, t + 0.25);
     mlp.Q.value = 5;
     const mg = ctx.createGain();
@@ -352,7 +378,7 @@ export function playBossHitSound(volume = 0.4) {
     ns.buffer = noise(ctx, 'md');
     const nhp = ctx.createBiquadFilter();
     nhp.type = 'highpass';
-    nhp.frequency.value = 2000;
+    nhp.frequency.value = _variationTexture(2000, variation);
     const nhpg = ctx.createGain();
     nhpg.gain.setValueAtTime(volume * 0.45, t);
     nhpg.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
@@ -360,8 +386,8 @@ export function playBossHitSound(volume = 0.4) {
     // Shimmer ring (metallic overtone)
     const shi = ctx.createOscillator();
     shi.type = 'sine';
-    shi.frequency.setValueAtTime(3600, t);
-    shi.frequency.linearRampToValueAtTime(2800, t + 0.18);
+    shi.frequency.setValueAtTime(_variationFrequency(3600, variation), t);
+    shi.frequency.linearRampToValueAtTime(_variationFrequency(2800, variation), t + _variationTime(0.18, variation));
     const shg = ctx.createGain();
     shg.gain.setValueAtTime(volume * 0.22, t);
     shg.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
@@ -392,31 +418,31 @@ export function playOrbDestroySound(volume = 0.3) {
     const d   = dst(ctx);
     const r   = rev();
     const t   = ctx.currentTime;
-    const pv  = _rv(2.0);
+    const variation = _sfxVariations.next("orb-destroy", SFX_VARIATION_PROFILES.impact);
 
     // Noise explosion body
     const ns  = ctx.createBufferSource();
     ns.buffer = noise(ctx, 'md');
     const nlp = ctx.createBiquadFilter();
     nlp.type  = 'lowpass';
-    nlp.frequency.setValueAtTime(5500, t);
-    nlp.frequency.exponentialRampToValueAtTime(80, t + 0.28);
+    nlp.frequency.setValueAtTime(_variationFilter(5500, variation), t);
+    nlp.frequency.exponentialRampToValueAtTime(_variationFilter(80, variation), t + _variationTime(0.28, variation));
     const ng  = ctx.createGain();
-    ng.gain.setValueAtTime(volume * 0.85, t);
-    ng.gain.exponentialRampToValueAtTime(0.001, t + 0.30);
+    ng.gain.setValueAtTime(_variationGain(volume * 0.85, variation), t);
+    ng.gain.exponentialRampToValueAtTime(0.001, t + _variationTime(0.30, variation));
 
     // Tonal decay
     const ot  = ctx.createOscillator();
     ot.type   = 'sine';
-    ot.frequency.setValueAtTime(300 * pv, t);
-    ot.frequency.exponentialRampToValueAtTime(42 * pv, t + 0.24);
+    ot.frequency.setValueAtTime(_variationFrequency(300, variation), t);
+    ot.frequency.exponentialRampToValueAtTime(_variationFrequency(42, variation), t + _variationTime(0.24, variation));
     const og  = ctx.createGain();
     og.gain.setValueAtTime(volume * 0.6, t);
     og.gain.exponentialRampToValueAtTime(0.001, t + 0.26);
 
     // Harmonic scatter — 3 short tones at random pitches
     [1, 1.26, 1.59].forEach((ratio, i) => {
-      const freq = _rand(300, 800) * pv * ratio;
+      const freq = _variationFrequency(_rand(300, 800) * ratio, variation);
       const os   = ctx.createOscillator();
       os.type = i % 2 === 0 ? 'sine' : 'triangle';
       os.frequency.setValueAtTime(freq, t);
@@ -431,8 +457,8 @@ export function playOrbDestroySound(volume = 0.3) {
     // Click transient
     const ck  = ctx.createOscillator();
     ck.type   = 'sine';
-    ck.frequency.setValueAtTime(3800 * pv, t);
-    ck.frequency.exponentialRampToValueAtTime(700 * pv, t + 0.01);
+    ck.frequency.setValueAtTime(_variationFrequency(3800, variation), t);
+    ck.frequency.exponentialRampToValueAtTime(_variationFrequency(700, variation), t + _variationTime(0.01, variation));
     const cg  = ctx.createGain();
     cg.gain.setValueAtTime(volume * 0.65, t);
     cg.gain.exponentialRampToValueAtTime(0.001, t + 0.015);
@@ -463,21 +489,22 @@ export function playPlayerDamageSound(volume = 0.5) {
     const d   = dst(ctx);
     const r   = rev();
     const t   = ctx.currentTime;
+    const variation = _sfxVariations.next("player-damage", SFX_VARIATION_PROFILES.impact);
 
     // Distorted body
     const ob  = ctx.createOscillator();
     ob.type   = 'sawtooth';
-    ob.frequency.setValueAtTime(220, t);
-    ob.frequency.exponentialRampToValueAtTime(32, t + 0.35);
+    ob.frequency.setValueAtTime(_variationFrequency(220, variation), t);
+    ob.frequency.exponentialRampToValueAtTime(_variationFrequency(32, variation), t + _variationTime(0.35, variation));
     const ws  = ctx.createWaveShaper();
     ws.curve  = _distCurve(48);
     const lp  = ctx.createBiquadFilter();
     lp.type   = 'lowpass';
-    lp.frequency.setValueAtTime(3000, t);
+    lp.frequency.setValueAtTime(_variationFilter(3000, variation), t);
     lp.frequency.exponentialRampToValueAtTime(120, t + 0.38);
     lp.Q.value = 2.5;
     const bg  = ctx.createGain();
-    bg.gain.setValueAtTime(volume * 0.8, t);
+    bg.gain.setValueAtTime(_variationGain(volume * 0.8, variation), t);
     bg.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
 
     // Sub
@@ -494,7 +521,7 @@ export function playPlayerDamageSound(volume = 0.5) {
     ns.buffer = noise(ctx, 'md');
     const nhp = ctx.createBiquadFilter();
     nhp.type  = 'highpass';
-    nhp.frequency.value = 2500;
+    nhp.frequency.value = _variationTexture(2500, variation);
     const nlp = ctx.createBiquadFilter();
     nlp.type  = 'lowpass';
     nlp.frequency.setValueAtTime(8000, t);
@@ -524,32 +551,33 @@ export function playPowerUpSound(volume = 0.3) {
     const d    = dst(ctx);
     const r    = rev();
     const t    = ctx.currentTime;
+    const variation = _sfxVariations.next("power-up", SFX_VARIATION_PROFILES.reward);
     // C5 E5 G5 B5 C6
     const notes = [523.25, 659.26, 783.99, 987.77, 1046.50];
-    const dur   = 0.078;
+    const dur   = _variationTime(0.078, variation);
 
     notes.forEach((freq, i) => {
       const nt = t + i * dur;
 
       const si = ctx.createOscillator();
       si.type = 'sine';
-      si.frequency.setValueAtTime(freq, nt);
-      si.frequency.linearRampToValueAtTime(freq * 1.04, nt + dur);
+      si.frequency.setValueAtTime(_variationFrequency(freq, variation), nt);
+      si.frequency.linearRampToValueAtTime(_variationFrequency(freq * 1.04, variation), nt + dur);
 
       const sq = ctx.createOscillator();
       sq.type = 'square';
-      sq.frequency.setValueAtTime(freq * 1.005, nt); // very slight detune
+      sq.frequency.setValueAtTime(_variationFrequency(freq * 1.005, variation), nt); // very slight detune
 
       // High shimmer at 2× freq
       const sh = ctx.createOscillator();
       sh.type = 'sine';
-      sh.frequency.setValueAtTime(freq * 2, nt);
-      sh.frequency.linearRampToValueAtTime(freq * 2.05, nt + dur);
+      sh.frequency.setValueAtTime(_variationFrequency(freq * 2, variation), nt);
+      sh.frequency.linearRampToValueAtTime(_variationFrequency(freq * 2.05, variation), nt + dur);
 
       const g  = ctx.createGain();
       g.gain.setValueAtTime(0, nt);
-      g.gain.linearRampToValueAtTime(volume * 0.55, nt + 0.005);
-      g.gain.setValueAtTime(volume * 0.55, nt + dur * 0.7);
+      g.gain.linearRampToValueAtTime(_variationGain(volume * 0.55, variation), nt + 0.005);
+      g.gain.setValueAtTime(_variationGain(volume * 0.55, variation), nt + dur * 0.7);
       g.gain.exponentialRampToValueAtTime(0.001, nt + dur * 1.3);
 
       const sg = ctx.createGain();
@@ -575,15 +603,16 @@ export function playHealSound(volume = 0.25) {
     const d     = dst(ctx);
     const r     = rev();
     const t     = ctx.currentTime;
+    const variation = _sfxVariations.next("heal", SFX_VARIATION_PROFILES.reward);
     const notes = [392, 523, 659, 784]; // G4 C5 E5 G5
     notes.forEach((f, i) => {
-      const nt = t + i * 0.09;
-      const o1 = ctx.createOscillator(); o1.type = 'sine'; o1.frequency.value = f;
-      const o2 = ctx.createOscillator(); o2.type = 'triangle'; o2.frequency.value = f * 1.003;
+      const nt = t + i * _variationTime(0.09, variation);
+      const o1 = ctx.createOscillator(); o1.type = 'sine'; o1.frequency.value = _variationFrequency(f, variation);
+      const o2 = ctx.createOscillator(); o2.type = 'triangle'; o2.frequency.value = _variationFrequency(f * 1.003, variation);
       const g  = ctx.createGain();
       g.gain.setValueAtTime(0, nt);
-      g.gain.linearRampToValueAtTime(volume * 0.4, nt + 0.01);
-      g.gain.exponentialRampToValueAtTime(0.001, nt + 0.25);
+      g.gain.linearRampToValueAtTime(_variationGain(volume * 0.4, variation), nt + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.001, nt + _variationTime(0.25, variation));
       o1.connect(g); o2.connect(g); g.connect(d);
       if (r && i === notes.length - 1) g.connect(r);
       o1.start(nt); o1.stop(nt + 0.28);
@@ -824,27 +853,28 @@ export function playTeleportSound(volume = 0.3) {
   if (!allowSfx("teleport", 180)) return;
   try {
     const ctx = getAudioContext(); const d = dst(ctx); const r = rev(); const t = ctx.currentTime;
+    const variation = _sfxVariations.next("teleport", SFX_VARIATION_PROFILES.ability);
 
     const o1 = ctx.createOscillator(); o1.type = 'sine';
-    o1.frequency.setValueAtTime(1400, t);
+    o1.frequency.setValueAtTime(_variationFrequency(1400, variation), t);
     o1.frequency.exponentialRampToValueAtTime(80, t + 0.08);
     o1.frequency.exponentialRampToValueAtTime(2400, t + 0.12);
     o1.frequency.exponentialRampToValueAtTime(350, t + 0.22);
 
     const o2 = ctx.createOscillator(); o2.type = 'square';
-    o2.frequency.setValueAtTime(900, t);
+    o2.frequency.setValueAtTime(_variationFrequency(900, variation), t);
     o2.frequency.exponentialRampToValueAtTime(2800, t + 0.1);
     o2.frequency.exponentialRampToValueAtTime(120, t + 0.2);
 
     const ns  = ctx.createBufferSource(); ns.buffer = noise(ctx, 'sm');
-    const nhp = ctx.createBiquadFilter(); nhp.type = 'highpass'; nhp.frequency.value = 4000;
+    const nhp = ctx.createBiquadFilter(); nhp.type = 'highpass'; nhp.frequency.value = _variationTexture(4000, variation);
     const nlp = ctx.createBiquadFilter(); nlp.type = 'lowpass';
     nlp.frequency.setValueAtTime(8000, t);
     nlp.frequency.exponentialRampToValueAtTime(200, t + 0.25);
 
     const g  = ctx.createGain();
-    g.gain.setValueAtTime(volume * 0.5, t);
-    g.gain.setValueAtTime(volume * 0.5, t + 0.18);
+    g.gain.setValueAtTime(_variationGain(volume * 0.5, variation), t);
+    g.gain.setValueAtTime(_variationGain(volume * 0.5, variation), t + 0.18);
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
 
     const ng = ctx.createGain();
@@ -866,12 +896,13 @@ export function playChargeUpSound(volume = 0.25) {
   if (!allowSfx("charge-up", 250)) return;
   try {
     const ctx = getAudioContext(); const d = dst(ctx); const r = rev(); const t = ctx.currentTime;
+    const variation = _sfxVariations.next("charge-up", SFX_VARIATION_PROFILES.ability);
     const o1 = ctx.createOscillator(); o1.type = 'sine';
-    o1.frequency.setValueAtTime(320, t); o1.frequency.exponentialRampToValueAtTime(2400, t + 0.5);
+    o1.frequency.setValueAtTime(_variationFrequency(320, variation), t); o1.frequency.exponentialRampToValueAtTime(_variationFrequency(2400, variation), t + _variationTime(0.5, variation));
     const o2 = ctx.createOscillator(); o2.type = 'triangle';
-    o2.frequency.setValueAtTime(160, t); o2.frequency.exponentialRampToValueAtTime(1200, t + 0.5);
+    o2.frequency.setValueAtTime(_variationFrequency(160, variation), t); o2.frequency.exponentialRampToValueAtTime(_variationFrequency(1200, variation), t + _variationTime(0.5, variation));
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
-    lp.frequency.setValueAtTime(800, t); lp.frequency.exponentialRampToValueAtTime(8000, t + 0.5);
+    lp.frequency.setValueAtTime(_variationFilter(800, variation), t); lp.frequency.exponentialRampToValueAtTime(_variationFilter(8000, variation), t + _variationTime(0.5, variation));
     lp.Q.value = 3;
     const g = ctx.createGain();
     g.gain.setValueAtTime(volume * 0.3, t); g.gain.linearRampToValueAtTime(volume * 0.65, t + 0.48);
@@ -887,16 +918,17 @@ export function playEnergyBurstSound(volume = 0.3) {
   if (!allowSfx("energy-burst", 160)) return;
   try {
     const ctx = getAudioContext(); const d = dst(ctx); const r = rev(); const t = ctx.currentTime;
+    const variation = _sfxVariations.next("energy-burst", SFX_VARIATION_PROFILES.ability);
     [0, 0.04, 0.08, 0.12, 0.16].forEach((off, i) => {
       const nt = t + off;
-      const freq = 880 * Math.pow(0.75, i);
+      const freq = _variationFrequency(880 * Math.pow(0.75, i), variation);
       const o = ctx.createOscillator(); o.type = i % 2 === 0 ? 'sawtooth' : 'square';
       o.frequency.setValueAtTime(freq, nt);
       o.frequency.exponentialRampToValueAtTime(freq * 0.4, nt + 0.12);
       const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
-      lp.frequency.setValueAtTime(3000, nt); lp.frequency.exponentialRampToValueAtTime(400, nt + 0.14);
+      lp.frequency.setValueAtTime(_variationFilter(3000, variation), nt); lp.frequency.exponentialRampToValueAtTime(_variationFilter(400, variation), nt + _variationTime(0.14, variation));
       const g = ctx.createGain();
-      g.gain.setValueAtTime(volume * 0.45, nt); g.gain.exponentialRampToValueAtTime(0.001, nt + 0.16);
+      g.gain.setValueAtTime(_variationGain(volume * 0.45, variation), nt); g.gain.exponentialRampToValueAtTime(0.001, nt + _variationTime(0.16, variation));
       o.connect(lp); lp.connect(g); g.connect(d);
       if (r && i === 0) g.connect(r);
       o.start(nt); o.stop(nt + 0.18);
@@ -942,7 +974,8 @@ export function playCriticalHitSound(volume = 0.42) {
   if (!allowSfx("critical-hit", 90)) return;
   try {
     const ctx = getAudioContext(); const d = dst(ctx); const r = rev(); const t = ctx.currentTime;
-    const pv  = _rv(1.0);
+    const variation = _sfxVariations.next("critical-hit", SFX_VARIATION_PROFILES.impact);
+    const pv  = variation.pitchRatio;
     const o1  = ctx.createOscillator(); o1.type = 'sawtooth';
     o1.frequency.setValueAtTime(500 * pv, t); o1.frequency.exponentialRampToValueAtTime(80 * pv, t + 0.2);
     const o2  = ctx.createOscillator(); o2.type = 'square';
@@ -951,7 +984,7 @@ export function playCriticalHitSound(volume = 0.42) {
     o3.frequency.setValueAtTime(1200 * pv, t); o3.frequency.exponentialRampToValueAtTime(200 * pv, t + 0.16);
     const ws  = ctx.createWaveShaper(); ws.curve = _distCurve(18);
     const lp  = ctx.createBiquadFilter(); lp.type = 'lowpass';
-    lp.frequency.setValueAtTime(6000, t); lp.frequency.exponentialRampToValueAtTime(400, t + 0.22);
+    lp.frequency.setValueAtTime(_variationFilter(6000, variation), t); lp.frequency.exponentialRampToValueAtTime(_variationFilter(400, variation), t + _variationTime(0.22, variation));
     lp.Q.value = 5;
     const g   = ctx.createGain();
     g.gain.setValueAtTime(volume * 0.85, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
@@ -969,8 +1002,9 @@ export function playNearMissSound(volume = 0.18) {
   _tNearM = now;
   try {
     const ctx = getAudioContext(); const d = dst(ctx); const t = ctx.currentTime;
-    const o   = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = 1900;
-    const bp  = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2200; bp.Q.value = 2;
+    const variation = _sfxVariations.next("near-miss", SFX_VARIATION_PROFILES.ability);
+    const o   = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = _variationFrequency(1900, variation);
+    const bp  = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = _variationFilter(2200, variation); bp.Q.value = 2;
     const g   = ctx.createGain();
     g.gain.setValueAtTime(volume * 0.4, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
     o.connect(bp); bp.connect(g); g.connect(d);
@@ -1005,11 +1039,12 @@ export function playCoinSound(volume = 0.22) {
   if (!allowSfx("coin", 80)) return;
   try {
     const ctx = getAudioContext(); const d = dst(ctx); const t = ctx.currentTime;
+    const variation = _sfxVariations.next("coin", SFX_VARIATION_PROFILES.reward);
     [1400, 1760, 2200].forEach((f, i) => {
-      const nt = t + i * 0.055;
-      const o  = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+      const nt = t + i * _variationTime(0.055, variation);
+      const o  = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = _variationFrequency(f, variation);
       const g  = ctx.createGain();
-      g.gain.setValueAtTime(volume * 0.45, nt); g.gain.exponentialRampToValueAtTime(0.001, nt + 0.1);
+      g.gain.setValueAtTime(_variationGain(volume * 0.45, variation), nt); g.gain.exponentialRampToValueAtTime(0.001, nt + _variationTime(0.1, variation));
       o.connect(g); g.connect(d);
       o.start(nt); o.stop(nt + 0.12);
     });
@@ -1049,12 +1084,13 @@ export function playBossAttackSound(volume = 0.28) {
   if (!allowSfx("boss-attack", 160)) return;
   try {
     const ctx = getAudioContext(); const d = dst(ctx); const r = rev(); const t = ctx.currentTime;
+    const variation = _sfxVariations.next("boss-attack", SFX_VARIATION_PROFILES.ability);
     const o   = ctx.createOscillator(); o.type = 'sawtooth';
-    o.frequency.setValueAtTime(140, t);
-    o.frequency.exponentialRampToValueAtTime(900, t + 0.12);
-    o.frequency.exponentialRampToValueAtTime(180, t + 0.28);
+    o.frequency.setValueAtTime(_variationFrequency(140, variation), t);
+    o.frequency.exponentialRampToValueAtTime(_variationFrequency(900, variation), t + _variationTime(0.12, variation));
+    o.frequency.exponentialRampToValueAtTime(_variationFrequency(180, variation), t + _variationTime(0.28, variation));
     const lp  = ctx.createBiquadFilter(); lp.type = 'lowpass';
-    lp.frequency.setValueAtTime(1800, t); lp.frequency.exponentialRampToValueAtTime(4000, t + 0.12);
+    lp.frequency.setValueAtTime(_variationFilter(1800, variation), t); lp.frequency.exponentialRampToValueAtTime(_variationFilter(4000, variation), t + _variationTime(0.12, variation));
     lp.Q.value = 3;
     const g   = ctx.createGain();
     g.gain.setValueAtTime(volume * 0.55, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
@@ -1161,12 +1197,13 @@ export function playRingExpandSound(volume = 0.18) {
 export function playSparkleSound(volume = 0.15) {
   try {
     const ctx = getAudioContext(); const d = dst(ctx); const t = ctx.currentTime;
+    const variation = _sfxVariations.next("sparkle", SFX_VARIATION_PROFILES.reward);
     for (let i = 0; i < 4; i++) {
-      const nt = t + i * 0.04;
+      const nt = t + i * _variationTime(0.04, variation);
       const o  = ctx.createOscillator(); o.type = 'sine';
-      o.frequency.value = _rand(2200, 4200);
+      o.frequency.value = _variationFrequency(_rand(2200, 4200), variation);
       const g  = ctx.createGain();
-      g.gain.setValueAtTime(volume * 0.35, nt); g.gain.exponentialRampToValueAtTime(0.001, nt + 0.07);
+      g.gain.setValueAtTime(_variationGain(volume * 0.35, variation), nt); g.gain.exponentialRampToValueAtTime(0.001, nt + _variationTime(0.07, variation));
       o.connect(g); g.connect(d);
       o.start(nt); o.stop(nt + 0.08);
     }
@@ -1178,12 +1215,13 @@ export function playSparkleExplosionSound(volume = 0.22) {
   if (!allowSfx("sparkle-explosion", 140)) return;
   try {
     const ctx = getAudioContext(); const d = dst(ctx); const r = rev(); const t = ctx.currentTime;
+    const variation = _sfxVariations.next("sparkle-explosion", SFX_VARIATION_PROFILES.reward);
     for (let i = 0; i < 8; i++) {
-      const nt = t + i * 0.025;
+      const nt = t + i * _variationTime(0.025, variation);
       const o  = ctx.createOscillator(); o.type = 'sine';
-      o.frequency.value = _rand(2000, 4800);
+      o.frequency.value = _variationFrequency(_rand(2000, 4800), variation);
       const g  = ctx.createGain();
-      g.gain.setValueAtTime(volume * 0.3, nt); g.gain.exponentialRampToValueAtTime(0.001, nt + 0.09);
+      g.gain.setValueAtTime(_variationGain(volume * 0.3, variation), nt); g.gain.exponentialRampToValueAtTime(0.001, nt + _variationTime(0.09, variation));
       o.connect(g); g.connect(d);
       if (r && i === 0) g.connect(r);
       o.start(nt); o.stop(nt + 0.1);
@@ -1920,6 +1958,7 @@ export function disposeAudioContext(): void {
   _tHit = 0;
   _tNearM = 0;
   _sfxTimestamps.clear();
+  _sfxVariations.reset();
 
   for (const entry of Object.values(_noisePool)) {
     entry.buf = null!;
