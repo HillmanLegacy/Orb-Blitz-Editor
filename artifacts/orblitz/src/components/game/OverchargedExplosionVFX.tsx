@@ -274,6 +274,7 @@ export function OverchargedExplosionVFX({
     flash: new THREE.MeshBasicMaterial({
       transparent: true,
       opacity: 0.9,
+      depthTest: false,
       depthWrite: false,
       toneMapped: false,
       blending: THREE.AdditiveBlending,
@@ -282,6 +283,7 @@ export function OverchargedExplosionVFX({
     ring: new THREE.MeshBasicMaterial({
       transparent: true,
       opacity: 0.88,
+      depthTest: false,
       depthWrite: false,
       toneMapped: false,
       blending: THREE.AdditiveBlending,
@@ -290,6 +292,7 @@ export function OverchargedExplosionVFX({
     build: new THREE.MeshBasicMaterial({
       transparent: true,
       opacity: 0.92,
+      depthTest: false,
       depthWrite: false,
       toneMapped: false,
       blending: THREE.AdditiveBlending,
@@ -298,6 +301,7 @@ export function OverchargedExplosionVFX({
     plasma: new THREE.MeshBasicMaterial({
       transparent: true,
       opacity: 0.9,
+      depthTest: false,
       depthWrite: false,
       toneMapped: false,
       blending: THREE.AdditiveBlending,
@@ -306,6 +310,7 @@ export function OverchargedExplosionVFX({
     spark: new THREE.MeshBasicMaterial({
       transparent: true,
       opacity: 0.95,
+      depthTest: false,
       depthWrite: false,
       toneMapped: false,
       blending: THREE.AdditiveBlending,
@@ -314,6 +319,7 @@ export function OverchargedExplosionVFX({
     shard: new THREE.MeshBasicMaterial({
       transparent: true,
       opacity: 0.82,
+      depthTest: false,
       depthWrite: false,
       toneMapped: false,
       blending: THREE.AdditiveBlending,
@@ -628,31 +634,37 @@ export function OverchargedExplosionVFX({
         ref={ringRef}
         args={[ringGeometry, materials.ring, RING_CAPACITY]}
         frustumCulled={false}
+        renderOrder={20}
       />
       <instancedMesh
         ref={buildRef}
         args={[particleGeometry, materials.build, BUILD_CAPACITY]}
         frustumCulled={false}
+        renderOrder={20}
       />
       <instancedMesh
         ref={plasmaRef}
         args={[particleGeometry, materials.plasma, PLASMA_CAPACITY]}
         frustumCulled={false}
+        renderOrder={20}
       />
       <instancedMesh
         ref={sparkRef}
         args={[sparkGeometry, materials.spark, SPARK_CAPACITY]}
         frustumCulled={false}
+        renderOrder={20}
       />
       <instancedMesh
         ref={shardRef}
         args={[shardGeometry, materials.shard, SHARD_CAPACITY]}
         frustumCulled={false}
+        renderOrder={20}
       />
       <instancedMesh
         ref={flashRef}
         args={[flashGeometry, materials.flash, FLASH_CAPACITY]}
         frustumCulled={false}
+        renderOrder={20}
       />
     </group>
   );

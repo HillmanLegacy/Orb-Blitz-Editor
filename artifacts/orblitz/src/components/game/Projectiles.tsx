@@ -1985,6 +1985,7 @@ export function Projectiles() {
 
   // ── Overcharged shockwave rings ───────────────────────────────────────────
   const knownOcIds   = useRef<Set<string>>(new Set());
+  const presentedOverchargedDetonations = useRef<Set<string>>(new Set());
   const [shockwaves,   setShockwaves]   = useState<Array<{ id: string; pos: [number,number,number] }>>([]);
   const swTimeoutsRef    = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
@@ -2013,6 +2014,7 @@ export function Projectiles() {
     hmRingTimeoutsRef.current.clear();
     scatterArcTimeoutsRef.current.clear();
     knownOcIds.current.clear();
+    presentedOverchargedDetonations.current.clear();
     knownHomingIds.current.clear();
     knownScatterVolleys.current.clear();
     spiralBossHit.current.clear();
@@ -2028,6 +2030,7 @@ export function Projectiles() {
     if (phase !== "playing") {
       resetPlayerFireBurstPool(playerFireBurstPool.current);
       resetOverchargedExplosionPool(overchargedExplosionPool.current);
+      presentedOverchargedDetonations.current.clear();
     }
   }, [phase]);
   
@@ -2307,8 +2310,23 @@ export function Projectiles() {
         newSpawnScale = 0.05 + 0.95 * easeOutQuad(eoqT);
       }
 
-      // travelTimer is advanced after hitSomething is declared (see below)
+      // Presentation admission is independent from collision profiling. Damage,
+      // removal, scoring, audio, and shake remain in the gameplay branch below.
       let newTravelTimer = motion.travelTimer;
+      if (proj.type === "overcharged" && newTravelTimer !== undefined) {
+        newTravelTimer += delta;
+        if (
+          newTravelTimer >= OC_TRAVEL_TIME &&
+          !presentedOverchargedDetonations.current.has(proj.id)
+        ) {
+          presentedOverchargedDetonations.current.add(proj.id);
+          emitOverchargedExplosion(overchargedExplosionPool.current, {
+            id: `ocexp-${proj.id}`,
+            position: [px, py, pz],
+            direction: [dx, dy, dz],
+          });
+        }
+      }
 
       if (Math.abs(px) > PROJECTILE_WORLD_BOUNDARY_X || Math.abs(py) > PROJECTILE_WORLD_BOUNDARY_Y) {
         const projHasHit = projectileOrbHits.current.has(proj.id) && projectileOrbHits.current.get(proj.id)!.size > 0;
@@ -2361,17 +2379,8 @@ export function Projectiles() {
 
       // ── Overcharged Blaster: timed AOE explosion after OC_TRAVEL_TIME ────────
       if (proj.type === "overcharged" && newTravelTimer !== undefined) {
-        newTravelTimer = newTravelTimer + delta;
         if (newTravelTimer >= OC_TRAVEL_TIME) {
           hitSomething = true;
-
-          const expId  = `ocexp-${proj.id}`;
-          const expPos = [px, py, pz] as [number, number, number];
-          emitOverchargedExplosion(overchargedExplosionPool.current, {
-            id: expId,
-            position: expPos,
-            direction: [dx, dy, dz],
-          });
 
           useMagicOrb.getState().triggerBackgroundShake();
           playSparkleExplosion();
