@@ -277,8 +277,11 @@ function ExplosionSlotView({
   const profile = OVERCHARGED_EXPLOSION_PROFILES[preset];
   const coreRef = useRef<THREE.Mesh>(null);
   const haloRef = useRef<THREE.Mesh>(null);
+  const shellRef = useRef<THREE.Mesh>(null);
   const ringRef = useRef<THREE.Mesh>(null);
   const ringSecondaryRef = useRef<THREE.Mesh>(null);
+  const compressionRingRef = useRef<THREE.Mesh>(null);
+  const detonationLightRef = useRef<THREE.PointLight>(null);
   const buildRef = useRef<THREE.InstancedMesh>(null);
   const plasmaRef = useRef<THREE.InstancedMesh>(null);
   const sparkRef = useRef<THREE.InstancedMesh>(null);
@@ -290,24 +293,39 @@ function ExplosionSlotView({
   const [plasmaGeometry] = useState(() => new THREE.TetrahedronGeometry(1, 0));
   const [sparkGeometry] = useState(() => new THREE.OctahedronGeometry(1, 0));
   const [shardGeometry] = useState(() => new THREE.IcosahedronGeometry(1, 0));
+  const [coreGeometry] = useState(() => new THREE.IcosahedronGeometry(1, 2));
+  const [haloGeometry] = useState(() => new THREE.IcosahedronGeometry(1, 3));
+  const [shellGeometry] = useState(() => new THREE.IcosahedronGeometry(1, 2));
+  const [compressionRingGeometry] = useState(
+    () => new THREE.TorusGeometry(1, 0.035, 10, 64),
+  );
 
   useFrame((_, delta) => {
     const core = coreRef.current;
     const halo = haloRef.current;
+    const shell = shellRef.current;
     const ring = ringRef.current;
     const secondaryRing = ringSecondaryRef.current;
+    const compressionRing = compressionRingRef.current;
+    const detonationLight = detonationLightRef.current;
     const build = buildRef.current;
     const plasma = plasmaRef.current;
     const spark = sparkRef.current;
     const shard = shardRef.current;
-    if (!core || !halo || !ring || !secondaryRing || !build || !plasma || !spark || !shard) return;
+    if (
+      !core || !halo || !shell || !ring || !secondaryRing || !compressionRing
+      || !build || !plasma || !spark || !shard
+    ) return;
 
     if (!slot.active) {
       generationRef.current = -1;
       core.visible = false;
       halo.visible = false;
+      shell.visible = false;
       ring.visible = false;
       secondaryRing.visible = false;
+      compressionRing.visible = false;
+      if (detonationLight) detonationLight.intensity = 0;
       build.visible = false;
       plasma.visible = false;
       spark.visible = false;
@@ -319,16 +337,21 @@ function ExplosionSlotView({
       generationRef.current = slot.generation;
       (core.material as THREE.MeshBasicMaterial).color.set(slot.palette.accent);
       (halo.material as THREE.MeshBasicMaterial).color.set(slot.palette.glow);
+      (shell.material as THREE.MeshBasicMaterial).color.set(slot.palette.projectile);
       (ring.material as THREE.MeshBasicMaterial).color.set(slot.palette.projectile);
       (secondaryRing.material as THREE.MeshBasicMaterial).color.set(slot.palette.emissive);
+      (compressionRing.material as THREE.MeshBasicMaterial).color.set(slot.palette.core);
+      detonationLight?.color.set(slot.palette.glow);
       meshMaterials.build.color.set(slot.palette.glow);
       meshMaterials.plasma.color.set(slot.palette.core);
       meshMaterials.spark.color.set(slot.palette.accent);
       meshMaterials.shard.color.set(slot.palette.emissive);
       core.visible = true;
       halo.visible = true;
+      shell.visible = true;
       ring.visible = true;
       secondaryRing.visible = true;
+      compressionRing.visible = true;
       build.visible = true;
       plasma.visible = true;
       spark.visible = true;
@@ -340,8 +363,11 @@ function ExplosionSlotView({
       slot.active = false;
       core.visible = false;
       halo.visible = false;
+      shell.visible = false;
       ring.visible = false;
       secondaryRing.visible = false;
+      compressionRing.visible = false;
+      if (detonationLight) detonationLight.intensity = 0;
       build.visible = false;
       plasma.visible = false;
       spark.visible = false;
@@ -360,13 +386,17 @@ function ExplosionSlotView({
 
     core.position.copy(groupPosition);
     halo.position.copy(groupPosition);
+    shell.position.copy(groupPosition);
     ring.position.copy(groupPosition);
     secondaryRing.position.copy(groupPosition);
+    compressionRing.position.copy(groupPosition);
+    if (detonationLight) detonationLight.position.copy(groupPosition);
 
     const coreMaterial = core.material as THREE.MeshBasicMaterial;
     const haloMaterial = halo.material as THREE.MeshBasicMaterial;
     const ringMaterial = ring.material as THREE.MeshBasicMaterial;
     const secondaryRingMaterial = secondaryRing.material as THREE.MeshBasicMaterial;
+    const compressionRingMaterial = compressionRing.material as THREE.MeshBasicMaterial;
 
     if (phase === "building") {
       // Start at the departing projectile's apparent volume, then compress
@@ -381,8 +411,22 @@ function ExplosionSlotView({
       );
       halo.scale.setScalar(compressedHaloScale);
       core.rotation.z = directionAngle + buildEase * Math.PI * 1.5;
+      shell.scale.setScalar(compressedCoreScale * 1.16);
+      shell.rotation.set(
+        buildEase * 2.6,
+        directionAngle + buildEase * 3.4,
+        buildEase * 1.8,
+      );
+      compressionRing.scale.setScalar(compressedCoreScale * 0.88);
+      compressionRing.rotation.set(
+        Math.PI * 0.5 + buildEase * 1.8,
+        directionAngle,
+        buildEase * 2.4,
+      );
       setOpacity(coreMaterial, 0.88 + buildEase * 0.12);
       setOpacity(haloMaterial, 0.2 + buildEase * 0.34);
+      setOpacity((shell.material as THREE.MeshBasicMaterial), 0.16 + buildEase * 0.22);
+      setOpacity(compressionRingMaterial, 0.16 + buildEase * 0.5);
       ring.scale.setScalar(0.18);
       secondaryRing.scale.setScalar(0.1);
       setOpacity(ringMaterial, 0);
@@ -390,10 +434,25 @@ function ExplosionSlotView({
     } else if (phase === "climax") {
       const flashT = Math.min(climaxAge / 0.2, 1);
       const flash = 1 - Math.pow(1 - flashT, 3);
-      core.scale.setScalar(THREE.MathUtils.lerp(0.16, FLASH_RADIUS * 0.78, flash));
+      const climaxCoreScale = THREE.MathUtils.lerp(0.16, FLASH_RADIUS * 0.78, flash);
+      core.scale.setScalar(climaxCoreScale);
       halo.scale.setScalar(THREE.MathUtils.lerp(0.24, FLASH_RADIUS * 1.55, flash));
+      shell.scale.setScalar(climaxCoreScale * (1.1 + flash * 0.1));
+      shell.rotation.set(
+        climaxAge * 6.0,
+        directionAngle + climaxAge * 8.0,
+        climaxAge * 4.0,
+      );
+      compressionRing.scale.setScalar(THREE.MathUtils.lerp(0.14, 2.2, flash));
+      compressionRing.rotation.set(
+        Math.PI * 0.5 + climaxAge * 4.0,
+        directionAngle + climaxAge * 5.0,
+        climaxAge * 7.0,
+      );
       setOpacity(coreMaterial, Math.max(0.12, 1 - flashT * 0.8));
       setOpacity(haloMaterial, Math.max(0.1, 0.46 - flashT * 0.3));
+      setOpacity((shell.material as THREE.MeshBasicMaterial), Math.max(0.04, 0.38 - flashT * 0.28));
+      setOpacity(compressionRingMaterial, Math.max(0.04, 0.86 * (1 - flashT)));
       const ringT = Math.max(0, Math.min(climaxAge / 0.58, 1));
       ring.scale.setScalar(RING_RADIUS * (0.12 + ringT * 0.9));
       secondaryRing.scale.setScalar(RING_RADIUS * (0.08 + ringT * 0.62));
@@ -410,8 +469,18 @@ function ExplosionSlotView({
       const fade = 1 - smoothstep(afterglowT);
       core.scale.setScalar(0.55 * fade);
       halo.scale.setScalar(1.8 * fade);
+      shell.scale.setScalar(0.62 * fade);
+      shell.rotation.set(afterglowT * 2.4, directionAngle + afterglowT * 3.2, afterglowT * 1.6);
+      compressionRing.scale.setScalar(1.9 * fade);
+      compressionRing.rotation.set(
+        Math.PI * 0.5 + afterglowT * 2.0,
+        directionAngle + afterglowT * 3.0,
+        afterglowT * 2.8,
+      );
       setOpacity(coreMaterial, Math.max(0.04, 0.26 * fade));
       setOpacity(haloMaterial, Math.max(0.02, 0.12 * fade));
+      setOpacity((shell.material as THREE.MeshBasicMaterial), Math.max(0.02, 0.12 * fade));
+      setOpacity(compressionRingMaterial, Math.max(0.01, 0.16 * fade));
       ring.scale.setScalar(RING_RADIUS * (1.02 + afterglowT * 0.18));
       secondaryRing.scale.setScalar(RING_RADIUS * (0.72 + afterglowT * 0.22));
       setOpacity(ringMaterial, Math.max(0.015, 0.16 * fade));
@@ -502,6 +571,17 @@ function ExplosionSlotView({
     plasma.visible = phase === "climax";
     spark.visible = phase === "climax";
     shard.visible = phase === "climax";
+    if (detonationLight) {
+      const lightStrength = phase === "building"
+        ? 1.5 + buildEase * 8
+        : phase === "climax"
+          ? Math.max(0, 18 * (1 - climaxAge / 0.42))
+          : 2.2 * (1 - smoothstep(
+            (age - OVERCHARGED_BUILD_DURATION - OVERCHARGED_CLIMAX_DURATION)
+            / (OVERCHARGED_EXPLOSION_DURATION - OVERCHARGED_BUILD_DURATION - OVERCHARGED_CLIMAX_DURATION),
+          ));
+      detonationLight.intensity = lightStrength;
+    }
   });
 
   const meshMaterials = useMemo(() => ({
@@ -541,6 +621,25 @@ function ExplosionSlotView({
       blending: THREE.AdditiveBlending,
       toneMapped: false,
     }),
+    shell: new THREE.MeshBasicMaterial({
+      color: "#55e7ff",
+      transparent: true,
+      opacity: 0.25,
+      depthTest: false,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      wireframe: true,
+      toneMapped: false,
+    }),
+    compression: new THREE.MeshBasicMaterial({
+      color: "#ffffff",
+      transparent: true,
+      opacity: 0.5,
+      depthTest: false,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false,
+    }),
   }), []);
 
   useEffect(() => {
@@ -554,12 +653,20 @@ function ExplosionSlotView({
         plasmaGeometry.dispose();
         sparkGeometry.dispose();
         shardGeometry.dispose();
+        coreGeometry.dispose();
+        haloGeometry.dispose();
+        shellGeometry.dispose();
+        compressionRingGeometry.dispose();
         Object.values(meshMaterials).forEach((material) => material.dispose());
         disposalTimerRef.current = null;
       }, 0);
     };
   }, [
     buildGeometry,
+    compressionRingGeometry,
+    coreGeometry,
+    haloGeometry,
+    shellGeometry,
     meshMaterials,
     plasmaGeometry,
     shardGeometry,
@@ -569,7 +676,7 @@ function ExplosionSlotView({
   return (
     <group>
       <mesh ref={haloRef} visible={false} renderOrder={30}>
-        <sphereGeometry args={[1, 16, 12]} />
+        <primitive object={haloGeometry} attach="geometry" />
         <meshBasicMaterial
           color="#3978ff"
           transparent
@@ -581,7 +688,7 @@ function ExplosionSlotView({
         />
       </mesh>
       <mesh ref={coreRef} visible={false} renderOrder={31}>
-        <sphereGeometry args={[1, 18, 14]} />
+        <primitive object={coreGeometry} attach="geometry" />
         <meshBasicMaterial
           color="#ffffff"
           transparent
@@ -592,6 +699,14 @@ function ExplosionSlotView({
           toneMapped={false}
         />
       </mesh>
+      <mesh
+        ref={shellRef}
+        visible={false}
+        geometry={shellGeometry}
+        material={meshMaterials.shell}
+        frustumCulled={false}
+        renderOrder={32}
+      />
       <mesh ref={ringRef} visible={false} renderOrder={29} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[1, 0.06, 8, 64]} />
         <meshBasicMaterial
@@ -616,10 +731,25 @@ function ExplosionSlotView({
           toneMapped={false}
         />
       </mesh>
+      <mesh
+        ref={compressionRingRef}
+        visible={false}
+        geometry={compressionRingGeometry}
+        material={meshMaterials.compression}
+        frustumCulled={false}
+        renderOrder={33}
+      />
       <instancedMesh ref={buildRef} args={[buildGeometry, meshMaterials.build, 20]} visible={false} frustumCulled={false} renderOrder={28} />
       <instancedMesh ref={plasmaRef} args={[plasmaGeometry, meshMaterials.plasma, 30]} visible={false} frustumCulled={false} renderOrder={28} />
       <instancedMesh ref={sparkRef} args={[sparkGeometry, meshMaterials.spark, 48]} visible={false} frustumCulled={false} renderOrder={28} />
       <instancedMesh ref={shardRef} args={[shardGeometry, meshMaterials.shard, 10]} visible={false} frustumCulled={false} renderOrder={28} />
+      <pointLight
+        ref={detonationLightRef}
+        color="#ffffff"
+        intensity={0}
+        distance={8}
+        decay={2}
+      />
     </group>
   );
 }
