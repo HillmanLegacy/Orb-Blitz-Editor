@@ -18,9 +18,12 @@ import {
   CHILL_AMBIENT_CLUSTER_SIZE,
   CHILL_AMBIENT_SHAPES,
   CHILL_AMBIENT_SPAWN_INTERVAL,
+  CHILL_AMBIENT_SPEED_MAX,
+  CHILL_AMBIENT_SPEED_MIN,
   ENEMY_DESPAWN_MARGIN,
   ENEMY_SPAWN_MARGIN,
   bounceChillAmbientAtEdge,
+  getChillAmbientCrossScreenDirection,
   getChillAmbientDirection,
   getChillAmbientSpawnPoint,
   getChillAmbientShape,
@@ -800,16 +803,22 @@ describe("gameplay runtime invariants", () => {
     expect(cycle).not.toContain("launcher");
   });
 
-  it("keeps Chill admissions grouped inside the camera view", () => {
+  it("keeps Chill admissions grouped just outside alternating camera edges", () => {
     const view = { centerX: 2, centerY: -1, halfWidth: 10, halfHeight: 6 };
     const first = getChillAmbientSpawnPoint(view, 0, () => 0.5);
     const second = getChillAmbientSpawnPoint(view, 1, () => 0.5);
     const nextCluster = getChillAmbientSpawnPoint(view, CHILL_AMBIENT_CLUSTER_SIZE, () => 0.5);
+    const firstDirection = getChillAmbientCrossScreenDirection(view, first, 0);
+    const nextDirection = getChillAmbientCrossScreenDirection(view, nextCluster, CHILL_AMBIENT_CLUSTER_SIZE);
 
     expect(Math.hypot(first[0] - second[0], first[1] - second[1])).toBe(0);
     expect(Math.hypot(first[0] - nextCluster[0], first[1] - nextCluster[1])).toBeGreaterThan(1);
-    expect(Math.abs(first[0] - view.centerX)).toBeLessThan(view.halfWidth);
-    expect(Math.abs(first[1] - view.centerY)).toBeLessThan(view.halfHeight);
+    expect(first[0]).toBeLessThan(view.centerX - view.halfWidth);
+    expect(nextCluster[0]).toBeGreaterThan(view.centerX + view.halfWidth);
+    expect(firstDirection[0]).toBeGreaterThan(0);
+    expect(nextDirection[0]).toBeLessThan(0);
+    expect(CHILL_AMBIENT_SPEED_MIN).toBeGreaterThan(0.5);
+    expect(CHILL_AMBIENT_SPEED_MAX - CHILL_AMBIENT_SPEED_MIN).toBeGreaterThan(1);
   });
 
   it("gives Chill targets independent drift and bounces them at camera edges", () => {

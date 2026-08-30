@@ -9,6 +9,8 @@ export const CHILL_AMBIENT_SPAWN_INTERVAL = 0.75;
 export const CHILL_AMBIENT_BATCH_SIZE = 2;
 export const CHILL_AMBIENT_MAX_ACTIVE = 20;
 export const CHILL_AMBIENT_CLUSTER_SIZE = 4;
+export const CHILL_AMBIENT_SPEED_MIN = 0.9;
+export const CHILL_AMBIENT_SPEED_MAX = 2.2;
 export const CHILL_AMBIENT_EDGE_PADDING = 1;
 
 /**
@@ -90,10 +92,9 @@ export function getEnemySpawnPoint(
 }
 
 /**
- * Place Chill targets in compact pairs around an inner camera ring. The
- * admission index advances the ring between groups, while nearby admissions
- * share a cluster so a dense Chill scene reads as intentional formations
- * instead of unrelated dots scattered across the viewport.
+ * Place Chill targets in compact pairs just beyond alternating camera edges.
+ * Nearby admissions share a lane so a dense Chill scene reads as intentional
+ * formations while each group still enters from outside the screen.
  */
 export function getChillAmbientSpawnPoint(
   view: EnemySpawnView,
@@ -101,24 +102,54 @@ export function getChillAmbientSpawnPoint(
   random: RandomSource = Math.random,
 ): [number, number] {
   const cluster = Math.floor(Math.max(0, admission) / CHILL_AMBIENT_CLUSTER_SIZE);
-  const angle = (cluster % 6) * (Math.PI / 3);
-  const usableHalfWidth = Math.max(0, view.halfWidth - 0.65);
-  const usableHalfHeight = Math.max(0, view.halfHeight - 0.65);
-  const radiusX = Math.min(usableHalfWidth, view.halfWidth * 0.42);
-  const radiusY = Math.min(usableHalfHeight, view.halfHeight * 0.42);
-  const jitterX = (Math.max(0, Math.min(0.999999, random())) * 2 - 1) *
-    Math.min(0.55, usableHalfWidth * 0.16);
-  const jitterY = (Math.max(0, Math.min(0.999999, random())) * 2 - 1) *
-    Math.min(0.55, usableHalfHeight * 0.16);
-  const minX = view.centerX - usableHalfWidth;
-  const maxX = view.centerX + usableHalfWidth;
-  const minY = view.centerY - usableHalfHeight;
-  const maxY = view.centerY + usableHalfHeight;
+  const side = cluster % 4;
+  const lane = ((Math.floor(cluster / 4) % 3) - 1) * 0.55;
+  const jitter = (Math.max(0, Math.min(0.999999, random())) * 2 - 1) * 0.28;
+  const crossJitter = (Math.max(0, Math.min(0.999999, random())) * 2 - 1) * 0.28;
+  const horizontalLane = (lane + jitter) * Math.max(0, view.halfHeight - ENEMY_SPAWN_MARGIN);
+  const verticalLane = (lane + jitter) * Math.max(0, view.halfWidth - ENEMY_SPAWN_MARGIN);
 
-  return [
-    Math.max(minX, Math.min(maxX, view.centerX + Math.cos(angle) * radiusX + jitterX)),
-    Math.max(minY, Math.min(maxY, view.centerY + Math.sin(angle) * radiusY + jitterY)),
-  ];
+  switch (side) {
+    case 0:
+      return [
+        view.centerX - view.halfWidth - ENEMY_SPAWN_MARGIN,
+        view.centerY + horizontalLane + crossJitter,
+      ];
+    case 1:
+      return [
+        view.centerX + view.halfWidth + ENEMY_SPAWN_MARGIN,
+        view.centerY + horizontalLane + crossJitter,
+      ];
+    case 2:
+      return [
+        view.centerX + verticalLane + crossJitter,
+        view.centerY - view.halfHeight - ENEMY_SPAWN_MARGIN,
+      ];
+    default:
+      return [
+        view.centerX + verticalLane + crossJitter,
+        view.centerY + view.halfHeight + ENEMY_SPAWN_MARGIN,
+      ];
+  }
+}
+
+/** Aim a Chill group toward the opposite edge so it visibly crosses the screen. */
+export function getChillAmbientCrossScreenDirection(
+  view: EnemySpawnView,
+  spawn: readonly [number, number],
+  admission: number,
+): [number, number, number] {
+  const side = Math.floor(Math.max(0, admission) / CHILL_AMBIENT_CLUSTER_SIZE) % 4;
+  const target: [number, number] = [spawn[0], spawn[1]];
+  if (side === 0) target[0] = view.centerX + view.halfWidth + ENEMY_SPAWN_MARGIN;
+  else if (side === 1) target[0] = view.centerX - view.halfWidth - ENEMY_SPAWN_MARGIN;
+  else if (side === 2) target[1] = view.centerY + view.halfHeight + ENEMY_SPAWN_MARGIN;
+  else target[1] = view.centerY - view.halfHeight - ENEMY_SPAWN_MARGIN;
+
+  const dx = target[0] - spawn[0];
+  const dy = target[1] - spawn[1];
+  const length = Math.hypot(dx, dy) || 1;
+  return [dx / length, dy / length, 0];
 }
 
 /** Select deterministically so a Chill admission cycles through all visual types. */

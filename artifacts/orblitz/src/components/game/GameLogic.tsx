@@ -9,7 +9,9 @@ import {
   CHILL_AMBIENT_BATCH_SIZE,
   CHILL_AMBIENT_MAX_ACTIVE,
   CHILL_AMBIENT_SPAWN_INTERVAL,
-  getChillAmbientDirection,
+  CHILL_AMBIENT_SPEED_MAX,
+  CHILL_AMBIENT_SPEED_MIN,
+  getChillAmbientCrossScreenDirection,
   getChillAmbientSpawnPoint,
   getChillAmbientShape,
   getEnemySpawnPoint,
@@ -261,7 +263,8 @@ export function GameLogic() {
     } else if (mode === "chill") {
       shape = getChillAmbientShape(chillAdmissionCount.current++);
       pattern = "direct";
-      speed = 0.2 + Math.random() * 0.2;
+      speed = CHILL_AMBIENT_SPEED_MIN +
+        Math.random() * (CHILL_AMBIENT_SPEED_MAX - CHILL_AMBIENT_SPEED_MIN);
     } else if (mode === "survival") {
       shape = worldOrbShapes[Math.floor(Math.random() * worldOrbShapes.length)];
       pattern = movementPatterns[Math.floor(Math.random() * movementPatterns.length)];
@@ -278,7 +281,7 @@ export function GameLogic() {
     const toPlayerY = playerPos[1] - y;
     const toPlayerLength = Math.sqrt(toPlayerX * toPlayerX + toPlayerY * toPlayerY) || 1;
     const [dirX, dirY] = mode === "chill"
-      ? getChillAmbientDirection()
+      ? getChillAmbientCrossScreenDirection(spawnView, [x, y], chillAdmission)
       : [toPlayerX / toPlayerLength, toPlayerY / toPlayerLength];
     
     const orb: DarkOrb = {
