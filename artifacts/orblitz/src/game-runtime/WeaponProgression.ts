@@ -293,9 +293,12 @@ export function getWeaponProgress(record: WeaponProgressionRecord): {
     xp,
     currentThreshold,
     nextThreshold,
-    progressPercent: nextThreshold === null
-      ? 100
-      : Math.max(0, Math.min(100, ((xp - currentThreshold) / (nextThreshold - currentThreshold)) * 100)),
+    // Keep this cumulative so the indicator never visually resets when a
+    // weapon crosses from Lv1 → Lv2 or Lv2 → Lv3.
+    progressPercent: Math.max(
+      0,
+      Math.min(100, (xp / WEAPON_LEVEL_XP_THRESHOLDS[2]) * 100),
+    ),
     isMaxLevel: level === 3,
   };
 }

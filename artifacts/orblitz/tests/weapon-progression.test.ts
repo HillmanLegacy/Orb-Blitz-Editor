@@ -61,6 +61,8 @@ describe("weapon progression", () => {
       isMaxLevel: true,
       nextThreshold: null,
     });
+    expect(getWeaponProgress({ xp: 100, level: 2 }).progressPercent).toBeCloseTo(100 / 3, 5);
+    expect(getWeaponProgress({ xp: 200, level: 2 }).progressPercent).toBeCloseTo(200 / 3, 5);
   });
 
   it("matches the Rapid Blaster continuous-fire limits exactly", () => {
