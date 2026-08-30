@@ -33,6 +33,24 @@ export const OVERCHARGED_EXPLOSION_PROFILES: Record<
   high: { build: 20, plasma: 30, sparks: 48, shards: 10 },
 };
 
+export type OverchargedExplosionPalette = Readonly<{
+  core: string;
+  glow: string;
+  emissive: string;
+  accent: string;
+  projectile: string;
+  particles: readonly string[];
+}>;
+
+const DEFAULT_OVERCHARGED_EXPLOSION_PALETTE: OverchargedExplosionPalette = {
+  core: "#ffffff",
+  glow: "#ccddff",
+  emissive: "#aaccff",
+  accent: "#ffffff",
+  projectile: "#ffffff",
+  particles: ["#ffffff", "#ccddff", "#aaccff", "#88aaff"],
+};
+
 type ExplosionSlot = {
   active: boolean;
   id: string;
@@ -41,6 +59,7 @@ type ExplosionSlot = {
   seed: number;
   position: [number, number, number];
   direction: [number, number, number];
+  palette: OverchargedExplosionPalette;
 };
 
 export type OverchargedExplosionPool = {
@@ -52,6 +71,7 @@ export type OverchargedExplosionEvent = Readonly<{
   id: string;
   position: readonly [number, number, number];
   direction: readonly [number, number, number];
+  palette?: OverchargedExplosionPalette;
 }>;
 
 export function getOverchargedExplosionPhase(
@@ -90,6 +110,7 @@ export function createOverchargedExplosionPool(): OverchargedExplosionPool {
         seed: 0,
         position: [0, 0, 0],
         direction: [1, 0, 0],
+        palette: DEFAULT_OVERCHARGED_EXPLOSION_PALETTE,
       }),
     ),
   };
@@ -137,6 +158,7 @@ export function emitOverchargedExplosion(
   slot.direction[0] = event.direction[0] / length;
   slot.direction[1] = event.direction[1] / length;
   slot.direction[2] = event.direction[2] / length;
+  slot.palette = event.palette ?? DEFAULT_OVERCHARGED_EXPLOSION_PALETTE;
   return slotIndex;
 }
 
@@ -295,6 +317,14 @@ function ExplosionSlotView({
 
     if (generationRef.current !== slot.generation) {
       generationRef.current = slot.generation;
+      (core.material as THREE.MeshBasicMaterial).color.set(slot.palette.accent);
+      (halo.material as THREE.MeshBasicMaterial).color.set(slot.palette.glow);
+      (ring.material as THREE.MeshBasicMaterial).color.set(slot.palette.projectile);
+      (secondaryRing.material as THREE.MeshBasicMaterial).color.set(slot.palette.emissive);
+      meshMaterials.build.color.set(slot.palette.glow);
+      meshMaterials.plasma.color.set(slot.palette.core);
+      meshMaterials.spark.color.set(slot.palette.accent);
+      meshMaterials.shard.color.set(slot.palette.emissive);
       core.visible = true;
       halo.visible = true;
       ring.visible = true;
@@ -339,11 +369,20 @@ function ExplosionSlotView({
     const secondaryRingMaterial = secondaryRing.material as THREE.MeshBasicMaterial;
 
     if (phase === "building") {
-      const pulse = 0.82 + Math.sin(age * 24) * 0.12;
-      core.scale.setScalar((0.18 + buildEase * 0.72) * pulse);
-      halo.scale.setScalar((0.36 + buildEase * 0.55) * pulse);
-      setOpacity(coreMaterial, 0.95);
-      setOpacity(haloMaterial, 0.22 + buildEase * 0.18);
+      // Start at the departing projectile's apparent volume, then compress
+      // continuously into a dense ignition seed before the expanding flash.
+      const compressionPulse = 1 + Math.sin(age * 30) * 0.025 * (1 - buildEase);
+      const compressedCoreScale = THREE.MathUtils.lerp(1.05, 0.16, buildEase) * compressionPulse;
+      const compressedHaloScale = THREE.MathUtils.lerp(1.5, 0.24, buildEase);
+      core.scale.set(
+        compressedCoreScale * (1 + buildEase * 0.12),
+        compressedCoreScale * (1 - buildEase * 0.08),
+        compressedCoreScale,
+      );
+      halo.scale.setScalar(compressedHaloScale);
+      core.rotation.z = directionAngle + buildEase * Math.PI * 1.5;
+      setOpacity(coreMaterial, 0.88 + buildEase * 0.12);
+      setOpacity(haloMaterial, 0.2 + buildEase * 0.34);
       ring.scale.setScalar(0.18);
       secondaryRing.scale.setScalar(0.1);
       setOpacity(ringMaterial, 0);
@@ -351,8 +390,8 @@ function ExplosionSlotView({
     } else if (phase === "climax") {
       const flashT = Math.min(climaxAge / 0.2, 1);
       const flash = 1 - Math.pow(1 - flashT, 3);
-      core.scale.setScalar(FLASH_RADIUS * 0.78 * flash);
-      halo.scale.setScalar(FLASH_RADIUS * (0.9 + flash * 0.65));
+      core.scale.setScalar(THREE.MathUtils.lerp(0.16, FLASH_RADIUS * 0.78, flash));
+      halo.scale.setScalar(THREE.MathUtils.lerp(0.24, FLASH_RADIUS * 1.55, flash));
       setOpacity(coreMaterial, Math.max(0.12, 1 - flashT * 0.8));
       setOpacity(haloMaterial, Math.max(0.1, 0.46 - flashT * 0.3));
       const ringT = Math.max(0, Math.min(climaxAge / 0.58, 1));
@@ -392,23 +431,23 @@ function ExplosionSlotView({
       const t = phase === "afterglow"
         ? Math.min((age - afterglowStart) / (OVERCHARGED_EXPLOSION_DURATION - afterglowStart), 1)
         : 0;
-      const angle = datum.angle + seedAngle + t * 2.4;
+      const angle = datum.angle + seedAngle + (phase === "building" ? buildEase * 5.2 : t * 2.4);
       const radius = phase === "afterglow"
         ? 0.35 + datum.speed * t * 0.9
-        : (1 - buildEase) * (1.1 + datum.speed) + 0.08;
+        : THREE.MathUtils.lerp(1.25 + datum.speed * 0.72, 0.055, buildEase);
       const size = (0.05 + datum.size * 0.42) * (phase === "afterglow" ? 0.68 : 0.82);
       writeInstance(
         build,
         i,
         slot.position[0] + Math.cos(angle) * radius,
         slot.position[1] + Math.sin(angle) * radius + t * 0.4,
-        slot.position[2] + datum.elevation * radius * 0.35,
+        slot.position[2] + datum.elevation * radius * (0.35 + buildEase * 0.45),
         size * 0.7,
         size * 1.25,
         size * 0.7,
-        t * (2.2 + datum.speed),
+        phase === "building" ? buildEase * (3.4 + datum.speed) : t * (2.2 + datum.speed),
         angle,
-        t * 1.6,
+        phase === "building" ? buildEase * 2.8 : t * 1.6,
       );
     }
     build.count = buildCount;

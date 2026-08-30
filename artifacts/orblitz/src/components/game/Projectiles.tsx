@@ -1692,8 +1692,8 @@ function OverchargedProjectileMesh({
       <mesh geometry={ribbonGeo} material={ribbonMat} />
       {/* Scale-in group: everything below grows from 0.05 → 1.0 on spawn */}
       <group ref={spawnGroupRef} scale={spawnScale}>
-        <pointLight ref={glowLightRef} color="#55aaff" intensity={8} distance={9} decay={2} />
-        <pointLight color="#ffffff" intensity={4}              distance={3} decay={2} />
+        <pointLight ref={glowLightRef} color={trailPalette.base} intensity={8} distance={9} decay={2} />
+        <pointLight color={trailPalette.head} intensity={4} distance={3} decay={2} />
       </group>
     </group>
   );
@@ -2324,6 +2324,14 @@ export function Projectiles() {
             id: `ocexp-${proj.id}`,
             position: [px, py, pz],
             direction: [dx, dy, dz],
+            palette: {
+              core: skinColors.core,
+              glow: skinColors.glow,
+              emissive: skinColors.emissive,
+              accent: skinColors.accent,
+              projectile: skinColors.projectile,
+              particles: skinColors.particles,
+            },
           });
         }
       }

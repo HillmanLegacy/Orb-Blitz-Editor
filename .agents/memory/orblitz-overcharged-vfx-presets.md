@@ -14,3 +14,7 @@ Presentation admission must also occur before any collision-feature early return
 Pooled R3F effects that hide inactive instances with zero-scale matrices must not also declare a parent `visible={false}` and imperatively toggle it in `useFrame`. React reconciliation can restore the false prop when the detonation removes its projectile, hiding the entire pool.
 
 The guaranteed detonation core and all optional particle layers use persistent pooled meshes. Build motes, plasma, sparks, and shards are bounded instanced 3D geometry rather than point sprites. Pool generations remain monotonic across resets so immediate reset/re-emission cannot reuse a mounted view's cached generation.
+
+Each detonation event must capture the equipped player-skin palette when admitted to the pool; pooled slot materials derive all core, halo, ring, and debris colors from that captured palette rather than global hard-coded colors.
+
+The pre-flash phase is a continuity handoff from the departing projectile: begin near projectile volume, spiral particles inward to a compressed seed, then expand the climax from that exact terminal scale to avoid a visual pop.
