@@ -77,8 +77,6 @@ const _burstColors = [
 ];
 
 // ─── Module-level geometries (never mutated, safe to share) ──────────────────
-const _sparkGeo = new THREE.SphereGeometry(1, 5, 3);
-
 // ─── Component ────────────────────────────────────────────────────────────────
 export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean }) {
   const { scene } = useGLTF("/models/star_pickup.glb");
@@ -355,7 +353,7 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
         const off     = i * S_STRIDE;
         // Size: start full, fade with sqrt for longer brightness
         const lifeFrac = _sPool[off + 6] / SPARK_LIFE;
-        const worldSz  = Math.max(1e-4, _sPool[off + 7] * Math.pow(lifeFrac, 0.55));
+        const worldSz  = Math.max(1e-4, _sPool[off + 7] * normalScale * Math.pow(lifeFrac, 0.55));
         _dummy.position.set(_sPool[off + 0], _sPool[off + 1], _sPool[off + 2]);
         _dummy.rotation.set(0, 0, 0);
         _dummy.scale.setScalar(worldSz);
@@ -385,10 +383,10 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
         frustumCulled={false}
       />
 
-      {/* Absorption burst particles */}
+      {/* Star-shaped absorption burst particles */}
       <instancedMesh
         ref={sparkMeshRef}
-        args={[_sparkGeo, sparkMat, MAX_SPARKS]}
+        args={[starGeo, sparkMat, MAX_SPARKS]}
         renderOrder={12}
         frustumCulled={false}
       />
