@@ -321,10 +321,7 @@ function ProjectileChargeAura({ projScale }: { projScale: number }) {
 // SpiralBraidMesh removed — replaced by the full OrbitalSpiralBlaster SpiralBundleMesh below
 
 const MAX_BATCHED_PROJECTILES = MAX_RUNTIME_PROJECTILES;
-const _batchedRapidTrailGeometry = new THREE.CylinderGeometry(1, 1, 1, 5, 1, true);
 const _batchedProjectileDummy = new THREE.Object3D();
-const _batchedProjectileAxis = new THREE.Vector3(0, 1, 0);
-const _batchedProjectileDirection = new THREE.Vector3();
 const _batchedModelTransform = new THREE.Matrix4();
 const _batchedModelInstanceMatrix = new THREE.Matrix4();
 const _batchedModelRotation = new THREE.Quaternion();
@@ -675,33 +672,20 @@ function ProjectileEffectsGate({
 }
 
 /**
- * Shared rendering path for every player-owned discrete shot. Their transforms
- * already live in gameRuntime, so keeping every active shot in a single
- * instanced layer avoids cloning a textured player model, material set, and
- * frame callback for each trigger pull.
+ * Shared glow rendering path for Rapid Blaster shots. Their transforms already
+ * live in gameRuntime, so one instanced layer avoids a separate light or React
+ * subtree for every trigger pull.
  */
-function RapidProjectileTrailBatch({
+function RapidProjectileGlowBatch({
   projectiles,
-  trailColor,
   playerScale,
 }: {
   projectiles: readonly Projectile[];
-  trailColor: string;
   playerScale: number;
 }) {
-  const rapidTrailRef = useRef<THREE.InstancedMesh>(null);
   const rapidGlowRef = useRef<THREE.InstancedMesh>(null);
   const activeSlotsRef = useRef<Set<number>>(new Set());
   const seenSlotsRef = useRef<Set<number>>(new Set());
-  const [rapidTrailMaterial] = useState(() => new THREE.MeshBasicMaterial({
-    color: trailColor,
-    transparent: true,
-    opacity: 0.82,
-    depthWrite: false,
-    depthTest: true,
-    toneMapped: false,
-    blending: THREE.AdditiveBlending,
-  }));
   const [rapidGlowMaterial] = useState(() => new THREE.MeshBasicMaterial({
     color: "#ffffff",
     transparent: true,
@@ -711,19 +695,13 @@ function RapidProjectileTrailBatch({
     toneMapped: false,
     blending: THREE.AdditiveBlending,
   }));
-  useEffect(() => {
-    rapidTrailMaterial.color.set(trailColor);
-  }, [rapidTrailMaterial, trailColor]);
-
   useEffect(() => () => {
-    rapidTrailMaterial.dispose();
     rapidGlowMaterial.dispose();
-  }, [rapidGlowMaterial, rapidTrailMaterial]);
+  }, [rapidGlowMaterial]);
 
   useFrame(() => {
-    const rapidTrailMesh = rapidTrailRef.current;
     const rapidGlowMesh = rapidGlowRef.current;
-    if (!rapidTrailMesh || !rapidGlowMesh) return;
+    if (!rapidGlowMesh) return;
 
     const seenSlots = seenSlotsRef.current;
     seenSlots.clear();
@@ -737,20 +715,6 @@ function RapidProjectileTrailBatch({
       const slot = motion.slot;
       seenSlots.add(slot);
       highestSlot = Math.max(highestSlot, slot);
-      const [dx, dy, dz] = motion.direction;
-      _batchedProjectileDirection.set(dx, dy, dz).normalize();
-      _batchedProjectileDummy.position.set(
-        motion.position[0] - dx * 0.72,
-        motion.position[1] - dy * 0.72,
-        motion.position[2] - dz * 0.72,
-      );
-      _batchedProjectileDummy.quaternion.setFromUnitVectors(_batchedProjectileAxis, _batchedProjectileDirection);
-      // Leave the front of the trail behind the orb so additive pixels never
-      // wash over the opaque textured projectile core.
-      _batchedProjectileDummy.scale.set(0.038, 1.0, 0.038);
-      _batchedProjectileDummy.updateMatrix();
-      rapidTrailMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
-
       // A shared additive shell simulates emissive light without allocating
       // one PointLight or React subtree per rapid-fire projectile.
       _batchedProjectileDummy.position.set(...motion.position);
@@ -773,33 +737,23 @@ function RapidProjectileTrailBatch({
       _batchedProjectileDummy.quaternion.identity();
       _batchedProjectileDummy.scale.setScalar(0);
       _batchedProjectileDummy.updateMatrix();
-      rapidTrailMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
       rapidGlowMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
       activeSlots.delete(slot);
     }
     for (const slot of seenSlots) activeSlots.add(slot);
 
     const meshCount = highestSlot + 1;
-    rapidTrailMesh.count = meshCount;
-    rapidTrailMesh.instanceMatrix.needsUpdate = true;
     rapidGlowMesh.count = meshCount;
     rapidGlowMesh.instanceMatrix.needsUpdate = true;
   });
 
   return (
-    <>
-      <instancedMesh
-        ref={rapidTrailRef}
-        args={[_batchedRapidTrailGeometry, rapidTrailMaterial, MAX_BATCHED_PROJECTILES]}
-        frustumCulled={false}
-      />
-      <instancedMesh
-        ref={rapidGlowRef}
-        args={[_rapidGlowGeometry, rapidGlowMaterial, MAX_BATCHED_PROJECTILES]}
-        frustumCulled={false}
-        renderOrder={3}
-      />
-    </>
+    <instancedMesh
+      ref={rapidGlowRef}
+      args={[_rapidGlowGeometry, rapidGlowMaterial, MAX_BATCHED_PROJECTILES]}
+      frustumCulled={false}
+      renderOrder={3}
+    />
   );
 }
 
@@ -2830,9 +2784,8 @@ export function Projectiles() {
   runtimeDiagnostics.noteProjectileRender();
   return (
     <>
-       <RapidProjectileTrailBatch
+       <RapidProjectileGlowBatch
          projectiles={batchedProjectiles}
-         trailColor={defaultTrailPalette.base}
          playerScale={playerScale}
        />
        <Suspense fallback={null}>
