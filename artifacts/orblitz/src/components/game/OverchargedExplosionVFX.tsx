@@ -197,19 +197,37 @@ const PLASMA_DATA = makeBurstData(30, 2.4, 5.2);
 const SPARK_DATA = makeBurstData(48, 7.5, 11);
 const SHARD_DATA = makeBurstData(10, 3.5, 5);
 
-function configurePoints(
-  geometry: THREE.BufferGeometry,
-  capacity: number,
-): Float32Array {
-  const positions = new Float32Array(capacity * 3);
-  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geometry.setDrawRange(0, 0);
-  return positions;
-}
-
 function smoothstep(t: number): number {
   const value = Math.max(0, Math.min(1, t));
   return value * value * (3 - 2 * value);
+}
+
+function hideInstance(mesh: THREE.InstancedMesh, index: number): void {
+  dummy.position.set(HIDDEN_POINT, HIDDEN_POINT, HIDDEN_POINT);
+  dummy.rotation.set(0, 0, 0);
+  dummy.scale.setScalar(0);
+  dummy.updateMatrix();
+  mesh.setMatrixAt(index, dummy.matrix);
+}
+
+function writeInstance(
+  mesh: THREE.InstancedMesh,
+  index: number,
+  x: number,
+  y: number,
+  z: number,
+  sx: number,
+  sy: number,
+  sz: number,
+  rx: number,
+  ry: number,
+  rz: number,
+): void {
+  dummy.position.set(x, y, z);
+  dummy.rotation.set(rx, ry, rz);
+  dummy.scale.set(sx, sy, sz);
+  dummy.updateMatrix();
+  mesh.setMatrixAt(index, dummy.matrix);
 }
 
 function setOpacity(
@@ -227,19 +245,6 @@ function setOpacity(
   }
 }
 
-function writePoint(
-  positions: Float32Array,
-  index: number,
-  x: number,
-  y: number,
-  z: number,
-): void {
-  const offset = index * 3;
-  positions[offset] = x;
-  positions[offset + 1] = y;
-  positions[offset + 2] = z;
-}
-
 function ExplosionSlotView({
   slot,
   preset,
@@ -252,38 +257,17 @@ function ExplosionSlotView({
   const haloRef = useRef<THREE.Mesh>(null);
   const ringRef = useRef<THREE.Mesh>(null);
   const ringSecondaryRef = useRef<THREE.Mesh>(null);
-  const buildRef = useRef<THREE.Points>(null);
-  const plasmaRef = useRef<THREE.Points>(null);
-  const sparkRef = useRef<THREE.Points>(null);
-  const shardRef = useRef<THREE.Points>(null);
+  const buildRef = useRef<THREE.InstancedMesh>(null);
+  const plasmaRef = useRef<THREE.InstancedMesh>(null);
+  const sparkRef = useRef<THREE.InstancedMesh>(null);
+  const shardRef = useRef<THREE.InstancedMesh>(null);
   const generationRef = useRef(0);
   const disposalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [buildGeometry] = useState(() => {
-    const geometry = new THREE.BufferGeometry();
-    configurePoints(geometry, 20);
-    return geometry;
-  });
-  const [plasmaGeometry] = useState(() => {
-    const geometry = new THREE.BufferGeometry();
-    configurePoints(geometry, 30);
-    return geometry;
-  });
-  const [sparkGeometry] = useState(() => {
-    const geometry = new THREE.BufferGeometry();
-    configurePoints(geometry, 48);
-    return geometry;
-  });
-  const [shardGeometry] = useState(() => {
-    const geometry = new THREE.BufferGeometry();
-    configurePoints(geometry, 10);
-    return geometry;
-  });
-
-  const buildPositions = buildGeometry.getAttribute("position").array as Float32Array;
-  const plasmaPositions = plasmaGeometry.getAttribute("position").array as Float32Array;
-  const sparkPositions = sparkGeometry.getAttribute("position").array as Float32Array;
-  const shardPositions = shardGeometry.getAttribute("position").array as Float32Array;
+  const [buildGeometry] = useState(() => new THREE.OctahedronGeometry(1, 0));
+  const [plasmaGeometry] = useState(() => new THREE.TetrahedronGeometry(1, 0));
+  const [sparkGeometry] = useState(() => new THREE.OctahedronGeometry(1, 0));
+  const [shardGeometry] = useState(() => new THREE.IcosahedronGeometry(1, 0));
 
   useFrame((_, delta) => {
     const core = coreRef.current;
@@ -400,7 +384,7 @@ function ExplosionSlotView({
       : profile.build;
     for (let i = 0; i < 20; i++) {
       if (i >= buildCount || (phase !== "building" && phase !== "afterglow")) {
-        writePoint(buildPositions, i, HIDDEN_POINT, HIDDEN_POINT, HIDDEN_POINT);
+        hideInstance(build, i);
         continue;
       }
       const datum = BUILD_DATA[i];
@@ -412,30 +396,38 @@ function ExplosionSlotView({
       const radius = phase === "afterglow"
         ? 0.35 + datum.speed * t * 0.9
         : (1 - buildEase) * (1.1 + datum.speed) + 0.08;
-      writePoint(
-        buildPositions,
+      const size = (0.05 + datum.size * 0.42) * (phase === "afterglow" ? 0.68 : 0.82);
+      writeInstance(
+        build,
         i,
         slot.position[0] + Math.cos(angle) * radius,
         slot.position[1] + Math.sin(angle) * radius + t * 0.4,
         slot.position[2] + datum.elevation * radius * 0.35,
+        size * 0.7,
+        size * 1.25,
+        size * 0.7,
+        t * (2.2 + datum.speed),
+        angle,
+        t * 1.6,
       );
     }
-    buildGeometry.getAttribute("position").needsUpdate = true;
-    buildGeometry.setDrawRange(0, buildCount);
+    build.count = buildCount;
+    build.instanceMatrix.needsUpdate = true;
 
     const updateBurstLayer = (
-      positions: Float32Array,
+      mesh: THREE.InstancedMesh,
       data: readonly BurstDatum[],
       count: number,
       speedScale: number,
       verticalGravity: number,
+      sizeScale: number,
     ) => {
       for (let i = 0; i < data.length; i++) {
         const datum = data[i];
         const localAge = climaxAge - datum.delay;
         const t = localAge / datum.life;
         if (i >= count || phase !== "climax" || localAge <= 0 || t >= 1) {
-          writePoint(positions, i, HIDDEN_POINT, HIDDEN_POINT, HIDDEN_POINT);
+          hideInstance(mesh, i);
           continue;
         }
         const angle = datum.angle + seedAngle;
@@ -445,36 +437,37 @@ function ExplosionSlotView({
           datum.elevation,
         ).normalize();
         const distance = datum.speed * speedScale * localAge;
-        writePoint(
-          positions,
+        const size = datum.size * sizeScale * (1 - t * 0.32);
+        writeInstance(
+          mesh,
           i,
           slot.position[0] + pointDirection.x * distance,
           slot.position[1] + pointDirection.y * distance - localAge * localAge * verticalGravity,
           slot.position[2] + pointDirection.z * distance,
+          size * (mesh === spark ? 0.32 : 0.7),
+          size * (mesh === spark ? 1.8 : 1.35),
+          size * (mesh === spark ? 0.32 : 0.7),
+          angle + Math.PI * 0.5,
+          directionAngle,
+          t * (datum.speed + 2.0),
         );
       }
+      mesh.count = count;
+      mesh.instanceMatrix.needsUpdate = true;
     };
 
-    updateBurstLayer(plasmaPositions, PLASMA_DATA, profile.plasma, 1, 0.7);
-    updateBurstLayer(sparkPositions, SPARK_DATA, profile.sparks, 1, 1.5);
-    updateBurstLayer(shardPositions, SHARD_DATA, profile.shards, 0.72, 0.8);
-    plasmaGeometry.getAttribute("position").needsUpdate = true;
-    sparkGeometry.getAttribute("position").needsUpdate = true;
-    shardGeometry.getAttribute("position").needsUpdate = true;
-    plasmaGeometry.setDrawRange(0, profile.plasma);
-    sparkGeometry.setDrawRange(0, profile.sparks);
-    shardGeometry.setDrawRange(0, profile.shards);
+    updateBurstLayer(plasma, PLASMA_DATA, profile.plasma, 1, 0.7, 0.72);
+    updateBurstLayer(spark, SPARK_DATA, profile.sparks, 1, 1.5, 0.52);
+    updateBurstLayer(shard, SHARD_DATA, profile.shards, 0.72, 0.8, 1.2);
     build.visible = phase === "building" || phase === "afterglow";
     plasma.visible = phase === "climax";
     spark.visible = phase === "climax";
     shard.visible = phase === "climax";
   });
 
-  const pointMaterials = useMemo(() => ({
-    build: new THREE.PointsMaterial({
+  const meshMaterials = useMemo(() => ({
+    build: new THREE.MeshBasicMaterial({
       color: "#61efff",
-      size: 0.13,
-      sizeAttenuation: true,
       transparent: true,
       opacity: 0.95,
       depthTest: false,
@@ -482,10 +475,8 @@ function ExplosionSlotView({
       blending: THREE.AdditiveBlending,
       toneMapped: false,
     }),
-    plasma: new THREE.PointsMaterial({
+    plasma: new THREE.MeshBasicMaterial({
       color: "#3978ff",
-      size: 0.22,
-      sizeAttenuation: true,
       transparent: true,
       opacity: 0.95,
       depthTest: false,
@@ -493,10 +484,8 @@ function ExplosionSlotView({
       blending: THREE.AdditiveBlending,
       toneMapped: false,
     }),
-    spark: new THREE.PointsMaterial({
+    spark: new THREE.MeshBasicMaterial({
       color: "#ffffff",
-      size: 0.18,
-      sizeAttenuation: true,
       transparent: true,
       opacity: 1,
       depthTest: false,
@@ -504,10 +493,8 @@ function ExplosionSlotView({
       blending: THREE.AdditiveBlending,
       toneMapped: false,
     }),
-    shard: new THREE.PointsMaterial({
+    shard: new THREE.MeshBasicMaterial({
       color: "#b47cff",
-      size: 0.26,
-      sizeAttenuation: true,
       transparent: true,
       opacity: 0.9,
       depthTest: false,
@@ -528,14 +515,14 @@ function ExplosionSlotView({
         plasmaGeometry.dispose();
         sparkGeometry.dispose();
         shardGeometry.dispose();
-        Object.values(pointMaterials).forEach((material) => material.dispose());
+        Object.values(meshMaterials).forEach((material) => material.dispose());
         disposalTimerRef.current = null;
       }, 0);
     };
   }, [
     buildGeometry,
+    meshMaterials,
     plasmaGeometry,
-    pointMaterials,
     shardGeometry,
     sparkGeometry,
   ]);
@@ -590,10 +577,10 @@ function ExplosionSlotView({
           toneMapped={false}
         />
       </mesh>
-      <points ref={buildRef} geometry={buildGeometry} material={pointMaterials.build} visible={false} frustumCulled={false} renderOrder={28} />
-      <points ref={plasmaRef} geometry={plasmaGeometry} material={pointMaterials.plasma} visible={false} frustumCulled={false} renderOrder={28} />
-      <points ref={sparkRef} geometry={sparkGeometry} material={pointMaterials.spark} visible={false} frustumCulled={false} renderOrder={28} />
-      <points ref={shardRef} geometry={shardGeometry} material={pointMaterials.shard} visible={false} frustumCulled={false} renderOrder={28} />
+      <instancedMesh ref={buildRef} args={[buildGeometry, meshMaterials.build, 20]} visible={false} frustumCulled={false} renderOrder={28} />
+      <instancedMesh ref={plasmaRef} args={[plasmaGeometry, meshMaterials.plasma, 30]} visible={false} frustumCulled={false} renderOrder={28} />
+      <instancedMesh ref={sparkRef} args={[sparkGeometry, meshMaterials.spark, 48]} visible={false} frustumCulled={false} renderOrder={28} />
+      <instancedMesh ref={shardRef} args={[shardGeometry, meshMaterials.shard, 10]} visible={false} frustumCulled={false} renderOrder={28} />
     </group>
   );
 }
