@@ -2,10 +2,9 @@
  * StarFlowVFX — Zero-GC instanced star collection system.
  *
  * Performance contract:
- *  - All particle, burst, and ring data lives in module-level Float32Arrays.
+ *  - All particle and burst data lives in module-level Float32Arrays.
  *  - Stars use a single InstancedMesh draw call (GPU instancing).
  *  - Burst particles use a second InstancedMesh (additive, per-instance color).
- *  - Shockwave rings use a third InstancedMesh (additive, per-instance color).
  *  - Point lights are assigned to the LIGHT_POOL nearest stars each frame.
  */
 
@@ -42,15 +41,10 @@ const SPARK_SPEED_MIN    = 5.0;
 const SPARK_SPEED_MAX    = 12.0;
 const SPARK_SIZE_MIN     = 0.07;
 const SPARK_SIZE_MAX     = 0.22;
-const ABSORB_VFX_SCALE   = 0.6;
+const ABSORB_VFX_SCALE   = 1.0;
 
 const ABSORB_LIGHT_PEAK  = 14.0;
 const ABSORB_LIGHT_DECAY = 20;
-
-// ─── Shockwave ring config ────────────────────────────────────────────────────
-const MAX_RINGS  = 12;
-const RING_LIFE  = 0.42;
-const RING_MAX_R = 2.2;
 
 // ─── Star particle pool ───────────────────────────────────────────────────────
 // Layout (P_STRIDE floats):
@@ -64,11 +58,6 @@ const _pPool   = new Float32Array(MAX_PARTICLES * P_STRIDE);
 //   [0]px [1]py [2]pz [3]vx [4]vy [5]vz [6]life [7]size [8]colorIdx
 const S_STRIDE = 9;
 const _sPool   = new Float32Array(MAX_SPARKS * S_STRIDE);
-
-// ─── Ring pool ────────────────────────────────────────────────────────────────
-// Layout (R_STRIDE floats): [0]px [1]py [2]pz [3]age
-const R_STRIDE = 4;
-const _ringPool = new Float32Array(MAX_RINGS * R_STRIDE);
 
 // ─── Light-pool scratch ───────────────────────────────────────────────────────
 const _nearDist = new Float32Array(LIGHT_POOL);
@@ -89,7 +78,6 @@ const _burstColors = [
 
 // ─── Module-level geometries (never mutated, safe to share) ──────────────────
 const _sparkGeo = new THREE.SphereGeometry(1, 5, 3);
-const _ringGeo  = new THREE.RingGeometry(0.82, 1.0, 36);
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean }) {
@@ -125,26 +113,13 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
   }), []);
   useEffect(() => () => { sparkMat.dispose(); }, [sparkMat]);
 
-  // Ring material — additive, per-instance color fades to black = transparent
-  const ringMat = useMemo(() => new THREE.MeshBasicMaterial({
-    color: "#ffffff",
-    transparent: true,
-    opacity: 0.85,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    side: THREE.DoubleSide,
-  }), []);
-  useEffect(() => () => { ringMat.dispose(); }, [ringMat]);
-
   // Live counts
   const pLive  = useRef(0);
   const sLive  = useRef(0);
-  const rLive  = useRef(0);
 
   const seenEvents       = useRef(new Set<string>());
   const meshRef          = useRef<THREE.InstancedMesh>(null);
   const sparkMeshRef     = useRef<THREE.InstancedMesh>(null);
-  const ringMeshRef      = useRef<THREE.InstancedMesh>(null);
   const lightRefs        = useRef<(THREE.PointLight | null)[]>(
     Array.from({ length: LIGHT_POOL }, () => null),
   );
@@ -154,7 +129,6 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
   useEffect(() => () => {
     pLive.current = 0;
     sLive.current = 0;
-    rLive.current = 0;
     seenEvents.current.clear();
     absorbLightIntensity.current = 0;
   }, []);
@@ -174,7 +148,6 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
     // occurred, so discarding excess visual particles cannot change currency.
     pLive.current = Math.min(pLive.current, budget.rewardStars);
     sLive.current = Math.min(sLive.current, budget.rewardSparks);
-    rLive.current = Math.min(rLive.current, budget.rewardRings);
 
     const ppx = playerPosition[0];
     const ppy = playerPosition[1];
@@ -254,16 +227,6 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
           sLive.current++;
         }
 
-        // ── Shockwave ring ────────────────────────────────────────────────────
-        if (rLive.current < budget.rewardRings) {
-          const roff = rLive.current * R_STRIDE;
-          _ringPool[roff + 0] = ppx;
-          _ringPool[roff + 1] = ppy;
-          _ringPool[roff + 2] = ppz;
-          _ringPool[roff + 3] = 0;
-          rLive.current++;
-        }
-
         // ── Absorption light flash ────────────────────────────────────────────
         absorbLightIntensity.current = Math.min(
           ABSORB_LIGHT_PEAK,
@@ -318,18 +281,6 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
       sLiveNext++;
     }
     sLive.current = sLiveNext;
-
-    // ── Update rings ──────────────────────────────────────────────────────────
-    let rLiveNext = 0;
-
-    for (let i = 0; i < rLive.current; i++) {
-      const roff = i * R_STRIDE;
-      _ringPool[roff + 3] += delta;
-      if (_ringPool[roff + 3] >= RING_LIFE) continue;
-      if (rLiveNext !== i) _ringPool.copyWithin(rLiveNext * R_STRIDE, roff, roff + R_STRIDE);
-      rLiveNext++;
-    }
-    rLive.current = rLiveNext;
 
     // ── Decay absorption light ───────────────────────────────────────────────
     absorbLightIntensity.current = Math.max(
@@ -420,27 +371,6 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
       if (sparkMesh.instanceColor) sparkMesh.instanceColor.needsUpdate = true;
     }
 
-    // ── Render: ring instances ────────────────────────────────────────────────
-    const ringMesh = ringMeshRef.current;
-    if (ringMesh) {
-      for (let i = 0; i < rLiveNext; i++) {
-        const roff = i * R_STRIDE;
-        const t    = _ringPool[roff + 3] / RING_LIFE;          // 0→1
-         const r    = RING_MAX_R * ABSORB_VFX_SCALE * (1 - Math.pow(1 - t, 1.8)); // ease-out expansion
-        const fade = 1 - t * t;                                // quadratic fade
-        _dummy.position.set(_ringPool[roff + 0], _ringPool[roff + 1], _ringPool[roff + 2]);
-        _dummy.rotation.set(0, 0, 0);
-        _dummy.scale.setScalar(Math.max(1e-4, r));
-        _dummy.updateMatrix();
-        ringMesh.setMatrixAt(i, _dummy.matrix);
-        // Fade via instance color (black = invisible with additive)
-        _col.setHex(0xffd700).multiplyScalar(fade * 1.2);
-        ringMesh.setColorAt(i, _col);
-      }
-      ringMesh.count = rLiveNext;
-      ringMesh.instanceMatrix.needsUpdate = true;
-      if (ringMesh.instanceColor) ringMesh.instanceColor.needsUpdate = true;
-    }
   });
 
   if (!visualEnabled) return null;
@@ -460,14 +390,6 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
         ref={sparkMeshRef}
         args={[_sparkGeo, sparkMat, MAX_SPARKS]}
         renderOrder={12}
-        frustumCulled={false}
-      />
-
-      {/* Shockwave rings */}
-      <instancedMesh
-        ref={ringMeshRef}
-        args={[_ringGeo, ringMat, MAX_RINGS]}
-        renderOrder={11}
         frustumCulled={false}
       />
 
