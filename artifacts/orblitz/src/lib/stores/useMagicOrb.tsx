@@ -1256,6 +1256,10 @@ export const useMagicOrb = create<MagicOrbState>()(
           runStats: {
             ...get().runStats,
             bossesDefeated: get().runStats.bossesDefeated + 1,
+            bossTypesDefeated: {
+              ...get().runStats.bossTypesDefeated,
+              [boss.bossType ?? "monster"]: (get().runStats.bossTypesDefeated[boss.bossType ?? "monster"] ?? 0) + 1,
+            },
           },
         });
         // 500 gold stars burst from the boss to the player; each absorbed star awards 1 coin

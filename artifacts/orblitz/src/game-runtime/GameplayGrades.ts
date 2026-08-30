@@ -2,6 +2,7 @@ import type { GameMode } from "@/lib/stores/useMagicOrb";
 
 export type GameplayGrade = "S" | "A" | "B" | "C" | "D";
 export type GradeCategoryId = "accuracy" | "damageControl" | "combatObjective" | "time";
+export type GameplayBossType = "bird" | "star" | "arrow" | "triangle" | "trapezoid" | "cube" | "cloud" | "circle" | "tentacle" | "monster";
 
 export interface GameplayStats {
   mode: GameMode;
@@ -11,6 +12,7 @@ export interface GameplayStats {
   misses: number;
   enemiesDefeated: number;
   bossesDefeated: number;
+  bossTypesDefeated: Partial<Record<GameplayBossType, number>>;
   damageTaken: number;
   startingHealth: number;
   remainingHealth: number;
@@ -66,6 +68,7 @@ export function createInitialGameplayStats(
     misses: 0,
     enemiesDefeated: 0,
     bossesDefeated: 0,
+    bossTypesDefeated: {},
     damageTaken: 0,
     startingHealth,
     remainingHealth: startingHealth,
@@ -180,6 +183,7 @@ export function evaluateGameplayGrade(input: GameplayStats): GameplayResultSnaps
     misses: Math.max(0, Math.floor(input.misses)),
     enemiesDefeated: Math.max(0, Math.floor(input.enemiesDefeated)),
     bossesDefeated: Math.max(0, Math.floor(input.bossesDefeated)),
+    bossTypesDefeated: { ...input.bossTypesDefeated },
     damageTaken: Math.max(0, Math.floor(input.damageTaken)),
     elapsedSeconds: Math.max(0, input.elapsedSeconds),
     objectiveProgress: Math.max(0, Math.floor(input.objectiveProgress)),
