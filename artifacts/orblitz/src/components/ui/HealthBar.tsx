@@ -44,6 +44,10 @@ const KEYFRAMES = `
   0%   { opacity: 0.32; }
   100% { opacity: 0; }
 }
+@keyframes hb-overheat-flame {
+  0%,100% { transform: translateY(2px) scale(0.92) rotate(-4deg); opacity: 0.72; }
+  50%      { transform: translateY(-2px) scale(1.08) rotate(4deg); opacity: 1; }
+}
 `;
 
 let _cssInjected = false;
@@ -85,6 +89,49 @@ function OrbEmblem({ color }: { color: string }) {
         />
       ))}
     </svg>
+  );
+}
+
+function OverheatFlames({ heat, overheated }: { heat: number; overheated: boolean }) {
+  if (heat <= 0.5) return null;
+
+  const flameColor = overheated ? "#ff321c" : "#ff9f2d";
+  const flameLeft = Math.max(4, Math.min(96, heat * 100));
+
+  return (
+    <motion.div
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        left: `${flameLeft}%`,
+        top: -15,
+        transform: "translateX(-50%)",
+        display: "flex",
+        alignItems: "flex-end",
+        gap: 1,
+        pointerEvents: "none",
+        zIndex: 5,
+        filter: `drop-shadow(0 0 5px ${flameColor})`,
+      }}
+      animate={{ opacity: overheated ? [0.72, 1, 0.78] : [0.55, 0.88, 0.58] }}
+      transition={{ duration: overheated ? 0.42 : 0.7, repeat: Infinity, ease: "easeInOut" }}
+    >
+      {[0, 1, 2].map((index) => (
+        <span
+          key={index}
+          style={{
+            display: "block",
+            color: flameColor,
+            fontSize: index === 1 ? 13 : 10,
+            lineHeight: 1,
+            animation: `hb-overheat-flame ${0.45 + index * 0.11}s ease-in-out infinite`,
+            animationDelay: `${index * -0.12}s`,
+          }}
+        >
+          🔥
+        </span>
+      ))}
+    </motion.div>
   );
 }
 
@@ -351,19 +398,22 @@ export function HealthBar() {
               {rapidOverheatActive ? `${rapidOverheatPenaltyTimer.toFixed(1)}s cooldown` : `${Math.round(overheatPct)}%`}
             </span>
           </div>
-          <div style={{ height: 5, overflow: "hidden", borderRadius: 4, background: "rgba(0,0,0,0.65)" }}>
-            <motion.div
-              animate={{ width: `${overheatPct}%` }}
-              transition={{ duration: 0.12 }}
-              style={{
-                height: "100%",
-                borderRadius: 4,
-                background: rapidOverheatActive
-                  ? "linear-gradient(90deg,#ff9b35,#ff2418)"
-                  : `linear-gradient(90deg,#ffcc45,#ff6a22)`,
-                boxShadow: `0 0 8px ${rapidOverheatActive ? "#ff3a1c" : "#ff9c32"}`,
-              }}
-            />
+          <div style={{ position: "relative", overflow: "visible" }}>
+            <div style={{ height: 5, overflow: "hidden", borderRadius: 4, background: "rgba(0,0,0,0.65)" }}>
+              <motion.div
+                animate={{ width: `${overheatPct}%` }}
+                transition={{ duration: 0.12 }}
+                style={{
+                  height: "100%",
+                  borderRadius: 4,
+                  background: rapidOverheatActive
+                    ? "linear-gradient(90deg,#ff9b35,#ff2418)"
+                    : `linear-gradient(90deg,#ffcc45,#ff6a22)`,
+                  boxShadow: `0 0 8px ${rapidOverheatActive ? "#ff3a1c" : "#ff9c32"}`,
+                }}
+              />
+            </div>
+            <OverheatFlames heat={rapidOverheat} overheated={rapidOverheatActive} />
           </div>
           <span style={{ display: "block", marginTop: 3, color: "rgba(255,210,160,0.45)", fontSize: "0.48rem", letterSpacing: "0.08em" }}>
             {rapidConfig.overheatSeconds}s continuous fire limit

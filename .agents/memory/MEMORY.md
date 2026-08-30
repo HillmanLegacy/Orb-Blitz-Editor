@@ -24,3 +24,4 @@
 - [Orblitz SFX variation](orblitz-sfx-variation.md) — Repetitive cues vary only after throttle admission; use bounded anti-repeat profiles and reset history with audio disposal.
 - [Orblitz moving collision stages](orblitz-moving-collision-stages.md) — Earlier pipeline stages must predict later-stage transforms for relative sweeps; timed AOE owns Overcharged damage exclusively.
 - [Orblitz weapon progression](orblitz-weapon-progression.md) — Keep weapon level tuning centralized, snapshot combat effects at spawn, and award XP only at authoritative result boundaries.
+- [Orblitz Rapid Blaster overheat](orblitz-rapid-blaster-overheat.md) — Long-lived firing listeners must read the live overheat lock; warning VFX belong on the HUD meter.

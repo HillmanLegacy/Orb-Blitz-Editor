@@ -115,7 +115,6 @@ export function GameLogic() {
   const playerPosition = useMagicOrb((s) => s.playerPosition);
   
   const hasRapidFire = useMagicOrb((s) => s.hasRapidFire);
-  const rapidOverheatActive = useMagicOrb((s) => s.rapidOverheatActive);
   const isStaggered = useMagicOrb((s) => s.isStaggered);
   
   const { camera, gl } = useThree();
@@ -418,7 +417,10 @@ export function GameLogic() {
     // Admission is decided before creating a weapon's projectiles. Scattershot
     // is atomic: it either emits all three projectiles or leaves its cooldown
     // and presentation state untouched. The other player weapons emit one.
-    if (hasRapidBlasterRef.current && rapidOverheatActive) return false;
+    // Read the current store value here instead of a render closure. The
+    // pointer listener is intentionally long-lived while the player holds
+    // fire, so a render-captured overheat flag can stay false forever.
+    if (hasRapidBlasterRef.current && useMagicOrb.getState().rapidOverheatActive) return false;
 
     const profile = isProgressionWeapon(equippedWeapon)
       ? getWeaponConfig(equippedWeapon, weaponProgression[equippedWeapon].level)
