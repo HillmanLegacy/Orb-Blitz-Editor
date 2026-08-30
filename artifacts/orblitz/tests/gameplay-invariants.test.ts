@@ -112,7 +112,6 @@ import {
   getOverchargedAfterglowParticleCount,
   getOverchargedExplosionParticleTotal,
   getOverchargedExplosionPhase,
-  isOverchargedPresentationEnabled,
   resetOverchargedExplosionPool,
 } from "../src/components/game/OverchargedExplosionVFX";
 
@@ -281,17 +280,13 @@ describe("gameplay runtime invariants", () => {
     expect(OVERCHARGED_EXPLOSION_MAX_ACTIVE).toBe(4);
     expect(lowTotal).toBeLessThan(standardTotal);
     expect(standardTotal).toBeLessThan(highTotal);
+    expect(lowTotal).toBeGreaterThan(0);
     expect(highTotal).toBe(108);
     expect(highTotal * OVERCHARGED_EXPLOSION_MAX_ACTIVE).toBeLessThan(500);
     expect(getOverchargedAfterglowParticleCount(OVERCHARGED_EXPLOSION_PROFILES.low))
       .toBeLessThan(getOverchargedAfterglowParticleCount(OVERCHARGED_EXPLOSION_PROFILES.high));
     expect(getOverchargedAfterglowParticleCount(OVERCHARGED_EXPLOSION_PROFILES.high))
       .toBeGreaterThan(0);
-  });
-
-  it("gates every overcharged presentation layer with the VFX feature", () => {
-    expect(isOverchargedPresentationEnabled(false)).toBe(false);
-    expect(isOverchargedPresentationEnabled(true)).toBe(true);
   });
 
   it("reuses the oldest overcharged explosion slot and resets cleanly", () => {

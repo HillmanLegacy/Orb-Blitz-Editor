@@ -41,7 +41,6 @@ import {
   OverchargedExplosionVFX,
   createOverchargedExplosionPool,
   emitOverchargedExplosion,
-  isOverchargedPresentationEnabled,
   resetOverchargedExplosionPool,
 } from "./OverchargedExplosionVFX";
 
@@ -1983,8 +1982,6 @@ export function Projectiles() {
   const overchargedExplosionPool = useRef(createOverchargedExplosionPool());
   const burstResetVersion = useRef(gameRuntime.resetVersion);
   const collisionsEnabled = usePerformanceFeature("collision");
-  const vfxEnabled = usePerformanceFeature("vfx");
-  const overchargedPresentationEnabled = isOverchargedPresentationEnabled(vfxEnabled);
 
   // ── Overcharged shockwave rings ───────────────────────────────────────────
   const knownOcIds   = useRef<Set<string>>(new Set());
@@ -2028,16 +2025,11 @@ export function Projectiles() {
   // GameScene resets the runtime at terminal/session phases. Clear the local
   // GPU presentation pool as well so a stale flash cannot enter the next run.
   useEffect(() => {
-    if (phase !== "playing" || !overchargedPresentationEnabled) {
+    if (phase !== "playing") {
       resetPlayerFireBurstPool(playerFireBurstPool.current);
       resetOverchargedExplosionPool(overchargedExplosionPool.current);
     }
-    if (!overchargedPresentationEnabled) {
-      for (const timeout of swTimeoutsRef.current.values()) clearTimeout(timeout);
-      swTimeoutsRef.current.clear();
-      setShockwaves([]);
-    }
-  }, [phase, overchargedPresentationEnabled]);
+  }, [phase]);
   
   const skinColors = useMemo(() => getSkinColors(equippedSkin, 3), [equippedSkin]);
   const playerScale = useMemo(
@@ -2066,7 +2058,6 @@ export function Projectiles() {
     gameRuntime.projectileSpawns.consume((event) => {
       if (event.type === "overcharged" && !knownOcIds.current.has(event.id)) {
         knownOcIds.current.add(event.id);
-        if (!overchargedPresentationEnabled) return;
         const swId = `sw-${event.id}`;
         const position: [number, number, number] = [
           event.position[0], event.position[1], event.position[2],
@@ -2376,13 +2367,11 @@ export function Projectiles() {
 
           const expId  = `ocexp-${proj.id}`;
           const expPos = [px, py, pz] as [number, number, number];
-          if (overchargedPresentationEnabled) {
-            emitOverchargedExplosion(overchargedExplosionPool.current, {
-              id: expId,
-              position: expPos,
-              direction: [dx, dy, dz],
-            });
-          }
+          emitOverchargedExplosion(overchargedExplosionPool.current, {
+            id: expId,
+            position: expPos,
+            direction: [dx, dy, dz],
+          });
 
           useMagicOrb.getState().triggerBackgroundShake();
           playSparkleExplosion();
@@ -2819,12 +2808,10 @@ export function Projectiles() {
            </ProjectileEffectsGate>
          ))}
        </Suspense>
-      {overchargedPresentationEnabled && shockwaves.map(sw => (
+      {shockwaves.map(sw => (
         <OcShockwaveRing key={sw.id} position={sw.pos} />
       ))}
-      {overchargedPresentationEnabled && (
-        <OverchargedExplosionVFX pool={overchargedExplosionPool.current} />
-      )}
+      <OverchargedExplosionVFX pool={overchargedExplosionPool.current} />
       {scatterArcs.map(arc => (
         <ScatterMuzzleArc key={arc.id} position={arc.pos} dirX={arc.dirX} dirY={arc.dirY} />
       ))}

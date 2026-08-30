@@ -54,10 +54,6 @@ export type OverchargedExplosionEvent = Readonly<{
   direction: readonly [number, number, number];
 }>;
 
-export function isOverchargedPresentationEnabled(vfxEnabled: boolean): boolean {
-  return vfxEnabled;
-}
-
 export function getOverchargedExplosionPhase(
   age: number,
 ): OverchargedExplosionPhase {
