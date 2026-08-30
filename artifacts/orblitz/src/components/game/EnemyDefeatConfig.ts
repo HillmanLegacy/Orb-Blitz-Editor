@@ -93,3 +93,10 @@ export function resolveEnemyDefeatBossType(
 export function getEnemyDefeatParticleTotal(profile: EnemyDefeatProfile): number {
   return profile.main + profile.embers + profile.fragments + profile.corona;
 }
+
+/** Replays the authored defeat timeline backward over the same duration. */
+export function getEnemySpawnReverseProgress(elapsedSeconds: number): number {
+  return getEnemyDefeatProgress(
+    Math.max(0, Math.min(ENEMY_DEFEAT_DURATION, elapsedSeconds)),
+  );
+}

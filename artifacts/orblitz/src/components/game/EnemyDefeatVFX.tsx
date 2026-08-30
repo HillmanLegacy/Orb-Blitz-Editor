@@ -13,6 +13,7 @@ import {
   ENEMY_DEFEAT_DURATION,
   ENEMY_DEFEAT_PROFILES,
   getEnemyDefeatProgress,
+  getEnemySpawnReverseProgress,
   resolveEnemyDefeatBossType,
 } from "./EnemyDefeatConfig";
 
@@ -57,6 +58,8 @@ type EffectSlot = {
   active: boolean;
   id: string;
   bossType: BossType;
+  animation: "defeat" | "spawn";
+  spawnAge: number;
   x: number;
   y: number;
   z: number;
@@ -213,11 +216,15 @@ export function EnemyDefeatVFX() {
   const initializedRef = useRef(false);
   const frameRef = useRef(0);
   const idToSlotRef = useRef(new Map<string, number>());
+  const spawnedIdsRef = useRef(new Set<string>());
+  const activeOrbIdsRef = useRef(new Set<string>());
   const slotsRef = useRef<EffectSlot[]>(
     Array.from({ length: MAX_SLOTS }, () => ({
       active: false,
       id: "",
       bossType: "circle",
+      animation: "defeat",
+      spawnAge: 0,
       x: 0,
       y: 0,
       z: 0,
@@ -248,6 +255,7 @@ export function EnemyDefeatVFX() {
   useEffect(() => {
     return () => {
       idToSlotRef.current.clear();
+      spawnedIdsRef.current.clear();
       for (const ref of [mainRef, emberRef, fragmentRef, coronaRef, flashRef]) {
         const mesh = ref.current;
         if (!mesh) continue;
@@ -259,7 +267,7 @@ export function EnemyDefeatVFX() {
     };
   }, []);
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     const mainMesh = mainRef.current;
     const emberMesh = emberRef.current;
     const fragmentMesh = fragmentRef.current;
@@ -280,6 +288,12 @@ export function EnemyDefeatVFX() {
     const currentFrame = ++frameRef.current;
     const { darkOrbs, gameMode, arcadeLevel } = useMagicOrb.getState();
     const profile = profileForPreset(presetRef.current || getGraphicsPreset());
+    const activeOrbIds = activeOrbIdsRef.current;
+    activeOrbIds.clear();
+    for (const orb of darkOrbs) activeOrbIds.add(orb.id);
+    for (const id of spawnedIdsRef.current) {
+      if (!activeOrbIds.has(id)) spawnedIdsRef.current.delete(id);
+    }
 
     for (let i = profile.maxActive; i < MAX_SLOTS; i++) {
       const slot = slotsRef.current[i];
@@ -292,7 +306,8 @@ export function EnemyDefeatVFX() {
     }
 
     for (const orb of darkOrbs) {
-      if (!orb.destroying) continue;
+      const isSpawning = !orb.destroying && !spawnedIdsRef.current.has(orb.id);
+      if (!orb.destroying && !isSpawning) continue;
       const bossType = resolveEnemyDefeatBossType(orb, gameMode, arcadeLevel);
       if (!bossType) continue;
 
@@ -307,6 +322,8 @@ export function EnemyDefeatVFX() {
         slot.active = true;
         slot.id = orb.id;
         slot.bossType = bossType;
+        slot.animation = isSpawning ? "spawn" : "defeat";
+        slot.spawnAge = 0;
         slot.x = position[0];
         slot.y = position[1];
         slot.z = position[2];
@@ -315,9 +332,14 @@ export function EnemyDefeatVFX() {
         slot.angle = seeded(orb.seed * 1000 + 31, slotIndex) * Math.PI * 2;
         slot.lastPreset = "";
         idToSlotRef.current.set(orb.id, slotIndex);
+        if (isSpawning) spawnedIdsRef.current.add(orb.id);
       }
 
       const slot = slotsRef.current[slotIndex];
+      if (slot.animation === "spawn" && orb.destroying) {
+        slot.animation = "defeat";
+        slot.spawnAge = 0;
+      }
       slot.seenFrame = currentFrame;
       slot.bossType = bossType;
       slot.scale = Math.max(0.36, Math.min(2.8, slot.sourceScale * profile.sizeMultiplier));
@@ -326,7 +348,29 @@ export function EnemyDefeatVFX() {
         slot.lastPreset = presetRef.current;
       }
 
-      const progress = getEnemyDefeatProgress(orb.destroyTimer);
+      if (slot.animation === "spawn") {
+        slot.spawnAge += delta;
+        if (slot.spawnAge >= ENEMY_DEFEAT_DURATION) {
+          idToSlotRef.current.delete(orb.id);
+          slot.active = false;
+          slot.id = "";
+          slot.lastPreset = "";
+          clearSlot(slotIndex);
+          continue;
+        }
+        const livePosition = gameRuntime.enemies.byId.get(orb.id)?.position;
+        if (livePosition) {
+          slot.x = livePosition[0];
+          slot.y = livePosition[1];
+          slot.z = livePosition[2];
+        }
+      }
+
+      // The authored defeat profile runs from 0 → 1. Spawn animation runs the
+      // same transforms backward, pulling fragments and corona into the orb.
+      const progress = slot.animation === "spawn"
+        ? getEnemySpawnReverseProgress(slot.spawnAge)
+        : getEnemyDefeatProgress(orb.destroyTimer);
       const time = state.clock.elapsedTime;
       const palette = getPaletteColors(slot.bossType);
       const cosA = Math.cos(slot.angle);

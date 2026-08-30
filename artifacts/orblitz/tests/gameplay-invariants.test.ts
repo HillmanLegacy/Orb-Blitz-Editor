@@ -83,6 +83,7 @@ import {
   getBossTypeForEnemyShape,
   getEnemyDefeatParticleTotal,
   getEnemyDefeatProgress,
+  getEnemySpawnReverseProgress,
   resolveEnemyDefeatBossType,
 } from "../src/components/game/EnemyDefeatConfig";
 import {
@@ -213,6 +214,13 @@ describe("gameplay runtime invariants", () => {
     expect(resolveEnemyDefeatBossType(standardEnemy, "arcade", 2.6)).toBe("star");
     expect(resolveEnemyDefeatBossType(standardEnemy, "survival", 2.6)).toBe("cloud");
     expect(resolveEnemyDefeatBossType(standardEnemy, "chill", 2.6)).toBe("cloud");
+  });
+
+  it("runs enemy spawn presentation through the defeat timeline in reverse", () => {
+    expect(getEnemySpawnReverseProgress(0)).toBe(1);
+    expect(getEnemySpawnReverseProgress(ENEMY_DEFEAT_DURATION / 2)).toBe(0.5);
+    expect(getEnemySpawnReverseProgress(ENEMY_DEFEAT_DURATION)).toBe(0);
+    expect(getEnemySpawnReverseProgress(ENEMY_DEFEAT_DURATION * 2)).toBe(0);
   });
 
   it("keeps mini defeat effects bounded and lighter than the full boss effect", () => {
