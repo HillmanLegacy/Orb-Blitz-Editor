@@ -322,13 +322,15 @@ function ProjectileChargeAura({ projScale }: { projScale: number }) {
 
 const MAX_BATCHED_PROJECTILES = MAX_RUNTIME_PROJECTILES;
 const _batchedProjectileDummy = new THREE.Object3D();
+const _batchedRapidTrailGeometry = new THREE.CylinderGeometry(1, 1, 1, 5, 1, true);
+const _batchedProjectileAxis = new THREE.Vector3(0, 1, 0);
+const _batchedProjectileDirection = new THREE.Vector3();
 const _batchedModelTransform = new THREE.Matrix4();
 const _batchedModelInstanceMatrix = new THREE.Matrix4();
 const _batchedModelRotation = new THREE.Quaternion();
 const _batchedModelEuler = new THREE.Euler();
 const _batchedModelScale = new THREE.Vector3(1, 1, 1);
 const _batchedModelPosition = new THREE.Vector3();
-const _rapidGlowGeometry = new THREE.SphereGeometry(1, 8, 6);
 
 type BatchedModelPart = {
   geometry: THREE.BufferGeometry;
@@ -669,92 +671,6 @@ function ProjectileEffectsGate({
   });
 
   return <group ref={groupRef} visible={false}>{children}</group>;
-}
-
-/**
- * Shared glow rendering path for Rapid Blaster shots. Their transforms already
- * live in gameRuntime, so one instanced layer avoids a separate light or React
- * subtree for every trigger pull.
- */
-function RapidProjectileGlowBatch({
-  projectiles,
-  playerScale,
-}: {
-  projectiles: readonly Projectile[];
-  playerScale: number;
-}) {
-  const rapidGlowRef = useRef<THREE.InstancedMesh>(null);
-  const activeSlotsRef = useRef<Set<number>>(new Set());
-  const seenSlotsRef = useRef<Set<number>>(new Set());
-  const [rapidGlowMaterial] = useState(() => new THREE.MeshBasicMaterial({
-    color: "#ffffff",
-    transparent: true,
-    opacity: 0.3,
-    depthWrite: false,
-    depthTest: true,
-    toneMapped: false,
-    blending: THREE.AdditiveBlending,
-  }));
-  useEffect(() => () => {
-    rapidGlowMaterial.dispose();
-  }, [rapidGlowMaterial]);
-
-  useFrame(() => {
-    const rapidGlowMesh = rapidGlowRef.current;
-    if (!rapidGlowMesh) return;
-
-    const seenSlots = seenSlotsRef.current;
-    seenSlots.clear();
-    let highestSlot = -1;
-
-    for (const projectile of projectiles) {
-      if (projectile.type !== "rapidblaster") continue;
-      const motion = projectilePhysicsMap.get(projectile.id);
-      if (!motion || motion.slot >= MAX_BATCHED_PROJECTILES) continue;
-
-      const slot = motion.slot;
-      seenSlots.add(slot);
-      highestSlot = Math.max(highestSlot, slot);
-      // A shared additive shell simulates emissive light without allocating
-      // one PointLight or React subtree per rapid-fire projectile.
-      _batchedProjectileDummy.position.set(...motion.position);
-      _batchedProjectileDummy.quaternion.identity();
-      _batchedProjectileDummy.scale.setScalar(
-        getPlayerProjectileVisualScale(
-          projectile,
-          motion.spawnScale ?? projectile.spawnScale ?? 1,
-          playerScale,
-        ) * 1.18,
-      );
-      _batchedProjectileDummy.updateMatrix();
-      rapidGlowMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
-    }
-
-    const activeSlots = activeSlotsRef.current;
-    for (const slot of activeSlots) {
-      if (seenSlots.has(slot)) continue;
-      _batchedProjectileDummy.position.set(0, 0, 0);
-      _batchedProjectileDummy.quaternion.identity();
-      _batchedProjectileDummy.scale.setScalar(0);
-      _batchedProjectileDummy.updateMatrix();
-      rapidGlowMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
-      activeSlots.delete(slot);
-    }
-    for (const slot of seenSlots) activeSlots.add(slot);
-
-    const meshCount = highestSlot + 1;
-    rapidGlowMesh.count = meshCount;
-    rapidGlowMesh.instanceMatrix.needsUpdate = true;
-  });
-
-  return (
-    <instancedMesh
-      ref={rapidGlowRef}
-      args={[_rapidGlowGeometry, rapidGlowMaterial, MAX_BATCHED_PROJECTILES]}
-      frustumCulled={false}
-      renderOrder={3}
-    />
-  );
 }
 
 function ParticleSwarmProjectileOverlay({ projectile, skinColors }: {
@@ -1191,124 +1107,137 @@ function SubblasterProjectileMesh({
   );
 }
 
-// ── Rapid Blaster projectile mesh — narrow ribbon trail ────────────────────────
-const _RB_TRAIL_N  = 12;
-const _RB_TRAIL_HW = 0.045; // narrow ribbon half-width
+// ── Rapid Blaster projectile muzzle flash ─────────────────────────────────────
+const _rbFlashGeo = new THREE.SphereGeometry(1, 8, 6);
+const _rbFlashMat = new THREE.MeshBasicMaterial({
+  color: "#fffbe8",
+  transparent: true,
+  opacity: 0,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+});
 
 function RapidBlasterProjectileMesh({
   projectile,
-  skinColors,
 }: {
   projectile: Projectile;
-  skinColors: { core: string; glow: string };
 }) {
   const groupRef = useRef<THREE.Group>(null);
+  const bornRef = useRef<number | null>(null);
+  const flashRef = useRef<THREE.Mesh>(null);
+  const projRef = useRef(projectile);
+  projRef.current = projectile;
+  const flashMat = useMemo(() => _rbFlashMat.clone(), []);
+  useEffect(() => () => flashMat.dispose(), [flashMat]);
 
-  // ── Narrow ribbon trail geometry ────────────────────────────────────────────
-  const ribbonGeo = useMemo(() => {
-    const geo  = new THREE.BufferGeometry();
-    const N    = _RB_TRAIL_N;
-    const pArr = new Float32Array(N * 2 * 3);
-    const cArr = new Float32Array(N * 2 * 4);
-    const idx: number[] = [];
-    for (let i = 0; i < N - 1; i++) {
-      const b = i * 2;
-      idx.push(b, b+2, b+1, b+1, b+2, b+3);
+  useFrame(({ clock }) => {
+    const motion = getLiveProjectileMotion(projRef.current);
+    const group = groupRef.current;
+    if (!motion) {
+      if (group) group.visible = false;
+      return;
     }
-    geo.setIndex(idx);
-    geo.setAttribute("position", new THREE.BufferAttribute(pArr, 3));
-    geo.setAttribute("color",    new THREE.BufferAttribute(cArr, 4));
-    geo.setDrawRange(0, 0);
-    return geo;
-  }, []);
-
-  const ribbonMat = useMemo(() => new THREE.MeshBasicMaterial({
-    vertexColors: true,
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    side: THREE.DoubleSide,
-  }), []);
-
-  useEffect(() => () => { ribbonGeo.dispose(); ribbonMat.dispose(); }, [ribbonGeo, ribbonMat]);
-
-  const posHistRef = useRef(new Float32Array(_RB_TRAIL_N * 3));
-  const histLenRef = useRef(0);
-  const projRef    = useRef(projectile);
-  projRef.current  = projectile;
-
-  useFrame(() => {
-    const proj = projRef.current;
-    const motion = getLiveProjectileMotion(proj);
-    if (!motion) return;
-    if (groupRef.current) groupRef.current.position.set(...motion.position);
-    const [wx, wy, wz] = motion.position;
-
-    // ── Position history (most-recent at index 0) ──────────────────────────
-    const N   = _RB_TRAIL_N;
-    const len = Math.min(histLenRef.current + 1, N);
-    histLenRef.current = len;
-    const hist = posHistRef.current;
-    for (let i = len - 1; i > 0; i--) {
-      hist[i*3] = hist[(i-1)*3]; hist[i*3+1] = hist[(i-1)*3+1]; hist[i*3+2] = hist[(i-1)*3+2];
+    if (group) {
+      group.visible = true;
+      group.position.set(...motion.position);
     }
-    hist[0] = wx; hist[1] = wy; hist[2] = wz;
-    if (len < 2) return;
 
-    // Perpendicular to fire direction (ribbon width axis)
-    const [fdx, fdy] = motion.direction;
-    const fl  = Math.sqrt(fdx*fdx + fdy*fdy) || 1;
-    const px_ = -fdy / fl, py_ = fdx / fl;
-
-    const pAttr = ribbonGeo.getAttribute("position") as THREE.BufferAttribute;
-    const cAttr = ribbonGeo.getAttribute("color")    as THREE.BufferAttribute;
-    const pA    = pAttr.array as Float32Array;
-    const cA    = cAttr.array as Float32Array;
-
-    // Parse skin accent colour for ribbon tint
-    const gc = new THREE.Color(skinColors.glow);
-
-    for (let i = 0; i < len; i++) {
-      const t  = i / (len - 1);
-      const hw = _RB_TRAIL_HW * (1 - t * 0.85);
-      const rx = hist[i*3]   - wx;
-      const ry = hist[i*3+1] - wy;
-      const rz = hist[i*3+2] - wz;
-      const vi = i * 6;
-      pA[vi]   = rx + px_*hw; pA[vi+1] = ry + py_*hw; pA[vi+2] = rz;
-      pA[vi+3] = rx - px_*hw; pA[vi+4] = ry - py_*hw; pA[vi+5] = rz;
-      // Fade: head is bright white, tail tapers to skin glow colour
-      const alpha = (1 - t) * 0.72;
-      const lerpT = t;
-      const ci = i * 8;
-      cA[ci]   = 1 - lerpT * (1 - gc.r); cA[ci+1] = 1 - lerpT * (1 - gc.g); cA[ci+2] = 1 - lerpT * (1 - gc.b); cA[ci+3] = alpha;
-      cA[ci+4] = cA[ci]; cA[ci+5] = cA[ci+1]; cA[ci+6] = cA[ci+2]; cA[ci+7] = alpha;
+    if (bornRef.current === null) bornRef.current = clock.getElapsedTime();
+    const age = clock.getElapsedTime() - bornRef.current;
+    const FLASH_DUR = 0.05;
+    const flashAlpha = age < FLASH_DUR ? (1 - age / FLASH_DUR) * 0.85 : 0;
+    if (flashRef.current) {
+      (flashRef.current.material as THREE.MeshBasicMaterial).opacity = flashAlpha;
+      flashRef.current.scale.setScalar(0.28 + (1 - flashAlpha) * 0.12);
     }
-    pAttr.needsUpdate = true;
-    cAttr.needsUpdate = true;
-    ribbonGeo.setDrawRange(0, (len - 1) * 6);
-    ribbonGeo.computeBoundingSphere();
-  });
-
-  const isCharged = projectile.isCharged;
-  useFrame(() => {
-    const motion = getLiveProjectileMotion(projectile);
-    if (!motion) return;
-    if (groupRef.current && motion) groupRef.current.position.set(...motion.position);
   });
 
   return (
     <group ref={groupRef}>
-      {/* Point light — tight, matches skin colour */}
-      <pointLight color={skinColors.glow}
-        intensity={isCharged ? 12 : 8}
-        distance={isCharged ? 4.5 : 3}
-        decay={2} />
-
-      {/* Narrow trailing ribbon — rendered at world origin, offsets in geometry */}
-      <mesh geometry={ribbonGeo} material={ribbonMat} position={[0, 0, 0]} />
-
+      <mesh ref={flashRef} geometry={_rbFlashGeo} material={flashMat} scale={0.28} />
     </group>
+  );
+}
+
+// ── Rapid Blaster trail — elongated cylinder behind each projectile ───────────
+function RapidProjectileTrailBatch({
+  projectiles,
+  trailColor,
+}: {
+  projectiles: readonly Projectile[];
+  trailColor: string;
+}) {
+  const rapidTrailRef = useRef<THREE.InstancedMesh>(null);
+  const activeSlotsRef = useRef<Set<number>>(new Set());
+  const seenSlotsRef = useRef<Set<number>>(new Set());
+  const [rapidTrailMaterial] = useState(() => new THREE.MeshBasicMaterial({
+    color: trailColor,
+    transparent: true,
+    opacity: 0.82,
+    depthWrite: false,
+    depthTest: true,
+    toneMapped: false,
+    blending: THREE.AdditiveBlending,
+  }));
+  useEffect(() => {
+    rapidTrailMaterial.color.set(trailColor);
+  }, [rapidTrailMaterial, trailColor]);
+  useEffect(() => () => rapidTrailMaterial.dispose(), [rapidTrailMaterial]);
+
+  useFrame(() => {
+    const rapidTrailMesh = rapidTrailRef.current;
+    if (!rapidTrailMesh) return;
+
+    const seenSlots = seenSlotsRef.current;
+    seenSlots.clear();
+    let highestSlot = -1;
+
+    for (const projectile of projectiles) {
+      if (projectile.type !== "rapidblaster") continue;
+      const motion = projectilePhysicsMap.get(projectile.id);
+      if (!motion || motion.slot >= MAX_BATCHED_PROJECTILES) continue;
+
+      const slot = motion.slot;
+      seenSlots.add(slot);
+      highestSlot = Math.max(highestSlot, slot);
+      const [dx, dy, dz] = motion.direction;
+      _batchedProjectileDirection.set(dx, dy, dz).normalize();
+      _batchedProjectileDummy.position.set(
+        motion.position[0] - dx * 0.72,
+        motion.position[1] - dy * 0.72,
+        motion.position[2] - dz * 0.72,
+      );
+      _batchedProjectileDummy.quaternion.setFromUnitVectors(
+        _batchedProjectileAxis,
+        _batchedProjectileDirection,
+      );
+      _batchedProjectileDummy.scale.set(0.038, 1.0, 0.038);
+      _batchedProjectileDummy.updateMatrix();
+      rapidTrailMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
+    }
+
+    const activeSlots = activeSlotsRef.current;
+    for (const slot of activeSlots) {
+      if (seenSlots.has(slot)) continue;
+      _batchedProjectileDummy.position.set(0, 0, 0);
+      _batchedProjectileDummy.quaternion.identity();
+      _batchedProjectileDummy.scale.setScalar(0);
+      _batchedProjectileDummy.updateMatrix();
+      rapidTrailMesh.setMatrixAt(slot, _batchedProjectileDummy.matrix);
+      activeSlots.delete(slot);
+    }
+    for (const slot of seenSlots) activeSlots.add(slot);
+
+    rapidTrailMesh.count = highestSlot + 1;
+    rapidTrailMesh.instanceMatrix.needsUpdate = true;
+  });
+
+  return (
+    <instancedMesh
+      ref={rapidTrailRef}
+      args={[_batchedRapidTrailGeometry, rapidTrailMaterial, MAX_BATCHED_PROJECTILES]}
+      frustumCulled={false}
+    />
   );
 }
 
@@ -2784,9 +2713,9 @@ export function Projectiles() {
   runtimeDiagnostics.noteProjectileRender();
   return (
     <>
-       <RapidProjectileGlowBatch
+       <RapidProjectileTrailBatch
          projectiles={batchedProjectiles}
-         playerScale={playerScale}
+         trailColor={defaultTrailPalette.base}
        />
        <Suspense fallback={null}>
          <BatchedPlayerProjectileModels
@@ -2829,7 +2758,9 @@ export function Projectiles() {
                  projectile={proj}
                  trailPalette={defaultTrailPalette}
                />
-             ) : proj.type === "rapidblaster" ? null
+             ) : proj.type === "rapidblaster" ? (
+               <RapidBlasterProjectileMesh projectile={proj} />
+             )
              : shouldRenderParticleSwarmOverlay(proj, equippedTrail) ? (
                <ParticleSwarmProjectileOverlay
                  projectile={proj}
