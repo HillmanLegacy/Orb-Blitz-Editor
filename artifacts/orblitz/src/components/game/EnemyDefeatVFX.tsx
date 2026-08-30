@@ -22,6 +22,8 @@ const MAX_MAIN = ENEMY_DEFEAT_PROFILES.high.main;
 const MAX_EMBERS = ENEMY_DEFEAT_PROFILES.high.embers;
 const MAX_FRAGMENTS = ENEMY_DEFEAT_PROFILES.high.fragments;
 const MAX_CORONA = ENEMY_DEFEAT_PROFILES.high.corona;
+const MAX_CORE = MAX_SLOTS;
+const MAX_RINGS = MAX_SLOTS * 2;
 
 type ParticleDatum = Readonly<{
   x: number;
@@ -58,6 +60,7 @@ type EffectSlot = {
   active: boolean;
   id: string;
   bossType: BossType;
+  isStandard: boolean;
   animation: "defeat" | "spawn";
   spawnAge: number;
   x: number;
@@ -212,6 +215,8 @@ export function EnemyDefeatVFX() {
   const emberRef = useRef<THREE.InstancedMesh>(null);
   const fragmentRef = useRef<THREE.InstancedMesh>(null);
   const coronaRef = useRef<THREE.InstancedMesh>(null);
+  const coreRef = useRef<THREE.InstancedMesh>(null);
+  const ringRef = useRef<THREE.InstancedMesh>(null);
   const flashRef = useRef<THREE.InstancedMesh>(null);
   const initializedRef = useRef(false);
   const frameRef = useRef(0);
@@ -223,6 +228,7 @@ export function EnemyDefeatVFX() {
       active: false,
       id: "",
       bossType: "circle",
+      isStandard: false,
       animation: "defeat",
       spawnAge: 0,
       x: 0,
@@ -241,6 +247,8 @@ export function EnemyDefeatVFX() {
     embers: MAX_SLOTS * MAX_EMBERS,
     fragments: MAX_SLOTS * MAX_FRAGMENTS,
     corona: MAX_SLOTS * MAX_CORONA,
+    cores: MAX_CORE,
+    rings: MAX_RINGS,
     flashes: MAX_SLOTS,
   }), []);
 
@@ -249,6 +257,8 @@ export function EnemyDefeatVFX() {
     hideRange(emberRef.current, slotIndex * MAX_EMBERS, MAX_EMBERS);
     hideRange(fragmentRef.current, slotIndex * MAX_FRAGMENTS, MAX_FRAGMENTS);
     hideRange(coronaRef.current, slotIndex * MAX_CORONA, MAX_CORONA);
+    hideRange(coreRef.current, slotIndex, 1);
+    hideRange(ringRef.current, slotIndex * 2, 2);
     hideRange(flashRef.current, slotIndex, 1);
   };
 
@@ -256,7 +266,7 @@ export function EnemyDefeatVFX() {
     return () => {
       idToSlotRef.current.clear();
       spawnedIdsRef.current.clear();
-      for (const ref of [mainRef, emberRef, fragmentRef, coronaRef, flashRef]) {
+      for (const ref of [mainRef, emberRef, fragmentRef, coronaRef, coreRef, ringRef, flashRef]) {
         const mesh = ref.current;
         if (!mesh) continue;
         mesh.geometry.dispose();
@@ -272,8 +282,10 @@ export function EnemyDefeatVFX() {
     const emberMesh = emberRef.current;
     const fragmentMesh = fragmentRef.current;
     const coronaMesh = coronaRef.current;
+    const coreMesh = coreRef.current;
+    const ringMesh = ringRef.current;
     const flashMesh = flashRef.current;
-    if (!mainMesh || !emberMesh || !fragmentMesh || !coronaMesh || !flashMesh) return;
+    if (!mainMesh || !emberMesh || !fragmentMesh || !coronaMesh || !coreMesh || !ringMesh || !flashMesh) return;
 
     if (!initializedRef.current) {
       for (let i = 0; i < MAX_SLOTS; i++) clearSlot(i);
@@ -281,6 +293,8 @@ export function EnemyDefeatVFX() {
       emberMesh.instanceMatrix.needsUpdate = true;
       fragmentMesh.instanceMatrix.needsUpdate = true;
       coronaMesh.instanceMatrix.needsUpdate = true;
+      coreMesh.instanceMatrix.needsUpdate = true;
+      ringMesh.instanceMatrix.needsUpdate = true;
       flashMesh.instanceMatrix.needsUpdate = true;
       initializedRef.current = true;
     }
@@ -301,6 +315,7 @@ export function EnemyDefeatVFX() {
       idToSlotRef.current.delete(slot.id);
       slot.active = false;
       slot.id = "";
+      slot.isStandard = false;
       slot.lastPreset = "";
       clearSlot(i);
     }
@@ -322,6 +337,7 @@ export function EnemyDefeatVFX() {
         slot.active = true;
         slot.id = orb.id;
         slot.bossType = bossType;
+        slot.isStandard = !orb.isBossOrb;
         slot.animation = isSpawning ? "spawn" : "defeat";
         slot.spawnAge = 0;
         slot.x = position[0];
@@ -342,6 +358,7 @@ export function EnemyDefeatVFX() {
       }
       slot.seenFrame = currentFrame;
       slot.bossType = bossType;
+      slot.isStandard = !orb.isBossOrb;
       slot.scale = Math.max(0.36, Math.min(2.8, slot.sourceScale * profile.sizeMultiplier));
       if (slot.lastPreset !== presetRef.current) {
         clearSlot(slotIndex);
@@ -354,6 +371,7 @@ export function EnemyDefeatVFX() {
           idToSlotRef.current.delete(orb.id);
           slot.active = false;
           slot.id = "";
+          slot.isStandard = false;
           slot.lastPreset = "";
           clearSlot(slotIndex);
           continue;
@@ -375,6 +393,53 @@ export function EnemyDefeatVFX() {
       const palette = getPaletteColors(slot.bossType);
       const cosA = Math.cos(slot.angle);
       const sinA = Math.sin(slot.angle);
+
+      if (!slot.isStandard) {
+        hideRange(coreMesh, slotIndex, 1);
+        hideRange(ringMesh, slotIndex * 2, 2);
+      } else {
+        // Standard enemies use a faceted 3D energy core instead of retaining
+        // any defeated model silhouette. The bloom collapses into the debris.
+        const corePulse = progress < 0.22
+          ? progress / 0.22
+          : Math.max(0, 1 - (progress - 0.22) / 0.38);
+        _dummy.position.set(slot.x, slot.y, slot.z);
+        _dummy.rotation.set(
+          time * 2.6 + slot.angle,
+          time * 3.4 - slot.angle,
+          time * 1.8,
+        );
+        _dummy.scale.setScalar(slot.scale * (0.16 + corePulse * 0.62) * corePulse);
+        _dummy.updateMatrix();
+        coreMesh.setMatrixAt(slotIndex, _dummy.matrix);
+        writePaletteColor(palette, 0.72, time, slotIndex, 0.92 + corePulse * 0.2);
+        coreMesh.setColorAt(slotIndex, _color);
+
+        // Crossed torus rings read as a volumetric shockwave from any camera
+        // angle while staying much cheaper than individual ring objects.
+        const ringPulse = progress < 0.1
+          ? progress / 0.1
+          : Math.max(0, 1 - (progress - 0.1) / 0.62);
+        for (let ring = 0; ring < 2; ring++) {
+          const ringIndex = slotIndex * 2 + ring;
+          const radius = 0.35 + Math.min(1, progress / 0.72) * (1.5 + ring * 0.42);
+          _dummy.position.set(slot.x, slot.y, slot.z);
+          _dummy.rotation.set(
+            ring === 0 ? time * 1.5 : Math.PI / 2 + time * 1.15,
+            ring === 0 ? slot.angle * 0.2 : slot.angle,
+            ring === 0 ? slot.angle : time * 0.8,
+          );
+          _dummy.scale.set(
+            slot.scale * radius * ringPulse,
+            slot.scale * radius * ringPulse,
+            slot.scale * (0.52 + ringPulse * 0.5),
+          );
+          _dummy.updateMatrix();
+          ringMesh.setMatrixAt(ringIndex, _dummy.matrix);
+          writePaletteColor(palette, ring === 0 ? 0.56 : 0.86, time, ringIndex, 0.78 + ringPulse * 0.28);
+          ringMesh.setColorAt(ringIndex, _color);
+        }
+      }
 
       for (let i = 0; i < profile.main; i++) {
         const datum = MAIN_DATA[i];
@@ -493,6 +558,7 @@ export function EnemyDefeatVFX() {
       idToSlotRef.current.delete(slot.id);
       slot.active = false;
       slot.id = "";
+      slot.isStandard = false;
       slot.lastPreset = "";
       clearSlot(i);
     }
@@ -506,17 +572,29 @@ export function EnemyDefeatVFX() {
     if (emberMesh.instanceColor) emberMesh.instanceColor.needsUpdate = true;
     if (fragmentMesh.instanceColor) fragmentMesh.instanceColor.needsUpdate = true;
     if (coronaMesh.instanceColor) coronaMesh.instanceColor.needsUpdate = true;
+    coreMesh.instanceMatrix.needsUpdate = true;
+    ringMesh.instanceMatrix.needsUpdate = true;
+    if (coreMesh.instanceColor) coreMesh.instanceColor.needsUpdate = true;
+    if (ringMesh.instanceColor) ringMesh.instanceColor.needsUpdate = true;
     if (flashMesh.instanceColor) flashMesh.instanceColor.needsUpdate = true;
   });
 
   return (
     <group>
+      <instancedMesh ref={ringRef} args={[undefined, undefined, capacities.rings]} frustumCulled={false}>
+        <torusGeometry args={[1, 0.035, 6, 24]} />
+        <meshBasicMaterial transparent opacity={0.82} blending={THREE.AdditiveBlending} depthWrite={false} />
+      </instancedMesh>
+      <instancedMesh ref={coreRef} args={[undefined, undefined, capacities.cores]} frustumCulled={false}>
+        <icosahedronGeometry args={[1, 1]} />
+        <meshBasicMaterial transparent opacity={0.9} blending={THREE.AdditiveBlending} depthWrite={false} wireframe />
+      </instancedMesh>
       <instancedMesh ref={coronaRef} args={[undefined, undefined, capacities.corona]} frustumCulled={false}>
         <sphereGeometry args={[1, 5, 4]} />
         <meshBasicMaterial transparent opacity={1} blending={THREE.AdditiveBlending} depthWrite={false} />
       </instancedMesh>
       <instancedMesh ref={mainRef} args={[undefined, undefined, capacities.main]} frustumCulled={false}>
-        <sphereGeometry args={[1, 6, 4]} />
+        <octahedronGeometry args={[1, 0]} />
         <meshBasicMaterial transparent opacity={1} blending={THREE.AdditiveBlending} depthWrite={false} />
       </instancedMesh>
       <instancedMesh ref={fragmentRef} args={[undefined, undefined, capacities.fragments]} frustumCulled={false}>
