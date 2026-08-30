@@ -8,6 +8,12 @@ import { balanceTelemetry } from "@/game-runtime/BalanceTelemetry";
 import { getArcadeRequiredOrbs, getAuthoredBossProgression } from "@/game-runtime/BossProgression";
 import { MAX_RUNTIME_PROJECTILES, PLAYER_PROJECTILE_RESERVE } from "@/game-runtime/ProjectileRuntime";
 import { ENEMY_DEFEAT_DURATION } from "@/game-runtime/EnemyLifecycle";
+import {
+  createInitialGameplayStats,
+  evaluateGameplayGrade,
+  type GameplayResultSnapshot,
+  type GameplayStats,
+} from "@/game-runtime/GameplayGrades";
 
 export type GamePhase = "menu" | "loading" | "playing" | "paused" | "gameOver" | "levelComplete" | "modeSelect" | "arcadeComplete";
 export type LoadingType = "entering" | "exiting" | "exiting_to_menu" | "nextLevel" | null;
@@ -195,6 +201,9 @@ export interface MagicOrbState {
   stars: number;
   gameTime: number;
   gauntletOrbsDestroyed: number;
+  runStats: GameplayStats;
+  lastResult: GameplayResultSnapshot | null;
+  hitProjectileIds: string[];
   
   hasShield: boolean;
   shieldDisintTimer: number;
@@ -332,6 +341,9 @@ export interface MagicOrbState {
   addOrbDestroyStars: () => void;
   addBossDefeatStars: () => void;
   updateGameTime: (delta: number) => void;
+  recordShot: (count?: number) => void;
+  recordHit: (projectileId?: string) => void;
+  recordEnemyDefeat: (id: string) => void;
   updateDifficulty: () => void;
   updateTimeDifficulty: () => void;
   consumeShield: () => void;
@@ -361,7 +373,7 @@ export interface MagicOrbState {
   spawnSurvivalBoss: () => void;
   triggerDeath: () => void;
   teleportPlayer: (position: [number, number, number]) => void;
-  registerMissedShot: () => void;
+  registerMissedShot: (count?: number) => void;
   incrementGauntletOrbs: () => void;
   
   // Magi-Orb state
@@ -419,6 +431,26 @@ export interface MagicOrbState {
   damageMagiOrb5: () => boolean;
   damageMagiOrb8: () => void;
   initMagiOrbs: () => void;
+}
+
+function getGameplayStatsForState(state: MagicOrbState, completed: boolean): GameplayStats {
+  const objectiveProgress = state.gameMode === "arcade"
+    ? state.orbsDestroyedInLevel
+    : state.gameMode === "gauntlet"
+      ? state.gauntletOrbsDestroyed
+      : state.runStats.enemiesDefeated;
+  const objectiveTarget = state.gameMode === "arcade" ? state.orbsRequiredForLevel : 0;
+  return {
+    ...state.runStats,
+    mode: state.gameMode,
+    arcadeLevel: state.arcadeLevel,
+    remainingHealth: state.health,
+    elapsedSeconds: state.gameTime,
+    objectiveProgress,
+    objectiveTarget,
+    score: state.score,
+    completed,
+  };
 }
 
 export const WORLD_COLORS: Record<number, { primary: string; secondary: string; accent: string }> = {
