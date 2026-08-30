@@ -1237,18 +1237,9 @@ function SubblasterProjectileMesh({
   );
 }
 
-// ── Rapid Blaster projectile mesh — narrow ribbon trail + muzzle flash ────────
+// ── Rapid Blaster projectile mesh — narrow ribbon trail ────────────────────────
 const _RB_TRAIL_N  = 12;
 const _RB_TRAIL_HW = 0.045; // narrow ribbon half-width
-
-const _rbFlashGeo = new THREE.SphereGeometry(1, 8, 6);
-const _rbFlashMat = new THREE.MeshBasicMaterial({
-  color: "#fffbe8",
-  transparent: true,
-  opacity: 0,
-  depthWrite: false,
-  blending: THREE.AdditiveBlending,
-});
 
 function RapidBlasterProjectileMesh({
   projectile,
@@ -1258,8 +1249,6 @@ function RapidBlasterProjectileMesh({
   skinColors: { core: string; glow: string };
 }) {
   const groupRef = useRef<THREE.Group>(null);
-  const bornRef   = useRef<number | null>(null);
-  const flashRef  = useRef<THREE.Mesh>(null);
 
   // ── Narrow ribbon trail geometry ────────────────────────────────────────────
   const ribbonGeo = useMemo(() => {
@@ -1294,24 +1283,12 @@ function RapidBlasterProjectileMesh({
   const projRef    = useRef(projectile);
   projRef.current  = projectile;
 
-  useFrame(({ clock }) => {
+  useFrame(() => {
     const proj = projRef.current;
     const motion = getLiveProjectileMotion(proj);
     if (!motion) return;
     if (groupRef.current) groupRef.current.position.set(...motion.position);
     const [wx, wy, wz] = motion.position;
-
-    // Record born time once on first frame
-    if (bornRef.current === null) bornRef.current = clock.getElapsedTime();
-
-    // ── Muzzle flash — bright sphere at projectile head, fades in 0.05 s ──
-    if (flashRef.current) {
-      const age = clock.getElapsedTime() - bornRef.current!;
-      const FLASH_DUR = 0.05;
-      const flashAlpha = age < FLASH_DUR ? (1 - age / FLASH_DUR) * 0.85 : 0;
-      (flashRef.current.material as THREE.MeshBasicMaterial).opacity = flashAlpha;
-      flashRef.current.scale.setScalar(0.28 + (1 - flashAlpha) * 0.12);
-    }
 
     // ── Position history (most-recent at index 0) ──────────────────────────
     const N   = _RB_TRAIL_N;
@@ -1373,9 +1350,6 @@ function RapidBlasterProjectileMesh({
         intensity={isCharged ? 12 : 8}
         distance={isCharged ? 4.5 : 3}
         decay={2} />
-
-      {/* Muzzle flash sphere — born-time driven */}
-      <mesh ref={flashRef} geometry={_rbFlashGeo} material={_rbFlashMat.clone()} scale={0.28} />
 
       {/* Narrow trailing ribbon — rendered at world origin, offsets in geometry */}
       <mesh geometry={ribbonGeo} material={ribbonMat} position={[0, 0, 0]} />
