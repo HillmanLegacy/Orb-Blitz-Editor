@@ -41,7 +41,7 @@ const SPARK_SPEED_MIN    = 5.0;
 const SPARK_SPEED_MAX    = 12.0;
 const SPARK_SIZE_MIN     = 0.07;
 const SPARK_SIZE_MAX     = 0.22;
-const ABSORB_VFX_SCALE   = 1.0;
+const ABSORB_VFX_SCALE   = 0.8;
 
 const ABSORB_LIGHT_PEAK  = 14.0;
 const ABSORB_LIGHT_DECAY = 20;
