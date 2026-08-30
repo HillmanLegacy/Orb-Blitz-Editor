@@ -19,10 +19,10 @@ import { getVisualBudget, useRenderQuality } from "./AdaptiveRenderQuality";
 const MAX_PARTICLES   = 700;
 const ABSORB_DIST_SQ  = 0.4 * 0.4;
 
-const BURST_SPEED     = 6.0;
+const BURST_SPEED     = 7.6;
 
-const BOSS_BURST_SPEED_MIN = 8.0;
-const BOSS_BURST_SPEED_MAX = 26.0;
+const BOSS_BURST_SPEED_MIN = 9.5;
+const BOSS_BURST_SPEED_MAX = 28.0;
 
 const LIGHT_POOL      = 16;
 const LIGHT_RANGE     = 2.8;
@@ -251,7 +251,7 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
           bvy = Math.sin(angle) * spd;
         } else {
           const angle = (i / visualCount) * Math.PI * 2 + Math.random() * 0.9;
-          const speed = BURST_SPEED * (0.76 + Math.random() * 0.48);
+          const speed = BURST_SPEED * (0.82 + Math.random() * 0.36);
           bvx = Math.cos(angle) * speed;
           bvy = Math.sin(angle) * speed;
         }
