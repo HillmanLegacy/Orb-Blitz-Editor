@@ -13,6 +13,7 @@ import {
   ENEMY_DEFEAT_DURATION,
   ENEMY_DEFEAT_PROFILES,
   getEnemyDefeatProgress,
+  getEnemyDefeatVisualScale,
   getEnemySpawnReverseProgress,
   resolveEnemyDefeatBossType,
 } from "./EnemyDefeatConfig";
@@ -344,7 +345,11 @@ export function EnemyDefeatVFX() {
         slot.y = position[1];
         slot.z = position[2];
         slot.sourceScale = orb.size;
-        slot.scale = Math.max(0.36, Math.min(2.8, slot.sourceScale * profile.sizeMultiplier));
+        slot.scale = getEnemyDefeatVisualScale(
+          slot.sourceScale,
+          profile,
+          !orb.isBossOrb,
+        );
         slot.angle = seeded(orb.seed * 1000 + 31, slotIndex) * Math.PI * 2;
         slot.lastPreset = "";
         idToSlotRef.current.set(orb.id, slotIndex);
@@ -359,7 +364,11 @@ export function EnemyDefeatVFX() {
       slot.seenFrame = currentFrame;
       slot.bossType = bossType;
       slot.isStandard = !orb.isBossOrb;
-      slot.scale = Math.max(0.36, Math.min(2.8, slot.sourceScale * profile.sizeMultiplier));
+       slot.scale = getEnemyDefeatVisualScale(
+         slot.sourceScale,
+         profile,
+         !orb.isBossOrb,
+       );
       if (slot.lastPreset !== presetRef.current) {
         clearSlot(slotIndex);
         slot.lastPreset = presetRef.current;

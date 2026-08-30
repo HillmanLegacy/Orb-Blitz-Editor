@@ -12,6 +12,8 @@ export {
   STANDARD_ENEMY_DEFEAT_DURATION,
 };
 export const STANDARD_ENEMY_DEFEAT_SIZE_SCALE = 2;
+/** Applied only to standard-enemy presentation; boss budgets and sizing stay authored. */
+export const STANDARD_ENEMY_DEFEAT_PRESENTATION_SCALE = 1.3;
 
 export type EnemyDefeatQuality = "low" | "standard" | "high";
 
@@ -92,6 +94,18 @@ export function resolveEnemyDefeatBossType(
 
 export function getEnemyDefeatParticleTotal(profile: EnemyDefeatProfile): number {
   return profile.main + profile.embers + profile.fragments + profile.corona;
+}
+
+export function getEnemyDefeatVisualScale(
+  sourceScale: number,
+  profile: Pick<EnemyDefeatProfile, "sizeMultiplier">,
+  isStandardEnemy: boolean,
+): number {
+  const authoredScale = Math.max(0.36, Math.min(2.8, sourceScale * profile.sizeMultiplier));
+  const presentationScale = isStandardEnemy
+    ? STANDARD_ENEMY_DEFEAT_PRESENTATION_SCALE
+    : 1;
+  return authoredScale * presentationScale;
 }
 
 /** Replays the authored defeat timeline backward over the same duration. */

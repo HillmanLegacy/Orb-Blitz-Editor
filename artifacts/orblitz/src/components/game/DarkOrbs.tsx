@@ -20,13 +20,18 @@ import { gameRuntime } from "@/game-runtime/GameRuntime";
 import { runtimeDiagnostics } from "@/game-runtime/RuntimeDiagnostics";
 import { usePerformanceFeature } from "@/game-runtime/PerformanceToggles";
 import { EnemyDefeatVFX } from "./EnemyDefeatVFX";
-import { ENEMY_DEFEAT_DURATION } from "@/game-runtime/EnemyLifecycle";
+import {
+  ENEMY_DEFEAT_DURATION,
+  getEnemyDefeatRemovalDecision,
+} from "@/game-runtime/EnemyLifecycle";
 import {
   bounceChillAmbientAtEdge,
   getPerspectiveViewAtPlane,
   isOutsideBossProjectileDespawnBounds,
   isOutsideEnemyDespawnBounds,
 } from "@/game-runtime/EnemySpawnConfig";
+import { sweptSphereHit } from "./ProjectileCollision";
+import { getPlayerOrbBodyRadius, getStandardEnemyBodyRadius } from "./PhysicalBodyRadii";
 
 const DISTORT_FIELD_RADIUS    = 7.125;
 const DISTORT_FIELD_RADIUS_SQ = DISTORT_FIELD_RADIUS * DISTORT_FIELD_RADIUS; // 50.77
@@ -665,6 +670,9 @@ export function DarkOrbs() {
       if (orbPhysicsMap.size > 0 && currentOrbs.length === 0) gameRuntime.enemies.reset();
       return;
     }
+    // Advance the player transform every gameplay frame, including empty enemy
+    // frames, so a newly spawned enemy cannot sweep against a stale position.
+    const playerTransform = gameRuntime.player.beginFrame(playerPosition);
     if (currentOrbs.length === 0) return;
     runtimeDiagnostics.beginEnemySimulation();
 
@@ -694,8 +702,12 @@ export function DarkOrbs() {
           bossOrbDeathSoundedRef.current.add(orb.id);
           if (!useAudio.getState().isMuted) playBossDefeatSound(0.18);
         }
-        const newTimer = (orb.destroyTimer || 0) - delta;
-        if (newTimer <= 0) {
+        const removal = getEnemyDefeatRemovalDecision(
+          Boolean(orb.isBossOrb),
+          orb.destroyTimer,
+          delta,
+        );
+        if (removal.remove) {
           bossOrbDeathSoundedRef.current.delete(orb.id);
           const phy = orbPhysicsMap.get(orb.id);
           if (phy) addExplosionImpulse(phy.position[0], phy.position[1], 10);
@@ -704,8 +716,9 @@ export function DarkOrbs() {
           structuralChanged = true;
           continue; // remove from array
         }
-        // destroyTimer change is structural (VFX progress depends on it)
-        newOrbs.push({ ...orb, destroyTimer: newTimer });
+        // A standard enemy's zero timer is published for one terminal render
+        // frame before its runtime slot is released. Bosses remain immediate.
+        newOrbs.push({ ...orb, destroyTimer: removal.destroyTimer });
         structuralChanged = true;
         continue;
       }
@@ -808,9 +821,15 @@ export function DarkOrbs() {
       }
 
       // Player collision
-      const hitRadius = orb.isBossOrb ? 1.2 : orb.size * 0.8 + 0.5;
-      const dxP = x - playerX, dyP = y - playerY;
-      if (gm !== "chill" && dxP * dxP + dyP * dyP < hitRadius * hitRadius) {
+      const hitRadius = getStandardEnemyBodyRadius(orb) +
+        getPlayerOrbBodyRadius(useMagicOrb.getState().health, useMagicOrb.getState().maxHealth);
+      if (gm !== "chill" && sweptSphereHit(
+        phy.previousPosition[0], phy.previousPosition[1], phy.previousPosition[2],
+        x, y, z,
+        playerTransform.previousPosition[0], playerTransform.previousPosition[1], playerTransform.previousPosition[2],
+        playerTransform.position[0], playerTransform.position[1], playerTransform.position[2],
+        hitRadius,
+      ) !== null) {
         addImpactEffect({ id: `impact-${Date.now()}-${Math.random()}`, position: [x, y, 0], timer: 0.5, maxTimer: 0.5, seed: Math.random() });
         if (hasShield) {
           consumeShield();

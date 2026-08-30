@@ -22,3 +22,4 @@
 - [Orblitz guaranteed firing presentation](orblitz-guaranteed-firing-presentation.md) — Every-shot VFX need a dedicated bounded admission path tied to runtime reset, not an optional dropping event queue.
 - [Orblitz overcharged VFX presets](orblitz-overcharged-vfx-presets.md) — Overcharged detonation VFX remain visible on Low via reduced budgets; do not gate them with the global VFX switch.
 - [Orblitz SFX variation](orblitz-sfx-variation.md) — Repetitive cues vary only after throttle admission; use bounded anti-repeat profiles and reset history with audio disposal.
+- [Orblitz moving collision stages](orblitz-moving-collision-stages.md) — Earlier pipeline stages must predict later-stage transforms for relative sweeps; timed AOE owns Overcharged damage exclusively.

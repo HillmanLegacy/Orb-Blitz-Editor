@@ -8,118 +8,15 @@ import {
   POWER_UP_DESTROY_DURATION,
   POWER_UP_HURT_DURATION,
 } from "@/game-runtime/PowerUpRuntime";
+import {
+  getPowerUpDestroyPresentation,
+  isPowerUpEvaporationActive,
+  PowerUpEvaporationVFX,
+} from "./PowerUpEvaporationVFX";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const HURT_DUR    = POWER_UP_HURT_DURATION;
 const DESTROY_DUR = POWER_UP_DESTROY_DURATION;
-
-// ── Teleport-out VFX ─────────────────────────────────────────────────────────
-// 28 color-matched particles burst outward then arc toward the player at [0,0,0]
-const _PUTVFX_N    = 28;
-const _putvfxDummy = new THREE.Object3D();
-const _putvfxColor = new THREE.Color();
-const _putvfxGeo   = new THREE.SphereGeometry(1, 5, 4);
-const _putvfxWhite = new THREE.Color("#ffffff");
-
-interface _PUTParticle {
-  angle: number; burstSpd: number;
-  size: number; colorT: number; delay: number;
-}
-
-function PowerUpTeleportVFX({
-  startPos, primaryColor, accentColor,
-}: {
-  startPos: [number, number, number];
-  primaryColor: string;
-  accentColor: string;
-}) {
-  const meshRef  = useRef<THREE.InstancedMesh>(null);
-  const bornRef  = useRef<number | null>(null);
-  const primC    = useMemo(() => new THREE.Color(primaryColor), [primaryColor]);
-  const accentC  = useMemo(() => new THREE.Color(accentColor),  [accentColor]);
-
-  const particles = useMemo<_PUTParticle[]>(() =>
-    Array.from({ length: _PUTVFX_N }, (_, i) => ({
-      angle:    (i / _PUTVFX_N) * Math.PI * 2 + (Math.random() - 0.5) * 0.5,
-      burstSpd: 1.8 + Math.random() * 2.8,
-      size:     0.055 + Math.random() * 0.09,
-      colorT:   Math.random(),
-      delay:    Math.random() * 0.12,
-    }))
-  , []);
-
-  const [mat] = useState(() => new THREE.MeshBasicMaterial({
-    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-  }));
-  useEffect(() => () => mat.dispose(), [mat]);
-
-  useFrame(({ clock }) => {
-    if (bornRef.current === null) bornRef.current = clock.getElapsedTime();
-    const age = clock.getElapsedTime() - bornRef.current;
-    const im  = meshRef.current;
-    if (!im) return;
-
-    const [sx, sy, sz] = startPos;
-    const BURST_END = 0.28;
-
-    for (let i = 0; i < _PUTVFX_N; i++) {
-      const p  = particles[i];
-      const pt = Math.max(0, Math.min((age - p.delay) / (DESTROY_DUR - p.delay), 1));
-
-      if (pt <= 0) {
-        _putvfxDummy.scale.setScalar(0);
-        _putvfxDummy.updateMatrix();
-        im.setMatrixAt(i, _putvfxDummy.matrix);
-        continue;
-      }
-
-      let px: number, py: number, pz: number;
-
-      if (pt < BURST_END) {
-        // Phase 1 — burst outward
-        const easeOut  = 1 - (1 - pt / BURST_END) ** 2;
-        const burstDst = p.burstSpd * easeOut * 0.55;
-        px = sx + Math.cos(p.angle) * burstDst;
-        py = sy + Math.sin(p.angle) * burstDst;
-        pz = sz;
-      } else {
-        // Phase 2 — streak toward player at [0,0,0]
-        const st      = (pt - BURST_END) / (1 - BURST_END);
-        const easeIn  = st ** 1.6;
-        const burstDst = p.burstSpd * 0.55;
-        const bx = sx + Math.cos(p.angle) * burstDst;
-        const by = sy + Math.sin(p.angle) * burstDst;
-        px = bx * (1 - easeIn);
-        py = by * (1 - easeIn);
-        pz = sz  * (1 - easeIn);
-      }
-
-      const fadeOut   = pt > 0.75 ? 1 - (pt - 0.75) / 0.25 : 1.0;
-      const sizeScale = p.size * (0.4 + 0.6 * (1 - pt * 0.6)) * fadeOut;
-
-      _putvfxDummy.position.set(px, py, pz);
-      _putvfxDummy.scale.setScalar(Math.max(0, sizeScale));
-      _putvfxDummy.updateMatrix();
-      im.setMatrixAt(i, _putvfxDummy.matrix);
-
-      // White flash → primary → accent as progress increases
-      const cP = Math.min(pt * 3.5, 1);
-      if (p.colorT < 0.5) {
-        _putvfxColor.lerpColors(_putvfxWhite, primC,   Math.min(cP * 2, 1));
-      } else {
-        _putvfxColor.lerpColors(_putvfxWhite, accentC, Math.min(cP * 2, 1));
-      }
-      im.setColorAt(i, _putvfxColor);
-    }
-
-    im.instanceMatrix.needsUpdate = true;
-    if (im.instanceColor) im.instanceColor.needsUpdate = true;
-  });
-
-  return (
-    <instancedMesh ref={meshRef} args={[_putvfxGeo, mat, _PUTVFX_N]} frustumCulled={false} />
-  );
-}
 
 // ── Shield formation VFX — 80 tiny cyan particles converge to shield surface ──
 const _SFX_N    = 80;
@@ -277,6 +174,8 @@ function PowerUpMesh({ powerUp }: { powerUp: PowerUp }) {
         return { primary: "#ffd700", secondary: "#ffee88", glow: "#ffcc00", bg: "#cc9900" };
       case "rapidFire":
         return { primary: "#ff4422", secondary: "#ffaa88", glow: "#ff6600", bg: "#cc2200" };
+      case "distort":
+        return { primary: "#ba66ff", secondary: "#f0d8ff", glow: "#7d33dd", bg: "#431080" };
       default:
         return { primary: "#ffffff", secondary: "#dddddd", glow: "#aaaaaa", bg: "#666666" };
     }
@@ -284,17 +183,10 @@ function PowerUpMesh({ powerUp }: { powerUp: PowerUp }) {
 
   const colors = getColors(powerUp.type);
 
-  // While destroying → show teleport VFX at world root so particle world-space
-  // coordinates (startPos → player at [0,0,0]) are computed correctly.
+  // Destruction presentation lives at the world root so the faceted remnants
+  // dissolve upward from the runtime-owned world position.
   if (powerUp.destroying) {
-    if (powerUp.type === "shield") {
-      return (
-        <>
-          <pointLight position={renderedPosition} color={colors.glow} intensity={4} distance={7} decay={2} />
-          <ShieldFormVFX startPos={renderedPosition} />
-        </>
-      );
-    }
+    const presentation = getPowerUpDestroyPresentation(powerUp.type);
     return (
       <>
         <pointLight
@@ -304,11 +196,16 @@ function PowerUpMesh({ powerUp }: { powerUp: PowerUp }) {
           distance={7}
           decay={2}
         />
-        <PowerUpTeleportVFX
-          startPos={renderedPosition}
-          primaryColor={colors.primary}
-          accentColor={colors.glow}
-        />
+        {isPowerUpEvaporationActive(powerUp.destroying)
+          && presentation.includes("evaporation") && (
+          <PowerUpEvaporationVFX
+            id={powerUp.id}
+            startPos={renderedPosition}
+            primaryColor={colors.primary}
+            accentColor={colors.glow}
+          />
+        )}
+        {presentation.includes("shieldFormation") && <ShieldFormVFX startPos={renderedPosition} />}
       </>
     );
   }

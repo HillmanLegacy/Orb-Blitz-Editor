@@ -16,6 +16,11 @@ export type RuntimePowerUp = {
   destroyTimer: number;
 };
 
+export type PowerUpCollisionSegment = Readonly<{
+  start: readonly [number, number, number];
+  end: readonly [number, number, number];
+}>;
+
 export type PowerUpStatePatch = {
   hurtTimer?: number;
   destroying?: boolean;
@@ -50,6 +55,31 @@ export class PowerUpRuntime {
 
   positionFor(powerUp: Pick<PowerUp, "id" | "position">): [number, number, number] {
     return this.byId.get(powerUp.id)?.position ?? powerUp.position;
+  }
+
+  /**
+   * Projectiles simulate before power-ups. Predict the same movement that tick()
+   * will commit later this frame so relative swept collision sees both bodies.
+   */
+  collisionSegmentFor(
+    powerUp: Pick<PowerUp, "id" | "position" | "velocity" | "collected" | "destroying" | "hurtTimer">,
+    delta: number,
+  ): PowerUpCollisionSegment {
+    const runtime = this.byId.get(powerUp.id);
+    const position = runtime?.position ?? powerUp.position;
+    const velocity = runtime?.velocity ?? powerUp.velocity;
+    const isStationary = runtime
+      ? runtime.collected || runtime.destroying || runtime.hurtTimer > 0
+      : Boolean(powerUp.collected || powerUp.destroying || (powerUp.hurtTimer ?? 0) > 0);
+    const elapsed = Number.isFinite(delta) && delta > 0 && !isStationary ? delta : 0;
+    return {
+      start: [position[0], position[1], position[2]],
+      end: [
+        position[0] + velocity[0] * elapsed,
+        position[1] + velocity[1] * elapsed,
+        position[2] + velocity[2] * elapsed,
+      ],
+    };
   }
 
   reset(): void {

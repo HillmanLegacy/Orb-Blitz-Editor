@@ -39,10 +39,19 @@ import {
 import { clonePlayerOrbMaterial } from "./PlayerOrbMaterial";
 import {
   OverchargedExplosionVFX,
+  OVERCHARGED_BUILD_DURATION,
   createOverchargedExplosionPool,
   emitOverchargedExplosion,
   resetOverchargedExplosionPool,
 } from "./OverchargedExplosionVFX";
+import {
+  BOSS_BODY_RADIUS,
+  POWER_UP_BODY_RADIUS,
+  getBossImpactPosition,
+  getPlayerProjectileBodyRadius,
+  getProjectileEnemyCollisionRadius,
+  getStandardEnemyBodyRadius,
+} from "./PhysicalBodyRadii";
 
 /** Projectile collision always reads live enemy transforms, never store snapshots. */
 function liveOrbPosition(orb: DarkOrb): [number, number, number] {
@@ -968,8 +977,17 @@ function ParticleSwarmProjectileOverlay({ projectile, skinColors }: {
 function easeOutQuad(t: number): number { return 1 - (1 - t) * (1 - t); }
 
 // ── Overcharged Blaster timed-explosion constants ─────────────────────────────
-const OC_TRAVEL_TIME   = 1.5;   // seconds before detonation
+export const OC_TRAVEL_TIME = 1.5; // seconds before condensation begins
+export const OVERCHARGED_DAMAGE_TIME = OC_TRAVEL_TIME + OVERCHARGED_BUILD_DURATION;
 const OC_EXPLODE_RADIUS = 4.8;  // AOE radius in world units
+
+export function isOverchargedVfxReady(travelTime: number): boolean {
+  return travelTime >= OC_TRAVEL_TIME;
+}
+
+export function isOverchargedDamageReady(travelTime: number): boolean {
+  return travelTime >= OVERCHARGED_DAMAGE_TIME;
+}
 
 // ── Orbital Spiral Blaster constants ─────────────────────────────────────────
 const SPIRAL_ORBIT_R     = 0.91;
@@ -1963,13 +1981,13 @@ export function Projectiles() {
   const { equippedTrail, equippedSkin } = useShop();
   const clockRef = useRef(0);
   const projectileSpeed = 16.5;
-  const hitRadius = 1.2;
   const hitOrbsThisFrame = useRef<Set<string>>(new Set());
   const hitPowerUpsThisFrame = useRef<Set<string>>(new Set());
   // Tracks which spiral projectiles have already pierced through the boss this
   // pass so they don't register multiple hits while inside the hit radius.
   const spiralBossHit = useRef<Set<string>>(new Set());
   const projectileOrbHits = useRef<Map<string, Set<string>>>(new Map());
+  const projectilePowerUpHits = useRef<Map<string, Set<string>>>(new Map());
   const volleyHits = useRef<Set<string>>(new Set());
   const volleyProjectileCounts = useRef<Map<string, number>>(new Map());
   const volleyRemainingCounts = useRef<Map<string, number>>(new Map());
@@ -2019,6 +2037,7 @@ export function Projectiles() {
     knownScatterVolleys.current.clear();
     spiralBossHit.current.clear();
     projectileOrbHits.current.clear();
+    projectilePowerUpHits.current.clear();
     volleyHits.current.clear();
     volleyProjectileCounts.current.clear();
     volleyRemainingCounts.current.clear();
@@ -2174,6 +2193,7 @@ export function Projectiles() {
     if (projectiles.length === 0) {
       for (const id of projectilePhysicsMap.keys()) releaseProjectileMotion(id);
       projectileOrbHits.current.clear();
+      projectilePowerUpHits.current.clear();
       spiralBossHit.current.clear();
       volleyHits.current.clear();
       volleyProjectileCounts.current.clear();
@@ -2297,9 +2317,15 @@ export function Projectiles() {
       }
       
       const effSpeed = proj.speed ?? projectileSpeed;
-      px += dx * effSpeed * delta;
-      py += dy * effSpeed * delta;
-      pz += dz * effSpeed * delta;
+      // The projectile reaches its detonation point before the build-up starts,
+      // then remains there while the condensation VFX gathers energy.
+      const wasCondensing = proj.type === "overcharged" &&
+        (motion.travelTimer ?? 0) >= OC_TRAVEL_TIME;
+      if (!wasCondensing) {
+        px += dx * effSpeed * delta;
+        py += dy * effSpeed * delta;
+        pz += dz * effSpeed * delta;
+      }
 
       // Grow-in scale for overcharged (EaseOutQuad over 0.15 s)
       let newSpawnScale    = motion.spawnScale;
@@ -2316,7 +2342,7 @@ export function Projectiles() {
       if (proj.type === "overcharged" && newTravelTimer !== undefined) {
         newTravelTimer += delta;
         if (
-          newTravelTimer >= OC_TRAVEL_TIME &&
+          isOverchargedVfxReady(newTravelTimer) &&
           !presentedOverchargedDetonations.current.has(proj.id)
         ) {
           presentedOverchargedDetonations.current.add(proj.id);
@@ -2385,9 +2411,9 @@ export function Projectiles() {
       
       let hitSomething = false;
 
-      // ── Overcharged Blaster: timed AOE explosion after OC_TRAVEL_TIME ────────
+      // VFX starts at condensation; gameplay waits for the outward climax.
       if (proj.type === "overcharged" && newTravelTimer !== undefined) {
-        if (newTravelTimer >= OC_TRAVEL_TIME) {
+        if (isOverchargedDamageReady(newTravelTimer)) {
           hitSomething = true;
 
           useMagicOrb.getState().triggerBackgroundShake();
@@ -2395,7 +2421,7 @@ export function Projectiles() {
 
           if (boss && !boss.destroying) {
             const [bx, by, bz] = gameRuntime.boss.get(boss.id)?.position ?? boss.position;
-            if (Math.sqrt((px-bx)**2+(py-by)**2+((bz||0)-pz)**2) < OC_EXPLODE_RADIUS + 1.65) {
+            if (Math.sqrt((px-bx)**2+(py-by)**2+((bz||0)-pz)**2) < OC_EXPLODE_RADIUS + BOSS_BODY_RADIUS) {
               const bossKilled = damageBoss(8);
               addScore(25); playHit();
               if (bossKilled) playSparkleExplosion();
@@ -2413,7 +2439,7 @@ export function Projectiles() {
             const orb = darkOrbs[orbIndex];
             if (orb.destroying) continue;
             const [ox, oy, oz] = liveOrbPosition(orb);
-            if (Math.sqrt((px-ox)**2+(py-oy)**2+(pz-oz)**2) < OC_EXPLODE_RADIUS) {
+            if (Math.sqrt((px-ox)**2+(py-oy)**2+(pz-oz)**2) < OC_EXPLODE_RADIUS + getStandardEnemyBodyRadius(orb)) {
               markOrbDestroying(orb.id, [ox, oy, oz]);
               addScore(10); incrementGauntletOrbs();
               addStarFlowEvent([ox, oy, oz], 5);
@@ -2424,11 +2450,19 @@ export function Projectiles() {
 
           for (const powerUp of powerUps) {
             if (powerUp.collected || powerUp.destroying || powerUp.hurtTimer) continue;
-            const [pux, puy, puz] = gameRuntime.powerUps.positionFor(powerUp);
-            if (Math.sqrt((px-pux)**2+(py-puy)**2+(pz-puz)**2) < OC_EXPLODE_RADIUS) {
+            const { end: [pux, puy, puz] } =
+              gameRuntime.powerUps.collisionSegmentFor(powerUp, delta);
+            if (Math.sqrt((px-pux)**2+(py-puy)**2+(pz-puz)**2) < OC_EXPLODE_RADIUS + POWER_UP_BODY_RADIUS) {
               hitPowerUpsThisFrame.current.add(powerUp.id);
               hurtPowerUp(powerUp.id);
               playSuccess();
+              addImpactEffect({
+                id: `impact-${impactIdCounter++}`,
+                position: [pux, puy, puz],
+                timer: 0.4,
+                maxTimer: 0.4,
+                seed: Math.random(),
+              });
             }
           }
           if (proj.volleyId) volleyHits.current.add(proj.volleyId);
@@ -2466,7 +2500,7 @@ export function Projectiles() {
               liveBoss?.previousPosition[1] ?? by,
               liveBoss?.previousPosition[2] ?? bz ?? 0,
               bx, by, bz ?? 0,
-              2.15,
+              BOSS_BODY_RADIUS + getPlayerProjectileBodyRadius(proj, 1, playerScale),
             ) !== null) {
               spiralBossHit.current.add(_sk);
               _subAlive[si] = false;
@@ -2476,7 +2510,7 @@ export function Projectiles() {
               const _bk = damageBoss();
               addScore(25); playHit();
               if (_bk) playSparkleExplosion();
-              addImpactEffect({ id: `impact-${impactIdCounter++}`, position: [_spx, _spy, _spz], timer: 0.45, maxTimer: 0.45, seed: Math.random(), isBossHit: true });
+              addImpactEffect({ id: `impact-${impactIdCounter++}`, position: getBossImpactPosition([bx, by, bz ?? 0], [_spx, _spy, _spz], [dx, dy, dz]), timer: 0.45, maxTimer: 0.45, seed: Math.random(), isBossHit: true });
             }
           }
         }
@@ -2506,7 +2540,7 @@ export function Projectiles() {
               _spx, _spy, _spz,
               previousEnemyPosition[0], previousEnemyPosition[1], previousEnemyPosition[2],
               ox, oy, oz,
-              hitRadius + (orb.isBossOrb ? 0.6 : 0) + 0.38,
+              getProjectileEnemyCollisionRadius(proj, orb),
             ) !== null) {
               _subAlive[si] = false;
               motion.hitCount = Math.max(0, (motion.hitCount ?? 3) - 1);
@@ -2526,13 +2560,19 @@ export function Projectiles() {
         if (!_subAlive.some(Boolean)) hitSomething = true;
       }
 
-      if (!hitSomething && proj.type !== "spiral") {
+      // Overcharged gameplay is exclusively the timed outward AOE above. It
+      // must not also deal direct-contact damage during travel/condensation.
+      if (!hitSomething && proj.type !== "spiral" && proj.type !== "overcharged") {
       if (boss && !boss.destroying && !boss.shieldActive) {
         const liveBoss = gameRuntime.boss.get(boss.id);
         const [bx, by, bz] = liveBoss?.position ?? boss.position;
         const [previousBossX, previousBossY, previousBossZ] =
           liveBoss?.previousPosition ?? [bx, by, bz];
-        const bossHitRadius = 1.65;
+        const bossHitRadius = BOSS_BODY_RADIUS + getPlayerProjectileBodyRadius(
+          proj,
+          1,
+          playerScale,
+        );
         
         if (
             sweptSphereHit(
@@ -2542,15 +2582,10 @@ export function Projectiles() {
               bx, by, bz || 0,
               bossHitRadius,
             ) !== null &&
-            !spiralBossHit.current.has(proj.id) &&
-            (proj.type !== "overcharged" || (motion.spawnScale ?? 1) >= 0.8)) {
-          const isOvercharged = proj.type === "overcharged";
-           const isSpiralPiercing = motion.hitCount !== undefined && motion.hitCount > 1;
+            !spiralBossHit.current.has(proj.id)) {
+          const isSpiralPiercing = motion.hitCount !== undefined && motion.hitCount > 1;
 
-          if (isOvercharged) {
-            // Overcharged passes through the boss — track so it only hits once per pass
-            spiralBossHit.current.add(proj.id);
-          } else if (!isSpiralPiercing) {
+          if (!isSpiralPiercing) {
             hitSomething = true;
           } else {
             // Spiral braid loses one strand, keeps flying
@@ -2564,7 +2599,7 @@ export function Projectiles() {
           if (proj.volleyId) {
             volleyHits.current.add(proj.volleyId);
           }
-          const bossKilled = damageBoss(isOvercharged ? 5 : undefined);
+          const bossKilled = damageBoss();
           addScore(25);
           playHit();
           
@@ -2575,20 +2610,9 @@ export function Projectiles() {
           // Place impact at the sphere surface point the projectile entered.
           {
             const bzSafe = bz || 0;
-            let dx = px - bx, dy = py - by, dz = pz - bzSafe;
-            let len = Math.sqrt(dx * dx + dy * dy + dz * dz);
-            if (len < 1e-6) {
-              [dx, dy, dz] = proj.direction;
-              len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
-            }
-            const surfaceR = 1.44;
             addImpactEffect({
               id: `impact-${impactIdCounter++}`,
-              position: [
-                bx + (dx / len) * surfaceR,
-                by + (dy / len) * surfaceR,
-                bzSafe + (dz / len) * surfaceR,
-              ],
+              position: getBossImpactPosition([bx, by, bzSafe], [px, py, pz], [dx, dy, dz]),
               timer: 0.5,
               maxTimer: 0.5,
               seed: Math.random(),
@@ -2596,7 +2620,7 @@ export function Projectiles() {
             });
           }
         }
-      } else if (boss && boss.shieldActive && proj.type !== "overcharged") {
+      } else if (boss && boss.shieldActive) {
         const liveBoss = gameRuntime.boss.get(boss.id);
         const [bx, by, bz] = liveBoss?.position ?? boss.position;
         const [previousBossX, previousBossY, previousBossZ] =
@@ -2636,10 +2660,12 @@ export function Projectiles() {
           const _ph = projectileOrbHits.current.get(proj.id);
           if (_ph && _ph.has(orb.id)) continue;
         }
-        const bossOrbHitBonus = orb.isBossOrb ? 0.6 : 0;
-        const effectiveRadius = proj.type === "overcharged"
-          ? hitRadius * (proj.size ?? 1) * 2.8
-          : (proj.isCharged ? hitRadius * 1.8 : hitRadius) + bossOrbHitBonus;
+        const effectiveRadius = getProjectileEnemyCollisionRadius(
+          proj,
+          orb,
+          1,
+          playerScale,
+        );
         const enemyMotion = gameRuntime.enemies.get(orb.id);
         const previousEnemyPosition = enemyMotion?.previousPosition ?? [ox, oy, oz] as [number, number, number];
 
@@ -2650,8 +2676,7 @@ export function Projectiles() {
               previousEnemyPosition[0], previousEnemyPosition[1], previousEnemyPosition[2],
               ox, oy, oz,
               effectiveRadius,
-            ) !== null &&
-            (proj.type !== "overcharged" || (motion.spawnScale ?? 1) >= 0.8)) {
+            ) !== null) {
           hitOrbsThisFrame.current.add(orb.id);
           markOrbDestroying(orb.id, [ox, oy, oz]);
           addScore(10);
@@ -2675,12 +2700,7 @@ export function Projectiles() {
             volleyHits.current.add(proj.volleyId);
           }
           
-          if (proj.type === "overcharged") {
-            // Unlimited pierce — destroy orb, keep flying
-            let _ph = projectileOrbHits.current.get(proj.id);
-            if (!_ph) { _ph = new Set(); projectileOrbHits.current.set(proj.id, _ph); }
-            _ph.add(orb.id);
-          } else if (proj.piercing && motion.hitCount && motion.hitCount > 1) {
+          if (proj.piercing && motion.hitCount && motion.hitCount > 1) {
             motion.hitCount--;
             let _ph2 = projectileOrbHits.current.get(proj.id);
             if (!_ph2) { _ph2 = new Set(); projectileOrbHits.current.set(proj.id, _ph2); }
@@ -2694,24 +2714,41 @@ export function Projectiles() {
       }
       }  // end if (!hitSomething && proj.type !== "spiral")
       
-      for (const powerUp of powerUps) {
+      // Overcharged power-ups are handled only by the outward AOE.
+      if (proj.type !== "overcharged") for (const powerUp of powerUps) {
         if (hitPowerUpsThisFrame.current.has(powerUp.id) || powerUp.collected || powerUp.destroying || powerUp.hurtTimer) continue;
-        const [powerUpX, powerUpY, powerUpZ] = gameRuntime.powerUps.positionFor(powerUp);
+        const powerUpSegment = gameRuntime.powerUps.collisionSegmentFor(powerUp, delta);
+        const [powerUpX, powerUpY, powerUpZ] = powerUpSegment.end;
+        const hitPowerUps = projectilePowerUpHits.current.get(proj.id);
+        if (hitPowerUps?.has(powerUp.id)) continue;
         
         if (
             sweptSphereHit(
               previousProjectileX, previousProjectileY, previousProjectileZ,
               px, py, pz,
+              powerUpSegment.start[0], powerUpSegment.start[1], powerUpSegment.start[2],
               powerUpX, powerUpY, powerUpZ,
-              powerUpX, powerUpY, powerUpZ,
-              1.5,
+              getPlayerProjectileBodyRadius(
+                proj,
+                1,
+                playerScale,
+              ) + POWER_UP_BODY_RADIUS,
             ) !== null
         ) {
           hitPowerUpsThisFrame.current.add(powerUp.id);
+          const projectileHits = hitPowerUps ?? new Set<string>();
+          projectileHits.add(powerUp.id);
+          projectilePowerUpHits.current.set(proj.id, projectileHits);
           hurtPowerUp(powerUp.id);
-          hitSomething = true;
           if (proj.volleyId) volleyHits.current.add(proj.volleyId);
           playSuccess();
+          addImpactEffect({
+            id: `impact-${impactIdCounter++}`,
+            position: [powerUpX, powerUpY, powerUpZ],
+            timer: 0.4,
+            maxTimer: 0.4,
+            seed: Math.random(),
+          });
           break;
         }
       }
@@ -2738,6 +2775,9 @@ export function Projectiles() {
     // the current key during Map iteration per the ECMAScript spec.
     for (const projId of projectileOrbHits.current.keys()) {
       if (removedIds.has(projId)) projectileOrbHits.current.delete(projId);
+    }
+    for (const projId of projectilePowerUpHits.current.keys()) {
+      if (removedIds.has(projId) || !activeIds.has(projId)) projectilePowerUpHits.current.delete(projId);
     }
     for (const hitKey of spiralBossHit.current) {
       if (activeIds.has(hitKey)) continue;

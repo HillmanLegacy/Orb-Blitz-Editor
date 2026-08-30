@@ -87,13 +87,22 @@ import {
   ENEMY_DEFEAT_DURATION,
   ENEMY_DEFEAT_PROFILES,
   STANDARD_ENEMY_DEFEAT_DURATION,
+  STANDARD_ENEMY_DEFEAT_PRESENTATION_SCALE,
   STANDARD_ENEMY_DEFEAT_SIZE_SCALE,
   getBossTypeForEnemyShape,
   getEnemyDefeatParticleTotal,
   getEnemyDefeatProgress,
+  getEnemyDefeatVisualScale,
   getEnemySpawnReverseProgress,
   resolveEnemyDefeatBossType,
 } from "../src/components/game/EnemyDefeatConfig";
+import { getEnemyDefeatRemovalDecision } from "../src/game-runtime/EnemyLifecycle";
+import {
+  getPowerUpDestroyPresentation,
+  getPowerUpEvaporationRemnantCount,
+  isPowerUpEvaporationActive,
+  POWER_UP_EVAPORATION_MAX_REMNANTS,
+} from "../src/components/game/PowerUpEvaporationVFX";
 import {
   PLAYER_SKIN_MODEL_PATHS,
   getPlayerSkinModelPath,
@@ -105,7 +114,22 @@ import {
   createPlayerFireBurstPool,
   emitPlayerProjectileFireBurst,
   resetPlayerFireBurstPool,
+  isOverchargedDamageReady,
+  isOverchargedVfxReady,
+  OC_TRAVEL_TIME,
+  OVERCHARGED_DAMAGE_TIME,
 } from "../src/components/game/Projectiles";
+import {
+  BOSS_BODY_RADIUS,
+  POWER_UP_BODY_RADIUS,
+  SPIRAL_SUB_PROJECTILE_BODY_RADIUS,
+  getBossImpactPosition,
+  getPlayerOrbBodyRadius,
+  getPlayerProjectileBodyRadius,
+  getProjectileEnemyCollisionRadius,
+  getStandardEnemyBodyRadius,
+} from "../src/components/game/PhysicalBodyRadii";
+import { PlayerRuntime } from "../src/game-runtime/PlayerRuntime";
 import {
   OVERCHARGED_BUILD_DURATION,
   OVERCHARGED_CLIMAX_DURATION,
@@ -264,6 +288,45 @@ describe("gameplay runtime invariants", () => {
     expect(getEnemyDefeatParticleTotal(ENEMY_DEFEAT_PROFILES.high)).toBe(87);
   });
 
+  it("enlarges only standard enemy defeat presentation by exactly 1.3x", () => {
+    const profile = ENEMY_DEFEAT_PROFILES.standard;
+    const bossScale = getEnemyDefeatVisualScale(1, profile, false);
+    const standardScale = getEnemyDefeatVisualScale(1, profile, true);
+
+    expect(STANDARD_ENEMY_DEFEAT_PRESENTATION_SCALE).toBe(1.3);
+    expect(bossScale).toBe(profile.sizeMultiplier);
+    expect(standardScale).toBe(bossScale * 1.3);
+  });
+
+  it("keeps a standard enemy terminal defeat frame but removes bosses immediately", () => {
+    expect(getEnemyDefeatRemovalDecision(false, 0.01, 0.02)).toEqual({
+      destroyTimer: 0,
+      remove: false,
+    });
+    expect(getEnemyDefeatRemovalDecision(false, 0, 1 / 60)).toEqual({
+      destroyTimer: 0,
+      remove: true,
+    });
+    expect(getEnemyDefeatRemovalDecision(true, 0.01, 0.02)).toEqual({
+      destroyTimer: 0,
+      remove: true,
+    });
+  });
+
+  it("uses bounded faceted evaporation presentation for destroying power-ups", () => {
+    const low = getPowerUpEvaporationRemnantCount("low");
+    const standard = getPowerUpEvaporationRemnantCount("standard");
+    const high = getPowerUpEvaporationRemnantCount("high");
+    expect(low).toBeLessThan(standard);
+    expect(standard).toBeLessThan(high);
+    expect(high).toBe(POWER_UP_EVAPORATION_MAX_REMNANTS);
+    expect(high).toBeLessThanOrEqual(24);
+    expect(getPowerUpDestroyPresentation("rapidFire")).toEqual(["evaporation"]);
+    expect(getPowerUpDestroyPresentation("shield")).toEqual(["evaporation", "shieldFormation"]);
+    expect(isPowerUpEvaporationActive(false)).toBe(false);
+    expect(isPowerUpEvaporationActive(true)).toBe(true);
+  });
+
   it("separates the overcharged explosion into build, climax, and afterglow phases", () => {
     expect(getOverchargedExplosionPhase(0)).toBe("building");
     expect(getOverchargedExplosionPhase(OVERCHARGED_BUILD_DURATION - 0.001)).toBe("building");
@@ -275,6 +338,37 @@ describe("gameplay runtime invariants", () => {
       OVERCHARGED_BUILD_DURATION + OVERCHARGED_CLIMAX_DURATION,
     )).toBe("afterglow");
     expect(getOverchargedExplosionPhase(OVERCHARGED_EXPLOSION_DURATION)).toBe("complete");
+  });
+
+  it("starts overcharged VFX at condensation but defers gameplay to the outward climax", () => {
+    expect(OVERCHARGED_DAMAGE_TIME).toBe(OC_TRAVEL_TIME + OVERCHARGED_BUILD_DURATION);
+    expect(isOverchargedVfxReady(OC_TRAVEL_TIME)).toBe(true);
+    expect(isOverchargedDamageReady(OC_TRAVEL_TIME)).toBe(false);
+    expect(isOverchargedDamageReady(OVERCHARGED_DAMAGE_TIME - 0.001)).toBe(false);
+    expect(isOverchargedDamageReady(OVERCHARGED_DAMAGE_TIME)).toBe(true);
+  });
+
+  it("derives collision bodies from the authored player, projectile, enemy, boss, and power-up scales", () => {
+    const enemy = makeEnemy("body");
+    expect(getPlayerOrbBodyRadius(10, 10)).toBe(0.72);
+    expect(getStandardEnemyBodyRadius(enemy)).toBe(enemy.size);
+    expect(getPlayerProjectileBodyRadius(makeProjectile("normal"))).toBe(0.36);
+    expect(getPlayerProjectileBodyRadius({ ...makeProjectile("spiral"), type: "spiral" }))
+      .toBe(SPIRAL_SUB_PROJECTILE_BODY_RADIUS);
+    expect(getProjectileEnemyCollisionRadius(makeProjectile("combined"), enemy)).toBe(0.86);
+    expect(BOSS_BODY_RADIUS).toBe(1.44);
+    expect(POWER_UP_BODY_RADIUS).toBe(0.72);
+    expect(getBossImpactPosition([0, 0, 0], [4, 0, 0], [1, 0, 0])).toEqual([BOSS_BODY_RADIUS, 0, 0]);
+  });
+
+  it("retains previous and current player transforms for relative swept collisions", () => {
+    const player = new PlayerRuntime();
+    const first = player.beginFrame([0, 0, 0]);
+    expect(first.previousPosition).toEqual([0, 0, 0]);
+    const second = player.beginFrame([4, 0, 0]);
+    expect(second.previousPosition).toEqual([0, 0, 0]);
+    expect(second.position).toEqual([4, 0, 0]);
+    expect(sweptSphereHit(2, -2, 0, 2, 2, 0, 0, 0, 0, 4, 0, 0, 0.72)).not.toBeNull();
   });
 
   it("keeps overcharged explosion particle work bounded and preset-aware", () => {
@@ -913,6 +1007,26 @@ describe("gameplay runtime invariants", () => {
       id: "pickup-one",
       patch: { hurtTimer: 0, destroying: true, destroyTimer: POWER_UP_DESTROY_DURATION },
     }]);
+  });
+
+  it("predicts moving power-up endpoints for relative swept projectile collision", () => {
+    const runtime = new PowerUpRuntime();
+    const source = makePowerUp("moving-pickup");
+    runtime.sync([source]);
+
+    const segment = runtime.collisionSegmentFor(source, 0.5);
+    expect(segment.start).toEqual([1, 2, 0]);
+    expect(segment.end).toEqual([2, 1.5, 0]);
+    expect(sweptSphereHit(
+      1.5, 0, 0,
+      1.5, 3, 0,
+      segment.start[0], segment.start[1], segment.start[2],
+      segment.end[0], segment.end[1], segment.end[2],
+      POWER_UP_BODY_RADIUS,
+    )).not.toBeNull();
+
+    runtime.tick(0.5);
+    expect(runtime.get(source.id)?.position).toEqual(segment.end);
   });
 
   it("keeps power-ups alive when they enter from every authored edge spawn", () => {

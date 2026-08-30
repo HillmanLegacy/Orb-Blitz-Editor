@@ -2,6 +2,7 @@ import { BossRuntime } from "./BossRuntime";
 import { BalanceTelemetry, balanceTelemetry } from "./BalanceTelemetry";
 import { EnemyRuntime } from "./EnemyRuntime";
 import { ParticleRuntime } from "./ParticleRuntime";
+import { PlayerRuntime } from "./PlayerRuntime";
 import { ProjectileSpawnEvents } from "./ProjectileSpawnEvents";
 import { MAX_RUNTIME_PROJECTILES, ProjectileRuntime } from "./ProjectileRuntime";
 import { PowerUpRuntime } from "./PowerUpRuntime";
@@ -19,6 +20,7 @@ export class GameRuntime {
   readonly powerUps = new PowerUpRuntime();
   readonly powerUpSpawns = new PowerUpSpawnScheduler();
   readonly enemies = new EnemyRuntime();
+  readonly player = new PlayerRuntime();
   readonly particles = new ParticleRuntime();
   readonly trails = new TrailRuntime();
   readonly projectileSpawns = new ProjectileSpawnEvents();
@@ -36,6 +38,7 @@ export class GameRuntime {
     this.powerUps.reset();
     this.powerUpSpawns.reset();
     this.enemies.reset();
+    this.player.reset();
     this.particles.reset();
     this.trails.reset();
     this.projectileSpawns.reset();
