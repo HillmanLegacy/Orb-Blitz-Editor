@@ -190,6 +190,12 @@ describe("gameplay runtime invariants", () => {
     });
   });
 
+  it("orients Backdraft Trail flame growth opposite projectile flight", () => {
+    expect(getBackwardFlameAuraRotation([0, 1, 0])).toBeCloseTo(Math.PI);
+    expect(getBackwardFlameAuraRotation([1, 0, 0])).toBeCloseTo(Math.PI / 2);
+    expect(getBackwardFlameAuraRotation([0, -1, 0])).toBeCloseTo(0);
+  });
+
   it("defines a complete defeat palette for every authored main boss", () => {
     expect(MAIN_BOSS_TYPES).toHaveLength(9);
     expect(new Set(MAIN_BOSS_TYPES).size).toBe(9);
