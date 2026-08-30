@@ -24,6 +24,7 @@ import { usePerformanceFeature } from "@/game-runtime/PerformanceToggles";
 import { sweptSphereHit } from "./ProjectileCollision";
 import {
   getPlayerOrbScale,
+  getPlayerProjectileSpawnVfxScale,
   getPlayerProjectileVisualScale,
   isPlayerProjectile,
   shouldRenderParticleSwarmOverlay,
@@ -279,6 +280,7 @@ type PlayerFireBurstSlot = {
   dx: number;
   dy: number;
   dz: number;
+  scale: number;
   color: string;
   phase: number;
 };
@@ -292,12 +294,14 @@ type PlayerFireBurstCoreSlot = {
   dx: number;
   dy: number;
   dz: number;
+  scale: number;
   core: string;
   glow: string;
 };
 
 export type PlayerProjectileSpawnPresentationEvent = {
   type: string | undefined;
+  size?: number;
   position: readonly [number, number, number];
   direction: readonly [number, number, number];
 };
@@ -314,11 +318,11 @@ export function createPlayerFireBurstPool(): PlayerFireBurstPool {
   return {
     bursts: Array.from({ length: MAX_PLAYER_FIRE_BURSTS }, () => ({
       active: false, age: 0, x: 0, y: 0, z: 0, dx: 1, dy: 0, dz: 0,
-      core: "#ffffff", glow: "#ffffff",
+      scale: 1, core: "#ffffff", glow: "#ffffff",
     })),
     slots: Array.from({ length: MAX_PLAYER_FIRE_BURST_PARTICLES }, (_, index) => ({
       active: false, age: 0, x: 0, y: 0, z: 0, dx: 1, dy: 0, dz: 0,
-      color: "#ffffff", phase: index * 2.399963229728653,
+      scale: 1, color: "#ffffff", phase: index * 2.399963229728653,
     })),
     nextBurstSlot: 0,
     nextSlot: 0,
@@ -348,10 +352,12 @@ export function emitPlayerProjectileFireBurst(
   event: PlayerProjectileSpawnPresentationEvent,
   palette: PlayerFireBurstPalette,
 ): void {
-  if (!isPlayerProjectile({ type: event.type as Projectile["type"] })) return;
   const colors = palette.particles.length > 0
     ? palette.particles
     : [palette.core, palette.glow];
+  const burstScale = getPlayerProjectileSpawnVfxScale({
+    size: event.size ?? 0.15,
+  });
   const directionLength = Math.hypot(event.direction[0], event.direction[1], event.direction[2]) || 1;
   const dx = event.direction[0] / directionLength;
   const dy = event.direction[1] / directionLength;
@@ -367,6 +373,7 @@ export function emitPlayerProjectileFireBurst(
   burst.dx = dx;
   burst.dy = dy;
   burst.dz = dz;
+  burst.scale = burstScale;
   burst.core = palette.core;
   burst.glow = palette.glow;
 
@@ -381,6 +388,7 @@ export function emitPlayerProjectileFireBurst(
     slot.dx = dx;
     slot.dy = dy;
     slot.dz = dz;
+    slot.scale = burstScale;
     // Rainbow uses the full authored particle palette on every firing burst.
     slot.color = colors[particle % colors.length];
   }
@@ -460,7 +468,7 @@ function PlayerProjectileFireBursts({ pool }: { pool: PlayerFireBurstPool }) {
 
       const t = burst.age / lifetime;
       const fade = 1 - t;
-      const travel = 0.035 + t * 0.16;
+      const travel = (0.035 + t * 0.16) * burst.scale;
       const burstX = burst.x + burst.dx * travel;
       const burstY = burst.y + burst.dy * travel;
       const burstZ = burst.z + burst.dz * travel;
@@ -470,7 +478,7 @@ function PlayerProjectileFireBursts({ pool }: { pool: PlayerFireBurstPool }) {
       // appearing beside the player.
       _playerFireBurstDummy.position.set(burstX, burstY, burstZ);
       _playerFireBurstDummy.rotation.set(0, 0, 0);
-      _playerFireBurstDummy.scale.setScalar(0.08 + fade * 0.16);
+      _playerFireBurstDummy.scale.setScalar((0.08 + fade * 0.16) * burst.scale);
       _playerFireBurstDummy.updateMatrix();
       flashMesh.setMatrixAt(index, _playerFireBurstDummy.matrix);
       _playerFireBurstColor.set(burst.core);
@@ -481,22 +489,26 @@ function PlayerProjectileFireBursts({ pool }: { pool: PlayerFireBurstPool }) {
         _playerFireBurstAxisZ,
         _playerFireBurstDirection.set(burst.dx, burst.dy, burst.dz),
       );
-      _playerFireBurstDummy.scale.setScalar(0.12 + t * 0.72);
+      _playerFireBurstDummy.scale.setScalar((0.12 + t * 0.72) * burst.scale);
       _playerFireBurstDummy.updateMatrix();
       ringMesh.setMatrixAt(index, _playerFireBurstDummy.matrix);
       _playerFireBurstColor.set(burst.glow).multiplyScalar(0.35 + fade * 0.65);
       ringMesh.setColorAt(index, _playerFireBurstColor);
 
       _playerFireBurstDummy.position.set(
-        burst.x + burst.dx * (0.20 + t * 0.18),
-        burst.y + burst.dy * (0.20 + t * 0.18),
-        burst.z + burst.dz * (0.20 + t * 0.18),
+        burst.x + burst.dx * (0.20 + t * 0.18) * burst.scale,
+        burst.y + burst.dy * (0.20 + t * 0.18) * burst.scale,
+        burst.z + burst.dz * (0.20 + t * 0.18) * burst.scale,
       );
       _playerFireBurstDummy.quaternion.setFromUnitVectors(
         _playerFireBurstAxisY,
         _playerFireBurstDirection.set(burst.dx, burst.dy, burst.dz),
       );
-      _playerFireBurstDummy.scale.set(0.035 + fade * 0.045, 0.28 + fade * 0.34, 0.035 + fade * 0.045);
+      _playerFireBurstDummy.scale.set(
+        (0.035 + fade * 0.045) * burst.scale,
+        (0.28 + fade * 0.34) * burst.scale,
+        (0.035 + fade * 0.045) * burst.scale,
+      );
       _playerFireBurstDummy.updateMatrix();
       streakMesh.setMatrixAt(index, _playerFireBurstDummy.matrix);
       _playerFireBurstColor.set(burst.core).multiplyScalar(0.45 + fade * 0.55);
@@ -516,14 +528,14 @@ function PlayerProjectileFireBursts({ pool }: { pool: PlayerFireBurstPool }) {
       const t = slot.age / lifetime;
       const lateralX = -slot.dy;
       const lateralY = slot.dx;
-      const lateral = Math.sin(slot.phase) * (0.03 + t * 0.18);
-      const forward = 0.10 + t * 0.52;
+      const lateral = Math.sin(slot.phase) * (0.03 + t * 0.18) * slot.scale;
+      const forward = (0.10 + t * 0.52) * slot.scale;
       _playerFireBurstDummy.position.set(
         slot.x + slot.dx * forward + lateralX * lateral,
         slot.y + slot.dy * forward + lateralY * lateral,
-        slot.z + slot.dz * forward + Math.cos(slot.phase) * t * 0.08,
+        slot.z + slot.dz * forward + Math.cos(slot.phase) * t * 0.08 * slot.scale,
       );
-      _playerFireBurstDummy.scale.setScalar((1 - t) * 0.06);
+      _playerFireBurstDummy.scale.setScalar((1 - t) * 0.06 * slot.scale);
       _playerFireBurstDummy.updateMatrix();
       shardMesh.setMatrixAt(index, _playerFireBurstDummy.matrix);
       _playerFireBurstColor.set(slot.color);

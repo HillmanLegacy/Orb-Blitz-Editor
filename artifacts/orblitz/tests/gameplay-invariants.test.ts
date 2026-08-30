@@ -57,6 +57,7 @@ import {
 import { getGameplayGateMode } from "../src/game-runtime/GameplayGateState";
 import {
   getPlayerProjectileVisualScale,
+  getPlayerProjectileSpawnVfxScale,
   getPlayerOrbScale,
   isPlayerProjectile,
   PLAYER_PROJECTILE_TYPES,
@@ -559,6 +560,13 @@ describe("gameplay runtime invariants", () => {
     expect(getPlayerProjectileVisualScale({ type: "overcharged", isCharged: true }, 0.5)).toBeCloseTo(0.6235);
   });
 
+  it("scales spawn VFX for defense, standard, charged, and oversized projectiles", () => {
+    expect(getPlayerProjectileSpawnVfxScale({ size: 0.09 })).toBe(0.6);
+    expect(getPlayerProjectileSpawnVfxScale({ size: 0.15 })).toBe(1);
+    expect(getPlayerProjectileSpawnVfxScale({ size: 0.25 })).toBeCloseTo(1.6667, 3);
+    expect(getPlayerProjectileSpawnVfxScale({ size: 1 })).toBe(2.6);
+  });
+
   it("keeps particle swarm as an overlay on the single shared projectile core", () => {
     const normalProjectile = { type: "normal" as const, isCharged: true };
     expect(isPlayerProjectile(normalProjectile)).toBe(true);
@@ -602,6 +610,7 @@ describe("gameplay runtime invariants", () => {
     };
     const event = {
       type: "rapidblaster",
+      size: 0.1,
       position: [2, 3, 4] as const,
       direction: [0, 2, 0] as const,
     };
@@ -614,12 +623,18 @@ describe("gameplay runtime invariants", () => {
     expect(pool.bursts.some((burst) =>
       burst.y === 3 &&
       burst.dy === 1 &&
+      burst.scale === getPlayerProjectileSpawnVfxScale({ size: 0.1 }) &&
       burst.core === "#111111" &&
       burst.glow === "#222222"
     )).toBe(true);
     expect(pool.slots).toHaveLength(96);
     expect(pool.slots.filter((slot) => slot.active)).toHaveLength(96);
-    expect(pool.slots.some((slot) => slot.y === 3 && slot.dy === 1 && slot.color === "#00ff00")).toBe(true);
+    expect(pool.slots.some((slot) =>
+      slot.y === 3 &&
+      slot.dy === 1 &&
+      slot.scale === getPlayerProjectileSpawnVfxScale({ size: 0.1 }) &&
+      slot.color === "#00ff00"
+    )).toBe(true);
 
     resetPlayerFireBurstPool(pool);
     expect(pool.nextBurstSlot).toBe(0);

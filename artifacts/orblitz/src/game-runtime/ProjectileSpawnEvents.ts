@@ -5,6 +5,7 @@ export const MAX_PROJECTILE_SPAWN_EVENTS = 64;
 export type ProjectileSpawnEvent = {
   id: string;
   type: string | undefined;
+  size: number | undefined;
   position: [number, number, number];
   direction: [number, number, number];
   volleyId: string | undefined;
@@ -13,6 +14,7 @@ export type ProjectileSpawnEvent = {
 type ProjectileSpawnSource = {
   id: string;
   type?: string;
+  size?: number;
   position: readonly [number, number, number];
   direction: readonly [number, number, number];
   volleyId?: string;
@@ -33,6 +35,7 @@ export class ProjectileSpawnEvents {
     this.events = Array.from({ length: capacity }, () => ({
       id: "",
       type: undefined,
+      size: undefined,
       position: [0, 0, 0],
       direction: [0, 0, 0],
       volleyId: undefined,
@@ -48,6 +51,7 @@ export class ProjectileSpawnEvents {
     const event = this.events[this.writeIndex];
     event.id = source.id;
     event.type = source.type;
+    event.size = source.size;
     event.position[0] = source.position[0];
     event.position[1] = source.position[1];
     event.position[2] = source.position[2];
@@ -70,6 +74,7 @@ export class ProjectileSpawnEvents {
       const event = this.events[this.writeIndex];
       event.id = source.id;
       event.type = source.type;
+      event.size = source.size;
       event.position[0] = source.position[0];
       event.position[1] = source.position[1];
       event.position[2] = source.position[2];

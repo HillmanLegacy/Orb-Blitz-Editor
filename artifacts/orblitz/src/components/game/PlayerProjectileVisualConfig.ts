@@ -15,6 +15,9 @@ export const PLAYER_ORB_BASE_SCALE = 0.72;
 export const PLAYER_ORB_MIN_SCALE = 0.432;
 const OVERCHARGED_VISUAL_SCALE = 1.247;
 const PROJECTILE_PLAYER_SCALE_RATIO = 0.5;
+const PROJECTILE_SPAWN_VFX_REFERENCE_SIZE = 0.15;
+const PROJECTILE_SPAWN_VFX_MIN_SCALE = 0.6;
+const PROJECTILE_SPAWN_VFX_MAX_SCALE = 2.6;
 
 export function getPlayerOrbScale(health: number, maxHealth: number): number {
   const healthRatio = maxHealth > 0 ? Math.max(0, Math.min(1, health / maxHealth)) : 1;
@@ -49,4 +52,16 @@ export function getPlayerProjectileVisualScale(
   const type = getPlayerProjectileType(projectile);
   if (type === "overcharged") return OVERCHARGED_VISUAL_SCALE * spawnScale;
   return playerScale * PROJECTILE_PLAYER_SCALE_RATIO;
+}
+
+export function getPlayerProjectileSpawnVfxScale(
+  projectile: Pick<Projectile, "size">,
+): number {
+  const size = Number.isFinite(projectile.size)
+    ? Math.max(0, projectile.size)
+    : PROJECTILE_SPAWN_VFX_REFERENCE_SIZE;
+  return Math.max(
+    PROJECTILE_SPAWN_VFX_MIN_SCALE,
+    Math.min(PROJECTILE_SPAWN_VFX_MAX_SCALE, size / PROJECTILE_SPAWN_VFX_REFERENCE_SIZE),
+  );
 }
