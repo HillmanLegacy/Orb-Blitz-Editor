@@ -638,9 +638,9 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
     }} />
   );
   const presetOptions: { id: GraphicsPreset; label: string; detail: string; color: string }[] = [
-    { id: "low", label: "LOW", detail: "Performance", color: "#66ddff" },
-    { id: "standard", label: "STANDARD", detail: "Balanced", color: "#aa88ff" },
-    { id: "high", label: "HIGH", detail: "Full detail", color: "#ff66cc" },
+    { id: "low", label: "LOW", detail: "0.8× · Efficient FX", color: "#66ddff" },
+    { id: "standard", label: "STANDARD", detail: "1.0× · Balanced FX", color: "#aa88ff" },
+    { id: "high", label: "HIGH", detail: "1.4× · Maximum FX", color: "#ff66cc" },
   ];
 
   return (

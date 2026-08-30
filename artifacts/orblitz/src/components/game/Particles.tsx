@@ -2,6 +2,10 @@ import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useFrame } from "@react-three/fiber";
 import { useRef, useMemo, useState, useEffect } from "react";
 import * as THREE from "three";
+import {
+  getGraphicsPresetProfile,
+  useGraphicsPreset,
+} from "@/game-runtime/PerformanceToggles";
 
 const CONFETTI_SHAPES = ["circle", "square", "triangle", "star", "diamond"] as const;
 const SHIMMER_COLORS = ["#ffffff", "#ffccff", "#ccffff", "#ffffcc", "#ffddee"];
@@ -52,10 +56,14 @@ function ParticleMesh({
   id,
   dp,
   dataRef,
+  renderShadow,
+  renderShimmer,
 }: {
   id: string;
   dp: DerivedProps;
   dataRef: React.MutableRefObject<Map<string, LiveParticle>>;
+  renderShadow: boolean;
+  renderShimmer: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
@@ -84,7 +92,7 @@ function ParticleMesh({
       }
     }
 
-    if (shimmerRef.current && dp.hasShimmer) {
+    if (shimmerRef.current && dp.hasShimmer && renderShimmer) {
       const shimmerPulse = Math.sin(time * dp.shimmerSpeed) * 0.5 + 0.5;
       shimmerRef.current.scale.setScalar(scale * 0.6 * (1.2 + shimmerPulse * 0.4));
       (shimmerRef.current.material as THREE.MeshBasicMaterial).opacity =
@@ -97,15 +105,16 @@ function ParticleMesh({
   return (
     <group ref={groupRef}>
       <mesh ref={meshRef}>
-        {/* Shadow layer (child[0]) */}
-        <mesh scale={1.2}>
-          {shapeType === "circle" && <circleGeometry args={[1, 8]} />}
-          {shapeType === "square" && <planeGeometry args={[1.6, 1.6]} />}
-          {shapeType === "triangle" && <circleGeometry args={[1, 3]} />}
-          {shapeType === "star" && <circleGeometry args={[1, 4]} />}
-          {shapeType === "diamond" && <circleGeometry args={[1, 4]} />}
-          <meshBasicMaterial color="#000000" transparent />
-        </mesh>
+        {renderShadow && (
+          <mesh scale={1.2}>
+            {shapeType === "circle" && <circleGeometry args={[1, 8]} />}
+            {shapeType === "square" && <planeGeometry args={[1.6, 1.6]} />}
+            {shapeType === "triangle" && <circleGeometry args={[1, 3]} />}
+            {shapeType === "star" && <circleGeometry args={[1, 4]} />}
+            {shapeType === "diamond" && <circleGeometry args={[1, 4]} />}
+            <meshBasicMaterial color="#000000" transparent />
+          </mesh>
+        )}
 
         {/* Main coloured shape */}
         {shapeType === "circle" && <circleGeometry args={[1, 8]} />}
@@ -116,7 +125,7 @@ function ParticleMesh({
         <meshBasicMaterial color={dp.color} transparent />
       </mesh>
 
-      {dp.hasShimmer && (
+      {dp.hasShimmer && renderShimmer && (
         <mesh ref={shimmerRef} position={[0, 0, 0.01]}>
           <circleGeometry args={[1, 6]} />
           <meshBasicMaterial
@@ -131,6 +140,7 @@ function ParticleMesh({
 }
 
 export function Particles() {
+  const profile = getGraphicsPresetProfile(useGraphicsPreset());
   // Mutable particle data — never stored in React/Zustand state during simulation
   const dataRef = useRef<Map<string, LiveParticle>>(new Map());
   // React state only changes when particles are added or removed (not every frame)
@@ -141,6 +151,17 @@ export function Particles() {
   // Throttle cleanup React state updates
   const pendingCleanupRef = useRef(false);
   const cleanupTimerRef = useRef(0);
+  const maxParticlesRef = useRef(profile.maxImpactParticles);
+  maxParticlesRef.current = profile.maxImpactParticles;
+
+  useEffect(() => {
+    setActiveIds((prev) => {
+      if (prev.length <= profile.maxImpactParticles) return prev;
+      const removed = prev.slice(profile.maxImpactParticles);
+      for (const { id } of removed) dataRef.current.delete(id);
+      return prev.slice(0, profile.maxImpactParticles);
+    });
+  }, [profile.maxImpactParticles]);
 
   // Subscribe to new particles added by the store
   useEffect(() => {
@@ -159,6 +180,7 @@ export function Particles() {
 
         const newEntries: Array<{ id: string; dp: DerivedProps }> = [];
         for (const p of particles) {
+          if (dataRef.current.size >= maxParticlesRef.current) break;
           if (!dataRef.current.has(p.id)) {
             dataRef.current.set(p.id, {
               id: p.id,
@@ -239,7 +261,14 @@ export function Particles() {
   return (
     <>
       {activeIds.map(({ id, dp }) => (
-        <ParticleMesh key={id} id={id} dp={dp} dataRef={dataRef} />
+        <ParticleMesh
+          key={id}
+          id={id}
+          dp={dp}
+          dataRef={dataRef}
+          renderShadow={profile.impactShadows}
+          renderShimmer={profile.impactShimmer}
+        />
       ))}
     </>
   );

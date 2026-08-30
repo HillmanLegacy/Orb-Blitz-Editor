@@ -2,6 +2,98 @@ import { useSyncExternalStore } from "react";
 
 export type GraphicsPreset = "low" | "standard" | "high";
 
+export type GraphicsPresetProfile = Readonly<{
+  renderTier: "low" | "medium" | "high";
+  desktopPixelRatio: number;
+  mobilePixelRatio: number;
+  menuFps: number;
+  gameplayFps: number;
+  idleFps: number;
+  trailDensity: number;
+  enemyOrbitParticles: number;
+  maxImpactParticles: number;
+  impactShadows: boolean;
+  impactShimmer: boolean;
+  fireEmbers: number;
+  fireSurgeSparks: number;
+  volcanicLights: number;
+  bloomIntensity: number;
+  bloomRadius: number;
+  bloomMipmap: boolean;
+  chromaticAberration: boolean;
+  antialiasPass: boolean;
+}>;
+
+/**
+ * Player-authoritative render profiles. Every tier keeps complete gameplay
+ * feedback; only presentation resolution, density, and optional GPU passes vary.
+ */
+export const GRAPHICS_PRESET_PROFILES: Record<GraphicsPreset, GraphicsPresetProfile> = {
+  low: {
+    renderTier: "low",
+    desktopPixelRatio: 0.8,
+    mobilePixelRatio: 0.75,
+    menuFps: 12,
+    gameplayFps: 60,
+    idleFps: 24,
+    trailDensity: 0.42,
+    enemyOrbitParticles: 4,
+    maxImpactParticles: 80,
+    impactShadows: false,
+    impactShimmer: false,
+    fireEmbers: 64,
+    fireSurgeSparks: 96,
+    volcanicLights: 1,
+    bloomIntensity: 0.38,
+    bloomRadius: 0.4,
+    bloomMipmap: false,
+    chromaticAberration: false,
+    antialiasPass: false,
+  },
+  standard: {
+    renderTier: "medium",
+    desktopPixelRatio: 1,
+    mobilePixelRatio: 0.9,
+    menuFps: 15,
+    gameplayFps: 60,
+    idleFps: 30,
+    trailDensity: 0.72,
+    enemyOrbitParticles: 8,
+    maxImpactParticles: 160,
+    impactShadows: true,
+    impactShimmer: false,
+    fireEmbers: 128,
+    fireSurgeSparks: 180,
+    volcanicLights: 2,
+    bloomIntensity: 0.56,
+    bloomRadius: 0.58,
+    bloomMipmap: true,
+    chromaticAberration: true,
+    antialiasPass: false,
+  },
+  high: {
+    renderTier: "high",
+    desktopPixelRatio: 1.4,
+    mobilePixelRatio: 1.15,
+    menuFps: 24,
+    gameplayFps: 60,
+    idleFps: 45,
+    trailDensity: 1,
+    enemyOrbitParticles: 12,
+    maxImpactParticles: 320,
+    impactShadows: true,
+    impactShimmer: true,
+    fireEmbers: 200,
+    fireSurgeSparks: 300,
+    volcanicLights: 3,
+    bloomIntensity: 0.66,
+    bloomRadius: 0.72,
+    bloomMipmap: true,
+    chromaticAberration: true,
+    antialiasPass: true,
+  },
+};
+
 export type PerformanceFeature =
   | "background"
   | "postprocessing"
@@ -63,15 +155,9 @@ function loadQueryOverrides(): void {
 
 loadQueryOverrides();
 
-/** Production always renders every feature. Development may disable one for A/B profiling. */
+/** Player presets preserve complete visual feedback; dev overrides support A/B profiling. */
 export function isPerformanceFeatureEnabled(feature: PerformanceFeature): boolean {
   if (disabledFeatures.has(feature)) return false;
-  if (graphicsPreset === "low") {
-    // Keep enemy cores and collision simulation active at every preset.
-    return feature === "enemyVisuals" || feature === "collision"
-      ? true
-      : false;
-  }
   return true;
 }
 
@@ -84,6 +170,12 @@ export function setPerformanceFeatureEnabled(feature: PerformanceFeature, enable
 
 export function getGraphicsPreset(): GraphicsPreset {
   return graphicsPreset;
+}
+
+export function getGraphicsPresetProfile(
+  preset: GraphicsPreset = graphicsPreset,
+): GraphicsPresetProfile {
+  return GRAPHICS_PRESET_PROFILES[preset];
 }
 
 export function setGraphicsPreset(preset: GraphicsPreset): void {

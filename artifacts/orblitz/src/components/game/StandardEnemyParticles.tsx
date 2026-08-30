@@ -3,8 +3,11 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
+import {
+  getGraphicsPresetProfile,
+  useGraphicsPreset,
+} from "@/game-runtime/PerformanceToggles";
 
-const PARTICLES_PER_ENEMY = 12;
 const MAX_PARTICLES = 512;
 
 const COLORS: Record<string, THREE.ColorRepresentation> = {
@@ -28,6 +31,8 @@ function particleColor(orb: DarkOrb): THREE.ColorRepresentation {
  * Bosses are excluded so their authored particle systems remain unchanged.
  */
 export function StandardEnemyParticles() {
+  const profile = getGraphicsPresetProfile(useGraphicsPreset());
+  const particlesPerEnemy = profile.enemyOrbitParticles;
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const color = useMemo(() => new THREE.Color(), []);
@@ -60,8 +65,8 @@ export function StandardEnemyParticles() {
       const [x, y, z] = position;
       const radius = Math.max(0.22, orb.size * 0.9);
 
-      for (let j = 0; j < PARTICLES_PER_ENEMY && write < MAX_PARTICLES; j++) {
-        const phaseOffset = (j / PARTICLES_PER_ENEMY) * Math.PI * 2 + seed;
+      for (let j = 0; j < particlesPerEnemy && write < MAX_PARTICLES; j++) {
+        const phaseOffset = (j / particlesPerEnemy) * Math.PI * 2 + seed;
         const angle = phaseOffset + t * (0.7 + (j % 3) * 0.18);
         const orbit = radius * (1.05 + (j % 4) * 0.14);
         const bob = Math.sin(t * 1.8 + phaseOffset) * radius * 0.16;

@@ -9,6 +9,10 @@ import { gameRuntime } from "@/game-runtime/GameRuntime";
 import { MAX_RUNTIME_TRAILS, MAX_TRAIL_HISTORY_POINTS } from "@/game-runtime/TrailRuntime";
 import { runtimeDiagnostics } from "@/game-runtime/RuntimeDiagnostics";
 import {
+  getGraphicsPresetProfile,
+  useGraphicsPreset,
+} from "@/game-runtime/PerformanceToggles";
+import {
   getPlayerProjectileVisualScale,
   isPlayerProjectile,
 } from "./PlayerProjectileVisualConfig";
@@ -33,6 +37,7 @@ function seedFromId(id: string, index: number): number {
 export function ProjectileTrails() {
   const projectiles = useMagicOrb(s => s.projectiles);
   const { equippedTrail } = useShop();
+  const profile = getGraphicsPresetProfile(useGraphicsPreset());
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const configuredParticleCountRef = useRef(-1);
   const activeProjectileIdsRef = useRef<Set<string>>(new Set());
@@ -47,13 +52,16 @@ export function ProjectileTrails() {
   useEffect(() => () => material.dispose(), [material]);
 
   const config = COSMETIC_TRAIL_CONFIGS[equippedTrail] ?? COSMETIC_TRAIL_CONFIGS.none;
+  const particleCount = config.particleCount === 0
+    ? 0
+    : Math.max(1, Math.round(config.particleCount * profile.trailDensity));
 
   useFrame(({ clock }) => {
     const mesh = meshRef.current;
     if (!mesh) return;
     runtimeDiagnostics.beginTrails();
 
-    if (config.particleCount === 0) {
+    if (particleCount === 0) {
       if (configuredParticleCountRef.current !== 0) gameRuntime.trails.reset();
       configuredParticleCountRef.current = 0;
       mesh.count = 0;
@@ -63,14 +71,14 @@ export function ProjectileTrails() {
 
     const maxTrailSlots = Math.min(
       MAX_RUNTIME_TRAILS,
-      Math.floor(MAX_COSMETIC_TRAIL_PARTICLES / config.particleCount),
+      Math.floor(MAX_COSMETIC_TRAIL_PARTICLES / particleCount),
     );
-    if (configuredParticleCountRef.current !== config.particleCount) {
+    if (configuredParticleCountRef.current !== particleCount) {
       // Particle ranges depend on the equipped cosmetic's density. Clearing on
       // a cosmetic change is intentional: it prevents an old stride from being
       // interpreted as another projectile's trail for one frame.
       gameRuntime.trails.reset();
-      configuredParticleCountRef.current = config.particleCount;
+      configuredParticleCountRef.current = particleCount;
       mesh.count = 0;
     }
 
@@ -129,17 +137,17 @@ export function ProjectileTrails() {
         projectile,
         motion.spawnScale ?? projectile.spawnScale ?? 1,
       ) || TRAIL_BASE_SCALE;
-      const instanceStart = slot.slot * config.particleCount;
+      const instanceStart = slot.slot * particleCount;
       highestSlot = Math.max(highestSlot, slot.slot);
 
-      for (let i = 0; i < config.particleCount; i++) {
+      for (let i = 0; i < particleCount; i++) {
         const seed = slot.seeds[i];
         const trailDistance = i * 0.24;
         const wobblePhase = seed * Math.PI * 2;
         const wobbleX = Math.sin(time * 3.2 + wobblePhase) * config.spread * baseScale;
         const wobbleY = Math.cos(time * 2.7 + wobblePhase) * config.spread * baseScale;
         const wobbleZ = Math.sin(time * 4.1 + wobblePhase * 1.7) * config.spread * baseScale * 0.6;
-        const taper = Math.max(0.05, 1 - i / config.particleCount);
+        const taper = Math.max(0.05, 1 - i / particleCount);
         const particleScale = baseScale * 0.44 * (0.5 + seed * 0.65) * taper;
         const fade = Math.max(0.08, 1 - trailDistance * 1.8);
 
@@ -201,17 +209,17 @@ export function ProjectileTrails() {
 
     for (const [projectileId, slot] of gameRuntime.trails.entries()) {
       if (activeIds.has(projectileId)) continue;
-      const instanceStart = slot.slot * config.particleCount;
+      const instanceStart = slot.slot * particleCount;
       trailDummy.position.set(0, 0, 0);
       trailDummy.scale.setScalar(0);
       trailDummy.updateMatrix();
-      for (let i = 0; i < config.particleCount; i++) {
+      for (let i = 0; i < particleCount; i++) {
         mesh.setMatrixAt(instanceStart + i, trailDummy.matrix);
       }
       gameRuntime.trails.release(projectileId);
     }
 
-    mesh.count = highestSlot < 0 ? 0 : (highestSlot + 1) * config.particleCount;
+    mesh.count = highestSlot < 0 ? 0 : (highestSlot + 1) * particleCount;
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     runtimeDiagnostics.endTrails(visibleParticles);

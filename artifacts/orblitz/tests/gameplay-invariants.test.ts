@@ -61,6 +61,7 @@ import { gameRuntime } from "../src/game-runtime/GameRuntime";
 import { runtimeDiagnostics } from "../src/game-runtime/RuntimeDiagnostics";
 import {
   getGraphicsPreset,
+  getGraphicsPresetProfile,
   isPerformanceFeatureEnabled,
   setGraphicsPreset,
 } from "../src/game-runtime/PerformanceToggles";
@@ -871,8 +872,8 @@ describe("gameplay runtime invariants", () => {
     controller.setPreset("low");
     expect(getGraphicsPreset()).toBe("low");
     expect(controller.getSnapshot()).toBe("low");
-    expect(isPerformanceFeatureEnabled("postprocessing")).toBe(false);
-    expect(isPerformanceFeatureEnabled("vfx")).toBe(false);
+    expect(isPerformanceFeatureEnabled("postprocessing")).toBe(true);
+    expect(isPerformanceFeatureEnabled("vfx")).toBe(true);
     expect(isPerformanceFeatureEnabled("enemyVisuals")).toBe(true);
     expect(isPerformanceFeatureEnabled("collision")).toBe(true);
 
@@ -884,6 +885,14 @@ describe("gameplay runtime invariants", () => {
     setGraphicsPreset("high");
     controller.setPreset("high");
     expect(controller.getSnapshot()).toBe("high");
+    expect(getGraphicsPresetProfile("low").desktopPixelRatio)
+      .toBeLessThan(getGraphicsPresetProfile("standard").desktopPixelRatio);
+    expect(getGraphicsPresetProfile("standard").desktopPixelRatio)
+      .toBeLessThan(getGraphicsPresetProfile("high").desktopPixelRatio);
+    expect(getGraphicsPresetProfile("low").trailDensity)
+      .toBeLessThan(getGraphicsPresetProfile("high").trailDensity);
+    expect(getGraphicsPresetProfile("low").antialiasPass).toBe(false);
+    expect(getGraphicsPresetProfile("high").antialiasPass).toBe(true);
 
     setGraphicsPreset("standard");
   });

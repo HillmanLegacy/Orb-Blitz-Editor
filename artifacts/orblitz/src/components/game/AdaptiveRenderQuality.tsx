@@ -4,7 +4,11 @@ import * as THREE from "three";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { IS_MOBILE } from "@/lib/isMobile";
 import { runtimeDiagnostics } from "@/game-runtime/RuntimeDiagnostics";
-import { useGraphicsPreset, type GraphicsPreset } from "@/game-runtime/PerformanceToggles";
+import {
+  getGraphicsPresetProfile,
+  useGraphicsPreset,
+  type GraphicsPreset,
+} from "@/game-runtime/PerformanceToggles";
 
 export type RenderQualityTier = "high" | "medium" | "low";
 
@@ -160,9 +164,12 @@ export class AdaptiveRenderQualityController {
 
   setPreset(preset: GraphicsPreset): void {
     this.manualPreset = preset;
-    const nextTier: RenderQualityTier = preset === "standard" ? "medium" : preset;
+    const profile = getGraphicsPresetProfile(preset);
+    const nextTier = profile.renderTier;
+    this.pixelRatio = IS_MOBILE ? profile.mobilePixelRatio : profile.desktopPixelRatio;
     if (this.tier === nextTier) {
-      this.reapply();
+      this.applyPixelRatio();
+      this.recordDiagnostics();
       return;
     }
     this.tier = nextTier;
@@ -173,7 +180,12 @@ export class AdaptiveRenderQualityController {
   }
 
   reapply(): void {
-    this.pixelRatio = getTierPixelRatio(this.tier);
+    if (this.manualPreset) {
+      const profile = getGraphicsPresetProfile(this.manualPreset);
+      this.pixelRatio = IS_MOBILE ? profile.mobilePixelRatio : profile.desktopPixelRatio;
+    } else {
+      this.pixelRatio = getTierPixelRatio(this.tier);
+    }
     this.applyPixelRatio();
     this.recordDiagnostics();
   }

@@ -13,8 +13,10 @@ import {
   subscribeRendererWarmup,
 } from "@/game-runtime/RendererWarmup";
 import {
+  getGraphicsPresetProfile,
   performanceFeatureSnapshot,
   setPerformanceFeatureEnabled,
+  useGraphicsPreset,
   usePerformanceFeature,
   usePerformanceToggleVersion,
   type PerformanceFeature,
@@ -50,6 +52,8 @@ function RendererSetup() {
 // 60 fps — so heavy scenes (many orbs, particles, effects) stutter less.
 function RenderScheduler() {
   const { invalidate } = useThree();
+  const preset = useGraphicsPreset();
+  const profile = getGraphicsPresetProfile(preset);
 
   useEffect(() => {
     let handle: ReturnType<typeof setInterval> | null = null;
@@ -67,9 +71,9 @@ function RenderScheduler() {
         // Active gameplay: 60 fps — fluid fire shaders and particle animations need it.
         // Everything else (pause, transitions, game-over): 30 fps is plenty.
         const fps =
-          phase === "menu" || phase === "modeSelect" ? 15 :
-          phase === "playing" ? 60 :
-          30;
+          phase === "menu" || phase === "modeSelect" ? profile.menuFps :
+          phase === "playing" ? profile.gameplayFps :
+          profile.idleFps;
         schedule(fps);
       },
       { fireImmediately: true },
@@ -79,7 +83,7 @@ function RenderScheduler() {
       if (handle !== null) clearInterval(handle);
       unsubscribe();
     };
-  }, [invalidate]);
+  }, [invalidate, profile]);
 
   return null;
 }
@@ -226,10 +230,12 @@ function CameraController() {
 function PostProcessingWrapper() {
   const phase = useMagicOrb(s => s.phase);
   const quality = useRenderQuality();
+  const preset = useGraphicsPreset();
+  const profile = getGraphicsPresetProfile(preset);
   const postprocessingEnabled = usePerformanceFeature("postprocessing");
   if (!postprocessingEnabled) return null;
   const isMenu = phase === "menu" || phase === "loading";
-  return <PostProcessing isMenu={isMenu} quality={quality} />;
+  return <PostProcessing isMenu={isMenu} quality={quality} profile={profile} />;
 }
 
 // IMPORTANT: PostProcessing itself must NOT call useMagicOrb(). The per-frame
@@ -238,16 +244,18 @@ function PostProcessingWrapper() {
 function PostProcessing({
   isMenu,
   quality,
+  profile,
 }: {
   isMenu: boolean;
   quality: "high" | "medium" | "low";
+  profile: ReturnType<typeof getGraphicsPresetProfile>;
 }) {
   // Pre-allocated Vector2 — mutated each frame via getState() in useFrame.
   // Postprocessing reads it through the uniform reference on each render tick.
   const abOffset = useRef(new THREE.Vector2(0.0006, 0.0004));
 
   useFrame(() => {
-    if (isMenu || quality === "low") return;
+    if (isMenu || !profile.chromaticAberration) return;
     const s        = useMagicOrb.getState();
     // Only apply chromatic aberration while actively playing
     const shake    = s.phase === "playing" ? s.backgroundShake : 0;
@@ -263,19 +271,19 @@ function PostProcessing({
   return (
     <EffectComposer multisampling={0} depthBuffer={false} stencilBuffer={false}>
       <Bloom
-        intensity={isMenu ? 0.18 : 0.62}
+        intensity={isMenu ? profile.bloomIntensity * 0.4 : profile.bloomIntensity}
         luminanceThreshold={isMenu ? 0.5 : 0.28}
         luminanceSmoothing={0.82}
-        mipmapBlur={!isMenu}
-        radius={quality === "high" ? 0.72 : quality === "medium" ? 0.58 : 0.42}
+        mipmapBlur={!isMenu && profile.bloomMipmap}
+        radius={profile.bloomRadius}
       />
       {/* Pass the same Vector2 object every render — uniform stores the ref,
           so mutations in useFrame are reflected without re-mounting the effect.
           Do NOT pass a `ref` prop: in React 19 refs are regular props and get
           spread into the effect constructor causing unexpected behaviour. */}
-      {isMenu || quality === "low" ? <></> : <ChromaticAberration offset={abOffset.current} />}
-      <Vignette eskil={false} offset={0.28} darkness={0.78} />
-      {isMenu || quality !== "high" ? <></> : <SMAA />}
+      {isMenu || !profile.chromaticAberration ? <></> : <ChromaticAberration offset={abOffset.current} />}
+      <Vignette eskil={false} offset={0.28} darkness={quality === "low" ? 0.66 : 0.78} />
+      {isMenu || !profile.antialiasPass ? <></> : <SMAA />}
     </EffectComposer>
   );
 }

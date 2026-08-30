@@ -19,6 +19,10 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
+import {
+  getGraphicsPresetProfile,
+  useGraphicsPreset,
+} from "@/game-runtime/PerformanceToggles";
 
 // ─── Module-level fire state (never triggers React re-renders) ─────────────────
 let _intensity      = 1.0;
@@ -342,6 +346,7 @@ function buildInstancedQuadGeo(
 
 // ─── World1FireScene: all hooks, materials, and one useFrame ───────────────────
 function World1FireScene() {
+  const profile = getGraphicsPresetProfile(useGraphicsPreset());
 
   // ── Magma plane uniforms + material ────────────────────────────────────────
   const magmaUniforms = useMemo(() => ({
@@ -408,6 +413,9 @@ function World1FireScene() {
     side:           THREE.DoubleSide,
     glslVersion:    THREE.GLSL3,
   }), [surgeUniforms]);
+
+  emberGeo.instanceCount = profile.fireEmbers;
+  surgeGeo.instanceCount = profile.fireSurgeSparks;
 
   // ── Volcanic point lights ──────────────────────────────────────────────────
   const centerLightRef = useRef<THREE.PointLight>(null);
@@ -506,22 +514,26 @@ function World1FireScene() {
         decay={2}
         position={[0, 0, -2]}
       />
-      <pointLight
-        ref={leftLightRef}
-        color="#FF8800"
-        intensity={1.5}
-        distance={24}
-        decay={2}
-        position={[-20, -6, -13]}
-      />
-      <pointLight
-        ref={rightLightRef}
-        color="#FF8800"
-        intensity={1.5}
-        distance={24}
-        decay={2}
-        position={[20, -6, -13]}
-      />
+      {profile.volcanicLights >= 2 && (
+        <pointLight
+          ref={leftLightRef}
+          color="#FF8800"
+          intensity={1.5}
+          distance={24}
+          decay={2}
+          position={[-20, -6, -13]}
+        />
+      )}
+      {profile.volcanicLights >= 3 && (
+        <pointLight
+          ref={rightLightRef}
+          color="#FF8800"
+          intensity={1.5}
+          distance={24}
+          decay={2}
+          position={[20, -6, -13]}
+        />
+      )}
     </>
   );
 }
