@@ -60,8 +60,8 @@ export function TrophyCollection({ onExitComplete }: { onExitComplete?: () => vo
             className="relative flex flex-col w-full overflow-hidden"
             style={{
               maxWidth: "min(760px, 100%)",
-             height: "min(calc(100vh - 20px), 720px)",
-             maxHeight: "calc(100vh - 20px)",
+              height: "min(calc(100vh - 20px), 720px)",
+              maxHeight: "calc(100vh - 20px)",
               background: "rgba(4,4,18,0.98)",
               border: "1px solid rgba(251,191,36,0.24)",
               borderRadius: "clamp(16px, 2.5vw, 24px)",
@@ -79,11 +79,11 @@ export function TrophyCollection({ onExitComplete }: { onExitComplete?: () => vo
               <div>
                 <p
                   id="orblitz-trophy-title"
-                   className="font-black tracking-[0.18em] uppercase"
+                  className="font-black tracking-[0.18em] uppercase"
                   style={{
                     color: "#fbbf24",
                     textShadow: "0 0 12px rgba(251,191,36,0.38)",
-                     fontSize: "clamp(0.85rem, 2.2vh, 1.1rem)",
+                    fontSize: "clamp(0.85rem, 2.2vh, 1.1rem)",
                   }}
                 >
                   TROPHY ARCHIVE
@@ -111,9 +111,9 @@ export function TrophyCollection({ onExitComplete }: { onExitComplete?: () => vo
               </motion.button>
             </div>
 
-             <div className="relative flex-1 min-h-0 overflow-hidden p-2.5">
+            <div className="relative flex-1 min-h-0 overflow-hidden p-2.5">
               <div
-                 className="mb-2 rounded-xl px-2.5 py-2"
+                className="mb-2 rounded-xl px-2.5 py-2"
                 style={{
                   background: selectedDefinition
                     ? `linear-gradient(110deg,${selectedDefinition.color}18,rgba(167,139,250,0.1))`
@@ -140,12 +140,12 @@ export function TrophyCollection({ onExitComplete }: { onExitComplete?: () => vo
                     </button>
                   )}
                 </div>
-                 <p className="mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.38)", fontSize: "0.53rem" }}>
-                   Select an unlocked title to equip it.
+                <p className="mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.38)", fontSize: "0.53rem" }}>
+                  Select an unlocked title to equip it.
                 </p>
               </div>
 
-               <div className="grid grid-cols-5 gap-1.5">
+              <div className="grid grid-cols-5 gap-1.5">
                 {TROPHY_CATALOGUE.map((trophy) => {
                   const unlocked = unlockedTrophyIds.includes(trophy.id);
                   const selected = selectedTitle === trophy.id;
@@ -158,10 +158,11 @@ export function TrophyCollection({ onExitComplete }: { onExitComplete?: () => vo
                       whileTap={{ scale: unlocked ? 0.98 : 1 }}
                       onClick={() => unlocked && setSelectedTitle(selected ? null : trophy.id)}
                       disabled={!unlocked}
-                      aria-pressed={selected}
-                       className="relative min-w-0 overflow-hidden rounded-lg p-1.5 text-left"
+                        aria-pressed={selected}
+                        aria-label={`${unlocked ? trophy.name : "Locked milestone"} — ${unlocked ? trophy.description : trophy.lockedDescription}`}
+                        className="relative min-w-0 overflow-hidden rounded-lg p-1.5 text-left"
                       style={{
-                         height: "clamp(31px, 6.2vh, 56px)",
+                          height: "clamp(27px, 5.7vh, 52px)",
                         background: selected
                           ? `linear-gradient(135deg,${trophy.color}20,rgba(255,255,255,0.04))`
                           : unlocked
@@ -173,32 +174,32 @@ export function TrophyCollection({ onExitComplete }: { onExitComplete?: () => vo
                         opacity: unlocked ? 1 : 0.72,
                       }}
                     >
-                       <div
-                         className="flex h-full min-w-0 items-center gap-1.5"
-                         title={`${unlocked ? trophy.name : "Locked milestone"} — ${unlocked ? trophy.description : trophy.lockedDescription}${unlocked ? ` Title: ${trophy.title}` : ""}`}
-                       >
+                      <div
+                        className="flex h-full min-w-0 items-center gap-1.5"
+                        title={`${unlocked ? trophy.name : "Locked milestone"} — ${unlocked ? trophy.description : trophy.lockedDescription}${unlocked ? ` Title: ${trophy.title}` : ""}`}
+                      >
                         <span
-                           className="flex-none flex items-center justify-center rounded-md"
+                          className="flex-none flex items-center justify-center rounded-md"
                           style={{
-                             width: "clamp(20px, 3.4vh, 30px)",
-                             height: "clamp(20px, 3.4vh, 30px)",
+                            width: "clamp(18px, 3vh, 28px)",
+                            height: "clamp(18px, 3vh, 28px)",
                             color: unlocked ? trophy.color : "rgba(255,255,255,0.22)",
                             background: unlocked ? `${trophy.color}18` : "rgba(0,0,0,0.2)",
                             border: `1px solid ${unlocked ? trophy.color + "45" : "rgba(255,255,255,0.1)"}`,
-                             fontSize: "clamp(0.7rem, 2.1vh, 1rem)",
+                            fontSize: "clamp(0.65rem, 2vh, 0.95rem)",
                           }}
                         >
                           {unlocked ? trophy.icon : "?"}
                         </span>
-                         <span className="min-w-0 flex-1">
-                           <span className="flex min-w-0 items-center justify-between gap-1">
-                             <span className="truncate font-black tracking-[0.07em]" style={{ color: unlocked ? trophy.color : "rgba(255,255,255,0.4)", fontSize: "clamp(0.38rem, 0.82vw, 0.56rem)" }}>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex min-w-0 items-center justify-between gap-1">
+                            <span className="truncate font-black tracking-[0.07em]" style={{ color: unlocked ? trophy.color : "rgba(255,255,255,0.4)", fontSize: "clamp(0.38rem, 0.82vw, 0.56rem)" }}>
                               {unlocked ? trophy.name : "LOCKED MILESTONE"}
                             </span>
-                             <span className="flex-none rounded-full" aria-label={CATEGORY_LABELS[trophy.category]} style={{ width: 4, height: 4, background: categoryColor, boxShadow: `0 0 5px ${categoryColor}` }} />
+                            <span className="flex-none rounded-full" aria-label={CATEGORY_LABELS[trophy.category]} style={{ width: 4, height: 4, background: categoryColor, boxShadow: `0 0 5px ${categoryColor}` }} />
                           </span>
-                           <span className="mt-0.5 block truncate" style={{ color: unlocked ? "rgba(255,255,255,0.58)" : "rgba(255,255,255,0.34)", fontSize: "clamp(0.36rem, 0.72vw, 0.5rem)", lineHeight: 1.1 }}>
-                             {unlocked ? trophy.title : trophy.lockedDescription}
+                          <span className="mt-0.5 block truncate" style={{ color: unlocked ? "rgba(255,255,255,0.58)" : "rgba(255,255,255,0.34)", fontSize: "clamp(0.36rem, 0.72vw, 0.5rem)", lineHeight: 1.1 }}>
+                            {unlocked ? trophy.title : trophy.lockedDescription}
                           </span>
                         </span>
                       </div>
