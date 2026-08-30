@@ -20,7 +20,6 @@ function formatRawValue(id: string, value: number): string {
 
 export function GradeResults({ result }: { result: GameplayResultSnapshot | null }) {
   const weaponReward = useMagicOrb((state) => state.lastWeaponProgression);
-  const trophyUnlocks = useMagicOrb((state) => state.lastTrophyUnlocks);
   const weaponProgression = useShop((state) => state.weaponProgression);
   const weaponProgress = weaponReward ? getWeaponProgress(weaponProgression[weaponReward.weapon]) : null;
   if (!result) return null;
@@ -29,7 +28,7 @@ export function GradeResults({ result }: { result: GameplayResultSnapshot | null
   return (
     <motion.section
       aria-label="Gameplay grade results"
-      className="w-full rounded-2xl p-3 md:p-4"
+      className="orblitz-grade-results w-full rounded-2xl p-2.5 md:p-3"
       style={{
         background: "linear-gradient(145deg,rgba(0,255,255,0.07),rgba(170,0,255,0.08))",
         border: `1px solid ${gradeColor}44`,
@@ -39,7 +38,7 @@ export function GradeResults({ result }: { result: GameplayResultSnapshot | null
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.22, duration: 0.35 }}
     >
-      <div className="flex items-center justify-between gap-3 mb-3">
+      <div className="flex items-center justify-between gap-3 mb-2">
         <div>
           <p className="font-black uppercase tracking-[0.22em]" style={{ color: "rgba(255,255,255,0.46)", fontSize: "0.58rem" }}>
             Gameplay grade
@@ -58,11 +57,11 @@ export function GradeResults({ result }: { result: GameplayResultSnapshot | null
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-1.5">
         {result.categories.map((category) => {
           const color = GRADE_COLORS[category.grade];
           return (
-            <div key={category.id} className="rounded-xl px-2.5 py-2" style={{ background: "rgba(0,0,0,0.28)", border: `1px solid ${color}24` }}>
+            <div key={category.id} className="rounded-xl px-2 py-1.5" style={{ background: "rgba(0,0,0,0.28)", border: `1px solid ${color}24` }}>
               <div className="flex items-center justify-between gap-1">
                 <span className="font-bold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.58)", fontSize: "0.53rem" }}>
                   {category.label}
@@ -85,51 +84,9 @@ export function GradeResults({ result }: { result: GameplayResultSnapshot | null
         })}
       </div>
 
-      {trophyUnlocks.length > 0 && (
-        <div
-          className="mt-3 rounded-xl px-3 py-2.5"
-          style={{
-            background: "linear-gradient(110deg,rgba(251,191,36,0.16),rgba(244,114,182,0.12))",
-            border: "1px solid rgba(251,191,36,0.4)",
-            boxShadow: "0 0 18px rgba(251,191,36,0.1)",
-          }}
-        >
-          <p className="font-black uppercase tracking-[0.17em]" style={{ color: "#fbbf24", fontSize: "0.58rem" }}>
-            New trophy{trophyUnlocks.length === 1 ? "" : "ies"} unlocked
-          </p>
-          <div className="mt-2 grid grid-cols-1 gap-1.5">
-            {trophyUnlocks.map((trophy) => (
-              <div key={trophy.id} className="flex items-center gap-2">
-                <span
-                  className="flex items-center justify-center rounded-lg"
-                  style={{
-                    width: 26,
-                    height: 26,
-                    color: trophy.color,
-                    background: `${trophy.color}18`,
-                    border: `1px solid ${trophy.color}55`,
-                    fontSize: "0.85rem",
-                  }}
-                >
-                  {trophy.icon}
-                </span>
-                <div className="min-w-0">
-                  <p className="font-black truncate" style={{ color: trophy.color, fontSize: "0.62rem", letterSpacing: "0.1em" }}>
-                    {trophy.name}
-                  </p>
-                  <p className="truncate" style={{ color: "rgba(255,255,255,0.58)", fontSize: "0.56rem" }}>
-                    Title unlocked: {trophy.title}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {weaponReward && weaponProgress && (
         <div
-          className="mt-3 rounded-xl px-3 py-2.5"
+          className="mt-2 rounded-xl px-2.5 py-2"
           style={{
             background: weaponReward.leveledUp
               ? "linear-gradient(110deg,rgba(255,135,40,0.17),rgba(180,110,255,0.15))"

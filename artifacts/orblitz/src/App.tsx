@@ -18,6 +18,7 @@ import { StartupAnimation, type MenuState } from "@/components/ui/StartupAnimati
 import { StartupLoading } from "@/components/ui/StartupLoading";
 import { ArcadeComplete } from "@/components/ui/ArcadeComplete";
 import { OrbSweepOverlay } from "@/components/ui/OrbSweepOverlay";
+import { AchievementToast } from "@/components/ui/AchievementToast";
 
 // These screens contain large UI trees (and the shop can create an optional
 // preview WebGL context). Keep them out of the initial menu/gameplay bundle and
@@ -219,6 +220,7 @@ function App() {
             <TrophyCollection onExitComplete={() => setTrophiesLayerVisible(false)} />
           )}
        </Suspense>
+       <AchievementToast />
       <SoundManager />
 
        {paymentNotice && (
