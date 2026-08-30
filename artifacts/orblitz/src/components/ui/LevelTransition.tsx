@@ -19,9 +19,9 @@ const PURPLE  = "#a78bfa";
 const PINK    = "#f472b6";
 const GOLD    = "#fbbf24";
 
-const ICON_SZ  = "clamp(1.2rem,3.2vw,1.8rem)";
-const LABEL_SZ = "clamp(0.48rem,1.25vw,0.68rem)";
-const BTN_H    = "clamp(64px,11vw,90px)";
+const ICON_SZ  = "clamp(1rem,min(3.2vw,4vh),1.65rem)";
+const LABEL_SZ = "clamp(0.45rem,min(1.25vw,1.8vh),0.66rem)";
+const BTN_H    = "clamp(48px,min(11vw,10vh),82px)";
 
 // ─── Button primitives ────────────────────────────────────────────────────────
 interface BtnDef { id: string; icon: React.ReactNode; label: string; color: string; shadow: string; action: () => void; }
@@ -198,8 +198,8 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden pointer-events-auto select-none"
-      style={{ padding: "clamp(12px,3vh,28px) clamp(12px,4vw,32px)" }}
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto pointer-events-auto select-none"
+      style={{ padding: "clamp(8px,2vh,18px) clamp(10px,4vw,32px)" }}
     >
       {/* Main menu background */}
       <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-violet-900" />
@@ -293,10 +293,14 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
 
       {/* Glass card */}
       <motion.div
-        className="relative z-10 w-full flex flex-col items-center gap-3"
+        className="relative z-10 w-full flex flex-col items-center"
         style={{
-          maxWidth: "clamp(300px,90vw,440px)",
-          padding: "clamp(20px,4vh,32px) clamp(18px,5vw,32px)",
+          maxWidth: "clamp(320px,92vw,520px)",
+          maxHeight: "calc(100dvh - 16px)",
+          gap: "clamp(4px,1.15vh,9px)",
+          padding: "clamp(10px,2.2vh,22px) clamp(14px,4vw,28px)",
+          overflowY: "auto",
+          scrollbarWidth: "thin",
           borderRadius: "clamp(16px,2.5vw,24px)",
           background: "rgba(6,3,22,0.86)",
           border: `1.5px solid ${isBoss ? GOLD : PURPLE}28`,
@@ -327,7 +331,7 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
               <motion.h1
                 className="font-black tracking-widest text-transparent bg-clip-text"
                 style={{
-                  fontSize: "clamp(1.8rem,7vw,3rem)", lineHeight: 1,
+                fontSize: "clamp(1.45rem,min(7vw,6vh),3rem)", lineHeight: 1,
                   backgroundImage: `linear-gradient(135deg,${GOLD} 0%,${PINK} 55%,${PURPLE} 100%)`,
                 }}
                 animate={{ filter: [
@@ -344,7 +348,7 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
             <motion.h1
               className="font-black tracking-widest text-transparent bg-clip-text"
               style={{
-                fontSize: "clamp(1.5rem,5.5vw,2.4rem)", lineHeight: 1,
+                fontSize: "clamp(1.25rem,min(5.5vw,5.5vh),2.4rem)", lineHeight: 1,
                 backgroundImage: `linear-gradient(135deg,${CYAN} 0%,${PURPLE} 50%,${PINK} 100%)`,
               }}
               animate={{ filter: [
@@ -378,7 +382,7 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
           <div
             className="font-black text-transparent bg-clip-text"
             style={{
-              fontSize: "clamp(2.2rem,8vw,3.6rem)", lineHeight: 1.05,
+               fontSize: "clamp(1.8rem,min(8vw,9vh),3.6rem)", lineHeight: 1.05,
               backgroundImage: `linear-gradient(135deg,${CYAN} 0%,${PURPLE} 50%,${PINK} 100%)`,
             }}
           >
@@ -386,12 +390,12 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
           </div>
         </motion.div>
 
-        <GradeResults result={lastResult} />
+        <GradeResults result={lastResult} compact />
 
         {/* ── Next level preview ── */}
         <AnimatePresence>
           <motion.div
-            className="w-full rounded-2xl px-4 py-2.5 flex items-center justify-between"
+            className="w-full rounded-2xl px-3 py-1.5 flex items-center justify-between"
             style={{
               background: "rgba(15,10,40,0.55)",
               border: `1px solid ${PURPLE}33`,

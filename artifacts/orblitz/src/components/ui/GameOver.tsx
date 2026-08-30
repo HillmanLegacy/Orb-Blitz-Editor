@@ -12,9 +12,9 @@ function IconLevels() { return <svg {..._svg}><rect x="3" y="4" width="18" heigh
 function IconHome()   { return <svg {..._svg}><path d="M3 11 L12 3 L21 11 V20 C21 20.55 20.55 21 20 21 H15 V15 H9 V21 H4 C3.45 21 3 20.55 3 20 V11 Z" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/></svg>; }
 
 // ─── Shared button-row primitives (mirrors StartupAnimation's ButtonRow) ──────
-const ICON_SZ  = "clamp(1.2rem,3.2vw,1.8rem)";
-const LABEL_SZ = "clamp(0.48rem,1.25vw,0.68rem)";
-const BTN_H    = "clamp(64px,11vw,90px)";
+const ICON_SZ  = "clamp(1rem,min(3.2vw,4vh),1.65rem)";
+const LABEL_SZ = "clamp(0.45rem,min(1.25vw,1.8vh),0.66rem)";
+const BTN_H    = "clamp(48px,min(11vw,10vh),82px)";
 
 function TopLine({ color }: { color: string }) {
   return (
@@ -265,8 +265,8 @@ export function GameOver({ onLevelSelect, onMainMenu }: GameOverProps) {
   const titleText = gameMode === "gauntlet" ? "GAUNTLET OVER" : "GAME OVER";
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-black pointer-events-auto select-none"
-      style={{ padding: "clamp(12px,3vh,28px) clamp(12px,4vw,32px)" }}>
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto bg-black pointer-events-auto select-none"
+      style={{ padding: "clamp(8px,2vh,18px) clamp(10px,4vw,32px)" }}>
 
       {/* Background radial glow */}
       <div className="absolute inset-0 pointer-events-none" style={{
@@ -280,8 +280,8 @@ export function GameOver({ onLevelSelect, onMainMenu }: GameOverProps) {
 
       {/* Glass card */}
       <motion.div
-        className="relative z-10 w-full flex flex-col items-center gap-3"
-        style={{ maxWidth: "clamp(300px,90vw,440px)" }}
+        className="relative z-10 w-full flex flex-col items-center"
+        style={{ maxWidth: "clamp(320px,92vw,520px)", maxHeight: "calc(100dvh - 16px)", gap: "clamp(4px,1.15vh,9px)", overflowY: "auto", scrollbarWidth: "thin" }}
         initial={{ opacity: 0, scale: 0.88, y: 24 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.45, ease: [0.22, 0.61, 0.36, 1] }}
@@ -290,7 +290,7 @@ export function GameOver({ onLevelSelect, onMainMenu }: GameOverProps) {
         <div className="text-center">
           <motion.h1
             className="font-black tracking-widest text-transparent bg-clip-text"
-            style={{ fontSize: "clamp(2rem,8vw,3.5rem)", lineHeight: 1, backgroundImage: titleGrad }}
+            style={{ fontSize: "clamp(1.65rem,min(8vw,7vh),3.5rem)", lineHeight: 1, backgroundImage: titleGrad }}
             animate={{ filter: [
               "drop-shadow(0 0 14px rgba(255,0,128,0.55)) drop-shadow(0 0 28px rgba(170,0,255,0.3))",
               "drop-shadow(0 0 22px rgba(255,0,255,0.65)) drop-shadow(0 0 44px rgba(255,0,128,0.35))",
@@ -318,7 +318,7 @@ export function GameOver({ onLevelSelect, onMainMenu }: GameOverProps) {
         >
           <span style={{ fontSize: "clamp(0.5rem,1.2vw,0.62rem)", color: "rgba(255,255,255,0.35)", letterSpacing: "0.22em", fontWeight: 700 }}>SCORE</span>
           <div className="font-black text-transparent bg-clip-text"
-            style={{ fontSize: "clamp(2.4rem,9vw,4rem)", lineHeight: 1, backgroundImage: "linear-gradient(135deg,#00ffff 0%,#aa00ff 50%,#ff00ff 100%)" }}>
+             style={{ fontSize: "clamp(2rem,min(9vw,9vh),4rem)", lineHeight: 1, backgroundImage: "linear-gradient(135deg,#00ffff 0%,#aa00ff 50%,#ff00ff 100%)" }}>
             {score}
           </div>
           {isNewBest && !showNameEntry && (
@@ -352,7 +352,7 @@ export function GameOver({ onLevelSelect, onMainMenu }: GameOverProps) {
           )}
         </AnimatePresence>
 
-        <GradeResults result={lastResult} />
+        <GradeResults result={lastResult} compact />
 
         {/* Name entry (top score) */}
         <AnimatePresence>

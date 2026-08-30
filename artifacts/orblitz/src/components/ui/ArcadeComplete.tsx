@@ -49,7 +49,7 @@ export function ArcadeComplete() {
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center cursor-pointer select-none"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto cursor-pointer select-none"
       onClick={handleTap}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -85,7 +85,7 @@ export function ArcadeComplete() {
       ))}
 
       {/* Content */}
-      <div className="relative z-10 text-center px-4 w-full max-w-md mx-auto">
+      <div className="relative z-10 text-center px-4 py-3 w-full max-w-lg mx-auto max-h-[calc(100dvh-16px)] overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
 
         {/* Title — ORBLITZ gradient + glow, identical animation */}
         <motion.div
@@ -96,7 +96,7 @@ export function ArcadeComplete() {
           <motion.h1
             className="font-black tracking-widest text-transparent bg-clip-text"
             style={{
-              fontSize: "clamp(2.2rem, 8vw, 4rem)",
+              fontSize: "clamp(1.8rem, min(8vw, 7vh), 4rem)",
               lineHeight: 1.1,
               backgroundImage: "linear-gradient(135deg,#00ffff 0%,#aa00ff 45%,#ff00ff 75%,#ffff00 100%)",
             }}
@@ -125,7 +125,7 @@ export function ArcadeComplete() {
         </motion.div>
 
         <motion.p
-          className="font-bold uppercase mt-3 mb-6"
+          className="font-bold uppercase mt-2 mb-3"
           style={{
             color: "rgba(0,255,255,0.6)",
             fontSize: "clamp(0.65rem, 1.8vw, 0.8rem)",
@@ -146,20 +146,20 @@ export function ArcadeComplete() {
             borderRadius: "clamp(12px, 2vw, 18px)",
             boxShadow: "0 0 32px rgba(0,255,255,0.07), inset 0 1px 0 rgba(0,255,255,0.06)",
             backdropFilter: "blur(12px)",
-            padding: "clamp(18px, 4vw, 28px) clamp(22px, 5vw, 38px)",
+            padding: "clamp(12px, 2.5vh, 22px) clamp(18px, 4vw, 32px)",
           }}
           initial={{ opacity: 0, y: 22 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.85, duration: 0.55, ease: [0.22, 0.61, 0.36, 1] }}
         >
           <p
-            className="font-black uppercase mb-5"
+            className="font-black uppercase mb-3"
             style={{ color: "rgba(0,255,255,0.4)", fontSize: "0.65rem", letterSpacing: "0.28em" }}
           >
             Your Stats
           </p>
 
-          <div className="space-y-4">
+          <div className="space-y-2.5">
             {[
               { label: "Total Time",    value: formatTime(gameTime),             color: "#00ffff" },
               { label: "Final Score",   value: score.toLocaleString(),           color: "#ffff00" },
@@ -191,11 +191,11 @@ export function ArcadeComplete() {
           </div>
         </motion.div>
 
-        <GradeResults result={lastResult} />
+        <GradeResults result={lastResult} compact />
 
         {/* Tap CTA — identical style to main menu "Tap to Start" */}
         <motion.p
-          className="mt-5 font-semibold uppercase"
+          className="mt-3 font-semibold uppercase"
           style={{
             color: "rgba(0,255,255,0.8)",
             textShadow: "0 0 18px rgba(0,255,255,0.45)",
