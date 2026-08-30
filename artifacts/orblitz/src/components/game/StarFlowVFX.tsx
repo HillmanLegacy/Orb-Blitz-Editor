@@ -77,6 +77,26 @@ const _burstColors = [
 ];
 
 // ─── Module-level geometries (never mutated, safe to share) ──────────────────
+function createSimpleStarGeometry(): THREE.ShapeGeometry {
+  const shape = new THREE.Shape();
+  const points = 10;
+  const outerRadius = 1;
+  const innerRadius = 0.42;
+
+  for (let i = 0; i < points; i++) {
+    const angle = i * Math.PI / 5 - Math.PI / 2;
+    const radius = i % 2 === 0 ? outerRadius : innerRadius;
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+    if (i === 0) shape.moveTo(x, y);
+    else shape.lineTo(x, y);
+  }
+  shape.closePath();
+  return new THREE.ShapeGeometry(shape);
+}
+
+const _simpleStarGeo = createSimpleStarGeometry();
+
 // ─── Component ────────────────────────────────────────────────────────────────
 export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean }) {
   const { scene } = useGLTF("/models/star_pickup.glb");
@@ -353,9 +373,9 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
         const off     = i * S_STRIDE;
         // Size: start full, fade with sqrt for longer brightness
         const lifeFrac = _sPool[off + 6] / SPARK_LIFE;
-        const worldSz  = Math.max(1e-4, _sPool[off + 7] * normalScale * Math.pow(lifeFrac, 0.55));
+        const worldSz  = Math.max(1e-4, _sPool[off + 7] * Math.pow(lifeFrac, 0.55));
         _dummy.position.set(_sPool[off + 0], _sPool[off + 1], _sPool[off + 2]);
-        _dummy.rotation.set(0, 0, 0);
+        _dummy.rotation.set(0, 0, (i % 5) * (Math.PI / 5));
         _dummy.scale.setScalar(worldSz);
         _dummy.updateMatrix();
         sparkMesh.setMatrixAt(i, _dummy.matrix);
@@ -383,10 +403,10 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
         frustumCulled={false}
       />
 
-      {/* Star-shaped absorption burst particles */}
+      {/* Simple five-point star absorption burst particles */}
       <instancedMesh
         ref={sparkMeshRef}
-        args={[starGeo, sparkMat, MAX_SPARKS]}
+        args={[_simpleStarGeo, sparkMat, MAX_SPARKS]}
         renderOrder={12}
         frustumCulled={false}
       />
