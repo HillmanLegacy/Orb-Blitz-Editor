@@ -101,6 +101,20 @@ import {
   emitPlayerProjectileFireBurst,
   resetPlayerFireBurstPool,
 } from "../src/components/game/Projectiles";
+import {
+  OVERCHARGED_BUILD_DURATION,
+  OVERCHARGED_CLIMAX_DURATION,
+  OVERCHARGED_EXPLOSION_DURATION,
+  OVERCHARGED_EXPLOSION_MAX_ACTIVE,
+  OVERCHARGED_EXPLOSION_PROFILES,
+  createOverchargedExplosionPool,
+  emitOverchargedExplosion,
+  getOverchargedAfterglowParticleCount,
+  getOverchargedExplosionParticleTotal,
+  getOverchargedExplosionPhase,
+  isOverchargedPresentationEnabled,
+  resetOverchargedExplosionPool,
+} from "../src/components/game/OverchargedExplosionVFX";
 
 const makeProjectile = (id: string): Projectile => ({
   id,
@@ -244,6 +258,69 @@ describe("gameplay runtime invariants", () => {
       expect(profile.sizeMultiplier).toBeGreaterThanOrEqual(STANDARD_ENEMY_DEFEAT_SIZE_SCALE * 0.72);
     }
     expect(getEnemyDefeatParticleTotal(ENEMY_DEFEAT_PROFILES.high)).toBe(87);
+  });
+
+  it("separates the overcharged explosion into build, climax, and afterglow phases", () => {
+    expect(getOverchargedExplosionPhase(0)).toBe("building");
+    expect(getOverchargedExplosionPhase(OVERCHARGED_BUILD_DURATION - 0.001)).toBe("building");
+    expect(getOverchargedExplosionPhase(OVERCHARGED_BUILD_DURATION)).toBe("climax");
+    expect(getOverchargedExplosionPhase(
+      OVERCHARGED_BUILD_DURATION + OVERCHARGED_CLIMAX_DURATION - 0.001,
+    )).toBe("climax");
+    expect(getOverchargedExplosionPhase(
+      OVERCHARGED_BUILD_DURATION + OVERCHARGED_CLIMAX_DURATION,
+    )).toBe("afterglow");
+    expect(getOverchargedExplosionPhase(OVERCHARGED_EXPLOSION_DURATION)).toBe("complete");
+  });
+
+  it("keeps overcharged explosion particle work bounded and preset-aware", () => {
+    const lowTotal = getOverchargedExplosionParticleTotal(OVERCHARGED_EXPLOSION_PROFILES.low);
+    const standardTotal = getOverchargedExplosionParticleTotal(OVERCHARGED_EXPLOSION_PROFILES.standard);
+    const highTotal = getOverchargedExplosionParticleTotal(OVERCHARGED_EXPLOSION_PROFILES.high);
+
+    expect(OVERCHARGED_EXPLOSION_MAX_ACTIVE).toBe(4);
+    expect(lowTotal).toBeLessThan(standardTotal);
+    expect(standardTotal).toBeLessThan(highTotal);
+    expect(highTotal).toBe(108);
+    expect(highTotal * OVERCHARGED_EXPLOSION_MAX_ACTIVE).toBeLessThan(500);
+    expect(getOverchargedAfterglowParticleCount(OVERCHARGED_EXPLOSION_PROFILES.low))
+      .toBeLessThan(getOverchargedAfterglowParticleCount(OVERCHARGED_EXPLOSION_PROFILES.high));
+    expect(getOverchargedAfterglowParticleCount(OVERCHARGED_EXPLOSION_PROFILES.high))
+      .toBeGreaterThan(0);
+  });
+
+  it("gates every overcharged presentation layer with the VFX feature", () => {
+    expect(isOverchargedPresentationEnabled(false)).toBe(false);
+    expect(isOverchargedPresentationEnabled(true)).toBe(true);
+  });
+
+  it("reuses the oldest overcharged explosion slot and resets cleanly", () => {
+    const pool = createOverchargedExplosionPool();
+    for (let index = 0; index < OVERCHARGED_EXPLOSION_MAX_ACTIVE; index++) {
+      expect(emitOverchargedExplosion(pool, {
+        id: `explosion-${index}`,
+        position: [index, index + 1, 0],
+        direction: [3, 4, 0],
+      })).toBe(index);
+    }
+
+    const replaced = emitOverchargedExplosion(pool, {
+      id: "replacement",
+      position: [9, 8, 0],
+      direction: [0, 2, 0],
+    });
+    expect(replaced).toBe(0);
+    expect(pool.slots).toHaveLength(OVERCHARGED_EXPLOSION_MAX_ACTIVE);
+    expect(pool.slots[0]).toMatchObject({
+      id: "replacement",
+      position: [9, 8, 0],
+      direction: [0, 1, 0],
+      active: true,
+    });
+
+    resetOverchargedExplosionPool(pool);
+    expect(pool.generation).toBe(0);
+    expect(pool.slots.every((slot) => !slot.active && slot.id === "" && slot.age === 0)).toBe(true);
   });
 
   it("gives Magi-Orb II targets the standard mini defeat lifetime", () => {
