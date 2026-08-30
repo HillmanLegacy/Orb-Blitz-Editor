@@ -11,6 +11,15 @@ import {
   type WeaponProgressionState,
   type WeaponLevelUpResult,
 } from "@/game-runtime/WeaponProgression";
+import type { GameplayResultSnapshot } from "@/game-runtime/GameplayGrades";
+import {
+  applyTrophyResult,
+  createInitialTrophyProgression,
+  normalizeTrophyProgression,
+  type TrophyId,
+  type TrophyProgressionState,
+  type TrophyUnlock,
+} from "@/game-runtime/TrophyProgression";
 
 export type OrbSkin = "default" | "fire" | "star" | "crystal" | "toxic" | "plasma" | "diamond" | "rainbow" | "mecha" | "monster";
 export const BOSS_SKIN_TYPES: readonly Exclude<OrbSkin, "default">[] = [
@@ -104,10 +113,12 @@ interface ShopState {
   equippedRing: RingStyle;
   equippedWeapon: WeaponType;
   weaponProgression: WeaponProgressionState;
+  trophyProgression: TrophyProgressionState;
   equippedDefenses: [DefenseType, DefenseType];
   equippedMagiOrb: MagiOrbType;
   shopOpen: boolean;
   inventoryOpen: boolean;
+  trophiesOpen: boolean;
   
   devMode: boolean;
   addCoins: (amount: number) => void;
@@ -118,12 +129,16 @@ interface ShopState {
   equipRing: (ring: RingStyle) => void;
   equipWeapon: (weapon: WeaponType) => void;
   addWeaponXp: (weapon: WeaponType, amount: number) => WeaponLevelUpResult | null;
+  recordTrophyResult: (result: GameplayResultSnapshot) => TrophyUnlock[];
+  setSelectedTitle: (trophyId: TrophyId | null) => void;
   equipDefense: (defense: DefenseType, slot: 0 | 1) => void;
   equipMagiOrb: (magiOrb: MagiOrbType) => void;
   openShop: () => void;
   closeShop: () => void;
   openInventory: () => void;
   closeInventory: () => void;
+  openTrophies: () => void;
+  closeTrophies: () => void;
   isOwned: (itemId: string) => boolean;
   canAfford: (price: number) => boolean;
 }
@@ -136,6 +151,7 @@ interface StoredShopData {
   equippedRing: RingStyle;
   equippedWeapon: WeaponType;
   weaponProgression?: unknown;
+  trophyProgression?: unknown;
   equippedDefenses: [DefenseType, DefenseType];
   equippedMagiOrb: MagiOrbType;
   devMode?: boolean;
@@ -211,6 +227,7 @@ const getStoredShopData = (): StoredShopData => {
         equippedRing,
         equippedWeapon: equippedWeapon === "orbital_teletransfer" ? "none" as WeaponType : equippedWeapon,
          weaponProgression: normalizeWeaponProgression(data.weaponProgression),
+         trophyProgression: normalizeTrophyProgression(data.trophyProgression),
         equippedDefenses: equippedDefenses as [DefenseType, DefenseType],
         equippedMagiOrb: data.equippedMagiOrb ?? "none",
         devMode: data.devMode ?? false,
@@ -227,6 +244,7 @@ const getStoredShopData = (): StoredShopData => {
     equippedRing: "none",
     equippedWeapon: "none",
      weaponProgression: createInitialWeaponProgression(),
+     trophyProgression: createInitialTrophyProgression(),
     equippedDefenses: ["none", "none"],
     equippedMagiOrb: "none",
     devMode: false,
@@ -243,6 +261,7 @@ const createSaveData = (state: ShopState): StoredShopData => ({
   equippedRing: state.equippedRing,
   equippedWeapon: state.equippedWeapon,
   weaponProgression: state.weaponProgression,
+  trophyProgression: state.trophyProgression,
   equippedDefenses: state.equippedDefenses,
   equippedMagiOrb: state.equippedMagiOrb,
   devMode: state.devMode,
@@ -258,10 +277,12 @@ export const useShop = create<ShopState>()(
     equippedRing: storedData.equippedRing,
     equippedWeapon: storedData.equippedWeapon,
     weaponProgression: normalizeWeaponProgression(storedData.weaponProgression),
+    trophyProgression: normalizeTrophyProgression(storedData.trophyProgression),
     equippedDefenses: storedData.equippedDefenses as [DefenseType, DefenseType],
     equippedMagiOrb: storedData.equippedMagiOrb as MagiOrbType,
     shopOpen: false,
     inventoryOpen: false,
+    trophiesOpen: false,
 
     activateDevMode: () => {
       const allItemIds = SHOP_ITEMS.map(i => i.id);
@@ -341,6 +362,24 @@ export const useShop = create<ShopState>()(
       saveShopData(createSaveData(get()));
       return result;
     },
+
+    recordTrophyResult: (result) => {
+      const applied = applyTrophyResult(get().trophyProgression, result);
+      set({ trophyProgression: applied.state });
+      saveShopData(createSaveData(get()));
+      return applied.newlyUnlocked;
+    },
+
+    setSelectedTitle: (trophyId) => {
+      const { trophyProgression } = get();
+      if (trophyId !== null && !trophyProgression.unlockedTrophyIds.includes(trophyId)) return;
+      const next = {
+        ...trophyProgression,
+        selectedTitle: trophyId,
+      };
+      set({ trophyProgression: next });
+      saveShopData(createSaveData({ ...get(), trophyProgression: next }));
+    },
     
     equipDefense: (defense, slot) => {
       const prevDefenses = get().equippedDefenses;
@@ -382,6 +421,8 @@ export const useShop = create<ShopState>()(
     closeShop: () => set({ shopOpen: false }),
     openInventory: () => set({ inventoryOpen: true }),
     closeInventory: () => set({ inventoryOpen: false }),
+    openTrophies: () => set({ trophiesOpen: true, shopOpen: false, inventoryOpen: false }),
+    closeTrophies: () => set({ trophiesOpen: false }),
     
     isOwned: (itemId) => get().ownedItems.includes(itemId),
     canAfford: (price) => get().coins >= price,

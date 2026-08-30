@@ -24,6 +24,7 @@ import { OrbSweepOverlay } from "@/components/ui/OrbSweepOverlay";
 // do not mount their stateful trees until the player asks to open one.
 const Shop = lazy(() => import("@/components/ui/Shop").then(({ Shop }) => ({ default: Shop })));
 const Inventory = lazy(() => import("@/components/ui/Inventory").then(({ Inventory }) => ({ default: Inventory })));
+const TrophyCollection = lazy(() => import("@/components/ui/TrophyCollection").then(({ TrophyCollection }) => ({ default: TrophyCollection })));
 
 function App() {
   const phase = useMagicOrb(s => s.phase);
@@ -31,10 +32,11 @@ function App() {
   const pendingLevel = useMagicOrb(s => s.pendingLevel);
   const arcadeLevel = useMagicOrb(s => s.arcadeLevel);
   const loadingType = useMagicOrb(s => s.loadingType);
-  const { addCoins, shopOpen, inventoryOpen } = useShop(useShallow(s => ({
+  const { addCoins, shopOpen, inventoryOpen, trophiesOpen } = useShop(useShallow(s => ({
     addCoins: s.addCoins,
     shopOpen: s.shopOpen,
     inventoryOpen: s.inventoryOpen,
+    trophiesOpen: s.trophiesOpen,
   })));
   const brightness = useAudio(s => s.brightness);
   // Transition state — drives render gates for pause menu and menu screen
@@ -50,6 +52,7 @@ function App() {
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
   const [shopLayerVisible, setShopLayerVisible] = useState(false);
   const [inventoryLayerVisible, setInventoryLayerVisible] = useState(false);
+  const [trophiesLayerVisible, setTrophiesLayerVisible] = useState(false);
   const loadingRunRef = useRef(0);
   const handleStartupLoadingComplete = useCallback(() => {
     setShowStartupLoading(false);
@@ -153,6 +156,10 @@ function App() {
     if (inventoryOpen) setInventoryLayerVisible(true);
   }, [inventoryOpen]);
 
+  useEffect(() => {
+    if (trophiesOpen) setTrophiesLayerVisible(true);
+  }, [trophiesOpen]);
+
   // When arcade completes, ensure returning to menu lands on the root screen
   // (not the world-select that was open when the run started).
   useEffect(() => {
@@ -164,7 +171,7 @@ function App() {
   const showMenuScreen =
     ((phase === "menu") ||
      (phase === "loading" && isActive && !isMidpointPassed)) &&
-    !shopOpen && !inventoryOpen;
+    !shopOpen && !inventoryOpen && !trophiesOpen;
 
   return (
     <div style={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden", filter: `brightness(${brightness})` }}>
@@ -208,6 +215,9 @@ function App() {
          {(inventoryOpen || inventoryLayerVisible) && (
            <Inventory onExitComplete={() => setInventoryLayerVisible(false)} />
          )}
+          {(trophiesOpen || trophiesLayerVisible) && (
+            <TrophyCollection onExitComplete={() => setTrophiesLayerVisible(false)} />
+          )}
        </Suspense>
       <SoundManager />
 

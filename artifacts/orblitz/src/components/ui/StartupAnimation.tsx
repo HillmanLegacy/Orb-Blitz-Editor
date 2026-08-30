@@ -10,6 +10,7 @@ import { useGraphicsPreset, setGraphicsPreset, type GraphicsPreset } from "@/gam
 const _svg = { viewBox: "0 0 24 24", fill: "none", width: "1em", height: "1em", style: { display: "block" } } as const;
 function IconPlay()      { return <svg {..._svg}><path d="M7 4 L20 12 L7 20 Z" fill="currentColor" opacity="0.92"/></svg>; }
 function IconShop()      { return <svg {..._svg}><path d="M6.5 7.5h11l-1.5 10h-8L6.5 7.5Z" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.15"/><path d="M9.5 7.5V6a2.5 2.5 0 0 1 5 0v1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="12" cy="13" r="1.4" fill="currentColor"/></svg>; }
+function IconTrophy()    { return <svg {..._svg}><path d="M8 4h8v5.5a4 4 0 0 1-8 0V4Z" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/><path d="M8 6H5.5A1.5 1.5 0 0 0 4 7.5v.4A3.1 3.1 0 0 0 7.1 11H8M16 6h2.5A1.5 1.5 0 0 1 20 7.5v.4a3.1 3.1 0 0 1-3.1 3.1H16M12 13v4M8.5 20h7M9 17h6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 function IconGear()      { return <svg {..._svg}><rect x="3" y="3" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/><rect x="13" y="3" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/><rect x="3" y="13" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/><rect x="13" y="13" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.06" strokeDasharray="2 1.5"/></svg>; }
 function IconSettings()  { return <svg {..._svg}><line x1="3" y1="7" x2="21" y2="7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="7" r="2.2" fill="currentColor" fillOpacity="0.9"/><line x1="3" y1="14" x2="21" y2="14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="16" cy="14" r="2.2" fill="currentColor" fillOpacity="0.9"/></svg>; }
 function IconSurvive()   { return <svg {..._svg}><circle cx="12" cy="12" r="2.8" fill="currentColor"/><circle cx="12" cy="12" r="6" stroke="currentColor" strokeWidth="1.2" opacity="0.55"/><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="0.8" opacity="0.25"/></svg>; }
@@ -119,7 +120,7 @@ export function StartupAnimation({
   const [pressedBtn, setPressedBtn]   = useState<string | null>(null);
 
   const { playOrbWhoosh, playOrbConverge, playTitleReveal, playLevelSelect, playTapToStart, isMuted, toggleMute, volume, setVolume, brightness, setBrightness, startMenuBgm, stopMenuBgm } = useAudio();
-  const { openShop, openInventory, activateDevMode, coins: shopStars, devMode } = useShop();
+  const { openShop, openInventory, openTrophies, activateDevMode, coins: shopStars, devMode } = useShop();
   const { setGameMode, startLoading } = useMagicOrb();
   const graphicsPreset = useGraphicsPreset();
 
@@ -179,6 +180,7 @@ export function StartupAnimation({
         { id:"play",      icon:<IconPlay />,     label:"PLAY",  color:"#00ffff", shadow:"rgba(0,255,255,0.45)",  action: () => { btn("play");      setMenuState("modes");    } },
         { id:"shop",      icon:<IconShop />,     label:"SHOP",  color:"#ff00ff", shadow:"rgba(255,0,255,0.45)",  action: () => { btn("shop");      openShop();               } },
         { id:"inventory", icon:<IconGear />,     label:"GEAR",  color:"#aa00ff", shadow:"rgba(170,0,255,0.45)",  action: () => { btn("inventory"); openInventory();          } },
+        { id:"trophies",  icon:<IconTrophy />,   label:"TROPHIES", color:"#fbbf24", shadow:"rgba(251,191,36,0.4)", action: () => { btn("trophies"); openTrophies(); } },
         { id:"settings",  icon:<IconSettings />, label:"OPTIONS",  color:"#ffff00", shadow:"rgba(255,255,0,0.4)",   action: () => { btn("settings");  setMenuState("settings"); } },
       ];
       case "modes": return [

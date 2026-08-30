@@ -20,6 +20,7 @@ function formatRawValue(id: string, value: number): string {
 
 export function GradeResults({ result }: { result: GameplayResultSnapshot | null }) {
   const weaponReward = useMagicOrb((state) => state.lastWeaponProgression);
+  const trophyUnlocks = useMagicOrb((state) => state.lastTrophyUnlocks);
   const weaponProgression = useShop((state) => state.weaponProgression);
   const weaponProgress = weaponReward ? getWeaponProgress(weaponProgression[weaponReward.weapon]) : null;
   if (!result) return null;
@@ -83,6 +84,48 @@ export function GradeResults({ result }: { result: GameplayResultSnapshot | null
           );
         })}
       </div>
+
+      {trophyUnlocks.length > 0 && (
+        <div
+          className="mt-3 rounded-xl px-3 py-2.5"
+          style={{
+            background: "linear-gradient(110deg,rgba(251,191,36,0.16),rgba(244,114,182,0.12))",
+            border: "1px solid rgba(251,191,36,0.4)",
+            boxShadow: "0 0 18px rgba(251,191,36,0.1)",
+          }}
+        >
+          <p className="font-black uppercase tracking-[0.17em]" style={{ color: "#fbbf24", fontSize: "0.58rem" }}>
+            New trophy{trophyUnlocks.length === 1 ? "" : "ies"} unlocked
+          </p>
+          <div className="mt-2 grid grid-cols-1 gap-1.5">
+            {trophyUnlocks.map((trophy) => (
+              <div key={trophy.id} className="flex items-center gap-2">
+                <span
+                  className="flex items-center justify-center rounded-lg"
+                  style={{
+                    width: 26,
+                    height: 26,
+                    color: trophy.color,
+                    background: `${trophy.color}18`,
+                    border: `1px solid ${trophy.color}55`,
+                    fontSize: "0.85rem",
+                  }}
+                >
+                  {trophy.icon}
+                </span>
+                <div className="min-w-0">
+                  <p className="font-black truncate" style={{ color: trophy.color, fontSize: "0.62rem", letterSpacing: "0.1em" }}>
+                    {trophy.name}
+                  </p>
+                  <p className="truncate" style={{ color: "rgba(255,255,255,0.58)", fontSize: "0.56rem" }}>
+                    Title unlocked: {trophy.title}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {weaponReward && weaponProgress && (
         <div

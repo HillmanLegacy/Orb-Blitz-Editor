@@ -21,6 +21,7 @@ import {
   type ProgressionWeapon,
   type WeaponLevelUpResult,
 } from "@/game-runtime/WeaponProgression";
+import type { TrophyUnlock } from "@/game-runtime/TrophyProgression";
 
 export type GamePhase = "menu" | "loading" | "playing" | "paused" | "gameOver" | "levelComplete" | "modeSelect" | "arcadeComplete";
 export type LoadingType = "entering" | "exiting" | "exiting_to_menu" | "nextLevel" | null;
@@ -218,6 +219,7 @@ export interface MagicOrbState {
   weaponUsed: ProgressionWeapon | "none";
   weaponXpAwarded: boolean;
   lastWeaponProgression: WeaponLevelUpResult | null;
+  lastTrophyUnlocks: TrophyUnlock[];
   rapidOverheat: number;
   rapidOverheatPenaltyTimer: number;
   rapidOverheatActive: boolean;
@@ -563,6 +565,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     weaponUsed: "none",
     weaponXpAwarded: false,
     lastWeaponProgression: null,
+    lastTrophyUnlocks: [],
     rapidOverheat: 0,
     rapidOverheatPenaltyTimer: 0,
     rapidOverheatActive: false,
@@ -810,6 +813,7 @@ export const useMagicOrb = create<MagicOrbState>()(
           weaponUsed: "none",
           weaponXpAwarded: false,
           lastWeaponProgression: null,
+          lastTrophyUnlocks: [],
           rapidOverheat: 0,
           rapidOverheatPenaltyTimer: 0,
           rapidOverheatActive: false,
@@ -886,6 +890,7 @@ export const useMagicOrb = create<MagicOrbState>()(
         weaponUsed: "none",
         weaponXpAwarded: false,
         lastWeaponProgression: null,
+        lastTrophyUnlocks: [],
         rapidOverheat: 0,
         rapidOverheatPenaltyTimer: 0,
         rapidOverheatActive: false,
@@ -1048,6 +1053,7 @@ export const useMagicOrb = create<MagicOrbState>()(
         weaponUsed: "none",
         weaponXpAwarded: false,
         lastWeaponProgression: null,
+        lastTrophyUnlocks: [],
         rapidOverheat: 0,
         rapidOverheatPenaltyTimer: 0,
         rapidOverheatActive: false,
@@ -1077,6 +1083,7 @@ export const useMagicOrb = create<MagicOrbState>()(
       get().settlePendingStarRewards();
       get().awardWeaponProgression();
       const completedResult = evaluateGameplayGrade(getGameplayStatsForState(get(), true));
+      const trophyUnlocks = useShop.getState().recordTrophyResult(completedResult);
       
       const currentWorld = Math.floor(arcadeLevel);
       const currentSub = Math.round((arcadeLevel % 1) * 10);
@@ -1102,6 +1109,7 @@ export const useMagicOrb = create<MagicOrbState>()(
           set({ 
             phase: "arcadeComplete",
             lastResult: completedResult,
+            lastTrophyUnlocks: trophyUnlocks,
             bossDefeating: false,
             completedLevel: completedLevelValue,
             hasShield: false,
@@ -1165,6 +1173,7 @@ export const useMagicOrb = create<MagicOrbState>()(
       set({ 
         phase: "levelComplete",
         lastResult: completedResult,
+        lastTrophyUnlocks: trophyUnlocks,
         bossDefeating: false,
         completedLevel: completedLevelValue,
         hasShield: false,
@@ -1327,10 +1336,13 @@ export const useMagicOrb = create<MagicOrbState>()(
       const { score, highScore } = state;
       const newHighScore = Math.max(score, highScore);
       saveHighScore(newHighScore);
+      const result = evaluateGameplayGrade(getGameplayStatsForState(state, false));
+      const trophyUnlocks = useShop.getState().recordTrophyResult(result);
       set({ 
         phase: "gameOver",
         highScore: newHighScore,
-        lastResult: evaluateGameplayGrade(getGameplayStatsForState(state, false)),
+        lastResult: result,
+        lastTrophyUnlocks: trophyUnlocks,
       });
     },
     
@@ -1350,6 +1362,7 @@ export const useMagicOrb = create<MagicOrbState>()(
         weaponUsed: "none",
         weaponXpAwarded: false,
         lastWeaponProgression: null,
+        lastTrophyUnlocks: [],
         rapidOverheat: 0,
         rapidOverheatPenaltyTimer: 0,
         rapidOverheatActive: false,
