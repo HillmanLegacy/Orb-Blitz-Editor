@@ -13,8 +13,9 @@ import { getPlayerSkinVisualYaw } from "./PlayerSkinVisualConfig";
 interface MiniMechaOrbProps {
   radius?: number;
   showLight?: boolean;
+  animatePresentationYaw?: boolean;
 }
-export function MiniMechaOrb({ radius = 1, showLight = true }: MiniMechaOrbProps) {
+export function MiniMechaOrb({ radius = 1, showLight = true, animatePresentationYaw = true }: MiniMechaOrbProps) {
   const groupRef     = useRef<THREE.Group>(null);
   const materialsRef = useRef<THREE.MeshBasicMaterial[]>([]);
 
@@ -74,12 +75,8 @@ export function MiniMechaOrb({ radius = 1, showLight = true }: MiniMechaOrbProps
   }, [modelScene, radius]);
 
   useFrame(({ clock }) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.set(
-        0,
-        getPlayerSkinVisualYaw("mecha", clock.getElapsedTime()),
-        0,
-      );
+    if (animatePresentationYaw && groupRef.current) {
+      groupRef.current.rotation.set(0, getPlayerSkinVisualYaw("mecha", clock.getElapsedTime()), 0);
     }
   });
 

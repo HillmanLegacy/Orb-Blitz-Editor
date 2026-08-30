@@ -259,9 +259,10 @@ interface MiniMonsterOrbProps {
   particleCount?: number;
   showParticles?: boolean;
   showLight?: boolean;
+  animatePresentationYaw?: boolean;
 }
 
-export function MiniMonsterOrb({ radius = 1, particleCount = MINI_PARTICLE_COUNT, showParticles = true, showLight = true }: MiniMonsterOrbProps) {
+export function MiniMonsterOrb({ radius = 1, particleCount = MINI_PARTICLE_COUNT, showParticles = true, showLight = true, animatePresentationYaw = true }: MiniMonsterOrbProps) {
   const groupRef     = useRef<THREE.Group>(null);
   const materialsRef = useRef<THREE.MeshBasicMaterial[]>([]);
 
@@ -321,12 +322,8 @@ export function MiniMonsterOrb({ radius = 1, particleCount = MINI_PARTICLE_COUNT
   }, [modelScene, radius]);
 
   useFrame(({ clock }) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.set(
-        0,
-        getPlayerSkinVisualYaw("monster", clock.getElapsedTime()),
-        0,
-      );
+    if (animatePresentationYaw && groupRef.current) {
+      groupRef.current.rotation.set(0, getPlayerSkinVisualYaw("monster", clock.getElapsedTime()), 0);
     }
   });
 

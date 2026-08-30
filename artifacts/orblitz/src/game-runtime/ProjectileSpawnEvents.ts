@@ -60,6 +60,30 @@ export class ProjectileSpawnEvents {
     return true;
   }
 
+  /**
+   * Bounded lossless-admission variant for effects whose newest fire transform
+   * matters more than preserving stale pending visuals. Every caller is
+   * admitted; when full, the oldest unrendered event is replaced in-place.
+   */
+  enqueueReplacingOldest(source: ProjectileSpawnSource): boolean {
+    if (this.count >= this.capacity) {
+      const event = this.events[this.writeIndex];
+      event.id = source.id;
+      event.type = source.type;
+      event.position[0] = source.position[0];
+      event.position[1] = source.position[1];
+      event.position[2] = source.position[2];
+      event.direction[0] = source.direction[0];
+      event.direction[1] = source.direction[1];
+      event.direction[2] = source.direction[2];
+      event.volleyId = source.volleyId;
+      this.writeIndex = (this.writeIndex + 1) % this.capacity;
+      this.readIndex = this.writeIndex;
+      return true;
+    }
+    return this.enqueue(source);
+  }
+
   consume(consumer: (event: Readonly<ProjectileSpawnEvent>) => void): void {
     while (this.count > 0) {
       consumer(this.events[this.readIndex]);

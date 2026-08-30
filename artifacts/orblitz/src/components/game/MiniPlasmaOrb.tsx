@@ -176,21 +176,18 @@ export interface MiniPlasmaOrbProps {
   particleCount?: number;
   showParticles?: boolean;
   showLight?: boolean;
+  animatePresentationYaw?: boolean;
 }
 
-export function MiniPlasmaOrb({ radius = 1, particleCount = TENDRIL_COUNT, showParticles = true, showLight = true }: MiniPlasmaOrbProps) {
+export function MiniPlasmaOrb({ radius = 1, particleCount = TENDRIL_COUNT, showParticles = true, showLight = true, animatePresentationYaw = true }: MiniPlasmaOrbProps) {
   const matRef   = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
   const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
 
   useFrame((state) => {
     if (matRef.current) matRef.current.uniforms.uTime.value = state.clock.getElapsedTime();
-    if (groupRef.current) {
-      groupRef.current.rotation.set(
-        0,
-        getPlayerSkinVisualYaw("plasma", state.clock.getElapsedTime()),
-        0,
-      );
+    if (animatePresentationYaw && groupRef.current) {
+      groupRef.current.rotation.set(0, getPlayerSkinVisualYaw("plasma", state.clock.getElapsedTime()), 0);
     }
   });
 

@@ -14,39 +14,43 @@ interface PlayerBossSkinProps {
   radius: number;
   healthPercent: number;
   showEffects?: boolean;
+  /** Set by PlayerOrb when its visible-model parent owns continuous yaw. */
+  ownsModelRotation?: boolean;
 }
 
 /**
  * Uses the same animated renderers as boss-spawned enemies. This keeps each
- * shop skin's procedural texture, internal motion, and rotation intact instead
- * of flattening the appearance into a single material colour.
+ * shop skin's procedural texture and internal motion intact instead of
+ * flattening the appearance into a single material colour. PlayerOrb owns the
+ * shared model rotation, so these renderers must not write presentation yaw.
  */
 export function PlayerBossSkin({
   skin,
   radius,
   healthPercent,
   showEffects = true,
+  ownsModelRotation = false,
 }: PlayerBossSkinProps) {
   switch (skin) {
     case "fire":
       // The shop Fire Boss Skin, the 1.9 boss, and player projectiles all use
       // the same authored texture from boss_orb_1_texture.glb.
-      return <BossOrbModel scale={radius} healthPercent={healthPercent} />;
+      return <BossOrbModel scale={radius} healthPercent={healthPercent} animatePresentationYaw={!ownsModelRotation} />;
     case "star":
-      return <MiniStarOrb radius={radius} healthPercent={healthPercent} showParticles={showEffects} showLight={false} />;
+      return <MiniStarOrb radius={radius} healthPercent={healthPercent} showParticles={showEffects} showLight={false} animatePresentationYaw={!ownsModelRotation} />;
     case "crystal":
-      return <MiniCrystalOrb radius={radius} showLight={false} />;
+      return <MiniCrystalOrb radius={radius} showLight={false} animatePresentationYaw={!ownsModelRotation} />;
     case "toxic":
-      return <MiniToxicOrb radius={radius} showParticles={showEffects} showLight={false} />;
+      return <MiniToxicOrb radius={radius} showParticles={showEffects} showLight={false} animatePresentationYaw={!ownsModelRotation} />;
     case "plasma":
-      return <MiniPlasmaOrb radius={radius} showParticles={showEffects} showLight={false} />;
+      return <MiniPlasmaOrb radius={radius} showParticles={showEffects} showLight={false} animatePresentationYaw={!ownsModelRotation} />;
     case "diamond":
-      return <MiniDiamondOrb radius={radius} showParticles={showEffects} showLight={false} />;
+      return <MiniDiamondOrb radius={radius} showParticles={showEffects} showLight={false} animatePresentationYaw={!ownsModelRotation} />;
     case "rainbow":
-      return <MiniRainbowOrb radius={radius} showParticles={showEffects} showLight={false} />;
+      return <MiniRainbowOrb radius={radius} showParticles={showEffects} showLight={false} animatePresentationYaw={!ownsModelRotation} />;
     case "mecha":
-      return <MiniMechaOrb radius={radius} showLight={false} />;
+      return <MiniMechaOrb radius={radius} showLight={false} animatePresentationYaw={!ownsModelRotation} />;
     case "monster":
-      return <MiniMonsterOrb radius={radius} showParticles={showEffects} showLight={false} />;
+      return <MiniMonsterOrb radius={radius} showParticles={showEffects} showLight={false} animatePresentationYaw={!ownsModelRotation} />;
   }
 }

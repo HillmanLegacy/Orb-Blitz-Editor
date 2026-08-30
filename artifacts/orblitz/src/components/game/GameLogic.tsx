@@ -6,6 +6,10 @@ import { useShop } from "@/lib/stores/useShop";
 import { useAudio } from "@/lib/stores/useAudio";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
 import {
+  CHILL_AMBIENT_MAX_ACTIVE,
+  CHILL_AMBIENT_SPAWN_INTERVAL,
+  getChillAmbientDirection,
+  getChillAmbientShape,
   getEnemySpawnPoint,
   getPerspectiveViewAtPlane,
 } from "@/game-runtime/EnemySpawnConfig";
@@ -110,6 +114,7 @@ export function GameLogic() {
   
   const { camera, gl } = useThree();
   const lastOrbSpawn = useRef(0);
+  const chillAdmissionCount = useRef(0);
   const lastFireTime = useRef(0);
   
   const cameraRef = useRef(camera);
@@ -250,8 +255,9 @@ export function GameLogic() {
       shape = getWorldShape(worldLevel);
       pattern = movementPatterns[Math.floor(Math.random() * movementPatterns.length)];
     } else if (mode === "chill") {
-      shape = worldOrbShapes[Math.floor(Math.random() * worldOrbShapes.length)];
-      pattern = movementPatterns[Math.floor(Math.random() * movementPatterns.length)];
+      shape = getChillAmbientShape(chillAdmissionCount.current++);
+      pattern = "direct";
+      speed = 0.2 + Math.random() * 0.2;
     } else if (mode === "survival") {
       shape = worldOrbShapes[Math.floor(Math.random() * worldOrbShapes.length)];
       pattern = movementPatterns[Math.floor(Math.random() * movementPatterns.length)];
@@ -267,8 +273,9 @@ export function GameLogic() {
     const toPlayerX = playerPos[0] - x;
     const toPlayerY = playerPos[1] - y;
     const toPlayerLength = Math.sqrt(toPlayerX * toPlayerX + toPlayerY * toPlayerY) || 1;
-    const dirX = toPlayerX / toPlayerLength;
-    const dirY = toPlayerY / toPlayerLength;
+    const [dirX, dirY] = mode === "chill"
+      ? getChillAmbientDirection()
+      : [toPlayerX / toPlayerLength, toPlayerY / toPlayerLength];
     
     const orb: DarkOrb = {
       id: `orb-${orbIdCounter++}`,
@@ -772,11 +779,16 @@ export function GameLogic() {
     const arcadeSpawnRate = gameMode === "arcade" ? Math.max(0.3, (spawnRate / worldSpawnBonus) * Math.max(0.2, spawnBonus * timeBonus)) : spawnRate;
     const { gameTime, gauntletOrbsDestroyed } = useMagicOrb.getState();
     const gauntletSpawnRate = Math.max(0.4, 2.5 - (gameTime * 0.02) - (gauntletOrbsDestroyed * 0.01));
-    const effectiveSpawnRate = gameMode === "chill" ? spawnRate * 0.4 : (gameMode === "gauntlet" ? gauntletSpawnRate : arcadeSpawnRate);
+    const effectiveSpawnRate = gameMode === "chill"
+      ? CHILL_AMBIENT_SPAWN_INTERVAL
+      : (gameMode === "gauntlet" ? gauntletSpawnRate : arcadeSpawnRate);
     const isBossLevel = boss !== null;
     const { bossDefeating } = useMagicOrb.getState();
     
-    if (lastOrbSpawn.current >= effectiveSpawnRate && !isDying && !isBossLevel && !bossDefeating && !survivalBossPending) {
+    const chillAmbientCount = gameMode === "chill"
+      ? useMagicOrb.getState().darkOrbs.filter((orb) => !orb.destroying && !orb.isBossOrb).length
+      : 0;
+    if (lastOrbSpawn.current >= effectiveSpawnRate && !isDying && !isBossLevel && !bossDefeating && !survivalBossPending && (gameMode !== "chill" || chillAmbientCount < CHILL_AMBIENT_MAX_ACTIVE)) {
       lastOrbSpawn.current = 0;
       const spawnBatch = [createDarkOrb()];
       
@@ -793,11 +805,6 @@ export function GameLogic() {
           spawnBatch.push(createDarkOrb());
         }
         if (worldLevel >= 2 && Math.random() < 0.25) {
-          spawnBatch.push(createDarkOrb());
-        }
-      } else if (gameMode === "chill") {
-        spawnBatch.push(createDarkOrb());
-        if (Math.random() < 0.5) {
           spawnBatch.push(createDarkOrb());
         }
       } else if (gameMode === "gauntlet") {

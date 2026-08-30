@@ -13,8 +13,14 @@ import {
   PowerUpSpawnScheduler,
 } from "../src/game-runtime/PowerUpSpawnScheduler";
 import {
+  CHILL_AMBIENT_MAX_ACTIVE,
+  CHILL_AMBIENT_SHAPES,
+  CHILL_AMBIENT_SPAWN_INTERVAL,
   ENEMY_DESPAWN_MARGIN,
   ENEMY_SPAWN_MARGIN,
+  bounceChillAmbientAtEdge,
+  getChillAmbientDirection,
+  getChillAmbientShape,
   getEnemySpawnPoint,
   getPerspectiveViewAtPlane,
   isOutsideBossProjectileDespawnBounds,
@@ -82,6 +88,11 @@ import {
   getPlayerSkinTrailColor,
 } from "../src/components/game/PlayerSkinVisualConfig";
 import { clonePlayerOrbMaterial } from "../src/components/game/PlayerOrbMaterial";
+import {
+  createPlayerFireBurstPool,
+  emitPlayerProjectileFireBurst,
+  resetPlayerFireBurstPool,
+} from "../src/components/game/Projectiles";
 
 const makeProjectile = (id: string): Projectile => ({
   id,
@@ -568,6 +579,45 @@ describe("gameplay runtime invariants", () => {
     expect(consumed).toEqual(["visual-one"]);
   });
 
+  it("admits critical burst events by replacing stale pending presentation", () => {
+    const events = new ProjectileSpawnEvents(2);
+    const source = makeProjectile("burst-one");
+
+    expect(events.enqueueReplacingOldest(source)).toBe(true);
+    expect(events.enqueueReplacingOldest({ ...source, id: "burst-two" })).toBe(true);
+    expect(events.enqueueReplacingOldest({ ...source, id: "burst-three" })).toBe(true);
+
+    const consumed: string[] = [];
+    events.consume((event) => consumed.push(event.id));
+    expect(consumed).toEqual(["burst-two", "burst-three"]);
+  });
+
+  it("reuses and resets the bounded player fire-burst pool", () => {
+    const pool = createPlayerFireBurstPool();
+    const palette = {
+      core: "#111111",
+      glow: "#222222",
+      particles: ["#ff0000", "#00ff00", "#0000ff"],
+      isRainbow: true,
+    };
+    const event = {
+      type: "rapidblaster",
+      position: [2, 3, 4] as const,
+      direction: [0, 2, 0] as const,
+    };
+
+    // More bursts than capacity must remain bounded while retaining the latest
+    // spawn transform/palette in the recycled slots.
+    for (let i = 0; i < 17; i++) emitPlayerProjectileFireBurst(pool, event, palette);
+    expect(pool.slots).toHaveLength(96);
+    expect(pool.slots.filter((slot) => slot.active)).toHaveLength(96);
+    expect(pool.slots.some((slot) => slot.y === 3 && slot.dy === 1 && slot.color === "#00ff00")).toBe(true);
+
+    resetPlayerFireBurstPool(pool);
+    expect(pool.nextSlot).toBe(0);
+    expect(pool.slots.every((slot) => !slot.active && slot.age === 0)).toBe(true);
+  });
+
   it("does not advance the runtime clock while paused", () => {
     const clock = new RuntimeClock();
 
@@ -699,6 +749,27 @@ describe("gameplay runtime invariants", () => {
       if (side === 2) expect(y).toBe(view.centerY - view.halfHeight - ENEMY_SPAWN_MARGIN);
       if (side === 3) expect(y).toBe(view.centerY + view.halfHeight + ENEMY_SPAWN_MARGIN);
     }
+  });
+
+  it("uses a sparse bounded Chill admission policy and cycles ambient visuals", () => {
+    expect(CHILL_AMBIENT_SPAWN_INTERVAL).toBe(6);
+    expect(CHILL_AMBIENT_MAX_ACTIVE).toBe(8);
+    const cycle = Array.from({ length: CHILL_AMBIENT_SHAPES.length }, (_, index) =>
+      getChillAmbientShape(index),
+    );
+    expect(cycle).toEqual(CHILL_AMBIENT_SHAPES);
+    expect(getChillAmbientShape(CHILL_AMBIENT_SHAPES.length)).toBe(CHILL_AMBIENT_SHAPES[0]);
+    expect(cycle).not.toContain("launcher");
+  });
+
+  it("gives Chill targets independent drift and bounces them at camera edges", () => {
+    const direction = getChillAmbientDirection(() => 0.25);
+    expect(direction[0]).toBeCloseTo(0);
+    expect(direction[1]).toBeCloseTo(1);
+    const view = { centerX: 2, centerY: -1, halfWidth: 10, halfHeight: 6 };
+    const retained = bounceChillAmbientAtEdge([20, -10, 0], [0.5, -0.5, 0], view);
+    expect(retained.position).toEqual([13, -8, 0]);
+    expect(retained.direction).toEqual([-0.5, 0.5, 0]);
   });
 
   it("retains off-screen enemy spawns for moved and wide cameras", () => {

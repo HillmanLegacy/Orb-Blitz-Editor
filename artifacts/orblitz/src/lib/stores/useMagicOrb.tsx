@@ -1740,6 +1740,9 @@ export const useMagicOrb = create<MagicOrbState>()(
       balanceTelemetry.recordProjectile(projectile.type);
       set((state) => ({ projectiles: [...state.projectiles, projectile] }));
       runtimeDiagnostics.noteStoreWrite();
+      // The dedicated burst bridge always admits player-shot presentation;
+      // optional weapon-specific flashes continue using their small FIFO.
+      gameRuntime.playerProjectileBurstSpawns.enqueueReplacingOldest(projectile);
       gameRuntime.projectileSpawns.enqueue(projectile);
       return true;
     },

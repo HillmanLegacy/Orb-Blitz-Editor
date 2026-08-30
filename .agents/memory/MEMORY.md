@@ -18,3 +18,5 @@
 - [Orblitz power-up scheduling](orblitz-power-up-scheduling.md) — Cooldowns persist through pause in GameRuntime; edge spawns must begin inside runtime despawn bounds.
 - [Orblitz enemy entry bounds](orblitz-enemy-entry-bounds.md) — Regular enemies spawn/cull relative to the live camera; boss attack orbs retain fixed world cleanup bounds.
 - [Imported artifact preview routing](imported-artifact-preview-routing.md) — Healthy imported workflows can still fail preview when artifact catalog forwarding cannot resolve them.
+- [Orblitz player VFX transform boundary](orblitz-player-vfx-transform-boundary.md) — Weapon morphs belong on the model child; player-attached VFX stay on the stable world anchor.
+- [Orblitz guaranteed firing presentation](orblitz-guaranteed-firing-presentation.md) — Every-shot VFX need a dedicated bounded admission path tied to runtime reset, not an optional dropping event queue.

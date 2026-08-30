@@ -81,9 +81,10 @@ export interface MiniCrystalOrbProps {
   radius?: number;
   healthPercent?: number;
   showLight?: boolean;
+  animatePresentationYaw?: boolean;
 }
 
-export function MiniCrystalOrb({ radius = 1, showLight = true }: MiniCrystalOrbProps) {
+export function MiniCrystalOrb({ radius = 1, showLight = true, animatePresentationYaw = true }: MiniCrystalOrbProps) {
   const matRef   = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
 
@@ -91,12 +92,8 @@ export function MiniCrystalOrb({ radius = 1, showLight = true }: MiniCrystalOrbP
 
   useFrame((state) => {
     if (matRef.current) matRef.current.uniforms.uTime.value = state.clock.getElapsedTime();
-    if (groupRef.current) {
-      groupRef.current.rotation.set(
-        0,
-        getPlayerSkinVisualYaw("crystal", state.clock.getElapsedTime()),
-        0,
-      );
+    if (animatePresentationYaw && groupRef.current) {
+      groupRef.current.rotation.set(0, getPlayerSkinVisualYaw("crystal", state.clock.getElapsedTime()), 0);
     }
   });
 

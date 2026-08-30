@@ -22,6 +22,7 @@ import { usePerformanceFeature } from "@/game-runtime/PerformanceToggles";
 import { EnemyDefeatVFX } from "./EnemyDefeatVFX";
 import { ENEMY_DEFEAT_DURATION } from "@/game-runtime/EnemyLifecycle";
 import {
+  bounceChillAmbientAtEdge,
   getPerspectiveViewAtPlane,
   isOutsideBossProjectileDespawnBounds,
   isOutsideEnemyDespawnBounds,
@@ -743,11 +744,14 @@ export function DarkOrbs() {
       const speed = (orb.frozen ? currentSpeed * 0.1 : currentSpeed) *
         (magiOrb7Active ? 0.25 : 1);
 
-      // Always home toward player
-      const toPX = playerX - x;
-      const toPY = playerY - y;
-      const distToP = Math.sqrt(toPX * toPX + toPY * toPY);
-      if (distToP > 0.1) { dx = toPX / distToP; dy = toPY / distToP; }
+      // Chill targets are ambient: retain their independent drift rather than
+      // steering them toward the player.
+      if (gm !== "chill") {
+        const toPX = playerX - x;
+        const toPY = playerY - y;
+        const distToP = Math.sqrt(toPX * toPX + toPY * toPY);
+        if (distToP > 0.1) { dx = toPX / distToP; dy = toPY / distToP; }
+      }
 
       const t = gameRuntime.clock.elapsed;
       switch (orb.pattern) {
@@ -767,9 +771,16 @@ export function DarkOrbs() {
 
       // Retain camera-relative edge spawns long enough to enter the playfield,
       // including when the player has moved or the viewport is extra wide.
-      const outsideDespawnBounds = orb.isBossOrb
-        ? isOutsideBossProjectileDespawnBounds([x, y, z])
-        : isOutsideEnemyDespawnBounds([x, y, z], enemyView);
+      if (gm === "chill" && !orb.isBossOrb) {
+        const retained = bounceChillAmbientAtEdge([x, y, z], [dx, dy, dz], enemyView);
+        [x, y, z] = retained.position;
+        [dx, dy, dz] = retained.direction;
+      }
+      const outsideDespawnBounds = gm === "chill" && !orb.isBossOrb
+        ? false
+        : (orb.isBossOrb
+          ? isOutsideBossProjectileDespawnBounds([x, y, z])
+          : isOutsideEnemyDespawnBounds([x, y, z], enemyView));
       if (outsideDespawnBounds) {
         gameRuntime.enemies.release(orb.id);
         structuralChanged = true;
@@ -799,7 +810,7 @@ export function DarkOrbs() {
       // Player collision
       const hitRadius = orb.isBossOrb ? 1.2 : orb.size * 0.8 + 0.5;
       const dxP = x - playerX, dyP = y - playerY;
-      if (dxP * dxP + dyP * dyP < hitRadius * hitRadius) {
+      if (gm !== "chill" && dxP * dxP + dyP * dyP < hitRadius * hitRadius) {
         addImpactEffect({ id: `impact-${Date.now()}-${Math.random()}`, position: [x, y, 0], timer: 0.5, maxTimer: 0.5, seed: Math.random() });
         if (hasShield) {
           consumeShield();

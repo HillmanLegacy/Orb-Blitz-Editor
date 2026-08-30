@@ -3,23 +3,18 @@ import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { clonePlayerOrbMaterial } from "./PlayerOrbMaterial";
-import { getPlayerSkinVisualYaw } from "./PlayerSkinVisualConfig";
 
 interface PlayerModelProps {
   scale: number;
   coreColor?: string;
   glowColor?: string;
   isRainbow?: boolean;
-  rotationSpeedX?: number;
-  rotationSpeedY?: number;
 }
 export function PlayerModel({
   scale,
   coreColor = "#ffffff",
   glowColor = coreColor,
   isRainbow = false,
-  rotationSpeedX = 0.8,
-  rotationSpeedY = 1.2,
 }: PlayerModelProps) {
   const modelGroupRef = useRef<THREE.Group>(null);
   // Hold refs to cloned materials for rainbow tinting.
@@ -89,13 +84,6 @@ export function PlayerModel({
   }, [texScene, scale, coreColor, glowColor]);
 
   useFrame(({ clock }) => {
-    if (modelGroupRef.current) {
-      modelGroupRef.current.rotation.set(
-        0,
-        getPlayerSkinVisualYaw("default", clock.getElapsedTime()),
-        0,
-      );
-    }
     if (isRainbow) {
       const hue = (clock.getElapsedTime() * 0.18) % 1;
       materialsRef.current.forEach((m) => m.color.setHSL(hue, 1, 0.6));

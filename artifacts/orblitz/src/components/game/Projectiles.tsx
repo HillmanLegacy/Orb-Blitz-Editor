@@ -246,81 +246,12 @@ function HDTrailEffect({
 
 const MemoizedHDTrailEffect = memo(HDTrailEffect);
 
-// ─── Projectile charge aura — electric sparks only ───────────────────────────
-// Rendered inside the projectile group so positions are already world-correct.
-
-// Electric spark instanced mesh for the projectile aura
-const PAURA_SPARK_COUNT = 24;
-// ── Charged projectile corona — tiny yellow orbiting particles ────────────────
-// Palette matches the player's golden charge-beam aura: yellow → amber → white.
-const _PCA_WISP_N  = 7;
-const _pcaDummy    = new THREE.Object3D();
-const _pcaColor    = new THREE.Color();
-const _pcaPalette  = [
-  new THREE.Color("#ffdd00"), // bright yellow
-  new THREE.Color("#ffaa00"), // amber-gold
-  new THREE.Color("#ffffff"), // white flash
-];
-const _pcaWispGeo  = new THREE.SphereGeometry(1, 4, 3);
-
-interface _PCAWisp { phase: number; speed: number; axisX: number; axisY: number; size: number; colorT: number }
-
-function ProjectileChargeAura({ projScale }: { projScale: number }) {
-  const wispRef = useRef<THREE.InstancedMesh>(null);
-
-  const wisps = useMemo<_PCAWisp[]>(() =>
-    Array.from({ length: _PCA_WISP_N }, (_, i) => ({
-      phase:  (i / _PCA_WISP_N) * Math.PI * 2,
-      speed:  (5.5 + i * 0.9) * (i % 2 === 0 ? 1 : -1),
-      axisX:  (i / _PCA_WISP_N) * Math.PI,
-      axisY:  (i / _PCA_WISP_N) * Math.PI * 2,
-      size:   0.016 + i * 0.003,
-      colorT: i / _PCA_WISP_N,
-    }))
-  , []);
-
-  const [wispMat] = useState(() => new THREE.MeshBasicMaterial({
-    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-  }));
-  useEffect(() => () => { wispMat.dispose(); }, [wispMat]);
-
-  useFrame(({ clock }) => {
-    if (!wispRef.current) return;
-    const t  = clock.getElapsedTime();
-    const r  = projScale * 2.2;
-    const im = wispRef.current;
-
-    for (let i = 0; i < _PCA_WISP_N; i++) {
-      const w     = wisps[i];
-      const theta = t * w.speed + w.phase;
-      const cx    = Math.cos(w.axisX), sx = Math.sin(w.axisX);
-      const cy    = Math.cos(w.axisY), sy = Math.sin(w.axisY);
-      const cosT  = Math.cos(theta),   sinT = Math.sin(theta);
-      _pcaDummy.position.set(
-        r * (cosT * cy - sinT * sx * sy),
-        r * (cosT * sy + sinT * sx * cy),
-        r * (sinT * cx),
-      );
-      _pcaDummy.scale.setScalar(w.size * projScale * (0.55 + 0.45 * Math.sin(t * 11 + i)));
-      _pcaDummy.updateMatrix();
-      im.setMatrixAt(i, _pcaDummy.matrix);
-      const ct = ((w.colorT + t * 0.15) % 1.0 + 1.0) % 1.0;
-      if (ct < 0.5) _pcaColor.lerpColors(_pcaPalette[0], _pcaPalette[1], ct * 2);
-      else           _pcaColor.lerpColors(_pcaPalette[1], _pcaPalette[2], (ct - 0.5) * 2);
-      im.setColorAt(i, _pcaColor);
-    }
-    im.instanceMatrix.needsUpdate = true;
-    if (im.instanceColor) im.instanceColor.needsUpdate = true;
-  });
-
-  return (
-    <instancedMesh ref={wispRef} args={[_pcaWispGeo, wispMat, _PCA_WISP_N]} frustumCulled={false} />
-  );
-}
-
 // SpiralBraidMesh removed — replaced by the full OrbitalSpiralBlaster SpiralBundleMesh below
 
 const MAX_BATCHED_PROJECTILES = MAX_RUNTIME_PROJECTILES;
+const PLAYER_FIRE_BURST_PARTICLES = 6;
+const MAX_PLAYER_FIRE_BURSTS = 16;
+const MAX_PLAYER_FIRE_BURST_PARTICLES = PLAYER_FIRE_BURST_PARTICLES * MAX_PLAYER_FIRE_BURSTS;
 const _batchedProjectileDummy = new THREE.Object3D();
 const _batchedRapidTrailGeometry = new THREE.CylinderGeometry(1, 1, 1, 5, 1, true);
 const _batchedProjectileAxis = new THREE.Vector3(0, 1, 0);
@@ -331,6 +262,150 @@ const _batchedModelRotation = new THREE.Quaternion();
 const _batchedModelEuler = new THREE.Euler();
 const _batchedModelScale = new THREE.Vector3(1, 1, 1);
 const _batchedModelPosition = new THREE.Vector3();
+
+type PlayerFireBurstPalette = {
+  particles: readonly string[];
+  core: string;
+  glow: string;
+  isRainbow?: boolean;
+};
+
+type PlayerFireBurstSlot = {
+  active: boolean;
+  age: number;
+  x: number;
+  y: number;
+  z: number;
+  dx: number;
+  dy: number;
+  dz: number;
+  color: string;
+  phase: number;
+};
+
+export type PlayerProjectileSpawnPresentationEvent = {
+  type: string | undefined;
+  position: readonly [number, number, number];
+  direction: readonly [number, number, number];
+};
+
+export type PlayerFireBurstPool = {
+  slots: PlayerFireBurstSlot[];
+  nextSlot: number;
+};
+
+/** A fixed-size presentation pool: firing effects can never create shot JSX. */
+export function createPlayerFireBurstPool(): PlayerFireBurstPool {
+  return {
+    slots: Array.from({ length: MAX_PLAYER_FIRE_BURST_PARTICLES }, (_, index) => ({
+      active: false, age: 0, x: 0, y: 0, z: 0, dx: 1, dy: 0, dz: 0,
+      color: "#ffffff", phase: index * 2.399963229728653,
+    })),
+    nextSlot: 0,
+  };
+}
+
+export function resetPlayerFireBurstPool(pool: PlayerFireBurstPool): void {
+  pool.nextSlot = 0;
+  for (const slot of pool.slots) {
+    slot.active = false;
+    slot.age = 0;
+  }
+}
+
+/**
+ * Records a compact burst at the admitted spawn transform. The ring allocator
+ * intentionally overwrites the oldest visual particle under sustained fire;
+ * this has no simulation/store side effects and a dropped event is harmless.
+ */
+export function emitPlayerProjectileFireBurst(
+  pool: PlayerFireBurstPool,
+  event: PlayerProjectileSpawnPresentationEvent,
+  palette: PlayerFireBurstPalette,
+): void {
+  if (!isPlayerProjectile({ type: event.type as Projectile["type"] })) return;
+  const colors = palette.particles.length > 0
+    ? palette.particles
+    : [palette.core, palette.glow];
+  const directionLength = Math.hypot(event.direction[0], event.direction[1], event.direction[2]) || 1;
+  const dx = event.direction[0] / directionLength;
+  const dy = event.direction[1] / directionLength;
+  const dz = event.direction[2] / directionLength;
+
+  for (let particle = 0; particle < PLAYER_FIRE_BURST_PARTICLES; particle++) {
+    const slot = pool.slots[pool.nextSlot];
+    pool.nextSlot = (pool.nextSlot + 1) % pool.slots.length;
+    slot.active = true;
+    slot.age = 0;
+    slot.x = event.position[0];
+    slot.y = event.position[1];
+    slot.z = event.position[2];
+    slot.dx = dx;
+    slot.dy = dy;
+    slot.dz = dz;
+    // Rainbow uses the full authored particle palette on every firing burst.
+    slot.color = colors[particle % colors.length];
+  }
+}
+
+const _playerFireBurstGeometry = new THREE.OctahedronGeometry(1, 0);
+const _playerFireBurstDummy = new THREE.Object3D();
+const _playerFireBurstColor = new THREE.Color();
+
+function PlayerProjectileFireBursts({ pool }: { pool: PlayerFireBurstPool }) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const [material] = useState(() => new THREE.MeshBasicMaterial({
+    transparent: true,
+    opacity: 0.9,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    toneMapped: false,
+  }));
+  useEffect(() => () => material.dispose(), [material]);
+
+  useFrame((_, delta) => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const lifetime = 0.16;
+    for (let index = 0; index < pool.slots.length; index++) {
+      const slot = pool.slots[index];
+      slot.age += delta;
+      if (!slot.active || slot.age >= lifetime) {
+        slot.active = false;
+        _playerFireBurstDummy.scale.setScalar(0);
+        _playerFireBurstDummy.updateMatrix();
+        mesh.setMatrixAt(index, _playerFireBurstDummy.matrix);
+        continue;
+      }
+      const t = slot.age / lifetime;
+      const lateralX = -slot.dy;
+      const lateralY = slot.dx;
+      const lateral = Math.sin(slot.phase) * (0.03 + t * 0.18);
+      const forward = 0.10 + t * 0.52;
+      _playerFireBurstDummy.position.set(
+        slot.x + slot.dx * forward + lateralX * lateral,
+        slot.y + slot.dy * forward + lateralY * lateral,
+        slot.z + slot.dz * forward + Math.cos(slot.phase) * t * 0.08,
+      );
+      _playerFireBurstDummy.scale.setScalar((1 - t) * 0.045);
+      _playerFireBurstDummy.updateMatrix();
+      mesh.setMatrixAt(index, _playerFireBurstDummy.matrix);
+      _playerFireBurstColor.set(slot.color);
+      mesh.setColorAt(index, _playerFireBurstColor);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  });
+
+  return (
+    <instancedMesh
+      ref={meshRef}
+      args={[_playerFireBurstGeometry, material, MAX_PLAYER_FIRE_BURST_PARTICLES]}
+      frustumCulled={false}
+      renderOrder={3}
+    />
+  );
+}
 
 type BatchedModelPart = {
   geometry: THREE.BufferGeometry;
@@ -1959,6 +2034,8 @@ export function Projectiles() {
   const activeVolleyCounts = useRef<Map<string, number>>(new Map());
   const impactUpdateAccumulator = useRef(0);
   const enemyCollisionGrid = useRef(new EnemyCollisionGrid());
+  const playerFireBurstPool = useRef<PlayerFireBurstPool>(createPlayerFireBurstPool());
+  const burstResetVersion = useRef(gameRuntime.resetVersion);
   const collisionsEnabled = usePerformanceFeature("collision");
 
   // ── Overcharged shockwave rings ───────────────────────────────────────────
@@ -1983,6 +2060,7 @@ export function Projectiles() {
   const scatterArcTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => () => {
+    resetPlayerFireBurstPool(playerFireBurstPool.current);
     resetProjectileMotion();
     for (const timeout of swTimeoutsRef.current.values()) clearTimeout(timeout);
     for (const timeout of ocExpTimeoutsRef.current.values()) clearTimeout(timeout);
@@ -2001,6 +2079,12 @@ export function Projectiles() {
     volleyProjectileCounts.current.clear();
     volleyRemainingCounts.current.clear();
   }, []);
+
+  // GameScene resets the runtime at terminal/session phases. Clear the local
+  // GPU presentation pool as well so a stale flash cannot enter the next run.
+  useEffect(() => {
+    if (phase !== "playing") resetPlayerFireBurstPool(playerFireBurstPool.current);
+  }, [phase]);
   
   const skinColors = useMemo(() => getSkinColors(equippedSkin, 3), [equippedSkin]);
   const playerScale = useMemo(
@@ -2018,6 +2102,13 @@ export function Projectiles() {
   // projectile scan every frame while still preserving effects for shots that
   // collide and disappear before React can commit a structural update.
   useFrame(() => {
+    if (burstResetVersion.current !== gameRuntime.resetVersion) {
+      burstResetVersion.current = gameRuntime.resetVersion;
+      resetPlayerFireBurstPool(playerFireBurstPool.current);
+    }
+    gameRuntime.playerProjectileBurstSpawns.consume((event) => {
+      emitPlayerProjectileFireBurst(playerFireBurstPool.current, event, skinColors);
+    });
     gameRuntime.projectileSpawns.consume((event) => {
       if (event.type === "overcharged" && !knownOcIds.current.has(event.id)) {
         knownOcIds.current.add(event.id);
@@ -2713,6 +2804,7 @@ export function Projectiles() {
   runtimeDiagnostics.noteProjectileRender();
   return (
     <>
+       <PlayerProjectileFireBursts pool={playerFireBurstPool.current} />
        <RapidProjectileTrailBatch
          projectiles={batchedProjectiles}
          trailColor={defaultTrailPalette.base}

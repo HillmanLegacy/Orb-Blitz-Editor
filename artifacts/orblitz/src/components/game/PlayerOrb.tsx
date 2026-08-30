@@ -1,6 +1,7 @@
 import { useRef, useMemo, memo, Suspense, useEffect, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { PLAYER_MODEL_ROTATION_SPEED } from "./PlayerSkinVisualConfig";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop, OrbSkin } from "@/lib/stores/useShop";
 import { ToonOrbLayer, CelOutline, RayTracedGlow, AmbientOcclusionLayer, GlobalIlluminationBounce, ScreenSpaceReflection, CausticPattern } from "./ToonShaders";
@@ -782,7 +783,10 @@ export function PlayerOrb() {
   const glowRef = useRef<THREE.Mesh>(null);
   const outerGlowRef = useRef<THREE.Mesh>(null);
   const shieldRef = useRef<THREE.Mesh>(null);
+  // This root is the stable world anchor for lights and gameplay VFX. Never
+  // apply weapon/morph transforms here: those belong to the visible model.
   const groupRef = useRef<THREE.Group>(null);
+  const visualModelRef = useRef<THREE.Group>(null);
   const particleRefs = useRef<THREE.Mesh[]>([]);
   const rayRefs = useRef<THREE.Mesh[]>([]);
 
@@ -1005,10 +1009,17 @@ export function PlayerOrb() {
     const totalRecoilY = recoilOffsetRef.current[1] + rbRecoilOffsetRef.current[1] + sbRecoilOffsetRef.current[1] + scRecoilOffsetRef.current[1] + hmRecoilOffsetRef.current[1];
 
     if (groupRef.current && !isDying) {
-      groupRef.current.rotation.z = gentleWobble;
-      groupRef.current.position.x = playerPosition[0] + totalRecoilX;
-      groupRef.current.position.y = playerPosition[1] + floatY + totalRecoilY;
-      groupRef.current.scale.set(sqX, sqY, 1);
+      groupRef.current.position.set(playerPosition[0], playerPosition[1], playerPosition[2] ?? 0);
+    }
+
+    if (visualModelRef.current && !isDying) {
+      // Keep recoil, squash/stretch, and the decorative turntable isolated
+      // from the world-space VFX anchor above.
+      visualModelRef.current.position.set(totalRecoilX, floatY + totalRecoilY, 0);
+      visualModelRef.current.scale.set(sqX, sqY, 1);
+      visualModelRef.current.rotation.z = gentleWobble;
+      visualModelRef.current.rotation.y =
+        (visualModelRef.current.rotation.y + delta * PLAYER_MODEL_ROTATION_SPEED) % (Math.PI * 2);
     }
     
     if (coreRef.current && !isDying) {
@@ -1118,21 +1129,23 @@ export function PlayerOrb() {
     <group ref={groupRef} position={playerPosition}>
       {/* Default model or the exact animated enemy renderer for boss skins */}
       <Suspense fallback={null}>
-        {equippedSkin === "default" ? (
-          <PlayerModel
-            scale={scale}
-            coreColor={coreColor}
-            glowColor={glowColor}
-            rotationSpeedX={0.3}
-            rotationSpeedY={0.8}
-          />
-        ) : (
-          <PlayerBossSkin
-            skin={equippedSkin}
-            radius={scale}
-            healthPercent={healthRatio}
-          />
-        )}
+        <group ref={visualModelRef}>
+          {equippedSkin === "default" ? (
+            <PlayerModel
+              scale={scale}
+              coreColor={coreColor}
+              glowColor={glowColor}
+            />
+          ) : (
+            <PlayerBossSkin
+              skin={equippedSkin}
+              radius={scale}
+              healthPercent={healthRatio}
+              showEffects={false}
+              ownsModelRotation
+            />
+          )}
+        </group>
       </Suspense>
 
 

@@ -162,9 +162,10 @@ export interface MiniStarOrbProps {
   particleCount?: number;
   showParticles?: boolean;
   showLight?: boolean;
+  animatePresentationYaw?: boolean;
 }
 
-export function MiniStarOrb({ radius = 1, healthPercent = 1, particleCount = MINI_SPARKLE_COUNT, showParticles = true, showLight = true }: MiniStarOrbProps) {
+export function MiniStarOrb({ radius = 1, healthPercent = 1, particleCount = MINI_SPARKLE_COUNT, showParticles = true, showLight = true, animatePresentationYaw = true }: MiniStarOrbProps) {
   const matRef   = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
 
@@ -172,12 +173,8 @@ export function MiniStarOrb({ radius = 1, healthPercent = 1, particleCount = MIN
 
   useFrame((state) => {
     if (matRef.current) matRef.current.uniforms.uTime.value = state.clock.getElapsedTime();
-    if (groupRef.current) {
-      groupRef.current.rotation.set(
-        0,
-        getPlayerSkinVisualYaw("star", state.clock.getElapsedTime()),
-        0,
-      );
+    if (animatePresentationYaw && groupRef.current) {
+      groupRef.current.rotation.set(0, getPlayerSkinVisualYaw("star", state.clock.getElapsedTime()), 0);
     }
   });
 

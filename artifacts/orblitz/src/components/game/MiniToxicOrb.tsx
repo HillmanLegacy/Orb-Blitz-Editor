@@ -180,21 +180,18 @@ export interface MiniToxicOrbProps {
   particleCount?: number;
   showParticles?: boolean;
   showLight?: boolean;
+  animatePresentationYaw?: boolean;
 }
 
-export function MiniToxicOrb({ radius = 1, particleCount = DRIP_COUNT, showParticles = true, showLight = true }: MiniToxicOrbProps) {
+export function MiniToxicOrb({ radius = 1, particleCount = DRIP_COUNT, showParticles = true, showLight = true, animatePresentationYaw = true }: MiniToxicOrbProps) {
   const matRef   = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
   const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
 
   useFrame((state) => {
     if (matRef.current) matRef.current.uniforms.uTime.value = state.clock.getElapsedTime();
-    if (groupRef.current) {
-      groupRef.current.rotation.set(
-        0,
-        getPlayerSkinVisualYaw("toxic", state.clock.getElapsedTime()),
-        0,
-      );
+    if (animatePresentationYaw && groupRef.current) {
+      groupRef.current.rotation.set(0, getPlayerSkinVisualYaw("toxic", state.clock.getElapsedTime()), 0);
     }
   });
 

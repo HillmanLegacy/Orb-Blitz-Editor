@@ -3,7 +3,7 @@ import { BalanceTelemetry, balanceTelemetry } from "./BalanceTelemetry";
 import { EnemyRuntime } from "./EnemyRuntime";
 import { ParticleRuntime } from "./ParticleRuntime";
 import { ProjectileSpawnEvents } from "./ProjectileSpawnEvents";
-import { ProjectileRuntime } from "./ProjectileRuntime";
+import { MAX_RUNTIME_PROJECTILES, ProjectileRuntime } from "./ProjectileRuntime";
 import { PowerUpRuntime } from "./PowerUpRuntime";
 import { PowerUpSpawnScheduler } from "./PowerUpSpawnScheduler";
 import { RuntimeClock } from "./RuntimeClock";
@@ -22,8 +22,12 @@ export class GameRuntime {
   readonly particles = new ParticleRuntime();
   readonly trails = new TrailRuntime();
   readonly projectileSpawns = new ProjectileSpawnEvents();
+  // Critical player-fire presentation has its own bounded bridge. Its capacity
+  // matches simultaneous projectile admission, unlike optional weapon flashes.
+  readonly playerProjectileBurstSpawns = new ProjectileSpawnEvents(MAX_RUNTIME_PROJECTILES);
   readonly balance: BalanceTelemetry = balanceTelemetry;
   readonly pipeline = new SimulationPipeline();
+  resetVersion = 0;
 
   reset(): void {
     this.clock.reset();
@@ -35,6 +39,8 @@ export class GameRuntime {
     this.particles.reset();
     this.trails.reset();
     this.projectileSpawns.reset();
+    this.playerProjectileBurstSpawns.reset();
+    this.resetVersion++;
   }
 
   diagnosticsSnapshot() {

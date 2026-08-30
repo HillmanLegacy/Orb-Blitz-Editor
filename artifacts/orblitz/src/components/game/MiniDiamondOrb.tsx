@@ -179,21 +179,18 @@ export interface MiniDiamondOrbProps {
   particleCount?: number;
   showParticles?: boolean;
   showLight?: boolean;
+  animatePresentationYaw?: boolean;
 }
 
-export function MiniDiamondOrb({ radius = 1, particleCount = SHARD_COUNT, showParticles = true, showLight = true }: MiniDiamondOrbProps) {
+export function MiniDiamondOrb({ radius = 1, particleCount = SHARD_COUNT, showParticles = true, showLight = true, animatePresentationYaw = true }: MiniDiamondOrbProps) {
   const matRef   = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
   const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
 
   useFrame((state) => {
     if (matRef.current) matRef.current.uniforms.uTime.value = state.clock.getElapsedTime();
-    if (groupRef.current) {
-      groupRef.current.rotation.set(
-        0,
-        getPlayerSkinVisualYaw("diamond", state.clock.getElapsedTime()),
-        0,
-      );
+    if (animatePresentationYaw && groupRef.current) {
+      groupRef.current.rotation.set(0, getPlayerSkinVisualYaw("diamond", state.clock.getElapsedTime()), 0);
     }
   });
 

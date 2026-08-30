@@ -182,9 +182,10 @@ export interface MiniRainbowOrbProps {
   particleCount?: number;
   showParticles?: boolean;
   showLight?: boolean;
+  animatePresentationYaw?: boolean;
 }
 
-export function MiniRainbowOrb({ radius = 1, particleCount = PARTICLE_COUNT, showParticles = true, showLight = true }: MiniRainbowOrbProps) {
+export function MiniRainbowOrb({ radius = 1, particleCount = PARTICLE_COUNT, showParticles = true, showLight = true, animatePresentationYaw = true }: MiniRainbowOrbProps) {
   const matRef   = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
   const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
@@ -192,12 +193,8 @@ export function MiniRainbowOrb({ radius = 1, particleCount = PARTICLE_COUNT, sho
 
   useFrame((state) => {
     if (matRef.current) matRef.current.uniforms.uTime.value = state.clock.getElapsedTime();
-    if (groupRef.current) {
-      groupRef.current.rotation.set(
-        0,
-        getPlayerSkinVisualYaw("rainbow", state.clock.getElapsedTime()),
-        0,
-      );
+    if (animatePresentationYaw && groupRef.current) {
+      groupRef.current.rotation.set(0, getPlayerSkinVisualYaw("rainbow", state.clock.getElapsedTime()), 0);
     }
     if (lightRef.current) lightRef.current.color.setHSL(fract(state.clock.getElapsedTime() * 0.15), 1.0, 0.6);
   });

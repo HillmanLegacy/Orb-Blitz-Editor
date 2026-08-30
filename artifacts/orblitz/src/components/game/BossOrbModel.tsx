@@ -7,8 +7,10 @@ import { getPlayerSkinVisualYaw } from "./PlayerSkinVisualConfig";
 interface BossOrbModelProps {
   scale?: number;
   healthPercent?: number;
+  /** Disable when PlayerOrb's visible-model parent owns the rotation. */
+  animatePresentationYaw?: boolean;
 }
-export function BossOrbModel({ scale = 2.5, healthPercent = 1 }: BossOrbModelProps) {
+export function BossOrbModel({ scale = 2.5, healthPercent = 1, animatePresentationYaw = true }: BossOrbModelProps) {
   const groupRef = useRef<THREE.Group>(null);
   const materialsRef = useRef<THREE.MeshBasicMaterial[]>([]);
 
@@ -92,7 +94,7 @@ export function BossOrbModel({ scale = 2.5, healthPercent = 1 }: BossOrbModelPro
   }, [textureScene, scale]);
 
   useFrame(({ clock }) => {
-    if (groupRef.current) {
+    if (animatePresentationYaw && groupRef.current) {
       groupRef.current.rotation.set(
         0,
         getPlayerSkinVisualYaw("fire", clock.getElapsedTime()),
