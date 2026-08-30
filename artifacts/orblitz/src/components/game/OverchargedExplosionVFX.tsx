@@ -60,6 +60,7 @@ type ExplosionSlot = {
   position: [number, number, number];
   direction: [number, number, number];
   palette: OverchargedExplosionPalette;
+  scale: number;
 };
 
 export type OverchargedExplosionPool = {
@@ -72,6 +73,7 @@ export type OverchargedExplosionEvent = Readonly<{
   position: readonly [number, number, number];
   direction: readonly [number, number, number];
   palette?: OverchargedExplosionPalette;
+  scale?: number;
 }>;
 
 export function getOverchargedExplosionPhase(
@@ -111,6 +113,7 @@ export function createOverchargedExplosionPool(): OverchargedExplosionPool {
         position: [0, 0, 0],
         direction: [1, 0, 0],
         palette: DEFAULT_OVERCHARGED_EXPLOSION_PALETTE,
+        scale: 1,
       }),
     ),
   };
@@ -159,6 +162,7 @@ export function emitOverchargedExplosion(
   slot.direction[1] = event.direction[1] / length;
   slot.direction[2] = event.direction[2] / length;
   slot.palette = event.palette ?? DEFAULT_OVERCHARGED_EXPLOSION_PALETTE;
+  slot.scale = Math.max(0.1, event.scale ?? 1);
   return slotIndex;
 }
 
@@ -402,8 +406,8 @@ function ExplosionSlotView({
       // Start at the departing projectile's apparent volume, then compress
       // continuously into a dense ignition seed before the expanding flash.
       const compressionPulse = 1 + Math.sin(age * 30) * 0.025 * (1 - buildEase);
-      const compressedCoreScale = THREE.MathUtils.lerp(1.05, 0.16, buildEase) * compressionPulse;
-      const compressedHaloScale = THREE.MathUtils.lerp(1.5, 0.24, buildEase);
+      const compressedCoreScale = THREE.MathUtils.lerp(1.05, 0.16, buildEase) * compressionPulse * slot.scale;
+      const compressedHaloScale = THREE.MathUtils.lerp(1.5, 0.24, buildEase) * slot.scale;
       core.scale.set(
         compressedCoreScale * (1 + buildEase * 0.12),
         compressedCoreScale * (1 - buildEase * 0.08),
@@ -434,7 +438,7 @@ function ExplosionSlotView({
     } else if (phase === "climax") {
       const flashT = Math.min(climaxAge / 0.2, 1);
       const flash = 1 - Math.pow(1 - flashT, 3);
-      const climaxCoreScale = THREE.MathUtils.lerp(0.16, FLASH_RADIUS * 0.78, flash);
+       const climaxCoreScale = THREE.MathUtils.lerp(0.16, FLASH_RADIUS * 0.78, flash) * slot.scale;
       core.scale.setScalar(climaxCoreScale);
       halo.scale.setScalar(THREE.MathUtils.lerp(0.24, FLASH_RADIUS * 1.55, flash));
       shell.scale.setScalar(climaxCoreScale * (1.1 + flash * 0.1));
@@ -443,7 +447,7 @@ function ExplosionSlotView({
         directionAngle + climaxAge * 8.0,
         climaxAge * 4.0,
       );
-      compressionRing.scale.setScalar(THREE.MathUtils.lerp(0.14, 2.2, flash));
+       compressionRing.scale.setScalar(THREE.MathUtils.lerp(0.14, 2.2, flash) * slot.scale);
       compressionRing.rotation.set(
         Math.PI * 0.5 + climaxAge * 4.0,
         directionAngle + climaxAge * 5.0,
@@ -454,8 +458,8 @@ function ExplosionSlotView({
       setOpacity((shell.material as THREE.MeshBasicMaterial), Math.max(0.04, 0.38 - flashT * 0.28));
       setOpacity(compressionRingMaterial, Math.max(0.04, 0.86 * (1 - flashT)));
       const ringT = Math.max(0, Math.min(climaxAge / 0.58, 1));
-      ring.scale.setScalar(RING_RADIUS * (0.12 + ringT * 0.9));
-      secondaryRing.scale.setScalar(RING_RADIUS * (0.08 + ringT * 0.62));
+       ring.scale.setScalar(RING_RADIUS * (0.12 + ringT * 0.9) * slot.scale);
+       secondaryRing.scale.setScalar(RING_RADIUS * (0.08 + ringT * 0.62) * slot.scale);
       ring.rotation.z = directionAngle;
       secondaryRing.rotation.z = directionAngle + Math.PI * 0.5;
       setOpacity(ringMaterial, Math.max(0.08, 0.92 * (1 - ringT)));
@@ -467,11 +471,11 @@ function ExplosionSlotView({
         1,
       );
       const fade = 1 - smoothstep(afterglowT);
-      core.scale.setScalar(0.55 * fade);
-      halo.scale.setScalar(1.8 * fade);
-      shell.scale.setScalar(0.62 * fade);
+       core.scale.setScalar(0.55 * fade * slot.scale);
+       halo.scale.setScalar(1.8 * fade * slot.scale);
+       shell.scale.setScalar(0.62 * fade * slot.scale);
       shell.rotation.set(afterglowT * 2.4, directionAngle + afterglowT * 3.2, afterglowT * 1.6);
-      compressionRing.scale.setScalar(1.9 * fade);
+       compressionRing.scale.setScalar(1.9 * fade * slot.scale);
       compressionRing.rotation.set(
         Math.PI * 0.5 + afterglowT * 2.0,
         directionAngle + afterglowT * 3.0,
@@ -481,8 +485,8 @@ function ExplosionSlotView({
       setOpacity(haloMaterial, Math.max(0.02, 0.12 * fade));
       setOpacity((shell.material as THREE.MeshBasicMaterial), Math.max(0.02, 0.12 * fade));
       setOpacity(compressionRingMaterial, Math.max(0.01, 0.16 * fade));
-      ring.scale.setScalar(RING_RADIUS * (1.02 + afterglowT * 0.18));
-      secondaryRing.scale.setScalar(RING_RADIUS * (0.72 + afterglowT * 0.22));
+       ring.scale.setScalar(RING_RADIUS * (1.02 + afterglowT * 0.18) * slot.scale);
+       secondaryRing.scale.setScalar(RING_RADIUS * (0.72 + afterglowT * 0.22) * slot.scale);
       setOpacity(ringMaterial, Math.max(0.015, 0.16 * fade));
       setOpacity(secondaryRingMaterial, Math.max(0.01, 0.1 * fade));
     }
@@ -544,8 +548,8 @@ function ExplosionSlotView({
           Math.sin(angle) * 0.78 + Math.sin(directionAngle) * 0.42,
           datum.elevation,
         ).normalize();
-        const distance = datum.speed * speedScale * localAge;
-        const size = datum.size * sizeScale * (1 - t * 0.32);
+       const distance = datum.speed * speedScale * localAge * slot.scale;
+       const size = datum.size * sizeScale * (1 - t * 0.32) * slot.scale;
         writeInstance(
           mesh,
           i,

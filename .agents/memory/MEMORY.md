@@ -23,3 +23,4 @@
 - [Orblitz overcharged VFX presets](orblitz-overcharged-vfx-presets.md) — Overcharged detonation VFX remain visible on Low via reduced budgets; do not gate them with the global VFX switch.
 - [Orblitz SFX variation](orblitz-sfx-variation.md) — Repetitive cues vary only after throttle admission; use bounded anti-repeat profiles and reset history with audio disposal.
 - [Orblitz moving collision stages](orblitz-moving-collision-stages.md) — Earlier pipeline stages must predict later-stage transforms for relative sweeps; timed AOE owns Overcharged damage exclusively.
+- [Orblitz weapon progression](orblitz-weapon-progression.md) — Keep weapon level tuning centralized, snapshot combat effects at spawn, and award XP only at authoritative result boundaries.

@@ -17,6 +17,7 @@ import { SubBlasterOrb } from "./SubBlasterOrb";
 import { StarFlowVFX } from "./StarFlowVFX";
 import { World1FireBackground } from "./World1FireBackground";
 import { ProjectileTrails } from "./ProjectileTrails";
+import { RapidOverheatVFX } from "./RapidOverheatVFX";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
 import { runtimeDiagnostics } from "@/game-runtime/RuntimeDiagnostics";
@@ -80,6 +81,7 @@ export default function GameplayScene() {
       <GameRuntimeCoordinator />
       <PlayerLight />
       <PlayerOrb />
+      <RapidOverheatVFX />
       <DarkOrbs />
       <Boss />
       <Projectiles />

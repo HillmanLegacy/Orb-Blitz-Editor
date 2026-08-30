@@ -1,6 +1,16 @@
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import { useMagicOrb } from "./useMagicOrb";
+import {
+  applyWeaponXp,
+  createInitialWeaponProgression,
+  getWeaponLevelUpChanges,
+  WEAPON_DISPLAY_NAMES,
+  isProgressionWeapon,
+  normalizeWeaponProgression,
+  type WeaponProgressionState,
+  type WeaponLevelUpResult,
+} from "@/game-runtime/WeaponProgression";
 
 export type OrbSkin = "default" | "fire" | "star" | "crystal" | "toxic" | "plasma" | "diamond" | "rainbow" | "mecha" | "monster";
 export const BOSS_SKIN_TYPES: readonly Exclude<OrbSkin, "default">[] = [
@@ -93,6 +103,7 @@ interface ShopState {
   equippedTrail: TrailEffect;
   equippedRing: RingStyle;
   equippedWeapon: WeaponType;
+  weaponProgression: WeaponProgressionState;
   equippedDefenses: [DefenseType, DefenseType];
   equippedMagiOrb: MagiOrbType;
   shopOpen: boolean;
@@ -106,6 +117,7 @@ interface ShopState {
   equipTrail: (trail: TrailEffect) => void;
   equipRing: (ring: RingStyle) => void;
   equipWeapon: (weapon: WeaponType) => void;
+  addWeaponXp: (weapon: WeaponType, amount: number) => WeaponLevelUpResult | null;
   equipDefense: (defense: DefenseType, slot: 0 | 1) => void;
   equipMagiOrb: (magiOrb: MagiOrbType) => void;
   openShop: () => void;
@@ -123,6 +135,7 @@ interface StoredShopData {
   equippedTrail: TrailEffect;
   equippedRing: RingStyle;
   equippedWeapon: WeaponType;
+  weaponProgression?: unknown;
   equippedDefenses: [DefenseType, DefenseType];
   equippedMagiOrb: MagiOrbType;
   devMode?: boolean;
@@ -197,6 +210,7 @@ const getStoredShopData = (): StoredShopData => {
         equippedTrail: data.equippedTrail ?? "none",
         equippedRing,
         equippedWeapon: equippedWeapon === "orbital_teletransfer" ? "none" as WeaponType : equippedWeapon,
+         weaponProgression: normalizeWeaponProgression(data.weaponProgression),
         equippedDefenses: equippedDefenses as [DefenseType, DefenseType],
         equippedMagiOrb: data.equippedMagiOrb ?? "none",
         devMode: data.devMode ?? false,
@@ -212,6 +226,7 @@ const getStoredShopData = (): StoredShopData => {
     equippedTrail: "none",
     equippedRing: "none",
     equippedWeapon: "none",
+     weaponProgression: createInitialWeaponProgression(),
     equippedDefenses: ["none", "none"],
     equippedMagiOrb: "none",
     devMode: false,
@@ -227,6 +242,7 @@ const createSaveData = (state: ShopState): StoredShopData => ({
   equippedTrail: state.equippedTrail,
   equippedRing: state.equippedRing,
   equippedWeapon: state.equippedWeapon,
+  weaponProgression: state.weaponProgression,
   equippedDefenses: state.equippedDefenses,
   equippedMagiOrb: state.equippedMagiOrb,
   devMode: state.devMode,
@@ -241,6 +257,7 @@ export const useShop = create<ShopState>()(
     equippedTrail: storedData.equippedTrail,
     equippedRing: storedData.equippedRing,
     equippedWeapon: storedData.equippedWeapon,
+    weaponProgression: normalizeWeaponProgression(storedData.weaponProgression),
     equippedDefenses: storedData.equippedDefenses as [DefenseType, DefenseType],
     equippedMagiOrb: storedData.equippedMagiOrb as MagiOrbType,
     shopOpen: false,
@@ -298,6 +315,31 @@ export const useShop = create<ShopState>()(
       useMagicOrb.getState().updateProjectiles([]);
       set({ equippedWeapon: weapon });
       saveShopData(createSaveData({ ...get(), equippedWeapon: weapon }));
+    },
+
+    addWeaponXp: (weapon, amount) => {
+      if (!isProgressionWeapon(weapon)) return null;
+      const current = get().weaponProgression[weapon];
+      const applied = applyWeaponXp(current, amount);
+      const result: WeaponLevelUpResult = {
+        weapon,
+        displayName: WEAPON_DISPLAY_NAMES[weapon],
+        xpAwarded: Math.max(0, Math.floor(amount)),
+        previousLevel: applied.previousLevel,
+        level: applied.record.level,
+        previousXp: current.xp,
+        xp: applied.record.xp,
+        leveledUp: applied.leveledUp,
+        changes: getWeaponLevelUpChanges(weapon, applied.previousLevel, applied.record.level),
+      };
+      set((state) => ({
+        weaponProgression: {
+          ...state.weaponProgression,
+          [weapon]: applied.record,
+        },
+      }));
+      saveShopData(createSaveData(get()));
+      return result;
     },
     
     equipDefense: (defense, slot) => {

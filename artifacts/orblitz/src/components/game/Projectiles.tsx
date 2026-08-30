@@ -53,6 +53,7 @@ import {
   getStandardEnemyBodyRadius,
 } from "./PhysicalBodyRadii";
 import { getEnemyStarRewardCount } from "@/game-runtime/EnemyLifecycle";
+import { getWeaponConfig } from "@/game-runtime/WeaponProgression";
 
 /** Projectile collision always reads live enemy transforms, never store snapshots. */
 function liveOrbPosition(orb: DarkOrb): [number, number, number] {
@@ -1984,7 +1985,7 @@ export function Projectiles() {
   const addStarFlowEvent       = useMagicOrb(s => s.addStarFlowEvent);
   
   const { playHit, playSuccess, playSparkleExplosion } = useAudio();
-  const { equippedTrail, equippedSkin } = useShop();
+  const { equippedTrail, equippedSkin, weaponProgression } = useShop();
   const clockRef = useRef(0);
   const projectileSpeed = 16.5;
   const hitOrbsThisFrame = useRef<Set<string>>(new Set());
@@ -2293,9 +2294,13 @@ export function Projectiles() {
             // Steer within a ~90° forward cone — targets directly behind are ignored.
             const dot = dx * tdx + dy * tdy;
             if (dot > 0.0) {
-              // RotateTowards: clamp angular change to 45°/sec so shots curve naturally
+              // RotateTowards: clamp angular change to the level-specific authority
+              // so early homing upgrades curve less aggressively.
               // and can miss targets that move perpendicular or very fast.
-              const MAX_TURN_RAD = (138 * Math.PI / 180) * delta;
+              const MAX_TURN_RAD = (
+                getWeaponConfig("homing_launcher", weaponProgression.homing_launcher.level).homingTurnRateDegrees
+                * Math.PI / 180
+              ) * delta;
               const curAngle = Math.atan2(dy, dx);
               const tgtAngle = Math.atan2(tdy, tdx);
               let dAngle = tgtAngle - curAngle;
@@ -2353,6 +2358,7 @@ export function Projectiles() {
           !presentedOverchargedDetonations.current.has(proj.id)
         ) {
           presentedOverchargedDetonations.current.add(proj.id);
+          const explosionScale = proj.explosionScale ?? 1;
           emitOverchargedExplosion(overchargedExplosionPool.current, {
             id: `ocexp-${proj.id}`,
             position: [px, py, pz],
@@ -2365,6 +2371,7 @@ export function Projectiles() {
               projectile: skinColors.projectile,
               particles: skinColors.particles,
             },
+            scale: explosionScale,
           });
         }
       }
@@ -2422,13 +2429,15 @@ export function Projectiles() {
       if (proj.type === "overcharged" && newTravelTimer !== undefined) {
         if (isOverchargedDamageReady(newTravelTimer)) {
           hitSomething = true;
+          const explosionScale = proj.explosionScale ?? 1;
+          const explosionRadius = OC_EXPLODE_RADIUS * explosionScale;
 
           useMagicOrb.getState().triggerBackgroundShake();
           playSparkleExplosion();
 
           if (boss && !boss.destroying) {
             const [bx, by, bz] = gameRuntime.boss.get(boss.id)?.position ?? boss.position;
-            if (Math.sqrt((px-bx)**2+(py-by)**2+((bz||0)-pz)**2) < OC_EXPLODE_RADIUS + BOSS_BODY_RADIUS) {
+            if (Math.sqrt((px-bx)**2+(py-by)**2+((bz||0)-pz)**2) < explosionRadius + BOSS_BODY_RADIUS) {
               recordHit(proj.id);
               const bossKilled = damageBoss(8);
               addScore(25); playHit();
@@ -2438,16 +2447,16 @@ export function Projectiles() {
           }
 
           const explosionCandidates = enemyCollisionGrid.current.queryAabb(
-            px - OC_EXPLODE_RADIUS,
-            px + OC_EXPLODE_RADIUS,
-            py - OC_EXPLODE_RADIUS,
-            py + OC_EXPLODE_RADIUS,
+            px - explosionRadius,
+            px + explosionRadius,
+            py - explosionRadius,
+            py + explosionRadius,
           );
           for (const orbIndex of explosionCandidates) {
             const orb = darkOrbs[orbIndex];
             if (orb.destroying) continue;
             const [ox, oy, oz] = liveOrbPosition(orb);
-            if (Math.sqrt((px-ox)**2+(py-oy)**2+(pz-oz)**2) < OC_EXPLODE_RADIUS + getStandardEnemyBodyRadius(orb)) {
+            if (Math.sqrt((px-ox)**2+(py-oy)**2+(pz-oz)**2) < explosionRadius + getStandardEnemyBodyRadius(orb)) {
               recordHit(proj.id);
               markOrbDestroying(orb.id, [ox, oy, oz]);
               addScore(10); incrementGauntletOrbs();
@@ -2461,7 +2470,7 @@ export function Projectiles() {
             if (powerUp.collected || powerUp.destroying || powerUp.hurtTimer) continue;
             const { end: [pux, puy, puz] } =
               gameRuntime.powerUps.collisionSegmentFor(powerUp, delta);
-            if (Math.sqrt((px-pux)**2+(py-puy)**2+(pz-puz)**2) < OC_EXPLODE_RADIUS + POWER_UP_BODY_RADIUS) {
+            if (Math.sqrt((px-pux)**2+(py-puy)**2+(pz-puz)**2) < explosionRadius + POWER_UP_BODY_RADIUS) {
               hitPowerUpsThisFrame.current.add(powerUp.id);
               hurtPowerUp(powerUp.id);
               playSuccess();
@@ -2557,6 +2566,9 @@ export function Projectiles() {
               recordHit(proj.id);
               markOrbDestroying(orb.id, [ox, oy, oz]);
               addScore(10); incrementGauntletOrbs(); playHit();
+              if (proj.spiralDefeatExplosion) {
+                addParticles(createExplosionParticles([ox, oy, oz], skinColors.particles));
+              }
                addStarFlowEvent([ox, oy, oz], getEnemyStarRewardCount(gameMode, orb.isBossOrb));
               if (gameMode === "arcade") incrementOrbsDestroyed();
               addImpactEffect({ id: `impact-${impactIdCounter++}`, position: [_spx, _spy, _spz], timer: 0.4, maxTimer: 0.4, seed: Math.random() });

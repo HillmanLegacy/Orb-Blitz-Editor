@@ -17,6 +17,7 @@ import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
 import type { Projectile } from "@/lib/stores/useMagicOrb";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
+import { getWeaponConfig } from "@/game-runtime/WeaponProgression";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const ORBIT_RADIUS   = 2.0;
@@ -54,7 +55,7 @@ const _tetherMat = new THREE.MeshBasicMaterial({
 
 // ── Component ────────────────────────────────────────────────────────────────
 export function SubBlasterOrb() {
-  const { equippedSkin, equippedWeapon } = useShop();
+  const { equippedSkin, equippedWeapon, weaponProgression } = useShop();
   const isActive = equippedWeapon === "sub_blaster";
 
   // Orbit state — all hooks must come before any conditional return
@@ -127,6 +128,7 @@ export function SubBlasterOrb() {
 
     const [px, py] = playerPosition;
     const time = clock.getElapsedTime();
+    const config = getWeaponConfig("sub_blaster", weaponProgression.sub_blaster.level);
 
     // ── Advance orbit angle ───────────────────────────────────────────────
     orbitAngleRef.current += ORBIT_SPEED * delta;
@@ -139,44 +141,49 @@ export function SubBlasterOrb() {
     scanTimerRef.current -= delta;
     if (scanTimerRef.current <= 0) {
       scanTimerRef.current = SCAN_INTERVAL;
-      let bestTarget: [number, number] | null = null;
-      let bestDist = Infinity;
+      const candidates: Array<{ position: [number, number]; distance: number; priority: number }> = [];
 
       // Priority 1 — boss projectiles (enemy bolts)
-      if (boss && boss.bossProjectiles && boss.bossProjectiles.length > 0) {
+      if (boss?.bossProjectiles) {
         for (const bp of boss.bossProjectiles) {
           const d = Math.sqrt((bp.position[0] - px) ** 2 + (bp.position[1] - py) ** 2);
-          if (d < DETECT_RANGE && d < bestDist) {
-            bestDist = d;
-            bestTarget = [bp.position[0], bp.position[1]];
+          if (d < config.subBlasterMidRange) {
+            candidates.push({ position: [bp.position[0], bp.position[1]], distance: d, priority: 0 });
           }
         }
       }
 
       // Priority 2 — dark orbs (enemies)
-      if (!bestTarget) {
-        for (const orb of darkOrbs) {
-          if (orb.destroying) continue;
-          const liveOrb = gameRuntime.enemies.get(orb.id);
-          const orbPosition = liveOrb?.position ?? orb.position;
-          const d = Math.sqrt((orbPosition[0] - px) ** 2 + (orbPosition[1] - py) ** 2);
-          if (d < DETECT_RANGE && d < bestDist) {
-            bestDist = d;
-            bestTarget = [orbPosition[0], orbPosition[1]];
-          }
+      for (const orb of darkOrbs) {
+        if (orb.destroying) continue;
+        const liveOrb = gameRuntime.enemies.get(orb.id);
+        const orbPosition = liveOrb?.position ?? orb.position;
+        const d = Math.sqrt((orbPosition[0] - px) ** 2 + (orbPosition[1] - py) ** 2);
+        if (d < config.subBlasterMidRange) {
+          candidates.push({ position: [orbPosition[0], orbPosition[1]], distance: d, priority: 1 });
         }
       }
 
       // Priority 3 — boss entity
-      if (!bestTarget && boss && !boss.destroying) {
+      if (boss && !boss.destroying) {
         const bossPosition = gameRuntime.boss.get(boss.id)?.position ?? boss.position;
         const d = Math.sqrt((bossPosition[0] - px) ** 2 + (bossPosition[1] - py) ** 2);
-        if (d < DETECT_RANGE) {
-          bestTarget = [bossPosition[0], bossPosition[1]];
+        if (d < config.subBlasterMidRange) {
+          candidates.push({ position: [bossPosition[0], bossPosition[1]], distance: d, priority: 2 });
         }
       }
 
-      lockedTargetRef.current = bestTarget;
+      if (config.subBlasterTargetMode === "priority") {
+        candidates.sort((a, b) => a.priority - b.priority || a.distance - b.distance);
+        lockedTargetRef.current = candidates[0]?.position ?? null;
+      } else {
+        const pool = config.subBlasterTargetMode === "random-close-mid"
+          ? candidates.filter((candidate) => candidate.distance <= config.subBlasterMidRange)
+          : candidates;
+        lockedTargetRef.current = pool.length > 0
+          ? pool[Math.floor(Math.random() * pool.length)].position
+          : null;
+      }
     }
 
     // ── Face target (smooth rotation toward aim direction) ────────────────
@@ -197,19 +204,22 @@ export function SubBlasterOrb() {
       const dirY = tgt[1] - oy;
       const len  = Math.sqrt(dirX * dirX + dirY * dirY);
       if (len > 0.05) {
+        const spread = (Math.random() - 0.5) * 2 * config.aimVarianceDegrees * Math.PI / 180;
+        const baseAngle = Math.atan2(dirY, dirX) + spread;
         const projectile: Projectile = {
           id: `sub-${_subOrbProjCounter++}-${Date.now()}`,
           position: [ox, oy, 0],
-          direction: [dirX / len, dirY / len, 0],
+          direction: [Math.cos(baseAngle), Math.sin(baseAngle), 0],
           isCharged: false,
-          size: 0.09,
+          size: config.projectileSize,
           type: "subblaster",
           hitCount: 1,
-          speed: 26.0,
+          speed: config.projectileSpeed,
           noMissTracking: true,
         };
         if (state.addProjectile(projectile)) {
-          fireTimerRef.current = FIRE_INTERVAL;
+          state.recordShot();
+          fireTimerRef.current = config.fireInterval;
           // Micro-recoil squash + muzzle flash
           recoilTimerRef.current = RECOIL_DUR;
           flashTimerRef.current  = FLASH_DUR;
@@ -221,7 +231,7 @@ export function SubBlasterOrb() {
           fireTimerRef.current = 0.1;
         }
       } else {
-        fireTimerRef.current = FIRE_INTERVAL;
+        fireTimerRef.current = config.fireInterval;
       }
     }
 

@@ -14,6 +14,13 @@ import {
   type GameplayResultSnapshot,
   type GameplayStats,
 } from "@/game-runtime/GameplayGrades";
+import {
+  getWeaponConfig,
+  getWeaponXpAward,
+  isProgressionWeapon,
+  type ProgressionWeapon,
+  type WeaponLevelUpResult,
+} from "@/game-runtime/WeaponProgression";
 
 export type GamePhase = "menu" | "loading" | "playing" | "paused" | "gameOver" | "levelComplete" | "modeSelect" | "arcadeComplete";
 export type LoadingType = "entering" | "exiting" | "exiting_to_menu" | "nextLevel" | null;
@@ -123,6 +130,10 @@ export interface Projectile {
   subSphereAlive?: boolean[];
   /** Seconds elapsed since spawn — used by Overcharged Blaster to trigger timed AOE explosion */
   travelTimer?: number;
+  /** Level-specific area size captured at spawn so an equipment change cannot retune a live shot. */
+  explosionScale?: number;
+  /** Lv3 Spiral Blaster presents a skin-colored enemy defeat burst on impact. */
+  spiralDefeatExplosion?: boolean;
 }
 
 export interface PowerUp {
@@ -204,6 +215,13 @@ export interface MagicOrbState {
   runStats: GameplayStats;
   lastResult: GameplayResultSnapshot | null;
   hitProjectileIds: string[];
+  weaponUsed: ProgressionWeapon | "none";
+  weaponXpAwarded: boolean;
+  lastWeaponProgression: WeaponLevelUpResult | null;
+  rapidOverheat: number;
+  rapidOverheatPenaltyTimer: number;
+  rapidOverheatActive: boolean;
+  rapidBlasterLastShotTime: number;
   
   hasShield: boolean;
   shieldDisintTimer: number;
@@ -342,6 +360,7 @@ export interface MagicOrbState {
   addBossDefeatStars: () => void;
   updateGameTime: (delta: number) => void;
   recordShot: (count?: number) => void;
+  awardWeaponProgression: () => WeaponLevelUpResult | null;
   recordHit: (projectileId?: string) => void;
   recordEnemyDefeat: (id: string) => void;
   updateDifficulty: () => void;
@@ -541,6 +560,13 @@ export const useMagicOrb = create<MagicOrbState>()(
     runStats: createInitialGameplayStats("survival", 3),
     lastResult: null,
     hitProjectileIds: [],
+    weaponUsed: "none",
+    weaponXpAwarded: false,
+    lastWeaponProgression: null,
+    rapidOverheat: 0,
+    rapidOverheatPenaltyTimer: 0,
+    rapidOverheatActive: false,
+    rapidBlasterLastShotTime: -Infinity,
     
     hasShield: false,
     shieldDisintTimer: 0,
@@ -781,6 +807,13 @@ export const useMagicOrb = create<MagicOrbState>()(
           runStats: createInitialGameplayStats(gameMode, maxHP),
           lastResult: null,
           hitProjectileIds: [],
+          weaponUsed: "none",
+          weaponXpAwarded: false,
+          lastWeaponProgression: null,
+          rapidOverheat: 0,
+          rapidOverheatPenaltyTimer: 0,
+          rapidOverheatActive: false,
+          rapidBlasterLastShotTime: -Infinity,
           isDamaged: false,
           damageTimer: 0,
           isDying: false,
@@ -850,6 +883,13 @@ export const useMagicOrb = create<MagicOrbState>()(
         runStats: createInitialGameplayStats(mode, maxHP),
         lastResult: null,
         hitProjectileIds: [],
+        weaponUsed: "none",
+        weaponXpAwarded: false,
+        lastWeaponProgression: null,
+        rapidOverheat: 0,
+        rapidOverheatPenaltyTimer: 0,
+        rapidOverheatActive: false,
+        rapidBlasterLastShotTime: -Infinity,
         hasShield: false,
         shieldDisintTimer: 0,
         shieldFormTimer: 0,
@@ -1005,6 +1045,13 @@ export const useMagicOrb = create<MagicOrbState>()(
         runStats: createInitialGameplayStats("arcade", 3 + bonusHP, level),
         lastResult: null,
         hitProjectileIds: [],
+        weaponUsed: "none",
+        weaponXpAwarded: false,
+        lastWeaponProgression: null,
+        rapidOverheat: 0,
+        rapidOverheatPenaltyTimer: 0,
+        rapidOverheatActive: false,
+        rapidBlasterLastShotTime: -Infinity,
         difficultyMultiplier: 1,
         isStaggered: false,
         staggerTimer: 0,
@@ -1028,6 +1075,7 @@ export const useMagicOrb = create<MagicOrbState>()(
       const { arcadeLevel, gameMode, bonusMaxHealth, defeatedBosses } = get();
       if (gameMode !== "arcade") return;
       get().settlePendingStarRewards();
+      get().awardWeaponProgression();
       const completedResult = evaluateGameplayGrade(getGameplayStatsForState(get(), true));
       
       const currentWorld = Math.floor(arcadeLevel);
@@ -1275,6 +1323,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     endGame: () => {
       get().settlePendingStarRewards();
       const state = get();
+      get().awardWeaponProgression();
       const { score, highScore } = state;
       const newHighScore = Math.max(score, highScore);
       saveHighScore(newHighScore);
@@ -1298,6 +1347,13 @@ export const useMagicOrb = create<MagicOrbState>()(
         runStats: createInitialGameplayStats("survival", 3),
         lastResult: null,
         hitProjectileIds: [],
+        weaponUsed: "none",
+        weaponXpAwarded: false,
+        lastWeaponProgression: null,
+        rapidOverheat: 0,
+        rapidOverheatPenaltyTimer: 0,
+        rapidOverheatActive: false,
+        rapidBlasterLastShotTime: -Infinity,
         boss: null,
         darkOrbs: [],
         projectiles: [],
@@ -2019,10 +2075,53 @@ export const useMagicOrb = create<MagicOrbState>()(
       }
     },
 
+    awardWeaponProgression: () => {
+      const state = get();
+      if (state.weaponXpAwarded) return state.lastWeaponProgression;
+      set({ weaponXpAwarded: true });
+      if (!isProgressionWeapon(state.weaponUsed)) return null;
+
+      const result = useShop.getState().addWeaponXp(
+        state.weaponUsed,
+        getWeaponXpAward(state.gameMode),
+      );
+      if (result) set({ lastWeaponProgression: result });
+      return result;
+    },
+
     recordShot: (count = 1) => {
       const admitted = Math.max(0, Math.floor(count));
       if (admitted === 0) return;
+      const equippedWeapon = useShop.getState().equippedWeapon;
       set((state) => ({
+        weaponUsed: isProgressionWeapon(equippedWeapon) ? equippedWeapon : state.weaponUsed,
+        rapidOverheat: equippedWeapon === "orbital_rapid_blaster"
+          ? (() => {
+              const progression = useShop.getState().weaponProgression[equippedWeapon];
+              const config = getWeaponConfig(equippedWeapon, progression.level);
+              return Math.min(1, state.rapidOverheat + admitted * config.fireInterval / (config.overheatSeconds ?? 1));
+            })()
+          : state.rapidOverheat,
+        rapidOverheatPenaltyTimer: equippedWeapon === "orbital_rapid_blaster"
+          ? (() => {
+              const progression = useShop.getState().weaponProgression[equippedWeapon];
+              const config = getWeaponConfig(equippedWeapon, progression.level);
+              const nextHeat = state.rapidOverheat + admitted * config.fireInterval / (config.overheatSeconds ?? 1);
+              return nextHeat >= 1 - 1e-8 ? config.overheatPenaltySeconds : state.rapidOverheatPenaltyTimer;
+            })()
+          : state.rapidOverheatPenaltyTimer,
+        rapidOverheatActive: equippedWeapon === "orbital_rapid_blaster"
+          ? (() => {
+              const progression = useShop.getState().weaponProgression[equippedWeapon];
+              const config = getWeaponConfig(equippedWeapon, progression.level);
+              return state.rapidOverheat + admitted * config.fireInterval / (config.overheatSeconds ?? 1) >= 1 - 1e-8
+                ? true
+                : state.rapidOverheatActive;
+            })()
+          : state.rapidOverheatActive,
+        rapidBlasterLastShotTime: equippedWeapon === "orbital_rapid_blaster"
+          ? state.gameTime
+          : state.rapidBlasterLastShotTime,
         runStats: {
           ...state.runStats,
           shotsFired: state.runStats.shotsFired + admitted,
@@ -2306,6 +2405,26 @@ export const useMagicOrb = create<MagicOrbState>()(
         // difficulty scaling
         updates.difficultyMultiplier = Math.min(1 + (newGameTime / 30) * 0.5, 5);
         updates.spawnRate = Math.max(0.5, 2 - (newGameTime / 60));
+      }
+
+      // --- rapid blaster heat ---
+      const equippedWeapon = useShop.getState().equippedWeapon;
+      if (equippedWeapon === "orbital_rapid_blaster") {
+        const progression = useShop.getState().weaponProgression[equippedWeapon];
+        const config = getWeaponConfig(equippedWeapon, progression.level);
+        const penaltyTimer = Math.max(0, s.rapidOverheatPenaltyTimer - delta);
+        const recentlyFired = s.gameTime - s.rapidBlasterLastShotTime <= config.fireInterval * 1.1;
+        const shouldCool = s.rapidOverheatPenaltyTimer > 0 || !recentlyFired;
+        const heat = shouldCool
+          ? Math.max(0, s.rapidOverheat - config.overheatCoolRate * delta)
+          : s.rapidOverheat;
+        updates.rapidOverheat = heat;
+        updates.rapidOverheatPenaltyTimer = penaltyTimer;
+        updates.rapidOverheatActive = penaltyTimer > 0 || heat >= 1;
+      } else {
+        updates.rapidOverheat = 0;
+        updates.rapidOverheatPenaltyTimer = 0;
+        updates.rapidOverheatActive = false;
       }
 
       // --- chargeBeam ---

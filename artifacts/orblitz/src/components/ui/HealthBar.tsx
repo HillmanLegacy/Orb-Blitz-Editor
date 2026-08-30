@@ -12,6 +12,8 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
+import { useShop } from "@/lib/stores/useShop";
+import { getWeaponConfig } from "@/game-runtime/WeaponProgression";
 
 // ── CSS keyframes injected once ────────────────────────────────────────────────
 const KEYFRAMES = `
@@ -94,11 +96,20 @@ export function HealthBar() {
   const maxHealth = useMagicOrb((s) => s.maxHealth);
   const isDamaged = useMagicOrb((s) => s.isDamaged);
   const healTimer = useMagicOrb((s) => s.healAnimTimer);
+  const rapidOverheat = useMagicOrb((s) => s.rapidOverheat);
+  const rapidOverheatActive = useMagicOrb((s) => s.rapidOverheatActive);
+  const rapidOverheatPenaltyTimer = useMagicOrb((s) => s.rapidOverheatPenaltyTimer);
+  const equippedWeapon = useShop((s) => s.equippedWeapon);
+  const weaponProgression = useShop((s) => s.weaponProgression);
 
   const fillPct = maxHealth > 0 ? Math.max(0, Math.min(100, (health / maxHealth) * 100)) : 0;
   const ratio   = fillPct / 100;
   const isLowHP = health <= 1 && maxHealth >= 2;
   const isHeal  = healTimer > 0;
+  const showOverheat = equippedWeapon === "orbital_rapid_blaster";
+  const rapidLevel = weaponProgression.orbital_rapid_blaster.level;
+  const rapidConfig = getWeaponConfig("orbital_rapid_blaster", rapidLevel);
+  const overheatPct = Math.max(0, Math.min(100, rapidOverheat * 100));
 
   // Accent + gradient driven by HP ratio
   const accentColor = ratio > 0.55 ? "#00ffdd" : ratio > 0.28 ? "#ffcc00" : "#ff3333";
@@ -317,6 +328,48 @@ export function HealthBar() {
           )}
         </AnimatePresence>
       </motion.div>
+      {showOverheat && (
+        <div
+          role="status"
+          aria-label={`Rapid Blaster heat ${Math.round(overheatPct)} percent${rapidOverheatActive ? ", overheated" : ""}`}
+          style={{
+            width: "100%",
+            minWidth: 200,
+            marginTop: 4,
+            padding: "3px 8px 4px",
+            borderRadius: 6,
+            background: rapidOverheatActive ? "rgba(90,12,4,0.85)" : "rgba(4,4,20,0.86)",
+            border: `1px solid ${rapidOverheatActive ? "rgba(255,76,30,0.75)" : "rgba(255,138,42,0.25)"}`,
+            boxShadow: rapidOverheatActive ? "0 0 14px rgba(255,60,20,0.32)" : "none",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+            <span style={{ color: rapidOverheatActive ? "#ff7855" : "#ffb13b", fontSize: "0.55rem", fontWeight: 900, letterSpacing: "0.16em" }}>
+              {rapidOverheatActive ? "OVERHEATED" : "BLASTER HEAT"}
+            </span>
+            <span style={{ color: "rgba(255,205,150,0.65)", fontSize: "0.52rem", fontVariantNumeric: "tabular-nums" }}>
+              {rapidOverheatActive ? `${rapidOverheatPenaltyTimer.toFixed(1)}s cooldown` : `${Math.round(overheatPct)}%`}
+            </span>
+          </div>
+          <div style={{ height: 5, overflow: "hidden", borderRadius: 4, background: "rgba(0,0,0,0.65)" }}>
+            <motion.div
+              animate={{ width: `${overheatPct}%` }}
+              transition={{ duration: 0.12 }}
+              style={{
+                height: "100%",
+                borderRadius: 4,
+                background: rapidOverheatActive
+                  ? "linear-gradient(90deg,#ff9b35,#ff2418)"
+                  : `linear-gradient(90deg,#ffcc45,#ff6a22)`,
+                boxShadow: `0 0 8px ${rapidOverheatActive ? "#ff3a1c" : "#ff9c32"}`,
+              }}
+            />
+          </div>
+          <span style={{ display: "block", marginTop: 3, color: "rgba(255,210,160,0.45)", fontSize: "0.48rem", letterSpacing: "0.08em" }}>
+            {rapidConfig.overheatSeconds}s continuous fire limit
+          </span>
+        </div>
+      )}
     </>
   );
 }

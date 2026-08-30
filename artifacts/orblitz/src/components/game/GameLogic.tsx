@@ -17,6 +17,7 @@ import {
   getEnemySpawnPoint,
   getPerspectiveViewAtPlane,
 } from "@/game-runtime/EnemySpawnConfig";
+import { getWeaponConfig, isProgressionWeapon } from "@/game-runtime/WeaponProgression";
 
 const orbShapes: OrbShape[] = ["sphere", "cube", "tetrahedron", "octahedron", "dodecahedron"];
 const allOrbShapes: OrbShape[] = ["sphere", "cube", "tetrahedron", "octahedron", "dodecahedron", "circle", "star", "arrow", "triangle", "trapezoid", "lightning", "tentacle", "monster", "bird"];
@@ -88,7 +89,7 @@ export function GameLogic() {
     prevBossRef.current = boss;
   }, [boss]);
   
-  const { equippedWeapon, equippedDefenses, equippedMagiOrb } = useShop();
+  const { equippedWeapon, equippedDefenses, equippedMagiOrb, weaponProgression } = useShop();
   const hasRapidBlaster = equippedWeapon === "orbital_rapid_blaster";
   const hasScattershot = equippedWeapon === "orbital_scattershot";
   const hasSpiralBlaster = equippedWeapon === "spiral_shooter";
@@ -114,6 +115,7 @@ export function GameLogic() {
   const playerPosition = useMagicOrb((s) => s.playerPosition);
   
   const hasRapidFire = useMagicOrb((s) => s.hasRapidFire);
+  const rapidOverheatActive = useMagicOrb((s) => s.rapidOverheatActive);
   const isStaggered = useMagicOrb((s) => s.isStaggered);
   
   const { camera, gl } = useThree();
@@ -218,14 +220,11 @@ export function GameLogic() {
   
   const getFireInterval = () => {
     let baseInterval: number;
-    if (hasRapidBlasterRef.current) {
-      baseInterval = 1 / 6;
-    } else if (hasSpiralBlasterRef.current) {
-      baseInterval = 0.5;
-    } else if (hasOverchargedBlasterRef.current) {
-      baseInterval = 0.8;
-    } else if (hasScattershotRef.current) {
-      baseInterval = 0.4;
+    if (isProgressionWeapon(equippedWeapon)) {
+      baseInterval = getWeaponConfig(
+        equippedWeapon,
+        weaponProgression[equippedWeapon].level,
+      ).fireInterval;
     } else {
       baseInterval = 0.333;
     }
@@ -419,14 +418,20 @@ export function GameLogic() {
     // Admission is decided before creating a weapon's projectiles. Scattershot
     // is atomic: it either emits all three projectiles or leaves its cooldown
     // and presentation state untouched. The other player weapons emit one.
-    const requestedProjectileCount = hasScattershotRef.current ? 3 : 1;
+    if (hasRapidBlasterRef.current && rapidOverheatActive) return false;
+
+    const profile = isProgressionWeapon(equippedWeapon)
+      ? getWeaponConfig(equippedWeapon, weaponProgression[equippedWeapon].level)
+      : null;
+    const requestedProjectileCount = hasScattershotRef.current ? (profile?.projectileCount ?? 3) : 1;
     if (!useMagicOrb.getState().canAddProjectiles(requestedProjectileCount)) return false;
     
     if (hasRapidBlasterRef.current) {
       // Spawn at front perimeter of the player orb
       const _rb_offset = 0.75;
-      // Apply ±2° directional spread for kinetic spray feel
-      const spreadAngle = (Math.random() - 0.5) * (4 * Math.PI / 180);
+      // Apply the level-specific directional spread for kinetic spray feel.
+      const spreadDegrees = profile?.aimVarianceDegrees ?? 2;
+      const spreadAngle = (Math.random() - 0.5) * (2 * spreadDegrees * Math.PI / 180);
       const cosS = Math.cos(spreadAngle), sinS = Math.sin(spreadAngle);
       const spreadDirX = targetDirX * cosS - targetDirY * sinS;
       const spreadDirY = targetDirX * sinS + targetDirY * cosS;
@@ -442,21 +447,23 @@ export function GameLogic() {
         ] as [number, number, number],
         direction: [sdx, sdy, 0],
         isCharged: hasChargeBeamRef.current,
-        size: 0.10,
+        size: profile?.projectileSize ?? 0.10,
         type: "rapidblaster",
         hitCount: 1,
-        speed: 22.0,
+        speed: profile?.projectileSpeed ?? 22.0,
       };
       if (!addProjectileRef.current(projectile)) return false;
       useMagicOrb.getState().triggerCameraOnlyShake();
       triggerRapidBlasterFireRef.current(targetDirX, targetDirY);
     } else if (hasScattershotRef.current) {
       const now = Date.now();
-      if (now - lastScattershotFire.current < 500) {
+      if (now - lastScattershotFire.current < (profile?.fireInterval ?? 0.4) * 1000) {
         return false;
       }
-      const wedgeAngle = Math.PI / 12; // 15°
-      const angles = [-wedgeAngle, 0, wedgeAngle];
+      const wedgeAngle = Math.PI / 12; // 15° between neighboring lanes
+      const angles = Array.from({ length: requestedProjectileCount }, (_, index) => (
+        (index - (requestedProjectileCount - 1) / 2) * wedgeAngle
+      ));
       const scatterVolleyId = `volley-${now}-scatter`;
       const _sc_offset = 0.75; // spawn at front perimeter
 
@@ -477,10 +484,10 @@ export function GameLogic() {
           ] as [number, number, number],
           direction: [ndx, ndy, targetDirZ],
           isCharged: hasChargeBeamRef.current,
-          size: 0.15,
+           size: profile?.projectileSize ?? 0.15,
           type: "scattershot",
           hitCount: 1,
-          speed: 20.0,
+           speed: profile?.projectileSpeed ?? 20.0,
           volleyId: scatterVolleyId,
         };
         addProjectileRef.current(projectile);
@@ -500,13 +507,14 @@ export function GameLogic() {
         position: [...projectileOrigin] as [number, number, number],
         direction: [targetDirX, targetDirY, targetDirZ],
         isCharged: false,
-        size: 0.15,
+        size: profile?.projectileSize ?? 0.15,
         type: "spiral",
         hitCount: 3,
         piercing: true,
         noMissTracking: true,
         spiralAngle: 0,
         subSphereAlive: [true, true, true],
+        spiralDefeatExplosion: profile?.spiralExplosion ?? false,
       };
       if (!addProjectileRef.current(projectile)) return false;
       lastSpiralFire.current = now;
@@ -514,7 +522,7 @@ export function GameLogic() {
       triggerSpiralBlasterFireRef.current(targetDirX, targetDirY);
     } else if (hasOverchargedBlasterRef.current) {
       const now = Date.now();
-      if (now - lastOverchargedFire.current < 1500) {
+      if (now - lastOverchargedFire.current < (profile?.fireInterval ?? 0.8) * 1000) {
         return false;
       }
       // Spawn slightly outside the player orb's front edge
@@ -528,13 +536,14 @@ export function GameLogic() {
         ] as [number, number, number],
         direction: [targetDirX, targetDirY, targetDirZ],
         isCharged: true,
-        size: 1.0,
+        size: profile?.projectileSize ?? 1.0,
         type: "overcharged",
         piercing: true,
-        speed: 5.0,
+        speed: profile?.projectileSpeed ?? 5.0,
         spawnScale: 0.05,
         spawnScaleTimer: 0,
         travelTimer: 0,
+        explosionScale: profile?.explosionScale ?? 1,
         volleyId: `volley-${now}-overcharged`,
       };
       if (!addProjectileRef.current(projectile)) return false;
@@ -544,7 +553,7 @@ export function GameLogic() {
       useMagicOrb.getState().triggerOverchargedFire(targetDirX, targetDirY);
     } else if (hasHomingBlasterRef.current) {
       const now = Date.now();
-      if (now - lastHomingFire.current < 333) {
+      if (now - lastHomingFire.current < (profile?.fireInterval ?? 0.333) * 1000) {
         return false;
       }
       const _hm_offset = 0.75;
@@ -557,7 +566,7 @@ export function GameLogic() {
         ] as [number, number, number],
         direction: [targetDirX, targetDirY, targetDirZ],
         isCharged: hasChargeBeamRef.current,
-        size: 0.15,
+        size: profile?.projectileSize ?? 0.15,
         type: "homing",
         hitCount: 1,
         homing: true,

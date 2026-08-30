@@ -3,6 +3,7 @@ import { useShop, SHOP_ITEMS, ShopItem, OrbSkin, TrailEffect, RingStyle, WeaponT
 import { useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useModalAccessibility } from "@/components/ui/useModalAccessibility";
+import { getWeaponProgress, isProgressionWeapon } from "@/game-runtime/WeaponProgression";
 
 // ─── Slot definitions ─────────────────────────────────────────────────────────
 type SlotKey = "weapon" | "defense_0" | "defense_1" | "magi_orb" | "skin" | "trail" | "aura";
@@ -70,6 +71,7 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
     ownedItems,
     equippedSkin, equippedTrail, equippedRing,
     equippedWeapon, equippedDefenses, equippedMagiOrb,
+    weaponProgression,
     equipSkin, equipTrail, equipRing, equipWeapon, equipDefense, equipMagiOrb,
   } = useShop(useShallow((s) => ({
     inventoryOpen: s.inventoryOpen,
@@ -81,6 +83,7 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
     equippedWeapon: s.equippedWeapon,
     equippedDefenses: s.equippedDefenses,
     equippedMagiOrb: s.equippedMagiOrb,
+    weaponProgression: s.weaponProgression,
     equipSkin: s.equipSkin,
     equipTrail: s.equipTrail,
     equipRing: s.equipRing,
@@ -116,6 +119,9 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
   const currentVal = getEquippedValue(slot, eq);
   const clear = clearMeta(slot.cat);
   const isDefaultSelected = currentVal === "none" || currentVal === "default";
+  const currentWeaponProgress = slot.cat === "weapon" && isProgressionWeapon(currentVal)
+    ? getWeaponProgress(weaponProgression[currentVal])
+    : null;
 
   const ownedCatItems = useMemo(() => SHOP_ITEMS.filter(
     i => i.category === slot.cat && ownedItems.includes(i.id)
@@ -300,6 +306,37 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                 className="flex-none flex items-center gap-3 px-4 py-3"
                 style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
               >
+                  {currentWeaponProgress && (
+                    <div style={{
+                      padding: "10px 11px",
+                      marginBottom: 2,
+                      borderRadius: 12,
+                      background: "linear-gradient(135deg,rgba(255,119,0,0.12),rgba(136,68,255,0.1))",
+                      border: "1px solid rgba(255,145,55,0.3)",
+                    }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                        <span style={{ color: "#ffb347", fontSize: "0.62rem", fontWeight: 900, letterSpacing: "0.14em" }}>
+                          WEAPON LEVEL {currentWeaponProgress.level}
+                        </span>
+                        <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.58rem", fontVariantNumeric: "tabular-nums" }}>
+                          {currentWeaponProgress.isMaxLevel ? "MAX / Lv3" : `${currentWeaponProgress.xp} / ${currentWeaponProgress.nextThreshold} XP`}
+                        </span>
+                      </div>
+                      <div style={{ height: 6, marginTop: 7, borderRadius: 4, overflow: "hidden", background: "rgba(0,0,0,0.45)" }}>
+                        <div style={{
+                          width: `${currentWeaponProgress.progressPercent}%`,
+                          height: "100%",
+                          borderRadius: 4,
+                          background: "linear-gradient(90deg,#ff8c2f,#ffcf5a,#b47cff)",
+                          boxShadow: "0 0 10px rgba(255,150,55,0.6)",
+                        }} />
+                      </div>
+                      <p style={{ margin: "6px 0 0", color: "rgba(255,220,175,0.48)", fontSize: "0.55rem", letterSpacing: "0.08em" }}>
+                        {currentWeaponProgress.isMaxLevel ? "FULLY UPGRADED — ALL BENEFITS ACTIVE" : "COMPLETE RUNS WITH THIS WEAPON TO EARN XP"}
+                      </p>
+                    </div>
+                  )}
+
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={slot.key}
