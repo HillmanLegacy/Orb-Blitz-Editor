@@ -42,6 +42,7 @@ const SPARK_SPEED_MIN    = 5.0;
 const SPARK_SPEED_MAX    = 12.0;
 const SPARK_SIZE_MIN     = 0.07;
 const SPARK_SIZE_MAX     = 0.22;
+const ABSORB_VFX_SCALE   = 0.3;
 
 const ABSORB_LIGHT_PEAK  = 14.0;
 const ABSORB_LIGHT_DECAY = 20;
@@ -236,16 +237,19 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
           // Full sphere spread
           const phi   = Math.acos(2 * Math.random() - 1);
           const theta = Math.random() * Math.PI * 2;
-          const spd   = SPARK_SPEED_MIN + Math.random() * (SPARK_SPEED_MAX - SPARK_SPEED_MIN);
+          const spd   = (SPARK_SPEED_MIN + Math.random() * (SPARK_SPEED_MAX - SPARK_SPEED_MIN))
+            * ABSORB_VFX_SCALE;
           const soff  = sLive.current * S_STRIDE;
-          _sPool[soff + 0] = ppx + (Math.random() - 0.5) * 0.10;
-          _sPool[soff + 1] = ppy + (Math.random() - 0.5) * 0.10;
+          _sPool[soff + 0] = ppx + (Math.random() - 0.5) * 0.10 * ABSORB_VFX_SCALE;
+          _sPool[soff + 1] = ppy + (Math.random() - 0.5) * 0.10 * ABSORB_VFX_SCALE;
           _sPool[soff + 2] = ppz;
           _sPool[soff + 3] = Math.sin(phi) * Math.cos(theta) * spd;   // vx
           _sPool[soff + 4] = Math.sin(phi) * Math.sin(theta) * spd;   // vy
           _sPool[soff + 5] = Math.cos(phi) * spd * 0.55;              // vz (partial Z)
           _sPool[soff + 6] = SPARK_LIFE * (0.65 + Math.random() * 0.35); // life
-          _sPool[soff + 7] = SPARK_SIZE_MIN + Math.random() * (SPARK_SIZE_MAX - SPARK_SIZE_MIN);
+          _sPool[soff + 7] = (
+            SPARK_SIZE_MIN + Math.random() * (SPARK_SIZE_MAX - SPARK_SIZE_MIN)
+          ) * ABSORB_VFX_SCALE;
           _sPool[soff + 8] = Math.floor(Math.random() * 4);           // colorIdx
           sLive.current++;
         }
@@ -422,7 +426,7 @@ export function StarFlowVFX({ visualEnabled = true }: { visualEnabled?: boolean 
       for (let i = 0; i < rLiveNext; i++) {
         const roff = i * R_STRIDE;
         const t    = _ringPool[roff + 3] / RING_LIFE;          // 0→1
-        const r    = RING_MAX_R * (1 - Math.pow(1 - t, 1.8)); // ease-out expansion
+         const r    = RING_MAX_R * ABSORB_VFX_SCALE * (1 - Math.pow(1 - t, 1.8)); // ease-out expansion
         const fade = 1 - t * t;                                // quadratic fade
         _dummy.position.set(_ringPool[roff + 0], _ringPool[roff + 1], _ringPool[roff + 2]);
         _dummy.rotation.set(0, 0, 0);
