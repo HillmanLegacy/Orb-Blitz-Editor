@@ -251,7 +251,6 @@ export function OverchargedExplosionVFX({
   const preset = useGraphicsPreset();
   const presetRef = useRef(preset);
   presetRef.current = preset;
-  const groupRef = useRef<THREE.Group>(null);
   const flashRef = useRef<THREE.InstancedMesh>(null);
   const ringRef = useRef<THREE.InstancedMesh>(null);
   const buildRef = useRef<THREE.InstancedMesh>(null);
@@ -380,9 +379,6 @@ export function OverchargedExplosionVFX({
       lastPresetRef.current = presetRef.current;
       buffersChanged = true;
     }
-
-    const anyActive = pool.slots.some((slot) => slot.active);
-    if (groupRef.current) groupRef.current.visible = anyActive;
 
     for (let slotIndex = 0; slotIndex < pool.slots.length; slotIndex++) {
       const slot = pool.slots[slotIndex];
@@ -629,7 +625,7 @@ export function OverchargedExplosionVFX({
   });
 
   return (
-    <group ref={groupRef} visible={false}>
+    <group dispose={null}>
       <instancedMesh
         ref={ringRef}
         args={[ringGeometry, materials.ring, RING_CAPACITY]}
