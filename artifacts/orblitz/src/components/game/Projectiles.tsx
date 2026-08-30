@@ -1979,6 +1979,7 @@ export function Projectiles() {
   const incrementOrbsDestroyed = useMagicOrb(s => s.incrementOrbsDestroyed);
   const gameMode               = useMagicOrb(s => s.gameMode);
   const registerMissedShot     = useMagicOrb(s => s.registerMissedShot);
+  const recordHit              = useMagicOrb(s => s.recordHit);
   const incrementGauntletOrbs  = useMagicOrb(s => s.incrementGauntletOrbs);
   const addStarFlowEvent       = useMagicOrb(s => s.addStarFlowEvent);
   
@@ -2163,6 +2164,7 @@ export function Projectiles() {
       damageBoss,
       incrementOrbsDestroyed,
       registerMissedShot,
+      recordHit,
       incrementGauntletOrbs,
       addStarFlowEvent,
     } = useMagicOrb.getState();
@@ -2379,7 +2381,7 @@ export function Projectiles() {
           
           if (remaining <= 0) {
             if (!volleyHits.current.has(proj.volleyId) && !proj.noMissTracking) {
-              registerMissedShot();
+              registerMissedShot(volleyProjectileCounts.current.get(proj.volleyId) || 1);
             }
             volleyHits.current.delete(proj.volleyId);
             volleyRemainingCounts.current.delete(proj.volleyId);
@@ -2427,6 +2429,7 @@ export function Projectiles() {
           if (boss && !boss.destroying) {
             const [bx, by, bz] = gameRuntime.boss.get(boss.id)?.position ?? boss.position;
             if (Math.sqrt((px-bx)**2+(py-by)**2+((bz||0)-pz)**2) < OC_EXPLODE_RADIUS + BOSS_BODY_RADIUS) {
+              recordHit(proj.id);
               const bossKilled = damageBoss(8);
               addScore(25); playHit();
               if (bossKilled) playSparkleExplosion();
@@ -2445,6 +2448,7 @@ export function Projectiles() {
             if (orb.destroying) continue;
             const [ox, oy, oz] = liveOrbPosition(orb);
             if (Math.sqrt((px-ox)**2+(py-oy)**2+(pz-oz)**2) < OC_EXPLODE_RADIUS + getStandardEnemyBodyRadius(orb)) {
+              recordHit(proj.id);
               markOrbDestroying(orb.id, [ox, oy, oz]);
               addScore(10); incrementGauntletOrbs();
               addStarFlowEvent([ox, oy, oz], getEnemyStarRewardCount(gameMode, orb.isBossOrb));
@@ -2550,6 +2554,7 @@ export function Projectiles() {
               _subAlive[si] = false;
               motion.hitCount = Math.max(0, (motion.hitCount ?? 3) - 1);
               hitOrbsThisFrame.current.add(orb.id);
+              recordHit(proj.id);
               markOrbDestroying(orb.id, [ox, oy, oz]);
               addScore(10); incrementGauntletOrbs(); playHit();
                addStarFlowEvent([ox, oy, oz], getEnemyStarRewardCount(gameMode, orb.isBossOrb));
@@ -2609,6 +2614,7 @@ export function Projectiles() {
             volleyHits.current.add(proj.volleyId);
           }
           const bossKilled = damageBoss(isOvercharged ? 5 : undefined);
+          recordHit(proj.id);
           addScore(25);
           playHit();
           
@@ -2688,6 +2694,7 @@ export function Projectiles() {
             ) !== null &&
             (!isOverchargedDirectContact(proj) || (motion.spawnScale ?? 1) >= 0.8)) {
           hitOrbsThisFrame.current.add(orb.id);
+          recordHit(proj.id);
           markOrbDestroying(orb.id, [ox, oy, oz]);
           addScore(10);
           incrementGauntletOrbs();

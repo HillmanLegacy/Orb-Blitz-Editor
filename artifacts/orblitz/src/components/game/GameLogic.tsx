@@ -580,6 +580,7 @@ export function GameLogic() {
       if (!addProjectileRef.current(projectile)) return false;
     }
     
+    useMagicOrb.getState().recordShot(requestedProjectileCount);
     playShootRef.current();
     return true;
   }, [gl]);

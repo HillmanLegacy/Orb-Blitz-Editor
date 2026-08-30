@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useAudio } from "@/lib/stores/useAudio";
 import { useOrbTransition } from "@/lib/stores/useOrbTransition";
+import { GradeResults } from "./GradeResults";
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 const _svg = { viewBox: "0 0 24 24", fill: "none", width: "1em", height: "1em", style: { display: "block" } } as const;
@@ -208,7 +209,7 @@ function StatCard({ label, value, color }: { label: string; value: string; color
 interface GameOverProps { onLevelSelect?: () => void; onMainMenu?: () => void; }
 
 export function GameOver({ onLevelSelect, onMainMenu }: GameOverProps) {
-  const { score, highScore, startLoading, setPhase, gameTime, gameMode, arcadeLevel, phase, gauntletOrbsDestroyed } = useMagicOrb();
+  const { score, highScore, startLoading, setPhase, gameTime, gameMode, arcadeLevel, phase, gauntletOrbsDestroyed, lastResult } = useMagicOrb();
   const { playGameOver, playExitToMenu, stopMusic } = useAudio();
 
   const existingScores = loadScores();
@@ -350,6 +351,8 @@ export function GameOver({ onLevelSelect, onMainMenu }: GameOverProps) {
             </motion.div>
           )}
         </AnimatePresence>
+
+        <GradeResults result={lastResult} />
 
         {/* Name entry (top score) */}
         <AnimatePresence>

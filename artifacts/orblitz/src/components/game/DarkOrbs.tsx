@@ -659,6 +659,7 @@ export function DarkOrbs() {
       orbsRequiredForLevel,
       completeLevel,
       addScore,
+      recordEnemyDefeat,
       gameMode: gm,
       phase,
       magiOrb4Active,
@@ -813,6 +814,7 @@ export function DarkOrbs() {
           if (gm === "arcade" && !orb.isBossOrb) {
             if (orbsDestroyedInLevel + 1 >= orbsRequiredForLevel) completeLevel();
           }
+            recordEnemyDefeat(orb.id);
             // Write back position so VFX spawns at right place
             phy.position[0] = x; phy.position[1] = y; phy.position[2] = z;
             newOrbs.push({ ...orb, position: [x, y, z] as [number,number,number], direction: [dx,dy,dz] as [number,number,number], destroying: true, destroyTimer: ENEMY_DEFEAT_DURATION });
@@ -837,6 +839,7 @@ export function DarkOrbs() {
         } else {
           takeDamage();
         }
+        recordEnemyDefeat(orb.id);
         phy.position[0] = x; phy.position[1] = y; phy.position[2] = z;
         newOrbs.push({ ...orb, position: [x, y, z] as [number,number,number], direction: [dx,dy,dz] as [number,number,number], destroying: true, destroyTimer: ENEMY_DEFEAT_DURATION });
         structuralChanged = true;

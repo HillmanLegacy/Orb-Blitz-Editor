@@ -538,6 +538,9 @@ export const useMagicOrb = create<MagicOrbState>()(
     stars: 0,
     gameTime: 0,
     gauntletOrbsDestroyed: 0,
+    runStats: createInitialGameplayStats("survival", 3),
+    lastResult: null,
+    hitProjectileIds: [],
     
     hasShield: false,
     shieldDisintTimer: 0,
@@ -775,6 +778,9 @@ export const useMagicOrb = create<MagicOrbState>()(
           stars: 0,
           health: maxHP,
           maxHealth: maxHP,
+          runStats: createInitialGameplayStats(gameMode, maxHP),
+          lastResult: null,
+          hitProjectileIds: [],
           isDamaged: false,
           damageTimer: 0,
           isDying: false,
@@ -841,6 +847,9 @@ export const useMagicOrb = create<MagicOrbState>()(
         stars: 0,
         gameTime: 0,
         gauntletOrbsDestroyed: 0,
+        runStats: createInitialGameplayStats(mode, maxHP),
+        lastResult: null,
+        hitProjectileIds: [],
         hasShield: false,
         shieldDisintTimer: 0,
         shieldFormTimer: 0,
@@ -993,6 +1002,9 @@ export const useMagicOrb = create<MagicOrbState>()(
         magiOrb7Timer: 0,
         selectedWeapon: "normal",
         gameTime: 0,
+        runStats: createInitialGameplayStats("arcade", 3 + bonusHP, level),
+        lastResult: null,
+        hitProjectileIds: [],
         difficultyMultiplier: 1,
         isStaggered: false,
         staggerTimer: 0,
@@ -1016,6 +1028,7 @@ export const useMagicOrb = create<MagicOrbState>()(
       const { arcadeLevel, gameMode, bonusMaxHealth, defeatedBosses } = get();
       if (gameMode !== "arcade") return;
       get().settlePendingStarRewards();
+      const completedResult = evaluateGameplayGrade(getGameplayStatsForState(get(), true));
       
       const currentWorld = Math.floor(arcadeLevel);
       const currentSub = Math.round((arcadeLevel % 1) * 10);
@@ -1040,6 +1053,7 @@ export const useMagicOrb = create<MagicOrbState>()(
           } catch {}
           set({ 
             phase: "arcadeComplete",
+            lastResult: completedResult,
             bossDefeating: false,
             completedLevel: completedLevelValue,
             hasShield: false,
@@ -1102,6 +1116,7 @@ export const useMagicOrb = create<MagicOrbState>()(
       
       set({ 
         phase: "levelComplete",
+        lastResult: completedResult,
         bossDefeating: false,
         completedLevel: completedLevelValue,
         hasShield: false,
@@ -1181,6 +1196,10 @@ export const useMagicOrb = create<MagicOrbState>()(
           arcadeTotalOrbs: gameMode === "arcade" ? arcadeTotalOrbs + 1 : arcadeTotalOrbs,
           darkOrbs: defeatedOrbs,
           bossDefeating: true,
+          runStats: {
+            ...get().runStats,
+            bossesDefeated: get().runStats.bossesDefeated + 1,
+          },
         });
         // 500 gold stars burst from the boss to the player; each absorbed star awards 1 coin
         get().addStarFlowEvent(
@@ -1255,12 +1274,14 @@ export const useMagicOrb = create<MagicOrbState>()(
     
     endGame: () => {
       get().settlePendingStarRewards();
-      const { score, highScore } = get();
+      const state = get();
+      const { score, highScore } = state;
       const newHighScore = Math.max(score, highScore);
       saveHighScore(newHighScore);
       set({ 
         phase: "gameOver",
         highScore: newHighScore,
+        lastResult: evaluateGameplayGrade(getGameplayStatsForState(state, false)),
       });
     },
     
@@ -1274,6 +1295,9 @@ export const useMagicOrb = create<MagicOrbState>()(
         orbsDestroyedInLevel: 0,
         score: 0,
         gameTime: 0,
+        runStats: createInitialGameplayStats("survival", 3),
+        lastResult: null,
+        hitProjectileIds: [],
         boss: null,
         darkOrbs: [],
         projectiles: [],
@@ -1317,6 +1341,13 @@ export const useMagicOrb = create<MagicOrbState>()(
       }
       
       const newHealth = health - 1;
+      set((state) => ({
+        runStats: {
+          ...state.runStats,
+          damageTaken: state.runStats.damageTaken + 1,
+          remainingHealth: Math.max(0, newHealth),
+        },
+      }));
       if (newHealth <= 0) {
         get().triggerDeath();
       } else {
@@ -1357,8 +1388,17 @@ export const useMagicOrb = create<MagicOrbState>()(
       set({ playerPosition: clampedPos });
     },
     
-    registerMissedShot: () => {
+    registerMissedShot: (count = 1) => {
       const { gameMode, phase } = get();
+      const misses = Math.max(0, Math.floor(count));
+      if (misses > 0) {
+        set((state) => ({
+          runStats: {
+            ...state.runStats,
+            misses: state.runStats.misses + misses,
+          },
+        }));
+      }
       if (gameMode === "gauntlet" && phase === "playing") {
         get().endGame();
       }
@@ -1762,6 +1802,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     updateDarkOrbs: (orbs) => set({ darkOrbs: orbs }),
     
     markOrbDestroying: (id, position) => {
+      get().recordEnemyDefeat(id);
       set((state) => ({
         darkOrbs: state.darkOrbs.map((o) => 
           o.id === id
@@ -1976,6 +2017,45 @@ export const useMagicOrb = create<MagicOrbState>()(
       } else {
         set({ gameTime: newGameTime });
       }
+    },
+
+    recordShot: (count = 1) => {
+      const admitted = Math.max(0, Math.floor(count));
+      if (admitted === 0) return;
+      set((state) => ({
+        runStats: {
+          ...state.runStats,
+          shotsFired: state.runStats.shotsFired + admitted,
+        },
+      }));
+    },
+
+    recordHit: (projectileId) => {
+      set((state) => {
+        if (projectileId && state.hitProjectileIds.includes(projectileId)) return state;
+        return {
+          hitProjectileIds: projectileId
+            ? [...state.hitProjectileIds, projectileId]
+            : state.hitProjectileIds,
+          runStats: {
+            ...state.runStats,
+            hits: state.runStats.hits + 1,
+          },
+        };
+      });
+    },
+
+    recordEnemyDefeat: (id) => {
+      set((state) => {
+        const orb = state.darkOrbs.find((candidate) => candidate.id === id);
+        if (!orb || orb.destroying) return state;
+        return {
+          runStats: {
+            ...state.runStats,
+            enemiesDefeated: state.runStats.enemiesDefeated + 1,
+          },
+        };
+      });
     },
     
     updateDifficulty: () => {

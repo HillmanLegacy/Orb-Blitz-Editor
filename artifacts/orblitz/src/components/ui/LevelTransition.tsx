@@ -4,6 +4,7 @@ import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useShop } from "@/lib/stores/useShop";
 import { useAudio } from "@/lib/stores/useAudio";
 import { useOrbTransition } from "@/lib/stores/useOrbTransition";
+import { GradeResults } from "./GradeResults";
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 const _svg = { viewBox: "0 0 24 24", fill: "none", width: "1em", height: "1em", style: { display: "block" } } as const;
@@ -107,7 +108,7 @@ interface LevelTransitionProps {
 }
 
 export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionProps) {
-  const { phase, arcadeLevel, startLoading, setPhase, score } = useMagicOrb();
+  const { phase, arcadeLevel, startLoading, setPhase, score, lastResult } = useMagicOrb();
   const { openInventory } = useShop();
   const { playLevelComplete, playLevelSelect, stopMusic } = useAudio();
   const [soundPlayed, setSoundPlayed] = useState(false);
@@ -384,6 +385,8 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
             {score}
           </div>
         </motion.div>
+
+        <GradeResults result={lastResult} />
 
         {/* ── Next level preview ── */}
         <AnimatePresence>

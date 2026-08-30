@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useAudio } from "@/lib/stores/useAudio";
+import { GradeResults } from "./GradeResults";
 import { useState, useEffect, useCallback } from "react";
 
 // ── Orb field — identical constants to StartupAnimation ──────────────────────
@@ -26,7 +27,7 @@ const orbDefs: OrbDef[] = Array.from({ length: ORB_COUNT }, (_, i) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function ArcadeComplete() {
-  const { score, gameTime, arcadeTotalOrbs, returnToMenu } = useMagicOrb();
+  const { score, gameTime, arcadeTotalOrbs, returnToMenu, lastResult } = useMagicOrb();
   const { stopMusic } = useAudio();
   const [showCta, setShowCta] = useState(false);
 
@@ -189,6 +190,8 @@ export function ArcadeComplete() {
             ))}
           </div>
         </motion.div>
+
+        <GradeResults result={lastResult} />
 
         {/* Tap CTA — identical style to main menu "Tap to Start" */}
         <motion.p

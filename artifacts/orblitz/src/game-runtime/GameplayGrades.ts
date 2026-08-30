@@ -195,7 +195,7 @@ export function evaluateGameplayGrade(input: GameplayStats): GameplayResultSnaps
   const overallScore = Math.round(
     categories.reduce((total, category) => total + category.normalizedScore, 0) / categories.length,
   );
-  return {
+  const snapshot: GameplayResultSnapshot = {
     mode: stats.mode,
     arcadeLevel: stats.arcadeLevel,
     completed: stats.completed,
@@ -206,4 +206,8 @@ export function evaluateGameplayGrade(input: GameplayStats): GameplayResultSnaps
     categories,
     stats,
   };
+  Object.freeze(snapshot.stats);
+  for (const category of snapshot.categories) Object.freeze(category);
+  Object.freeze(snapshot.categories);
+  return Object.freeze(snapshot);
 }
