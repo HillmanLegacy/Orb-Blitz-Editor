@@ -989,6 +989,10 @@ export function isOverchargedDamageReady(travelTime: number): boolean {
   return travelTime >= OVERCHARGED_DAMAGE_TIME;
 }
 
+export function isOverchargedDirectContact(projectile: Pick<Projectile, "type">): boolean {
+  return projectile.type === "overcharged";
+}
+
 // ── Orbital Spiral Blaster constants ─────────────────────────────────────────
 const SPIRAL_ORBIT_R     = 0.91;
 const SPIRAL_ORBIT_SPEED = 7.0;
@@ -2560,17 +2564,18 @@ export function Projectiles() {
         if (!_subAlive.some(Boolean)) hitSomething = true;
       }
 
-      // Overcharged gameplay is exclusively the timed outward AOE above. It
-      // must not also deal direct-contact damage during travel/condensation.
-      if (!hitSomething && proj.type !== "spiral" && proj.type !== "overcharged") {
+      // Overcharged shots can pierce and destroy enemies on contact, then still
+      // deliver their separate timed outward AOE at the detonation point.
+      if (!hitSomething && proj.type !== "spiral") {
       if (boss && !boss.destroying && !boss.shieldActive) {
         const liveBoss = gameRuntime.boss.get(boss.id);
         const [bx, by, bz] = liveBoss?.position ?? boss.position;
         const [previousBossX, previousBossY, previousBossZ] =
           liveBoss?.previousPosition ?? [bx, by, bz];
+        const isOvercharged = isOverchargedDirectContact(proj);
         const bossHitRadius = BOSS_BODY_RADIUS + getPlayerProjectileBodyRadius(
           proj,
-          1,
+          isOvercharged ? motion.spawnScale ?? 1 : 1,
           playerScale,
         );
         
@@ -2582,10 +2587,13 @@ export function Projectiles() {
               bx, by, bz || 0,
               bossHitRadius,
             ) !== null &&
-            !spiralBossHit.current.has(proj.id)) {
+            !spiralBossHit.current.has(proj.id) &&
+            (!isOvercharged || (motion.spawnScale ?? 1) >= 0.8)) {
           const isSpiralPiercing = motion.hitCount !== undefined && motion.hitCount > 1;
 
-          if (!isSpiralPiercing) {
+          if (isOvercharged) {
+            spiralBossHit.current.add(proj.id);
+          } else if (!isSpiralPiercing) {
             hitSomething = true;
           } else {
             // Spiral braid loses one strand, keeps flying
@@ -2599,7 +2607,7 @@ export function Projectiles() {
           if (proj.volleyId) {
             volleyHits.current.add(proj.volleyId);
           }
-          const bossKilled = damageBoss();
+          const bossKilled = damageBoss(isOvercharged ? 5 : undefined);
           addScore(25);
           playHit();
           
@@ -2663,7 +2671,7 @@ export function Projectiles() {
         const effectiveRadius = getProjectileEnemyCollisionRadius(
           proj,
           orb,
-          1,
+          isOverchargedDirectContact(proj) ? motion.spawnScale ?? 1 : 1,
           playerScale,
         );
         const enemyMotion = gameRuntime.enemies.get(orb.id);
@@ -2676,7 +2684,8 @@ export function Projectiles() {
               previousEnemyPosition[0], previousEnemyPosition[1], previousEnemyPosition[2],
               ox, oy, oz,
               effectiveRadius,
-            ) !== null) {
+            ) !== null &&
+            (!isOverchargedDirectContact(proj) || (motion.spawnScale ?? 1) >= 0.8)) {
           hitOrbsThisFrame.current.add(orb.id);
           markOrbDestroying(orb.id, [ox, oy, oz]);
           addScore(10);
@@ -2700,7 +2709,15 @@ export function Projectiles() {
             volleyHits.current.add(proj.volleyId);
           }
           
-          if (proj.piercing && motion.hitCount && motion.hitCount > 1) {
+          if (isOverchargedDirectContact(proj)) {
+            // Overcharged pierces enemies and continues toward its timed AOE.
+            let overchargedHits = projectileOrbHits.current.get(proj.id);
+            if (!overchargedHits) {
+              overchargedHits = new Set();
+              projectileOrbHits.current.set(proj.id, overchargedHits);
+            }
+            overchargedHits.add(orb.id);
+          } else if (proj.piercing && motion.hitCount && motion.hitCount > 1) {
             motion.hitCount--;
             let _ph2 = projectileOrbHits.current.get(proj.id);
             if (!_ph2) { _ph2 = new Set(); projectileOrbHits.current.set(proj.id, _ph2); }

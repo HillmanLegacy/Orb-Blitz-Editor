@@ -114,6 +114,7 @@ import {
   createPlayerFireBurstPool,
   emitPlayerProjectileFireBurst,
   resetPlayerFireBurstPool,
+  isOverchargedDirectContact,
   isOverchargedDamageReady,
   isOverchargedVfxReady,
   OC_TRAVEL_TIME,
@@ -346,6 +347,12 @@ describe("gameplay runtime invariants", () => {
     expect(isOverchargedDamageReady(OC_TRAVEL_TIME)).toBe(false);
     expect(isOverchargedDamageReady(OVERCHARGED_DAMAGE_TIME - 0.001)).toBe(false);
     expect(isOverchargedDamageReady(OVERCHARGED_DAMAGE_TIME)).toBe(true);
+  });
+
+  it("allows Overcharged shots to destroy enemies on contact before their AOE", () => {
+    expect(isOverchargedDirectContact({ type: "overcharged" })).toBe(true);
+    expect(isOverchargedDirectContact({ type: "normal" })).toBe(false);
+    expect(isOverchargedDirectContact({ type: undefined })).toBe(false);
   });
 
   it("derives collision bodies from the authored player, projectile, enemy, boss, and power-up scales", () => {
