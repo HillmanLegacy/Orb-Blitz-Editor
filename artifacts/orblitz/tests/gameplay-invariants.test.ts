@@ -714,6 +714,22 @@ describe("gameplay runtime invariants", () => {
     expect(SHOP_ITEMS.some((item) => item.value === "electric")).toBe(false);
   });
 
+  it("offers Fire Aura as a separate player aura from Backdraft Trail", () => {
+    const fireAura = SHOP_ITEMS.find((item) => item.id === "ring_fire_aura");
+    const backdraftTrail = SHOP_ITEMS.find((item) => item.id === "trail_flame_aura");
+
+    expect(fireAura).toMatchObject({
+      name: "Fire Aura",
+      category: "aura",
+      value: "fire_aura",
+    });
+    expect(backdraftTrail).toMatchObject({
+      name: "Backdraft Trail",
+      category: "trail",
+      value: "flame_aura",
+    });
+  });
+
   it("maps every equipped skin directly to its authored projectile model", () => {
     const skins = ["default", ...BOSS_SKIN_TYPES] as const;
     const modelPaths = skins.map(getPlayerSkinModelPath);
