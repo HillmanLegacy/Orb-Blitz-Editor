@@ -7,7 +7,7 @@
  * amber, and hot red.
  */
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
@@ -17,15 +17,6 @@ const FIRE_AURA_SPARK_COUNT = 168;
 const FIRE_BOSS_CORE = new THREE.Color("#ff4400");
 const FIRE_BOSS_GLOW = new THREE.Color("#ff8800");
 const FIRE_BOSS_EMISSIVE = new THREE.Color("#ffcc00");
-const FIRE_BOSS_ACCENT = new THREE.Color("#ffaa44");
-const FIRE_BOSS_HOT = new THREE.Color("#ff0000");
-const FIRE_BOSS_PALETTE = [
-  FIRE_BOSS_CORE,
-  FIRE_BOSS_GLOW,
-  FIRE_BOSS_EMISSIVE,
-  FIRE_BOSS_ACCENT,
-  FIRE_BOSS_HOT,
-] as const;
 
 const UP = new THREE.Vector3(0, 1, 0);
 const FALLBACK_AXIS = new THREE.Vector3(1, 0, 0);
@@ -83,20 +74,6 @@ function spawnFireParticle(scale: number, spark: boolean): FireParticle {
   };
 }
 
-function setFireBossColor(target: THREE.Color, lifeRatio: number) {
-  const normalizedLife = Math.min(1, Math.max(0, lifeRatio));
-  const paletteT = (1 - normalizedLife) * (FIRE_BOSS_PALETTE.length - 1);
-  const paletteIndex = Math.min(
-    FIRE_BOSS_PALETTE.length - 2,
-    Math.floor(paletteT),
-  );
-  target.lerpColors(
-    FIRE_BOSS_PALETTE[paletteIndex],
-    FIRE_BOSS_PALETTE[paletteIndex + 1],
-    paletteT - paletteIndex,
-  );
-}
-
 function updateFireParticle(
   particle: FireParticle,
   scale: number,
@@ -148,23 +125,26 @@ export function FireAura({ scale = 0.75 }: { scale?: number }) {
   const emberRef = useRef<THREE.InstancedMesh>(null);
   const sparkRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
-  const color = useMemo(() => new THREE.Color(), []);
   const emberGeometry = useMemo(() => new THREE.SphereGeometry(1, 6, 5), []);
   const sparkGeometry = useMemo(() => new THREE.OctahedronGeometry(1, 0), []);
-  const emberMaterial = useMemo(() => new THREE.MeshBasicMaterial({
-    vertexColors: true,
+  // Keep these materials free of vertexColors. R3F/Three can compile an
+  // instanced shader before instanceColor exists, which makes the entire
+  // particle pool disappear silently. Lifetime brightness is expressed by
+  // particle scale instead, matching the working aura implementations.
+  const [emberMaterial] = useState(() => new THREE.MeshBasicMaterial({
+    color: FIRE_BOSS_GLOW,
     transparent: true,
     opacity: 0.94,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
-  }), []);
-  const sparkMaterial = useMemo(() => new THREE.MeshBasicMaterial({
-    vertexColors: true,
+  }));
+  const [sparkMaterial] = useState(() => new THREE.MeshBasicMaterial({
+    color: FIRE_BOSS_EMISSIVE,
     transparent: true,
     opacity: 0.82,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
-  }), []);
+  }));
   const embers = useMemo(
     () => Array.from({ length: FIRE_AURA_EMBER_COUNT }, () => spawnFireParticle(scale, false)),
     [scale],
@@ -183,7 +163,7 @@ export function FireAura({ scale = 0.75 }: { scale?: number }) {
 
   // Seed the instance buffers before the first demand-driven render. Without
   // this, every instance starts at the origin until the first scheduled frame.
-  useEffect(() => {
+  useLayoutEffect(() => {
     const emberMesh = emberRef.current;
     const sparkMesh = sparkRef.current;
     if (!emberMesh || !sparkMesh) return;
@@ -191,20 +171,14 @@ export function FireAura({ scale = 0.75 }: { scale?: number }) {
     embers.forEach((particle, index) => {
       writeParticleMatrix(dummy, particle, false);
       emberMesh.setMatrixAt(index, dummy.matrix);
-      setFireBossColor(color, Math.max(0, particle.life / particle.maxLife));
-      emberMesh.setColorAt(index, color);
     });
     sparks.forEach((particle, index) => {
       writeParticleMatrix(dummy, particle, true);
       sparkMesh.setMatrixAt(index, dummy.matrix);
-      setFireBossColor(color, Math.max(0, particle.life / particle.maxLife));
-      sparkMesh.setColorAt(index, color);
     });
     emberMesh.instanceMatrix.needsUpdate = true;
     sparkMesh.instanceMatrix.needsUpdate = true;
-    if (emberMesh.instanceColor) emberMesh.instanceColor.needsUpdate = true;
-    if (sparkMesh.instanceColor) sparkMesh.instanceColor.needsUpdate = true;
-  }, [embers, sparks, dummy, color]);
+  }, [embers, sparks, dummy]);
 
   useFrame(({ clock }, delta) => {
     const emberMesh = emberRef.current;
@@ -218,22 +192,16 @@ export function FireAura({ scale = 0.75 }: { scale?: number }) {
       updateFireParticle(particle, scale, dt, time, false);
       writeParticleMatrix(dummy, particle, false);
       emberMesh.setMatrixAt(index, dummy.matrix);
-      setFireBossColor(color, Math.max(0, particle.life / particle.maxLife));
-      emberMesh.setColorAt(index, color);
     });
 
     sparks.forEach((particle, index) => {
       updateFireParticle(particle, scale, dt, time, true);
       writeParticleMatrix(dummy, particle, true);
       sparkMesh.setMatrixAt(index, dummy.matrix);
-      setFireBossColor(color, Math.max(0, particle.life / particle.maxLife));
-      sparkMesh.setColorAt(index, color);
     });
 
     emberMesh.instanceMatrix.needsUpdate = true;
     sparkMesh.instanceMatrix.needsUpdate = true;
-    if (emberMesh.instanceColor) emberMesh.instanceColor.needsUpdate = true;
-    if (sparkMesh.instanceColor) sparkMesh.instanceColor.needsUpdate = true;
   });
 
   return (
