@@ -14,7 +14,6 @@ import * as THREE from "three";
 const FIRE_AURA_EMBER_COUNT = 112;
 const FIRE_AURA_SPARK_COUNT = 168;
 
-const FIRE_BOSS_CORE = new THREE.Color("#ff4400");
 const FIRE_BOSS_GLOW = new THREE.Color("#ff8800");
 const FIRE_BOSS_EMISSIVE = new THREE.Color("#ffcc00");
 
