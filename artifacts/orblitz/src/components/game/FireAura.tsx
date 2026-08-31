@@ -11,11 +11,9 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
-const FIRE_AURA_EMBER_COUNT = 112;
-const FIRE_AURA_SPARK_COUNT = 168;
+const FIRE_AURA_PARTICLE_COUNT = 360;
 
 const FIRE_BOSS_GLOW = new THREE.Color("#ff8800");
-const FIRE_BOSS_EMISSIVE = new THREE.Color("#ffcc00");
 
 const UP = new THREE.Vector3(0, 1, 0);
 const FALLBACK_AXIS = new THREE.Vector3(1, 0, 0);
@@ -31,6 +29,7 @@ interface FireParticle {
   seed: number;
   size: number;
   stretch: number;
+  spark: boolean;
 }
 
 function makeOutwardBasis() {
@@ -49,8 +48,8 @@ function spawnFireParticle(scale: number, spark: boolean): FireParticle {
   const { direction, tangent, bitangent } = makeOutwardBasis();
   // `scale` is the player's visible radius. Start on the surface or just
   // outside it so the aura cannot be fully occluded by the player model.
-  const shellRadius = scale * (0.96 + Math.random() * 0.18);
-  const speed = (spark ? 1.35 : 0.78) + Math.random() * (spark ? 1.9 : 1.15);
+  const shellRadius = scale * (0.97 + Math.random() * 0.14);
+  const speed = (spark ? 1.7 : 1.0) + Math.random() * (spark ? 2.4 : 1.45);
   const swirl = (Math.random() - 0.5) * (spark ? 0.38 : 0.25);
 
   return {
@@ -61,15 +60,16 @@ function spawnFireParticle(scale: number, spark: boolean): FireParticle {
     direction,
     tangent,
     bitangent,
-    life: Math.random() * (0.85 + Math.random() * 0.35),
-    maxLife: (spark ? 0.5 : 0.75) + Math.random() * (spark ? 0.55 : 0.75),
+    life: Math.random() * (spark ? 0.55 : 0.72),
+    maxLife: (spark ? 0.38 : 0.58) + Math.random() * (spark ? 0.42 : 0.58),
     seed: Math.random() * Math.PI * 2,
     size: spark
-      ? 0.018 + Math.random() * 0.035
-      : 0.038 + Math.random() * 0.075,
+      ? 0.010 + Math.random() * 0.018
+      : 0.016 + Math.random() * 0.032,
     stretch: spark
-      ? 1.2 + Math.random() * 1.7
-      : 1.4 + Math.random() * 2.8,
+      ? 1.8 + Math.random() * 2.6
+      : 1.1 + Math.random() * 2.1,
+    spark,
   };
 }
 
@@ -110,110 +110,78 @@ function writeParticleMatrix(
   spark: boolean,
 ) {
   const lifeRatio = Math.min(1, Math.max(0, particle.life / particle.maxLife));
-  const fade = Math.sin(Math.PI * Math.min(1, lifeRatio));
-  const width = Math.max(0.001, particle.size * (0.42 + fade * 0.82));
-  const length = width * (1 + particle.stretch * (0.5 + fade * 0.5));
+  const fade = Math.sin(Math.PI * lifeRatio);
+  const width = Math.max(0.001, particle.size * (0.35 + fade * 0.68));
+  const length = width * (1 + particle.stretch * (0.55 + fade * 0.45));
 
   dummy.position.copy(particle.position);
   dummy.quaternion.setFromUnitVectors(UP, particle.velocity.clone().normalize());
-  dummy.scale.set(width, length, width * (spark ? 0.8 : 1.0));
+  dummy.scale.set(width, length, width * 0.72);
   dummy.updateMatrix();
 }
 
 export function FireAura({ scale = 0.75 }: { scale?: number }) {
-  const emberRef = useRef<THREE.InstancedMesh>(null);
-  const sparkRef = useRef<THREE.InstancedMesh>(null);
+  const particleRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
-  const emberGeometry = useMemo(() => new THREE.SphereGeometry(1, 6, 5), []);
-  const sparkGeometry = useMemo(() => new THREE.OctahedronGeometry(1, 0), []);
-  // Keep these materials free of vertexColors. R3F/Three can compile an
-  // instanced shader before instanceColor exists, which makes the entire
-  // particle pool disappear silently. Lifetime brightness is expressed by
-  // particle scale instead, matching the working aura implementations.
-  const [emberMaterial] = useState(() => new THREE.MeshBasicMaterial({
+  // Keep the particle pool on the same reliable path as the working auras:
+  // one stable material, no vertexColors shader dependency, and brightness
+  // expressed through each particle's scale.
+  const particleGeometry = useMemo(() => new THREE.OctahedronGeometry(1, 0), []);
+  const [particleMaterial] = useState(() => new THREE.MeshBasicMaterial({
     color: FIRE_BOSS_GLOW,
     transparent: true,
-    opacity: 0.94,
+    opacity: 0.9,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   }));
-  const [sparkMaterial] = useState(() => new THREE.MeshBasicMaterial({
-    color: FIRE_BOSS_EMISSIVE,
-    transparent: true,
-    opacity: 0.82,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-  }));
-  const embers = useMemo(
-    () => Array.from({ length: FIRE_AURA_EMBER_COUNT }, () => spawnFireParticle(scale, false)),
-    [scale],
-  );
-  const sparks = useMemo(
-    () => Array.from({ length: FIRE_AURA_SPARK_COUNT }, () => spawnFireParticle(scale, true)),
+  const particles = useMemo(
+    () => Array.from(
+      { length: FIRE_AURA_PARTICLE_COUNT },
+      (_, index) => spawnFireParticle(scale, index % 4 === 0),
+    ),
     [scale],
   );
 
   useEffect(() => () => {
-    emberGeometry.dispose();
-    sparkGeometry.dispose();
-    emberMaterial.dispose();
-    sparkMaterial.dispose();
-  }, [emberGeometry, sparkGeometry, emberMaterial, sparkMaterial]);
+    particleGeometry.dispose();
+    particleMaterial.dispose();
+  }, [particleGeometry, particleMaterial]);
 
   // Seed the instance buffers before the first demand-driven render. Without
   // this, every instance starts at the origin until the first scheduled frame.
   useLayoutEffect(() => {
-    const emberMesh = emberRef.current;
-    const sparkMesh = sparkRef.current;
-    if (!emberMesh || !sparkMesh) return;
+    const mesh = particleRef.current;
+    if (!mesh) return;
 
-    embers.forEach((particle, index) => {
-      writeParticleMatrix(dummy, particle, false);
-      emberMesh.setMatrixAt(index, dummy.matrix);
+    particles.forEach((particle, index) => {
+      writeParticleMatrix(dummy, particle, particle.spark);
+      mesh.setMatrixAt(index, dummy.matrix);
     });
-    sparks.forEach((particle, index) => {
-      writeParticleMatrix(dummy, particle, true);
-      sparkMesh.setMatrixAt(index, dummy.matrix);
-    });
-    emberMesh.instanceMatrix.needsUpdate = true;
-    sparkMesh.instanceMatrix.needsUpdate = true;
-  }, [embers, sparks, dummy]);
+    mesh.instanceMatrix.needsUpdate = true;
+  }, [particles, dummy]);
 
   useFrame(({ clock }, delta) => {
-    const emberMesh = emberRef.current;
-    const sparkMesh = sparkRef.current;
-    if (!emberMesh || !sparkMesh) return;
+    const mesh = particleRef.current;
+    if (!mesh) return;
 
     const time = clock.getElapsedTime();
     const dt = Math.min(delta, 0.05);
 
-    embers.forEach((particle, index) => {
-      updateFireParticle(particle, scale, dt, time, false);
-      writeParticleMatrix(dummy, particle, false);
-      emberMesh.setMatrixAt(index, dummy.matrix);
+    particles.forEach((particle, index) => {
+      updateFireParticle(particle, scale, dt, time, particle.spark);
+      writeParticleMatrix(dummy, particle, particle.spark);
+      mesh.setMatrixAt(index, dummy.matrix);
     });
 
-    sparks.forEach((particle, index) => {
-      updateFireParticle(particle, scale, dt, time, true);
-      writeParticleMatrix(dummy, particle, true);
-      sparkMesh.setMatrixAt(index, dummy.matrix);
-    });
-
-    emberMesh.instanceMatrix.needsUpdate = true;
-    sparkMesh.instanceMatrix.needsUpdate = true;
+    mesh.instanceMatrix.needsUpdate = true;
   });
 
   return (
     <group>
-      <pointLight color="#ff6600" intensity={1.7} distance={4.8} decay={2} />
+      <pointLight color="#ff6600" intensity={1.2} distance={4.8} decay={2} />
       <instancedMesh
-        ref={emberRef}
-        args={[emberGeometry, emberMaterial, FIRE_AURA_EMBER_COUNT]}
-        frustumCulled={false}
-      />
-      <instancedMesh
-        ref={sparkRef}
-        args={[sparkGeometry, sparkMaterial, FIRE_AURA_SPARK_COUNT]}
+        ref={particleRef}
+        args={[particleGeometry, particleMaterial, FIRE_AURA_PARTICLE_COUNT]}
         frustumCulled={false}
       />
     </group>
