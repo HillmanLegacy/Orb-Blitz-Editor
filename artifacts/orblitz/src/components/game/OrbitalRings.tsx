@@ -8,6 +8,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { RingStyle } from "@/lib/stores/useShop";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
+import { FireAura } from "./FireAura";
 
 interface RingProps { scale: number }
 
@@ -1652,6 +1653,7 @@ function AstralNebula({ scale }: RingProps) {
 // ─────────────────────────────────────────────────────────────────────────────
 export function OrbitalRings({ style, scale }: { style: RingStyle; scale: number }) {
   switch (style) {
+    case "fire_aura":          return <FireAura          scale={scale} />;
     case "eclipse_horizon":   return <ElectrifiedAura  scale={scale} />;
     case "singularity_event": return <SingularityEvent scale={scale} />;
     case "celestial_aegis":   return <FieryAura         scale={scale} />;

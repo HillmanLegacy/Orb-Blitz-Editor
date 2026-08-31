@@ -26,7 +26,7 @@ export const BOSS_SKIN_TYPES: readonly Exclude<OrbSkin, "default">[] = [
   "fire", "star", "crystal", "toxic", "plasma", "diamond", "rainbow", "mecha", "monster",
 ];
 export type TrailEffect = "none" | "sparkle" | "fire" | "ice" | "cosmic" | "lightning" | "rainbow" | "plasma" | "shadow" | "stardust" | "meteor" | "spirit" | "neon" | "sakura" | "galaxy" | "particle_swarm" | "flame_aura";
-export type RingStyle = "default" | "none" | "eclipse_horizon" | "singularity_event" | "celestial_aegis" | "chronos_clockwork" | "void_tendril" | "hyper_collider" | "solar_corona" | "prismatic_lattice" | "zero_tesla" | "astral_nebula";
+  export type RingStyle = "default" | "none" | "fire_aura" | "eclipse_horizon" | "singularity_event" | "celestial_aegis" | "chronos_clockwork" | "void_tendril" | "hyper_collider" | "solar_corona" | "prismatic_lattice" | "zero_tesla" | "astral_nebula";
 export type WeaponType = "none" | "orbital_rapid_blaster" | "orbital_scattershot" | "spiral_shooter" | "overcharged_blaster" | "homing_launcher" | "sub_blaster";
 export type DefenseType = "none" | "orbital_teletransfer" | "distort_field" | "pulse_shield" | "defense_system" | "spatial_relocation" | "restoration" | "armor";
 export type MagiOrbType = "none" | "magi_orb_1" | "magi_orb_2" | "magi_orb_3" | "magi_orb_4" | "magi_orb_5" | "magi_orb_6" | "magi_orb_7" | "magi_orb_8" | "magi_orb_9";
@@ -70,6 +70,7 @@ export const SHOP_ITEMS: ShopItem[] = [
   
   { id: "ring_eclipse_horizon",   name: "Electrified Aura",      description: "High-voltage Tesla field — Fresnel plasma shell, 40 crackling arc lines, and 200 ionic sparks that burst on impact", price: 700, category: "aura", value: "eclipse_horizon"   },
   { id: "ring_singularity_event", name: "Singularity Event",     description: "Gravitational accretion disk — black event horizon with violent orange/violet eddies", price: 500, category: "aura", value: "singularity_event" },
+  { id: "ring_fire_aura",         name: "Fire Aura",             description: "Blazing ember particles burn outward in a full circle from the player.", price: 500, category: "aura", value: "fire_aura"         },
   { id: "ring_celestial_aegis",   name: "Fiery Aura",            description: "Roaring combustion shell: GLSL displacement flames, 380 GPU particles, ember sparks, heat-haze sphere and flickering fire light", price: 400, category: "aura", value: "celestial_aegis"   },
   { id: "ring_chronos_clockwork", name: "Crystalline Aura",      description: "Dual refractive GLSL crystal shells with chromatic IOR dispersion, dual-Voronoi caustic rays, 200-particle glint dust and 12 orbiting prismatic shards", price: 450, category: "aura", value: "chronos_clockwork" },
   { id: "ring_void_tendril",      name: "Void Tendril Vortex",   description: "Pure dark-matter fluid — 80 swirling indigo and magenta particles, no solid geometry", price: 500, category: "aura", value: "void_tendril"      },
@@ -193,7 +194,7 @@ const getStoredShopData = (): StoredShopData => {
       }
       
       // ── Ring migration: old ring values → "none" + strip legacy owned IDs ──
-      const _validRings = new Set(["none","default","eclipse_horizon","singularity_event","celestial_aegis","chronos_clockwork","void_tendril","hyper_collider","solar_corona","prismatic_lattice","zero_tesla","astral_nebula"]);
+      const _validRings = new Set(["none","default","fire_aura","eclipse_horizon","singularity_event","celestial_aegis","chronos_clockwork","void_tendril","hyper_collider","solar_corona","prismatic_lattice","zero_tesla","astral_nebula"]);
       const _legacyRingIds = new Set(["ring_double","ring_triple","ring_spiral","ring_none","ring_pulse","ring_orbit","ring_halo","ring_shield","ring_hex","ring_prism"]);
       const hadLegacyRings = ownedItems.some((id: string) => _legacyRingIds.has(id));
       if (hadLegacyRings) {
