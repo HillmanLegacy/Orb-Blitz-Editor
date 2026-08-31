@@ -1017,8 +1017,11 @@ export function PlayerOrb() {
       visualModelRef.current.position.set(totalRecoilX, floatY + totalRecoilY, 0);
       visualModelRef.current.scale.set(sqX, sqY, 1);
       visualModelRef.current.rotation.z = gentleWobble;
-      visualModelRef.current.rotation.y =
-        (visualModelRef.current.rotation.y + delta * PLAYER_MODEL_ROTATION_SPEED) % (Math.PI * 2);
+      // Player presentation is a single continuous turntable. Use absolute
+      // elapsed time rather than accumulating and wrapping Euler angles:
+      // wrapping at 2π can expose the GLTF seam and makes any competing
+      // renderer look like it has reversed or restarted the texture.
+      visualModelRef.current.rotation.y = time * PLAYER_MODEL_ROTATION_SPEED;
     }
     
     if (coreRef.current && !isDying) {
