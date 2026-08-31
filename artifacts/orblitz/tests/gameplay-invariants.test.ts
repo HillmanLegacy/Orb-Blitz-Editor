@@ -714,10 +714,14 @@ describe("gameplay runtime invariants", () => {
     expect(SHOP_ITEMS.some((item) => item.value === "electric")).toBe(false);
   });
 
-  it("offers Fire Aura as a separate player aura from Backdraft Trail", () => {
-    const fireAura = SHOP_ITEMS.find((item) => item.id === "ring_fire_aura");
+  it("offers one Fire Aura separately from Backdraft Trail", () => {
+    const fireAuras = SHOP_ITEMS.filter((item) => item.category === "aura" && (
+      item.value === "fire_aura" || item.value === "celestial_aegis"
+    ));
+    const fireAura = fireAuras[0];
     const backdraftTrail = SHOP_ITEMS.find((item) => item.id === "trail_flame_aura");
 
+    expect(fireAuras).toHaveLength(1);
     expect(fireAura).toMatchObject({
       name: "Fire Aura",
       category: "aura",

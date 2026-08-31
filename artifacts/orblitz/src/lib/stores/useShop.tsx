@@ -70,8 +70,7 @@ export const SHOP_ITEMS: ShopItem[] = [
   
   { id: "ring_eclipse_horizon",   name: "Electrified Aura",      description: "High-voltage Tesla field — Fresnel plasma shell, 40 crackling arc lines, and 200 ionic sparks that burst on impact", price: 700, category: "aura", value: "eclipse_horizon"   },
   { id: "ring_singularity_event", name: "Singularity Event",     description: "Gravitational accretion disk — black event horizon with violent orange/violet eddies", price: 500, category: "aura", value: "singularity_event" },
-  { id: "ring_fire_aura",         name: "Fire Aura",             description: "Blazing ember particles burn outward in a full circle from the player.", price: 500, category: "aura", value: "fire_aura"         },
-  { id: "ring_celestial_aegis",   name: "Fiery Aura",            description: "Expanded ember particles burn outward in a full circle from the player.", price: 400, category: "aura", value: "celestial_aegis"   },
+  { id: "ring_fire_aura",         name: "Fire Aura",             description: "Detailed Fire Boss embers and sparks flow outward from the player.", price: 500, category: "aura", value: "fire_aura"         },
   { id: "ring_chronos_clockwork", name: "Crystalline Aura",      description: "Dual refractive GLSL crystal shells with chromatic IOR dispersion, dual-Voronoi caustic rays, 200-particle glint dust and 12 orbiting prismatic shards", price: 450, category: "aura", value: "chronos_clockwork" },
   { id: "ring_void_tendril",      name: "Void Tendril Vortex",   description: "Pure dark-matter fluid — 80 swirling indigo and magenta particles, no solid geometry", price: 500, category: "aura", value: "void_tendril"      },
   { id: "ring_hyper_collider",    name: "Hyper-Tech Collider",   description: "Particle accelerator with twin plasma beams orbiting at extreme speed inside a housing ring", price: 500, category: "aura", value: "hyper_collider"    },
@@ -193,7 +192,7 @@ const getStoredShopData = (): StoredShopData => {
         needsSave = true;
       }
       
-      // ── Ring migration: old ring values → "none" + strip legacy owned IDs ──
+      // ── Ring migration: consolidate the former duplicate fire aura ────────
       const _validRings = new Set(["none","default","fire_aura","eclipse_horizon","singularity_event","celestial_aegis","chronos_clockwork","void_tendril","hyper_collider","solar_corona","prismatic_lattice","zero_tesla","astral_nebula"]);
       const _legacyRingIds = new Set(["ring_double","ring_triple","ring_spiral","ring_none","ring_pulse","ring_orbit","ring_halo","ring_shield","ring_hex","ring_prism"]);
       const hadLegacyRings = ownedItems.some((id: string) => _legacyRingIds.has(id));
@@ -201,8 +200,21 @@ const getStoredShopData = (): StoredShopData => {
         ownedItems = ownedItems.filter((id: string) => !_legacyRingIds.has(id));
         needsSave = true;
       }
-      const equippedRing = _validRings.has(data.equippedRing) ? data.equippedRing : "none";
-      if (!_validRings.has(data.equippedRing)) needsSave = true;
+      const migratedFireAuraOwnedItems = Array.from(new Set(
+        ownedItems.map((id: string) =>
+          id === "ring_celestial_aegis" ? "ring_fire_aura" : id,
+        ),
+      ));
+      if (
+        migratedFireAuraOwnedItems.length !== ownedItems.length ||
+        migratedFireAuraOwnedItems.some((id, index) => id !== ownedItems[index])
+      ) {
+        ownedItems = migratedFireAuraOwnedItems;
+        needsSave = true;
+      }
+      const storedRing = _validRings.has(data.equippedRing) ? data.equippedRing : "none";
+      const equippedRing = storedRing === "celestial_aegis" ? "fire_aura" : storedRing;
+      if (equippedRing !== data.equippedRing) needsSave = true;
 
        const validSkinValues = new Set<OrbSkin>(["default", ...BOSS_SKIN_TYPES]);
        const retiredSkinIds = new Set([

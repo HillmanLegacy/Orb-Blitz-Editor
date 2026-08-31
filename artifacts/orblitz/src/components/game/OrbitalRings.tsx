@@ -1652,14 +1652,14 @@ function AstralNebula({ scale }: RingProps) {
 // Router — mounts the active ring set based on equipped style
 // ─────────────────────────────────────────────────────────────────────────────
 export function OrbitalRings({ style, scale }: { style: RingStyle; scale: number }) {
-  switch (style) {
-    // Both fire-themed aura slots use the new radial ember effect. The
-    // legacy combustion shell remains available in this module only for
-    // backwards-compatible source history, never as equipped gear VFX.
-    case "fire_aura":          return <FireAura          scale={scale * 2} />;
+  // `celestial_aegis` is retained only as a save-data compatibility alias.
+  // There is one fire aura renderer and one visible Fire Aura shop item.
+  const normalizedStyle = style === "celestial_aegis" ? "fire_aura" : style;
+
+  switch (normalizedStyle) {
+    case "fire_aura":          return <FireAura          scale={scale} />;
     case "eclipse_horizon":   return <ElectrifiedAura  scale={scale} />;
     case "singularity_event": return <SingularityEvent scale={scale} />;
-    case "celestial_aegis":   return <FireAura          scale={scale * 2} />;
     case "chronos_clockwork": return <CrystallineAura  scale={scale} />;
     case "void_tendril":      return <VoidTendril      scale={scale} />;
     case "hyper_collider":    return <HyperCollider    scale={scale} />;

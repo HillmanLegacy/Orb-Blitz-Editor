@@ -57,7 +57,9 @@ function makeOutwardBasis() {
 
 function spawnFireParticle(scale: number, spark: boolean): FireParticle {
   const { direction, tangent, bitangent } = makeOutwardBasis();
-  const shellRadius = scale * (0.34 + Math.random() * 0.18);
+  // `scale` is the player's visible radius. Start on the surface or just
+  // outside it so the aura cannot be fully occluded by the player model.
+  const shellRadius = scale * (0.96 + Math.random() * 0.18);
   const speed = (spark ? 1.35 : 0.78) + Math.random() * (spark ? 1.9 : 1.15);
   const swirl = (Math.random() - 0.5) * (spark ? 0.38 : 0.25);
 
