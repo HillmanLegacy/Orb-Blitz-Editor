@@ -82,7 +82,8 @@ function spawnFireParticle(scale: number, spark: boolean): FireParticle {
 }
 
 function setFireBossColor(target: THREE.Color, lifeRatio: number) {
-  const paletteT = (1 - lifeRatio) * (FIRE_BOSS_PALETTE.length - 1);
+  const normalizedLife = Math.min(1, Math.max(0, lifeRatio));
+  const paletteT = (1 - normalizedLife) * (FIRE_BOSS_PALETTE.length - 1);
   const paletteIndex = Math.min(
     FIRE_BOSS_PALETTE.length - 2,
     Math.floor(paletteT),
@@ -130,7 +131,7 @@ function writeParticleMatrix(
   particle: FireParticle,
   spark: boolean,
 ) {
-  const lifeRatio = Math.max(0, particle.life / particle.maxLife);
+  const lifeRatio = Math.min(1, Math.max(0, particle.life / particle.maxLife));
   const fade = Math.sin(Math.PI * Math.min(1, lifeRatio));
   const width = Math.max(0.001, particle.size * (0.42 + fade * 0.82));
   const length = width * (1 + particle.stretch * (0.5 + fade * 0.5));
