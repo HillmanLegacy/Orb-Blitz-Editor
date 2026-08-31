@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { getPlayerSkinVisualYaw } from "./PlayerSkinVisualConfig";
+import { clonePlayerOrbMaterial } from "./PlayerOrbMaterial";
 
 interface BossOrbModelProps {
   scale?: number;
@@ -12,7 +13,7 @@ interface BossOrbModelProps {
 }
 export function BossOrbModel({ scale = 2.5, healthPercent = 1, animatePresentationYaw = true }: BossOrbModelProps) {
   const groupRef = useRef<THREE.Group>(null);
-  const materialsRef = useRef<THREE.MeshBasicMaterial[]>([]);
+  const materialsRef = useRef<THREE.Material[]>([]);
 
   // The textured GLB contains the authoritative Fire Boss geometry, UVs, and
   // texture. Do not pair its texture with the older untextured base GLB: that
@@ -63,20 +64,23 @@ export function BossOrbModel({ scale = 2.5, healthPercent = 1, animatePresentati
         const mesh = child as THREE.Mesh;
         const sourceMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         const clonedMaterials = sourceMaterials.map((sourceMaterial) => {
-          const source = sourceMaterial as THREE.MeshBasicMaterial;
+          const source = sourceMaterial as THREE.MeshStandardMaterial;
           const map = source.map ?? orbTexture ?? undefined;
           if (map) {
             map.colorSpace = THREE.SRGBColorSpace;
             map.needsUpdate = true;
           }
-          return new THREE.MeshBasicMaterial({
-            map,
-            color: new THREE.Color("#ffffff"),
-            transparent: source.transparent,
-            opacity: source.opacity,
-            alphaTest: source.alphaTest,
-            side: source.side,
+          const material = clonePlayerOrbMaterial({
+            baseMaterial: sourceMaterial,
+            textureMaterial: sourceMaterial,
+            coreColor: "#ffffff",
+            glowColor: "#ffffff",
+            tintColors: false,
           });
+          const authoredMaterial = material as THREE.MeshStandardMaterial;
+          if (!authoredMaterial.map && map) authoredMaterial.map = map;
+          authoredMaterial.needsUpdate = true;
+          return authoredMaterial;
         });
         mesh.material = clonedMaterials.length === 1 ? clonedMaterials[0] : clonedMaterials;
         materialsRef.current.push(...clonedMaterials);
@@ -106,7 +110,8 @@ export function BossOrbModel({ scale = 2.5, healthPercent = 1, animatePresentati
       const t = Date.now() * 0.008;
       const intensity = 0.5 + Math.sin(t) * 0.5;
       materialsRef.current.forEach((m) => {
-        m.color.setRGB(1, 0.4 + intensity * 0.3, 0.4 + intensity * 0.3);
+        const color = (m as THREE.MeshStandardMaterial).color;
+        if (color) color.setRGB(1, 0.4 + intensity * 0.3, 0.4 + intensity * 0.3);
       });
     }
   });
