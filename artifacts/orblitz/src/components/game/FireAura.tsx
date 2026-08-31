@@ -7,7 +7,7 @@
  * amber, and hot red.
  */
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
@@ -146,6 +146,22 @@ export function FireAura({ scale = 0.75 }: { scale?: number }) {
   const sparkRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const color = useMemo(() => new THREE.Color(), []);
+  const emberGeometry = useMemo(() => new THREE.SphereGeometry(1, 6, 5), []);
+  const sparkGeometry = useMemo(() => new THREE.OctahedronGeometry(1, 0), []);
+  const emberMaterial = useMemo(() => new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.94,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  }), []);
+  const sparkMaterial = useMemo(() => new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.82,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  }), []);
   const embers = useMemo(
     () => Array.from({ length: FIRE_AURA_EMBER_COUNT }, () => spawnFireParticle(scale, false)),
     [scale],
@@ -154,6 +170,38 @@ export function FireAura({ scale = 0.75 }: { scale?: number }) {
     () => Array.from({ length: FIRE_AURA_SPARK_COUNT }, () => spawnFireParticle(scale, true)),
     [scale],
   );
+
+  useEffect(() => () => {
+    emberGeometry.dispose();
+    sparkGeometry.dispose();
+    emberMaterial.dispose();
+    sparkMaterial.dispose();
+  }, [emberGeometry, sparkGeometry, emberMaterial, sparkMaterial]);
+
+  // Seed the instance buffers before the first demand-driven render. Without
+  // this, every instance starts at the origin until the first scheduled frame.
+  useEffect(() => {
+    const emberMesh = emberRef.current;
+    const sparkMesh = sparkRef.current;
+    if (!emberMesh || !sparkMesh) return;
+
+    embers.forEach((particle, index) => {
+      writeParticleMatrix(dummy, particle, false);
+      emberMesh.setMatrixAt(index, dummy.matrix);
+      setFireBossColor(color, Math.max(0, particle.life / particle.maxLife));
+      emberMesh.setColorAt(index, color);
+    });
+    sparks.forEach((particle, index) => {
+      writeParticleMatrix(dummy, particle, true);
+      sparkMesh.setMatrixAt(index, dummy.matrix);
+      setFireBossColor(color, Math.max(0, particle.life / particle.maxLife));
+      sparkMesh.setColorAt(index, color);
+    });
+    emberMesh.instanceMatrix.needsUpdate = true;
+    sparkMesh.instanceMatrix.needsUpdate = true;
+    if (emberMesh.instanceColor) emberMesh.instanceColor.needsUpdate = true;
+    if (sparkMesh.instanceColor) sparkMesh.instanceColor.needsUpdate = true;
+  }, [embers, sparks, dummy, color]);
 
   useFrame(({ clock }, delta) => {
     const emberMesh = emberRef.current;
@@ -190,32 +238,14 @@ export function FireAura({ scale = 0.75 }: { scale?: number }) {
       <pointLight color="#ff6600" intensity={1.7} distance={4.8} decay={2} />
       <instancedMesh
         ref={emberRef}
-        args={[undefined, undefined, FIRE_AURA_EMBER_COUNT]}
+        args={[emberGeometry, emberMaterial, FIRE_AURA_EMBER_COUNT]}
         frustumCulled={false}
-      >
-        <sphereGeometry args={[1, 6, 5]} />
-        <meshBasicMaterial
-          vertexColors
-          transparent
-          opacity={0.94}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
-      </instancedMesh>
+      />
       <instancedMesh
         ref={sparkRef}
-        args={[undefined, undefined, FIRE_AURA_SPARK_COUNT]}
+        args={[sparkGeometry, sparkMaterial, FIRE_AURA_SPARK_COUNT]}
         frustumCulled={false}
-      >
-        <octahedronGeometry args={[1, 0]} />
-        <meshBasicMaterial
-          vertexColors
-          transparent
-          opacity={0.82}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
-      </instancedMesh>
+      />
     </group>
   );
 }
