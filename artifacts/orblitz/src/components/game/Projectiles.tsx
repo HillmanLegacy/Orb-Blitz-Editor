@@ -1052,6 +1052,13 @@ export function isOverchargedDirectContact(projectile: Pick<Projectile, "type">)
   return projectile.type === "overcharged";
 }
 
+export function shouldPresentOverchargedDetonation(
+  projectile: Pick<Projectile, "type">,
+  alreadyPresented: boolean,
+): boolean {
+  return isOverchargedDirectContact(projectile) && !alreadyPresented;
+}
+
 // ── Orbital Spiral Blaster constants ─────────────────────────────────────────
 const SPIRAL_ORBIT_R     = 0.91;
 const SPIRAL_ORBIT_SPEED = 7.0;
@@ -2124,6 +2131,32 @@ export function Projectiles() {
   );
   const projectileColor = skinColors.projectile;
   const defaultTrailPalette = useMemo(() => getPlayerSkinTrailPalette(equippedSkin), [equippedSkin]);
+  const presentOverchargedDetonation = (
+    projectile: Pick<Projectile, "id" | "type" | "explosionScale">,
+    position: [number, number, number],
+    direction: [number, number, number],
+  ) => {
+    if (!shouldPresentOverchargedDetonation(
+      projectile,
+      presentedOverchargedDetonations.current.has(projectile.id),
+    )) return;
+
+    presentedOverchargedDetonations.current.add(projectile.id);
+    emitOverchargedExplosion(overchargedExplosionPool.current, {
+      id: `ocexp-${projectile.id}`,
+      position,
+      direction,
+      palette: {
+        core: skinColors.core,
+        glow: skinColors.glow,
+        emissive: skinColors.emissive,
+        accent: skinColors.accent,
+        projectile: skinColors.projectile,
+        particles: skinColors.particles,
+      },
+      scale: projectile.explosionScale ?? 1,
+    });
+  };
    const batchedProjectiles = useMemo(
      () => projectiles.filter(isPlayerProjectile),
      [projectiles],
@@ -2410,26 +2443,8 @@ export function Projectiles() {
       let newTravelTimer = motion.travelTimer;
       if (proj.type === "overcharged" && newTravelTimer !== undefined) {
         newTravelTimer += delta;
-        if (
-          isOverchargedVfxReady(newTravelTimer) &&
-          !presentedOverchargedDetonations.current.has(proj.id)
-        ) {
-          presentedOverchargedDetonations.current.add(proj.id);
-          const explosionScale = proj.explosionScale ?? 1;
-          emitOverchargedExplosion(overchargedExplosionPool.current, {
-            id: `ocexp-${proj.id}`,
-            position: [px, py, pz],
-            direction: [dx, dy, dz],
-            palette: {
-              core: skinColors.core,
-              glow: skinColors.glow,
-              emissive: skinColors.emissive,
-              accent: skinColors.accent,
-              projectile: skinColors.projectile,
-              particles: skinColors.particles,
-            },
-            scale: explosionScale,
-          });
+        if (isOverchargedVfxReady(newTravelTimer)) {
+          presentOverchargedDetonation(proj, [px, py, pz], [dx, dy, dz]);
         }
       }
 
@@ -2668,6 +2683,8 @@ export function Projectiles() {
 
           if (isOvercharged) {
             spiralBossHit.current.add(proj.id);
+            presentOverchargedDetonation(proj, [px, py, pz], [dx, dy, dz]);
+            hitSomething = true;
           } else if (!isSpiralPiercing) {
             hitSomething = true;
           } else {

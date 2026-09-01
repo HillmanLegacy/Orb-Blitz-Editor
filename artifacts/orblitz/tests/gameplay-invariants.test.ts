@@ -122,6 +122,7 @@ import {
   isOverchargedDirectContact,
   isOverchargedDamageReady,
   isOverchargedVfxReady,
+  shouldPresentOverchargedDetonation,
   getBackwardFlameAuraRotation,
   OC_TRAVEL_TIME,
   OVERCHARGED_DAMAGE_TIME,
@@ -365,6 +366,13 @@ describe("gameplay runtime invariants", () => {
     expect(isOverchargedDirectContact({ type: "overcharged" })).toBe(true);
     expect(isOverchargedDirectContact({ type: "normal" })).toBe(false);
     expect(isOverchargedDirectContact({ type: undefined })).toBe(false);
+  });
+
+  it("presents an Overcharged boss-contact detonation only once", () => {
+    const overcharged = { type: "overcharged" as const };
+    expect(shouldPresentOverchargedDetonation(overcharged, false)).toBe(true);
+    expect(shouldPresentOverchargedDetonation(overcharged, true)).toBe(false);
+    expect(shouldPresentOverchargedDetonation({ type: "normal" }, false)).toBe(false);
   });
 
   it("limits Chill standard-enemy rewards to one star", () => {
