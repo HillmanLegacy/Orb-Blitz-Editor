@@ -170,13 +170,19 @@ function ArcadeBossActor({
   const groupRef = useRef<THREE.Group>(null);
   const { viewport } = useThree();
   const phaseStartedAt = useRef(typeof performance === "undefined" ? 0 : performance.now());
+  const previousPhase = useRef<IntroBossPhase>(phase);
   const phaseOrigin = useRef(new THREE.Vector3());
   const initialized = useRef(false);
 
   useEffect(() => {
     const group = groupRef.current;
     if (group) phaseOrigin.current.copy(group.position);
-    phaseStartedAt.current = typeof performance === "undefined" ? 0 : performance.now();
+    const now = typeof performance === "undefined" ? 0 : performance.now();
+    const preserveTitleClock =
+      (phase === "waiting" || phase === "menu") &&
+      (previousPhase.current === "title" || previousPhase.current === "waiting" || previousPhase.current === "menu");
+    if (!preserveTitleClock) phaseStartedAt.current = now;
+    previousPhase.current = phase;
   }, [phase]);
 
   useFrame(() => {

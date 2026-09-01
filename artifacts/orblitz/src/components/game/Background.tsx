@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useMemo, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { getVisualBudget, useRenderQuality } from "./AdaptiveRenderQuality";
 
@@ -701,18 +701,24 @@ function ParticleSystem({
 }
 
 // ── Scene root ─────────────────────────────────────────────────────────────────
-export function Background() {
+export function Background({ visible = true }: { visible?: boolean }) {
   const budget = getVisualBudget(useRenderQuality());
+  const { scene } = useThree();
 
-  return (<>
-    <color attach="background" args={[0, 0, 0]} />
-    <StarField limit={budget.backgroundStars} />
-    <ParticleSystem
-      dustLimit={budget.backgroundDust}
-      streamLimit={budget.backgroundStreams}
-      sparkLimit={budget.backgroundSparks}
-      orbLimit={budget.backgroundOrbs}
-    />
-    <ShootingOrbs limit={budget.backgroundOrbs} />
-  </>);
+  useEffect(() => {
+    scene.background = visible ? new THREE.Color(0, 0, 0) : null;
+  }, [scene, visible]);
+
+  return (
+    <group visible={visible}>
+      <StarField limit={budget.backgroundStars} />
+      <ParticleSystem
+        dustLimit={budget.backgroundDust}
+        streamLimit={budget.backgroundStreams}
+        sparkLimit={budget.backgroundSparks}
+        orbLimit={budget.backgroundOrbs}
+      />
+      <ShootingOrbs limit={budget.backgroundOrbs} />
+    </group>
+  );
 }

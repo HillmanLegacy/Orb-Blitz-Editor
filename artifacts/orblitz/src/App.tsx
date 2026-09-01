@@ -16,7 +16,6 @@ import { PauseMenu } from "@/components/ui/PauseMenu";
 import { LevelTransition } from "@/components/ui/LevelTransition";
 import { StartupAnimation, type MenuState } from "@/components/ui/StartupAnimation";
 import type { IntroBossPhase } from "@/components/ui/ArcadeBossIntroScene";
-import { StartupLoading } from "@/components/ui/StartupLoading";
 import { ArcadeComplete } from "@/components/ui/ArcadeComplete";
 import { OrbSweepOverlay } from "@/components/ui/OrbSweepOverlay";
 import { AchievementToast } from "@/components/ui/AchievementToast";
@@ -48,7 +47,6 @@ function App() {
     pauseMenuVisible: s.pauseMenuVisible,
   })));
 
-  const [showStartupLoading, setShowStartupLoading] = useState(true);
   const [skipIntro, setSkipIntro] = useState(false);
   const [introBossPhase, setIntroBossPhase] = useState<IntroBossPhase | null>(null);
   const [initialMenuState, setInitialMenuState] = useState<MenuState>("root");
@@ -57,17 +55,11 @@ function App() {
   const [inventoryLayerVisible, setInventoryLayerVisible] = useState(false);
   const [trophiesLayerVisible, setTrophiesLayerVisible] = useState(false);
   const loadingRunRef = useRef(0);
-  const handleStartupLoadingComplete = useCallback(() => {
-    setShowStartupLoading(false);
-    // The readiness screen gates asset loading; the cinematic intro is the
-    // actual handoff into the title menu and should remain visible afterwards.
-    setSkipIntro(false);
-    // Menu sounds are small and immediately useful. Gameplay assets wait until
-    // the player has chosen a mode/level, avoiding speculative music and boss
-    // downloads during menu browsing.
+  const handleMenuReady = useCallback(() => { setSkipIntro(true); }, []);
+
+  useEffect(() => {
     void preloadMenuAssets();
   }, []);
-  const handleMenuReady = useCallback(() => { setSkipIntro(true); }, []);
 
   // Stripe payment callback
   useEffect(() => {
@@ -180,7 +172,6 @@ function App() {
 
   return (
     <div style={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden", filter: `brightness(${brightness})` }}>
-      {showStartupLoading && <StartupLoading onComplete={handleStartupLoadingComplete} />}
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
         <div style={{ pointerEvents: "auto", width: "100%", height: "100%" }}>
            <GameScene introBossPhase={introBossPhase} />

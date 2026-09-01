@@ -29,7 +29,7 @@ function IconSoundOff()  { return <svg {..._svg}><path d="M4 9 H7 L12 5 V19 L7 1
 function IconBrightness(){ return <svg {..._svg}><circle cx="12" cy="12" r="3.8" fill="currentColor" fillOpacity="0.85"/><line x1="12" y1="2" x2="12" y2="5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><line x1="12" y1="19" x2="12" y2="22" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><line x1="2" y1="12" x2="5" y2="12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><line x1="19" y1="12" x2="22" y2="12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><line x1="4.93" y1="4.93" x2="7.07" y2="7.07" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="16.93" y1="16.93" x2="19.07" y2="19.07" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="19.07" y1="4.93" x2="16.93" y2="7.07" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="7.07" y1="16.93" x2="4.93" y2="19.07" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>; }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type AnimPhase = "idle" | "flying" | "converge" | "flash" | "title" | "waiting" | "menu" | "done";
+type AnimPhase = "splash" | "idle" | "flying" | "converge" | "flash" | "title" | "waiting" | "menu" | "done";
 export type MenuState = "root" | "modes" | "settings" | "worlds" | "levels";
 
 interface StartupAnimationProps {
@@ -67,6 +67,12 @@ const getOrbGoal = (world: number, sub: number): number => {
 // ─── Dev-mode easter egg ──────────────────────────────────────────────────────
 const DEV_SEQUENCE = ["O","R","B","L","I","T","Z"] as const;
 const TITLE_LETTERS = ["O","R","B","L","I","T","Z"];
+const SPLASH_DURATION = 2400;
+const FLYING_START = SPLASH_DURATION;
+const CONVERGE_START = FLYING_START + 2550;
+const FLASH_START = CONVERGE_START + 650;
+const TITLE_START = FLASH_START + 350;
+const MENU_START = TITLE_START + 1750;
 const TITLE_REFLECTION_BOSSES: readonly MainBossType[] = [
   "circle", "star", "triangle", "trapezoid", "cube", "arrow", "monster",
 ];
@@ -128,11 +134,21 @@ function useTitleRefraction(
   letterRefs: React.MutableRefObject<Array<HTMLSpanElement | null>>,
   phase: AnimPhase,
 ): void {
+  const motionStartAt = useRef<number | null>(null);
+  const previousPhase = useRef<AnimPhase | null>(null);
+
   useEffect(() => {
-    if (typeof window === "undefined" || !["title", "waiting", "menu"].includes(phase)) return;
+    if (typeof window === "undefined") return;
+    const now = performance.now();
+    const preserveTitleClock =
+      (phase === "waiting" || phase === "menu") &&
+      (previousPhase.current === "title" || previousPhase.current === "waiting" || previousPhase.current === "menu");
+    if (!preserveTitleClock) motionStartAt.current = now;
+    previousPhase.current = phase;
+    if (!["title", "waiting", "menu"].includes(phase)) return;
 
     let frame = 0;
-    const startedAt = performance.now();
+    const startedAt = motionStartAt.current ?? now;
     const update = (now: number) => {
       const elapsed = Math.max(0, (now - startedAt) / 1000);
       const width = window.innerWidth;
@@ -210,7 +226,7 @@ export function StartupAnimation({
   onMenuReady,
   onIntroPhaseChange,
 }: StartupAnimationProps) {
-  const [animPhase, setAnimPhase] = useState<AnimPhase>(skipIntro ? "menu" : "idle");
+  const [animPhase, setAnimPhase] = useState<AnimPhase>(skipIntro ? "menu" : "splash");
   const [menuState, setMenuState] = useState<MenuState>(skipIntro ? initialState : "root");
   const [selectedWorld, setSelectedWorld] = useState(1);
   const [devProgress, setDevProgress] = useState(0);
@@ -218,7 +234,7 @@ export function StartupAnimation({
   const [highestLevel, setHighestLevel] = useState(1.1);
   const [pressedBtn, setPressedBtn]   = useState<string | null>(null);
 
-  const { playOrbWhoosh, playOrbConverge, playTitleReveal, playLevelSelect, playTapToStart, isMuted, toggleMute, volume, setVolume, brightness, setBrightness, startMenuBgm, stopMenuBgm } = useAudio();
+  const { playOrbWhoosh, playOrbConverge, playTitleReveal, playLevelSelect, isMuted, toggleMute, volume, setVolume, brightness, setBrightness, startMenuBgm, stopMenuBgm } = useAudio();
   const { openShop, openInventory, openTrophies, activateDevMode, coins: shopStars, devMode } = useShop();
   const { setGameMode, startLoading } = useMagicOrb();
   const graphicsPreset = useGraphicsPreset();
@@ -233,17 +249,13 @@ export function StartupAnimation({
   // Intro sequence
   useEffect(() => {
     if (skipIntro) { onMenuReady?.(); try { startMenuBgm(); } catch {} return; }
-    const t0 = setTimeout(() => { setAnimPhase("flying");   try { playOrbWhoosh();   } catch {} }, 150);
-    const t1 = setTimeout(() => { setAnimPhase("converge"); try { playOrbConverge(); } catch {} }, 2700);
-    const t2 = setTimeout(() => { setAnimPhase("flash"); },                                        3250);
-    const t3 = setTimeout(() => { setAnimPhase("title");    try { playTitleReveal(); } catch {} }, 3600);
-    const t4 = setTimeout(() => { setAnimPhase("waiting"); try { startMenuBgm(); } catch {} },     5100);
+    const t0 = setTimeout(() => { setAnimPhase("flying");   try { playOrbWhoosh();   } catch {} }, FLYING_START);
+    const t1 = setTimeout(() => { setAnimPhase("converge"); try { playOrbConverge(); } catch {} }, CONVERGE_START);
+    const t2 = setTimeout(() => { setAnimPhase("flash"); },                                        FLASH_START);
+    const t3 = setTimeout(() => { setAnimPhase("title");    try { playTitleReveal(); } catch {} }, TITLE_START);
+    const t4 = setTimeout(() => { setAnimPhase("menu");    try { startMenuBgm(); } catch {} onMenuReady?.(); }, MENU_START);
     return () => [t0,t1,t2,t3,t4].forEach(clearTimeout);
-  }, []);
-
-  const handleTap = useCallback(() => {
-    if (animPhase === "waiting") { try { playTapToStart(); } catch {} setAnimPhase("menu"); onMenuReady?.(); }
-  }, [animPhase, onMenuReady, playTapToStart]);
+  }, [onMenuReady, playOrbWhoosh, playOrbConverge, playTitleReveal, startMenuBgm]);
 
   const handleLetterClick = useCallback((letter: string, idx: number) => {
     const expected = DEV_SEQUENCE[devProgress];
@@ -390,16 +402,15 @@ export function StartupAnimation({
   };
 
   // ── Derived state ─────────────────────────────────────────────────────────
+  const showSplash  = animPhase === "splash";
   const showTitle   = animPhase === "title" || animPhase === "waiting" || animPhase === "menu";
-  const showWaiting = animPhase === "waiting";
   const showMenu    = animPhase === "menu";
   const isContent   = showMenu && (menuState === "worlds" || menuState === "levels");
-  const isClickable = animPhase === "waiting";
   const panelButtons = showMenu ? getPanelButtons() : [];
   const introPhase: IntroBossPhase | null =
-    animPhase === "idle" || animPhase === "flying" || animPhase === "converge" || animPhase === "flash" ||
+    animPhase === "splash" || animPhase === "idle" || animPhase === "flying" || animPhase === "converge" || animPhase === "flash" ||
     animPhase === "title" || animPhase === "waiting" || animPhase === "menu"
-      ? animPhase
+      ? (animPhase === "splash" ? "idle" : animPhase)
       : null;
 
   useEffect(() => {
@@ -412,15 +423,13 @@ export function StartupAnimation({
     <motion.div
       className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-black select-none"
       style={{
-        cursor: isClickable ? "pointer" : "default",
-        backgroundColor: showMenu ? "rgba(5,8,28,0.2)" : "transparent",
+        cursor: "default",
+        backgroundColor: showSplash ? "rgba(1,6,18,0.98)" : showMenu ? "rgba(5,8,28,0.2)" : "transparent",
         transition: "background-color 0.75s ease",
       }}
       initial={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.45, ease: "easeOut" }}
-      onClick={isClickable ? handleTap : undefined}
-      onTouchStart={isClickable ? handleTap : undefined}
     >
       {/* ── CELESTIAL ATMOSPHERE ───────────────────────────────────────── */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{
@@ -485,20 +494,73 @@ export function StartupAnimation({
         <div className="absolute right-[18%] bottom-[28%] h-1.5 w-1.5 rounded-sm" style={{ background: "#ff2bd6", boxShadow: "0 0 20px 6px rgba(255,43,214,0.38)" }} />
       </div>
 
-      <div className="absolute left-6 top-6 z-[2] pointer-events-none" style={{
-        color: "rgba(210,252,255,0.9)", fontSize: "clamp(0.48rem, 1vw, 0.64rem)",
-        fontWeight: 900, letterSpacing: "0.14em", lineHeight: 1.7, fontFamily: "Arial Black, Impact, sans-serif",
-      }}>
-        <div>ORBLITZ ARCADE</div>
-        <div style={{ color: "rgba(255,230,0,0.94)", letterSpacing: "0.1em" }}>Stack · play · repeat</div>
-      </div>
-      <div className="absolute right-6 top-6 z-[2] pointer-events-none text-right" style={{
-        color: "rgba(210,252,255,0.78)", fontSize: "clamp(0.48rem, 1vw, 0.64rem)",
-        fontWeight: 900, letterSpacing: "0.12em", lineHeight: 1.7, fontFamily: "Arial Black, Impact, sans-serif",
-      }}>
-        <div>9 WORLDS · 81 LEVELS</div>
-        <div style={{ color: "rgba(255,43,214,0.94)", letterSpacing: "0.09em" }}>Ready when you are</div>
-      </div>
+      {/* ── STANDARD GAME SPLASH ─────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showSplash && (
+          <motion.div
+            className="relative z-10 flex flex-col items-center text-center"
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.04 }}
+            transition={{ duration: 0.65, ease: "easeOut" }}
+          >
+            <p style={{
+              margin: "0 0 18px", color: "rgba(200,244,255,0.72)",
+              fontSize: "clamp(0.48rem, 1.1vw, 0.7rem)", fontWeight: 900,
+              letterSpacing: "0.34em", fontFamily: "Arial Black, Impact, sans-serif",
+            }}>
+              ORBLITZTEAM PRESENTS
+            </p>
+            <h1 style={{
+              margin: 0, color: "#e8fcff", fontSize: "clamp(3.4rem, 11vw, 7rem)",
+              lineHeight: 0.9, fontWeight: 900, letterSpacing: "0.075em",
+              fontFamily: "Arial Black, Impact, sans-serif",
+              textShadow: "0 0 16px rgba(0,246,255,0.72), 5px 5px 0 rgba(10,20,68,0.8)",
+            }}>
+              ORBLITZ
+            </h1>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 14, marginTop: 28,
+              color: "rgba(226,249,255,0.78)", fontSize: "clamp(0.46rem, 1vw, 0.62rem)",
+              fontWeight: 900, letterSpacing: "0.16em", fontFamily: "Arial Black, Impact, sans-serif",
+            }}>
+              <div style={{
+                width: 36, height: 42, display: "flex", flexDirection: "column",
+                alignItems: "center", justifyContent: "center",
+                border: "2px solid rgba(226,249,255,0.8)", color: "#fff",
+                lineHeight: 1, letterSpacing: 0,
+              }}>
+                <strong style={{ fontSize: 22 }}>E</strong>
+                <span style={{ fontSize: 7, marginTop: 3 }}>EVERYONE</span>
+              </div>
+              <div style={{ textAlign: "left", lineHeight: 1.8 }}>
+                <div>DEVELOPED &amp; PUBLISHED BY ORBLITZTEAM</div>
+                <div style={{ color: "#ffe600" }}>© 2026 ORBLITZTEAM</div>
+                <div style={{ color: "rgba(200,244,255,0.56)" }}>ALL RIGHTS RESERVED</div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {!showSplash && (
+        <>
+          <div className="absolute left-6 top-6 z-[2] pointer-events-none" style={{
+            color: "rgba(210,252,255,0.9)", fontSize: "clamp(0.48rem, 1vw, 0.64rem)",
+            fontWeight: 900, letterSpacing: "0.14em", lineHeight: 1.7, fontFamily: "Arial Black, Impact, sans-serif",
+          }}>
+            <div>ORBLITZ ARCADE</div>
+            <div style={{ color: "rgba(255,230,0,0.94)", letterSpacing: "0.1em" }}>Stack · play · repeat</div>
+          </div>
+          <div className="absolute right-6 top-6 z-[2] pointer-events-none text-right" style={{
+            color: "rgba(210,252,255,0.78)", fontSize: "clamp(0.48rem, 1vw, 0.64rem)",
+            fontWeight: 900, letterSpacing: "0.12em", lineHeight: 1.7, fontFamily: "Arial Black, Impact, sans-serif",
+          }}>
+            <div>9 WORLDS · 81 LEVELS</div>
+            <div style={{ color: "rgba(255,43,214,0.94)", letterSpacing: "0.09em" }}>Ready when you are</div>
+          </div>
+        </>
+      )}
 
       {/* Convergence core and detonation rays */}
       <AnimatePresence>
@@ -566,7 +628,7 @@ export function StartupAnimation({
                 fontFamily: "Arial Black, Impact, sans-serif", textTransform: "uppercase",
               }}
             >
-              {showWaiting ? "The board is yours now" : "A bright little arcade"}
+              "A bright little arcade"
             </motion.p>
             {/* Letters clickable in menu phase for dev-mode easter egg */}
             {showMenu ? (
@@ -694,28 +756,6 @@ export function StartupAnimation({
           >
             <span style={{ color: "#ffe600", fontSize: "0.72rem" }}>★</span>
             <span style={{ color: "#fff1bd", fontSize: "0.66rem", fontWeight: 900, letterSpacing: "0.08em", fontFamily: "Arial Black, Impact, sans-serif" }}>{shopStars} STARS</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── TAP TO START — stationary, pure opacity crossfade ───────────── */}
-      <AnimatePresence>
-        {showWaiting && (
-          <motion.div
-            className="absolute left-0 right-0 text-center z-10 pointer-events-none"
-            style={{ bottom: "clamp(44px, 8vh, 80px)" }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.85 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-          >
-            <p className="text-lg md:text-xl font-semibold tracking-[0.22em] uppercase"
-              style={{ color: "rgba(226,249,255,0.94)", textShadow: "3px 3px 0 rgba(10,20,68,0.7), 0 0 18px rgba(90,215,255,0.5)", fontSize: "clamp(0.72rem, 2vw, 1.05rem)", fontFamily: "Arial Black, Impact, sans-serif" }}>
-              Press to Play
-            </p>
-            <p style={{ margin: "8px 0 0", color: "rgba(204,233,255,0.66)", fontSize: "clamp(0.4rem, 1vw, 0.58rem)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "Arial Black, Impact, sans-serif" }}>
-              Clear the board · chase the high score
-            </p>
           </motion.div>
         )}
       </AnimatePresence>

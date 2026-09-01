@@ -485,7 +485,7 @@ export function GameScene({ introBossPhase = null }: { introBossPhase?: IntroBos
           {introBossPhase && <ArcadeBossIntroScene phase={introBossPhase} />}
 
           {/* Lightweight background — gameplay GPU systems mount below only when needed */}
-          {backgroundEnabled && !foregroundIntroBosses && <Background />}
+          {backgroundEnabled && <Background visible={!foregroundIntroBosses} />}
 
           {/* Gameplay systems — unmounted outside gameplay loading/playing */}
           <GameplayGate />
