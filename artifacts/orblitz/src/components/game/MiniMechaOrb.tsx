@@ -63,6 +63,7 @@ export function MiniMechaOrb({ radius = 1, showLight = true, animatePresentation
           coreColor: "#ffffff",
           glowColor: "#ffffff",
           tintColors: false,
+          emissiveBoost: 0.7,
         });
         const authoredMaterial = mat as THREE.MeshStandardMaterial;
         if (!authoredMaterial.map && orbTexture) authoredMaterial.map = orbTexture;

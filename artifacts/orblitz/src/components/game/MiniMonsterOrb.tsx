@@ -310,6 +310,7 @@ export function MiniMonsterOrb({ radius = 1, particleCount = MINI_PARTICLE_COUNT
           coreColor: "#ffffff",
           glowColor: "#ffffff",
           tintColors: false,
+          emissiveBoost: 0.7,
         });
         const authoredMaterial = mat as THREE.MeshStandardMaterial;
         if (!authoredMaterial.map && orbTexture) authoredMaterial.map = orbTexture;

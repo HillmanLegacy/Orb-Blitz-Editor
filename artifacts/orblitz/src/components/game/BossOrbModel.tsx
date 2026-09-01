@@ -76,6 +76,10 @@ export function BossOrbModel({ scale = 2.5, healthPercent = 1, animatePresentati
             coreColor: "#ffffff",
             glowColor: "#ffffff",
             tintColors: false,
+            // Player boss skins do not mount the enemy renderer's key light.
+            // Reuse the authored base-color map as a restrained emissive lift
+            // so PBR shading cannot turn the equipped texture muddy or black.
+            emissiveBoost: 0.7,
           });
           const authoredMaterial = material as THREE.MeshStandardMaterial;
           if (!authoredMaterial.map && map) authoredMaterial.map = map;
