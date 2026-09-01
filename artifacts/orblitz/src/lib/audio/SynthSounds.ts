@@ -31,6 +31,14 @@ let _masterGain: GainNode | null = null;
 let _masterComp: DynamicsCompressorNode | null = null;
 let _reverbNode: ConvolverNode | null = null;
 let _reverbReturn: GainNode | null = null;
+let _masterVolume = (() => {
+  try {
+    const stored = parseFloat(localStorage.getItem("orb_volume") ?? "1");
+    return Number.isFinite(stored) ? Math.max(0, Math.min(1, stored)) : 1;
+  } catch {
+    return 1;
+  }
+})();
 
 function reportAudioError(context: string, error: unknown): void {
   if (import.meta.env.DEV) {
@@ -66,7 +74,7 @@ function _setupMasterBus(ctx: AudioContext) {
 
   // Master gain
   _masterGain = ctx.createGain();
-  _masterGain.gain.value = 0.85;
+  _masterGain.gain.value = _masterVolume * 0.85;
   _masterGain.connect(_masterComp);
 
   // Reverb bus
@@ -1265,6 +1273,7 @@ export type SynthMusicNode = {
   stop:         () => void;
   fadeIn:       () => void;
   fadeOut:      (onComplete?: () => void) => void;
+  setMuted:     (muted: boolean) => void;
   setIntensity?: (i: number) => void;
 };
 
@@ -1476,9 +1485,28 @@ export function createGameplayMusicNode(targetVol = 0.2): SynthMusicNode {
           onComplete?.();
         }, (FADE_TIME + 0.1) * 1000);
       },
+      setMuted: (muted: boolean) => {
+        fadeGeneration++;
+        if (fadeTimer !== null) {
+          clearTimeout(fadeTimer);
+          fadeTimer = null;
+        }
+        mgain.gain.cancelScheduledValues(ctx.currentTime);
+        mgain.gain.setValueAtTime(muted ? 0 : targetVol, ctx.currentTime);
+        active = !muted;
+        if (muted) {
+          if (scheduleTimer !== null) {
+            clearTimeout(scheduleTimer);
+            scheduleTimer = null;
+          }
+        } else {
+          nextT = ctx.currentTime + 0.05;
+          if (scheduleTimer === null) schedule();
+        }
+      },
     };
   } catch (_) {
-    return { start: () => {}, stop: () => {}, fadeIn: () => {}, fadeOut: (cb) => { cb?.(); } };
+    return { start: () => {}, stop: () => {}, fadeIn: () => {}, fadeOut: (cb) => { cb?.(); }, setMuted: () => {} };
   }
 }
 
@@ -1700,9 +1728,28 @@ export function createMenuMusicNode(targetVol = 0.2): SynthMusicNode {
           onComplete?.();
         }, (FADE_TIME + 0.1) * 1000);
       },
+      setMuted: (muted: boolean) => {
+        fadeGeneration++;
+        if (fadeTimer !== null) {
+          clearTimeout(fadeTimer);
+          fadeTimer = null;
+        }
+        mgain.gain.cancelScheduledValues(ctx.currentTime);
+        mgain.gain.setValueAtTime(muted ? 0 : targetVol, ctx.currentTime);
+        active = !muted;
+        if (muted) {
+          if (scheduleTimer !== null) {
+            clearTimeout(scheduleTimer);
+            scheduleTimer = null;
+          }
+        } else {
+          nextT = ctx.currentTime + 0.05;
+          if (scheduleTimer === null) schedule();
+        }
+      },
     };
   } catch (_) {
-    return { start: () => {}, stop: () => {}, fadeIn: () => {}, fadeOut: (cb) => { cb?.(); } };
+    return { start: () => {}, stop: () => {}, fadeIn: () => {}, fadeOut: (cb) => { cb?.(); }, setMuted: () => {} };
   }
 }
 
@@ -1929,10 +1976,29 @@ export function createBossMusicNode(targetVol = 0.18): SynthMusicNode {
           onComplete?.();
         }, (FADE_TIME + 0.1) * 1000);
       },
+      setMuted: (muted: boolean) => {
+        fadeGeneration++;
+        if (fadeTimer !== null) {
+          clearTimeout(fadeTimer);
+          fadeTimer = null;
+        }
+        mgain.gain.cancelScheduledValues(ctx.currentTime);
+        mgain.gain.setValueAtTime(muted ? 0 : targetVol, ctx.currentTime);
+        active = !muted;
+        if (muted) {
+          if (scheduleTimer !== null) {
+            clearTimeout(scheduleTimer);
+            scheduleTimer = null;
+          }
+        } else {
+          nextT = ctx.currentTime + 0.05;
+          if (scheduleTimer === null) schedule();
+        }
+      },
       setIntensity: (i: number) => { intensity = Math.max(0, Math.min(1, i)); },
     };
   } catch (_) {
-    return { start: () => {}, stop: () => {}, fadeIn: () => {}, fadeOut: (cb) => { cb?.(); } };
+    return { start: () => {}, stop: () => {}, fadeIn: () => {}, fadeOut: (cb) => { cb?.(); }, setMuted: () => {} };
   }
 }
 
@@ -1942,7 +2008,8 @@ export { _makeNoiseBuf as createNoiseBuffer };
 
 /** Set the master output volume (0–1). Safe to call before any audio is initialised. */
 export function setMasterVolume(v: number): void {
-  if (_masterGain) _masterGain.gain.value = Math.max(0, Math.min(1, v)) * 0.85;
+  _masterVolume = Math.max(0, Math.min(1, v));
+  if (_masterGain) _masterGain.gain.value = _masterVolume * 0.85;
 }
 
 /** Release the shared Web Audio graph so an app unmount or HMR replacement does

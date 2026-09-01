@@ -61,6 +61,7 @@ let _arcadeShuffled: string[] = [];
 let _arcadeIdx = 0;
 let _arcadeFadeTimer: number | null = null;
 let _arcadeGeneration = 0;
+const clampAudioVolume = (value: number) => Math.max(0, Math.min(1, value));
 
 function reportAudioPlaybackError(context: string, error: unknown): void {
   if (import.meta.env.DEV) {
@@ -99,7 +100,7 @@ function _fadeArcade(el: HTMLAudioElement, from: number, to: number, ms: number,
   const steps = 40;
   const step_ms = ms / steps;
   let s = 0;
-  el.volume = Math.max(0, Math.min(1, from));
+  el.volume = clampAudioVolume(from);
   _arcadeFadeTimer = window.setInterval(() => {
     if (_arcadeEl !== el || generation !== _arcadeGeneration) {
       if (_arcadeFadeTimer) clearInterval(_arcadeFadeTimer);
@@ -109,11 +110,11 @@ function _fadeArcade(el: HTMLAudioElement, from: number, to: number, ms: number,
     s++;
     const t = s / steps;
     const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-    el.volume = Math.max(0, Math.min(1, from + (to - from) * e));
+    el.volume = clampAudioVolume(from + (to - from) * e);
     if (s >= steps) {
       clearInterval(_arcadeFadeTimer!);
       _arcadeFadeTimer = null;
-      el.volume = Math.max(0, Math.min(1, to));
+      el.volume = clampAudioVolume(to);
       if (to === 0) el.pause();
       onDone?.();
     }
@@ -146,10 +147,31 @@ function _playNextArcadeTrack(targetVol: number) {
 // the single biggest source of abandoned HTMLAudioElement accumulation.
 const WAV_POOL_SIZE = 6;
 const MAX_WAV_POOLS = 8;
-const _wavPools = new Map<string, { els: HTMLAudioElement[]; idx: number }>();
+type WavPool = { els: HTMLAudioElement[]; idx: number; baseVolume: number };
+const _wavPools = new Map<string, WavPool>();
+let _wavOutputVolume = (() => {
+  try {
+    const stored = parseFloat(localStorage.getItem("orb_volume") ?? "1");
+    return Number.isFinite(stored) ? clampAudioVolume(stored) : 1;
+  } catch {
+    return 1;
+  }
+})();
+let _wavOutputMuted = false;
 
 function _unloadWavPool(pool: { els: HTMLAudioElement[] }) {
   pool.els.forEach(_unloadAudio);
+}
+
+function setWavOutput(volume: number, muted: boolean) {
+  _wavOutputVolume = clampAudioVolume(volume);
+  _wavOutputMuted = muted;
+  _wavPools.forEach((pool) => {
+    pool.els.forEach((el) => {
+      el.volume = clampAudioVolume(pool.baseVolume * _wavOutputVolume);
+      el.muted = muted;
+    });
+  });
 }
 
 function playWav(path: string, volume = 0.6) {
@@ -159,7 +181,7 @@ function playWav(path: string, volume = 0.6) {
       // Map insertion order is our deterministic least-recently-used order.
       // Move entries on use below, so the first entry is always the eviction target.
       if (_wavPools.size >= MAX_WAV_POOLS) {
-        const oldest = _wavPools.entries().next().value as [string, { els: HTMLAudioElement[]; idx: number }] | undefined;
+        const oldest = _wavPools.entries().next().value as [string, WavPool] | undefined;
         if (oldest) {
           _unloadWavPool(oldest[1]);
           _wavPools.delete(oldest[0]);
@@ -168,6 +190,7 @@ function playWav(path: string, volume = 0.6) {
       pool = {
         els: Array.from({ length: WAV_POOL_SIZE }, () => new Audio(path)),
         idx: 0,
+        baseVolume: volume,
       };
       _wavPools.set(path, pool);
     } else {
@@ -176,8 +199,10 @@ function playWav(path: string, volume = 0.6) {
     }
     const el = pool.els[pool.idx % WAV_POOL_SIZE];
     pool.idx++;
+    pool.baseVolume = volume;
     el.currentTime = 0;
-    el.volume = Math.max(0, Math.min(1, volume));
+    el.volume = clampAudioVolume(volume * _wavOutputVolume);
+    el.muted = _wavOutputMuted;
     playAudioElement(el, "sound effect");
   } catch {}
 }
@@ -253,7 +278,13 @@ const fadeAudio = (
   }, stepDuration);
 };
 
-type SynthMusicNode = { start: () => void; stop: () => void; fadeIn: () => void; fadeOut: (onComplete?: () => void) => void };
+type SynthMusicNode = {
+  start: () => void;
+  stop: () => void;
+  fadeIn: () => void;
+  fadeOut: (onComplete?: () => void) => void;
+  setMuted: (muted: boolean) => void;
+};
 
 interface AudioState {
   backgroundMusic: HTMLAudioElement | null;
@@ -342,13 +373,31 @@ export const useAudio = create<AudioState>((set, get) => ({
 
   setVolume: (v: number) => {
     const clamped = Math.min(1, Math.max(0, v));
+    const { isMuted, menuBgm, backgroundMusic, menuMusic } = get();
     set({ volume: clamped });
-    setMasterVolume(clamped);
+    setMasterVolume(isMuted ? 0 : clamped);
+    setWavOutput(clamped, isMuted);
     try { localStorage.setItem("orb_volume", String(clamped)); } catch {}
-    // Keep arcade BGM in sync with master volume
-    if (_arcadeEl && !_arcadeEl.paused) {
-      _arcadeEl.volume = Math.min(1, 0.65 * clamped);
+    // Keep every active HTML audio output in sync with the setting.
+    if (menuBgm) {
+      if (menuBgmFadeInterval !== null) {
+        clearInterval(menuBgmFadeInterval);
+        menuBgmFadeInterval = null;
+      }
+      menuBgm.volume = clampAudioVolume(0.65 * clamped);
+      menuBgm.muted = isMuted;
     }
+    if (_arcadeEl) {
+      if (_arcadeFadeTimer !== null) {
+        clearInterval(_arcadeFadeTimer);
+        _arcadeFadeTimer = null;
+      }
+      _arcadeEl.volume = clampAudioVolume(0.65 * clamped);
+      _arcadeEl.muted = isMuted;
+    }
+    [backgroundMusic, menuMusic].forEach((audio) => {
+      if (audio) audio.muted = isMuted;
+    });
   },
   setBrightness: (v: number) => {
     const clamped = Math.min(2, Math.max(0.2, v));
@@ -386,33 +435,62 @@ export const useAudio = create<AudioState>((set, get) => ({
   },
   
   toggleMute: () => {
-    const { isMuted, synthMenuMusic, synthGameMusic, synthBossMusic, currentMusicType, volume } = get();
+    const {
+      isMuted,
+      synthMenuMusic,
+      synthGameMusic,
+      synthBossMusic,
+      currentMusicType,
+      volume,
+      menuBgm,
+      backgroundMusic,
+      menuMusic,
+    } = get();
     const newMutedState = !isMuted;
     set({ isMuted: newMutedState });
-    
-    if (newMutedState) {
-      synthMenuMusic?.fadeOut();
-      synthGameMusic?.fadeOut();
-      synthBossMusic?.fadeOut();
-      // Fade out arcade BGM without stopping the playlist advance flag
-      if (_arcadeEl && !_arcadeEl.paused) {
-        _fadeArcade(_arcadeEl, _arcadeEl.volume, 0, 800);
+
+    // Mute is an output setting, so it must take effect without waiting for a
+    // scheduled note or an HTML audio fade interval to reach its endpoint.
+    setMasterVolume(newMutedState ? 0 : volume);
+    setWavOutput(volume, newMutedState);
+    [backgroundMusic, menuMusic].forEach((audio) => {
+      if (audio) audio.muted = newMutedState;
+    });
+    if (menuBgm) {
+      if (menuBgmFadeInterval !== null) {
+        clearInterval(menuBgmFadeInterval);
+        menuBgmFadeInterval = null;
       }
+      menuBgm.volume = clampAudioVolume(0.65 * volume);
+      menuBgm.muted = newMutedState;
+    }
+    if (_arcadeEl) {
+      if (_arcadeFadeTimer !== null) {
+        clearInterval(_arcadeFadeTimer);
+        _arcadeFadeTimer = null;
+      }
+      _arcadeEl.volume = clampAudioVolume(0.65 * volume);
+      _arcadeEl.muted = newMutedState;
+    }
+
+    if (newMutedState) {
+      synthMenuMusic?.setMuted(true);
+      synthGameMusic?.setMuted(true);
+      synthBossMusic?.setMuted(true);
     } else {
       if (currentMusicType === "menu") {
-        get().initSynthMenuMusic()?.fadeIn();
+        get().initSynthMenuMusic()?.setMuted(false);
       } else if (currentMusicType === "game") {
-        get().initSynthGameMusic()?.fadeIn();
+        get().initSynthGameMusic()?.setMuted(false);
       } else if (currentMusicType === "boss") {
-        get().initSynthBossMusic()?.fadeIn();
+        get().initSynthBossMusic()?.setMuted(false);
       }
-      // Resume arcade BGM if the playlist is still active
-      if (_arcadeActive && _arcadeEl) {
-        playAudioElement(_arcadeEl, "arcade track");
-        _fadeArcade(_arcadeEl, 0, Math.min(1, 0.65 * volume), 800);
-      } else if (_arcadeActive) {
-        _playNextArcadeTrack(0.65 * volume);
-      }
+    }
+    // Resume arcade BGM if the playlist is still active.
+    if (!newMutedState && _arcadeActive && _arcadeEl) {
+      playAudioElement(_arcadeEl, "arcade track");
+    } else if (!newMutedState && _arcadeActive) {
+      _playNextArcadeTrack(0.65 * volume);
     }
   },
   
