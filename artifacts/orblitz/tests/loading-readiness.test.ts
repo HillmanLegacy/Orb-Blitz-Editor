@@ -24,9 +24,10 @@ describe("section-aware loading", () => {
     const boss = getSectionManifest("arcade", 1.9);
     const mechaWorld = getSectionManifest("arcade", 8.1);
 
-    expect(normal.assets.map((asset) => asset.id)).not.toContain("boss-1-base");
-    expect(normal.nextWarmAssets.map((asset) => asset.id)).toContain("boss-1-base");
-    expect(boss.assets.map((asset) => asset.id)).toContain("boss-1-base");
+    expect(normal.assets.map((asset) => asset.id)).not.toContain("boss-1-texture");
+    expect(normal.nextWarmAssets.map((asset) => asset.id)).toContain("boss-1-texture");
+    expect(boss.assets.map((asset) => asset.id)).toContain("boss-1-texture");
+    expect(boss.assets.map((asset) => asset.id)).not.toContain("boss-1-base");
     expect(mechaWorld.assets.map((asset) => asset.id)).toContain("boss-8");
   });
 

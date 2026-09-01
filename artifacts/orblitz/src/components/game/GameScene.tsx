@@ -21,6 +21,7 @@ import {
   usePerformanceToggleVersion,
   type PerformanceFeature,
 } from "@/game-runtime/PerformanceToggles";
+import { ArcadeBossIntroScene, type IntroBossPhase } from "@/components/ui/ArcadeBossIntroScene";
 
 const loadGameplayScene = () => import("./GameplayScene");
 let loadedGameplayScene: ComponentType | null = null;
@@ -50,7 +51,7 @@ function RendererSetup() {
 //
 // 30 fps gives each frame ~33 ms of budget — roughly 2× more headroom than
 // 60 fps — so heavy scenes (many orbs, particles, effects) stutter less.
-function RenderScheduler() {
+function RenderScheduler({ introBossPhase }: { introBossPhase?: IntroBossPhase | null }) {
   const { invalidate } = useThree();
   const preset = useGraphicsPreset();
   const profile = getGraphicsPresetProfile(preset);
@@ -70,8 +71,9 @@ function RenderScheduler() {
         // Menu screens: 15 fps — frees the JS thread for button hover/click events.
         // Active gameplay: 60 fps — fluid fire shaders and particle animations need it.
         // Everything else (pause, transitions, game-over): 30 fps is plenty.
-        const fps =
-          phase === "menu" || phase === "modeSelect" ? profile.menuFps :
+         const fps =
+           introBossPhase ? profile.idleFps :
+           phase === "menu" || phase === "modeSelect" ? profile.menuFps :
           phase === "playing" ? profile.gameplayFps :
           profile.idleFps;
         schedule(fps);
@@ -83,7 +85,7 @@ function RenderScheduler() {
       if (handle !== null) clearInterval(handle);
       unsubscribe();
     };
-  }, [invalidate, profile]);
+  }, [invalidate, profile, introBossPhase]);
 
   return null;
 }
@@ -441,7 +443,7 @@ function canCreateWebGLContext() {
 }
 
 // ── Scene ─────────────────────────────────────────────────────────────────────
-export function GameScene() {
+export function GameScene({ introBossPhase = null }: { introBossPhase?: IntroBossPhase | null }) {
   const [webglAvailable] = useState(canCreateWebGLContext);
   const backgroundEnabled = usePerformanceFeature("background");
 
@@ -469,12 +471,13 @@ export function GameScene() {
         }}
       >
         <Suspense fallback={null}>
-          <RenderScheduler />
+          <RenderScheduler introBossPhase={introBossPhase} />
           <PerformanceToggleInvalidator />
           <AdaptiveRenderQuality />
           <GameRuntimeLifecycle />
           <RendererSetup />
           <CameraController />
+          {introBossPhase && <ArcadeBossIntroScene phase={introBossPhase} />}
 
           {/* Lightweight background — gameplay GPU systems mount below only when needed */}
           {backgroundEnabled && <Background />}

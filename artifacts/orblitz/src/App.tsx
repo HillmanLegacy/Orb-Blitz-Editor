@@ -15,6 +15,7 @@ import { GameOver } from "@/components/ui/GameOver";
 import { PauseMenu } from "@/components/ui/PauseMenu";
 import { LevelTransition } from "@/components/ui/LevelTransition";
 import { StartupAnimation, type MenuState } from "@/components/ui/StartupAnimation";
+import type { IntroBossPhase } from "@/components/ui/ArcadeBossIntroScene";
 import { StartupLoading } from "@/components/ui/StartupLoading";
 import { ArcadeComplete } from "@/components/ui/ArcadeComplete";
 import { OrbSweepOverlay } from "@/components/ui/OrbSweepOverlay";
@@ -49,6 +50,7 @@ function App() {
 
   const [showStartupLoading, setShowStartupLoading] = useState(true);
   const [skipIntro, setSkipIntro] = useState(false);
+  const [introBossPhase, setIntroBossPhase] = useState<IntroBossPhase | null>(null);
   const [initialMenuState, setInitialMenuState] = useState<MenuState>("root");
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
   const [shopLayerVisible, setShopLayerVisible] = useState(false);
@@ -179,7 +181,7 @@ function App() {
       {showStartupLoading && <StartupLoading onComplete={handleStartupLoadingComplete} />}
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
         <div style={{ pointerEvents: "auto", width: "100%", height: "100%" }}>
-          <GameScene />
+           <GameScene introBossPhase={introBossPhase} />
         </div>
       </div>
 
@@ -190,6 +192,7 @@ function App() {
             skipIntro={skipIntro}
             initialState={initialMenuState}
             onMenuReady={handleMenuReady}
+            onIntroPhaseChange={setIntroBossPhase}
           />
         )}
       </AnimatePresence>

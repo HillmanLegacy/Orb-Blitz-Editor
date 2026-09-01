@@ -76,7 +76,6 @@ const MENU_AUDIO: SectionAsset[] = [
 
 const BOSS_MODELS: Record<number, SectionAsset[]> = {
   1: [
-    { id: "boss-1-base", url: "/models/boss_orb_1.glb", label: "Preparing fire guardian", kind: "gltf" },
     { id: "boss-1-texture", url: "/models/boss_orb_1_texture.glb", label: "Preparing fire guardian", kind: "gltf" },
   ],
   2: [{ id: "boss-2", url: "/models/boss_orb_2_star_texture.glb", label: "Preparing star guardian", kind: "gltf" }],
