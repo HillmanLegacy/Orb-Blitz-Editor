@@ -630,85 +630,46 @@ export function StartupAnimation({
             >
               "A bright little arcade"
             </motion.p>
-            {/* Letters clickable in menu phase for dev-mode easter egg */}
-            {showMenu ? (
-              <motion.h1
-                className="font-black tracking-widest flex items-center justify-center"
-                style={{ fontSize: "clamp(3.5rem, 11vw, 7rem)", lineHeight: 1,
-                  fontFamily: "Arial Black, Impact, sans-serif", fontWeight: 900, fontStyle: "normal",
-                  letterSpacing: "0.075em", transform: "none",
-                  WebkitTextStroke: "2px rgba(210,252,255,0.22)",
-                  textShadow: "5px 5px 0 rgba(10,20,68,0.65), 0 0 18px rgba(190,245,255,0.32)",
-                  filter: devFlash ? "drop-shadow(0 0 30px #ffff00) drop-shadow(0 0 60px #ffaa00)" : undefined,
-                  transition: devFlash ? "filter 0.1s" : undefined,
-                }}
-              >
-                {TITLE_LETTERS.map((letter, idx) => (
-                  <motion.span key={idx} className="cursor-pointer"
-                    ref={(node) => { titleLetterRefs.current[idx] = node; }}
-                    style={{
-                       ...getTitleReflectionStyle(idx),
-                    }}
-                     animate={{
-                       backgroundPosition: [
-                         "0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, -130% 0%",
-                         "0% 0%, 100% 100%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 130% 0%",
-                         "0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, -130% 0%",
-                       ],
-                       filter: [
-                         "drop-shadow(0 0 7px rgba(180,235,255,0.45)) saturate(1.03)",
-                         "drop-shadow(0 0 12px rgba(255,255,255,0.66)) saturate(1.16)",
-                         "drop-shadow(0 0 7px rgba(180,235,255,0.45)) saturate(1.03)",
-                       ],
-                       opacity: idx < devProgress ? 0.4 : 1,
-                     }}
-                     transition={{
-                       backgroundPosition: { duration: 8.5 + idx * 0.45, repeat: Infinity, ease: "easeInOut", delay: idx * 0.12 },
-                       filter: { duration: 8.5 + idx * 0.45, repeat: Infinity, ease: "easeInOut", delay: idx * 0.12 },
-                       opacity: { duration: 0.2 },
-                     }}
-                    whileHover={{ scale: 1.14, y: -3 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={(e) => { e.stopPropagation(); handleLetterClick(letter, idx); }}
-                  >{letter}</motion.span>
-                ))}
-              </motion.h1>
-            ) : (
-              <h1 className="font-black tracking-widest text-transparent bg-clip-text pointer-events-none"
-                style={{ fontSize: "clamp(3.5rem, 11vw, 7rem)", lineHeight: 1,
-                  fontFamily: "Arial Black, Impact, sans-serif", fontWeight: 900, fontStyle: "normal",
-                  letterSpacing: "0.075em", transform: "none",
-                  WebkitTextStroke: "2px rgba(210,252,255,0.22)",
-                  textShadow: "5px 5px 0 rgba(10,20,68,0.65), 0 0 18px rgba(190,245,255,0.32)",
-                 }}
-               >
-                 {TITLE_LETTERS.map((letter, idx) => (
-                   <motion.span
-                     key={idx}
-                     ref={(node) => { titleLetterRefs.current[idx] = node; }}
-                     style={getTitleReflectionStyle(idx)}
-                     animate={{
-                       backgroundPosition: [
-                          "0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, -130% 0%",
-                          "0% 0%, 100% 100%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 130% 0%",
-                          "0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, -130% 0%",
-                       ],
-                       filter: [
-                         "drop-shadow(0 0 7px rgba(180,235,255,0.45)) saturate(1.03)",
-                         "drop-shadow(0 0 12px rgba(255,255,255,0.66)) saturate(1.16)",
-                         "drop-shadow(0 0 7px rgba(180,235,255,0.45)) saturate(1.03)",
-                       ],
-                     }}
-                     transition={{
-                       backgroundPosition: { duration: 8.5 + idx * 0.45, repeat: Infinity, ease: "easeInOut", delay: idx * 0.12 },
-                       filter: { duration: 8.5 + idx * 0.45, repeat: Infinity, ease: "easeInOut", delay: idx * 0.12 },
-                     }}
-                   >
-                     {letter}
-                   </motion.span>
-                 ))}
-               </h1>
-            )}
+            {/* One persistent title node: the reveal becomes the interactive menu title in place. */}
+            <motion.h1
+              className={`font-black tracking-widest flex items-center justify-center${showMenu ? "" : " pointer-events-none"}`}
+              style={{ fontSize: "clamp(3.5rem, 11vw, 7rem)", lineHeight: 1,
+                fontFamily: "Arial Black, Impact, sans-serif", fontWeight: 900, fontStyle: "normal",
+                letterSpacing: "0.075em", transform: "none",
+                WebkitTextStroke: "2px rgba(210,252,255,0.22)",
+                textShadow: "5px 5px 0 rgba(10,20,68,0.65), 0 0 18px rgba(190,245,255,0.32)",
+                filter: devFlash ? "drop-shadow(0 0 30px #ffff00) drop-shadow(0 0 60px #ffaa00)" : undefined,
+                transition: devFlash ? "filter 0.1s" : undefined,
+              }}
+            >
+              {TITLE_LETTERS.map((letter, idx) => (
+                <motion.span key={idx} className={showMenu ? "cursor-pointer" : undefined}
+                  ref={(node) => { titleLetterRefs.current[idx] = node; }}
+                  style={getTitleReflectionStyle(idx)}
+                  animate={{
+                    backgroundPosition: [
+                      "0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, -130% 0%",
+                      "0% 0%, 100% 100%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 130% 0%",
+                      "0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, -130% 0%",
+                    ],
+                    filter: [
+                      "drop-shadow(0 0 7px rgba(180,235,255,0.45)) saturate(1.03)",
+                      "drop-shadow(0 0 12px rgba(255,255,255,0.66)) saturate(1.16)",
+                      "drop-shadow(0 0 7px rgba(180,235,255,0.45)) saturate(1.03)",
+                    ],
+                    opacity: idx < devProgress ? 0.4 : 1,
+                  }}
+                  transition={{
+                    backgroundPosition: { duration: 8.5 + idx * 0.45, repeat: Infinity, ease: "easeInOut", delay: idx * 0.12 },
+                    filter: { duration: 8.5 + idx * 0.45, repeat: Infinity, ease: "easeInOut", delay: idx * 0.12 },
+                    opacity: { duration: 0.2 },
+                  }}
+                  whileHover={showMenu ? { scale: 1.14, y: -3 } : undefined}
+                  whileTap={showMenu ? { scale: 0.9 } : undefined}
+                  onClick={showMenu ? (e) => { e.stopPropagation(); handleLetterClick(letter, idx); } : undefined}
+                >{letter}</motion.span>
+              ))}
+            </motion.h1>
 
             {/* Underline */}
             <motion.div className="mt-3 mx-auto" style={{
