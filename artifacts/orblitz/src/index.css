@@ -88,16 +88,6 @@ canvas {
   touch-action: none;
 }
 
-/* ── Title glow: CSS animation replaces Framer Motion infinite filter loop ── */
-@keyframes orb-title-pulse {
-  0%, 100% { filter: drop-shadow(0 0 18px rgba(0,255,255,0.55)) drop-shadow(0 0 36px rgba(255,0,255,0.25)); }
-  50%       { filter: drop-shadow(0 0 28px rgba(255,0,255,0.6))  drop-shadow(0 0 56px rgba(0,255,255,0.3));  }
-}
-.orb-title-glow {
-  animation: orb-title-pulse 2.2s ease-in-out infinite;
-  will-change: filter;
-}
-
 @media screen and (orientation: portrait) and (max-width: 768px) {
   #root::before {
     content: "Please rotate your device to landscape mode";

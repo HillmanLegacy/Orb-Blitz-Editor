@@ -29,3 +29,4 @@
 - [Orblitz viewport-safe overlays](orblitz-viewport-overlays.md) — Bound result/menu content with 100dvh and an internal scroll fallback instead of centered overflow-hidden stacks.
 - [Orblitz immediate audio settings](orblitz-immediate-audio-settings.md) — Mute and volume changes must update every active output immediately while preserving safe music scheduling.
 - [Orblitz startup canvas](orblitz-startup-canvas.md) — Startup boss previews must share the main WebGL renderer; nested R3F canvases can exceed browser context limits.
+- [Orblitz title refraction](orblitz-title-refraction.md) — Keep title glass lighting synchronized with shared boss motion; use distance/depth falloff inside letters, not duplicate aura overlays.

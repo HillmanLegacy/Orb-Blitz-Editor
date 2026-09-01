@@ -1,11 +1,16 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAudio } from "@/lib/stores/useAudio";
 import { useShop } from "@/lib/stores/useShop";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useOrbTransition } from "@/lib/stores/useOrbTransition";
 import { useGraphicsPreset, setGraphicsPreset, type GraphicsPreset } from "@/game-runtime/PerformanceToggles";
-import type { IntroBossPhase } from "./ArcadeBossIntroScene";
+import { BOSS_DEFEAT_PALETTES, MAIN_BOSS_TYPES, type MainBossType } from "@/components/game/BossDefeatPalette";
+import {
+  ARCADE_BOSS_INTRO_DEFS,
+  getMenuBossSwarmPosition,
+  type IntroBossPhase,
+} from "./ArcadeBossIntroScene";
 
 // ─── Custom SVG Icons ─────────────────────────────────────────────────────────
 const _svg = { viewBox: "0 0 24 24", fill: "none", width: "1em", height: "1em", style: { display: "block" } } as const;
@@ -39,19 +44,10 @@ const EXPLOSION_RAYS = Array.from({ length: 12 }, (_, index) => ({
   length: 90 + (index % 3) * 24,
 }));
 
-const TETROMINOES = [
-  { cells: [[0, 0], [1, 0], [2, 0], [3, 0]], color: "#5ad7ff", left: "8%", top: "18%", rotate: -12, scale: 1.2, duration: 9, delay: 0 },
-  { cells: [[0, 0], [0, 1], [1, 1], [2, 1]], color: "#ff78c8", left: "84%", top: "22%", rotate: 16, scale: 1.05, duration: 11, delay: 0.8 },
-  { cells: [[0, 0], [1, 0], [0, 1], [1, 1]], color: "#ffd166", left: "16%", top: "72%", rotate: -8, scale: 1.1, duration: 10, delay: 1.5 },
-  { cells: [[0, 0], [1, 0], [2, 0], [1, 1]], color: "#8d7cff", left: "78%", top: "72%", rotate: 10, scale: 1.15, duration: 12, delay: 0.4 },
-  { cells: [[0, 0], [1, 0], [1, 1], [2, 1]], color: "#75e0a4", left: "3%", top: "48%", rotate: 7, scale: 0.82, duration: 13, delay: 2 },
-  { cells: [[0, 0], [0, 1], [1, 1], [2, 1], [2, 2]], color: "#ff8f70", left: "91%", top: "48%", rotate: -14, scale: 0.78, duration: 10, delay: 1.1 },
-] as const;
-
 // ─── World palette (9 worlds, spans the title gradient arc) ──────────────────
 const WORLD_COLORS = [
-  "#5ad7ff","#8d7cff","#ff78c8","#ff8f70","#ffd166",
-  "#75e0a4","#ffad66","#a6a1ff","#6cd9d8",
+  "#00f6ff","#9b5cff","#ff2bd6","#ff6b35","#ffe600",
+  "#7cff00","#ff9f1c","#b45cff","#00e5ff",
 ];
 const WORLD_SHADOWS = WORLD_COLORS.map(c => c + "55");
 
@@ -71,6 +67,135 @@ const getOrbGoal = (world: number, sub: number): number => {
 // ─── Dev-mode easter egg ──────────────────────────────────────────────────────
 const DEV_SEQUENCE = ["O","R","B","L","I","T","Z"] as const;
 const TITLE_LETTERS = ["O","R","B","L","I","T","Z"];
+const TITLE_REFLECTION_BOSSES: readonly MainBossType[] = [
+  "circle", "star", "triangle", "trapezoid", "cube", "arrow", "monster",
+];
+const BOSS_LIGHT_WHEEL = [
+  ...new Set(
+    Object.values(BOSS_DEFEAT_PALETTES).flatMap((palette) => [
+      palette.glow,
+      palette.secondary,
+      palette.highlight,
+    ]),
+  ),
+];
+
+function getTitleReflectionStyle(index: number): React.CSSProperties {
+  const palette = BOSS_DEFEAT_PALETTES[TITLE_REFLECTION_BOSSES[index % TITLE_REFLECTION_BOSSES.length]];
+  const wheelStops = BOSS_LIGHT_WHEEL
+    .map((color, stopIndex) => `${color}18 ${(stopIndex / BOSS_LIGHT_WHEEL.length) * 360}deg`)
+    .join(", ");
+  return {
+    display: "inline-block",
+    backgroundImage: [
+      "linear-gradient(135deg, rgba(236,253,255,0.68) 0%, rgba(160,218,255,0.26) 25%, rgba(16,26,76,0.3) 48%, rgba(255,255,255,0.6) 72%, rgba(218,249,255,0.46) 100%)",
+      `conic-gradient(from ${index * 23}deg at 50% 50%, ${wheelStops}, ${BOSS_LIGHT_WHEEL[0]}18 360deg)`,
+      "radial-gradient(ellipse 120% 180% at var(--refract-x-1,50%) var(--refract-y-1,50%), var(--refract-color-1, rgba(255,255,255,0)) 0%, transparent 48%)",
+      "radial-gradient(ellipse 120% 180% at var(--refract-x-2,50%) var(--refract-y-2,50%), var(--refract-color-2, rgba(255,255,255,0)) 0%, transparent 48%)",
+      "radial-gradient(ellipse 120% 180% at var(--refract-x-3,50%) var(--refract-y-3,50%), var(--refract-color-3, rgba(255,255,255,0)) 0%, transparent 48%)",
+      `radial-gradient(circle at 24% 22%, rgba(255,255,255,0.78) 0 2%, ${palette.highlight}33 4%, transparent 18%), radial-gradient(circle at 76% 74%, ${palette.glow}33 0 3%, transparent 23%)`,
+      "linear-gradient(112deg, transparent 0%, transparent 37%, rgba(255,255,255,0.88) 47%, rgba(255,255,255,0.12) 53%, transparent 65%)",
+    ].join(","),
+    backgroundBlendMode: "normal, screen, screen, screen, screen, screen, screen",
+    backgroundSize: "100% 100%, 220% 220%, 180% 180%, 180% 180%, 180% 180%, 100% 100%, 260% 100%",
+    backgroundPosition: "0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, -130% 0%",
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    backgroundClip: "text",
+    filter: "drop-shadow(0 0 7px rgba(180,235,255,0.45)) saturate(1.03)",
+    willChange: "background-position, filter",
+  };
+}
+
+function clampUnit(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const value = hex.replace("#", "");
+  const red = Number.parseInt(value.slice(0, 2), 16);
+  const green = Number.parseInt(value.slice(2, 4), 16);
+  const blue = Number.parseInt(value.slice(4, 6), 16);
+  return `rgba(${red},${green},${blue},${clampUnit(alpha).toFixed(3)})`;
+}
+
+/**
+ * Drives the title's internal refraction from the same normalized boss motion
+ * used by the WebGL scene. DOM variables are mutated directly so the glass can
+ * respond at animation-frame rate without rerendering the menu.
+ */
+function useTitleRefraction(
+  letterRefs: React.MutableRefObject<Array<HTMLSpanElement | null>>,
+  phase: AnimPhase,
+): void {
+  useEffect(() => {
+    if (typeof window === "undefined" || !["title", "waiting", "menu"].includes(phase)) return;
+
+    let frame = 0;
+    const startedAt = performance.now();
+    const update = (now: number) => {
+      const elapsed = Math.max(0, (now - startedAt) / 1000);
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const lights = ARCADE_BOSS_INTRO_DEFS.map((definition) => {
+        const motion = getMenuBossSwarmPosition(
+          definition.type,
+          elapsed + definition.delay * 0.8,
+          1,
+          1,
+        );
+        return {
+          x: width * (0.5 + motion.x),
+          y: height * (0.5 + motion.y),
+          depth: motion.depth,
+          scale: motion.scale,
+          palette: BOSS_DEFEAT_PALETTES[definition.type],
+        };
+      });
+
+      letterRefs.current.forEach((letter) => {
+        if (!letter) return;
+        const bounds = letter.getBoundingClientRect();
+        const centerX = bounds.left + bounds.width / 2;
+        const centerY = bounds.top + bounds.height / 2;
+        const radius = Math.max(bounds.width * 1.55, 86);
+        const ranked = lights
+          .map((light) => {
+            const distance = Math.hypot(light.x - centerX, light.y - centerY);
+            const lightRadius = radius * (0.88 + light.scale * 0.24);
+            const distanceFalloff = Math.exp(-distance / lightRadius);
+            const depthFalloff = 0.52 + (light.depth + 1) * 0.25;
+            return {
+              ...light,
+              distance,
+              intensity: clampUnit(distanceFalloff * depthFalloff * 1.38),
+            };
+          })
+          .sort((first, second) => second.intensity - first.intensity)
+          .slice(0, 3);
+
+        ranked.forEach((light, lightIndex) => {
+          const slot = lightIndex + 1;
+          const x = ((light.x - bounds.left) / Math.max(bounds.width, 1)) * 100;
+          const y = ((light.y - bounds.top) / Math.max(bounds.height, 1)) * 100;
+          const alpha = light.intensity * (lightIndex === 0 ? 0.9 : lightIndex === 1 ? 0.58 : 0.36);
+          letter.style.setProperty(`--refract-x-${slot}`, `${Math.max(-160, Math.min(260, x))}%`);
+          letter.style.setProperty(`--refract-y-${slot}`, `${Math.max(-180, Math.min(280, y))}%`);
+          letter.style.setProperty(`--refract-color-${slot}`, hexToRgba(light.palette.glow, alpha));
+        });
+
+        for (let lightIndex = ranked.length + 1; lightIndex <= 3; lightIndex++) {
+          letter.style.setProperty(`--refract-color-${lightIndex}`, "rgba(255,255,255,0)");
+        }
+      });
+
+      frame = requestAnimationFrame(update);
+    };
+
+    frame = requestAnimationFrame(update);
+    return () => cancelAnimationFrame(frame);
+  }, [letterRefs, phase]);
+}
 
 // ─── Button row definitions ───────────────────────────────────────────────────
 interface BtnDef {
@@ -97,6 +222,8 @@ export function StartupAnimation({
   const { openShop, openInventory, openTrophies, activateDevMode, coins: shopStars, devMode } = useShop();
   const { setGameMode, startLoading } = useMagicOrb();
   const graphicsPreset = useGraphicsPreset();
+  const titleLetterRefs = useRef<Array<HTMLSpanElement | null>>([]);
+  useTitleRefraction(titleLetterRefs, animPhase);
 
   // Reload progress when entering menu
   useEffect(() => {
@@ -151,17 +278,17 @@ export function StartupAnimation({
 
     switch (menuState) {
        case "root": return [
-        { id:"play",      icon:<IconPlay />,     label:"LAUNCH",   color:"#a9a0ff", shadow:"rgba(169,160,255,0.34)", action: () => { btn("play");      setMenuState("modes");    } },
-        { id:"shop",      icon:<IconShop />,     label:"MARKET",   color:"#ff9ebd", shadow:"rgba(255,158,189,0.34)", action: () => { btn("shop");      openShop();               } },
-        { id:"inventory", icon:<IconGear />,     label:"LOADOUT",  color:"#c69cff", shadow:"rgba(198,156,255,0.34)", action: () => { btn("inventory"); openInventory();          } },
-        { id:"trophies",  icon:<IconTrophy />,   label:"ARCHIVE",  color:"#ffd99a", shadow:"rgba(255,217,154,0.3)",  action: () => { btn("trophies"); openTrophies(); } },
-        { id:"settings",  icon:<IconSettings />, label:"SYSTEMS",  color:"#b9d5ff", shadow:"rgba(185,213,255,0.3)",  action: () => { btn("settings");  setMenuState("settings"); } },
+        { id:"play",      icon:<IconPlay />,     label:"LAUNCH",   color:"#00f6ff", shadow:"rgba(0,246,255,0.44)", action: () => { btn("play");      setMenuState("modes");    } },
+        { id:"shop",      icon:<IconShop />,     label:"MARKET",   color:"#ff2bd6", shadow:"rgba(255,43,214,0.44)", action: () => { btn("shop");      openShop();               } },
+        { id:"inventory", icon:<IconGear />,     label:"LOADOUT",  color:"#9b5cff", shadow:"rgba(155,92,255,0.44)", action: () => { btn("inventory"); openInventory();          } },
+        { id:"trophies",  icon:<IconTrophy />,   label:"ARCHIVE",  color:"#ffe600", shadow:"rgba(255,230,0,0.38)",  action: () => { btn("trophies"); openTrophies(); } },
+        { id:"settings",  icon:<IconSettings />, label:"SYSTEMS",  color:"#70e8ff", shadow:"rgba(112,232,255,0.36)",  action: () => { btn("settings");  setMenuState("settings"); } },
       ];
       case "modes": return [
-        { id:"arcade",    icon:<IconArcade />,   label:"ARCADE",   color:"#ff9ebd", shadow:"rgba(255,158,189,0.34)", action: () => { btn("arcade"); setMenuState("worlds"); }  },
-        { id:"chill",     icon:<IconChill />,    label:"CHILL",    color:"#b9a5ff", shadow:"rgba(185,165,255,0.34)", action: () => handleStartMode("chill")     },
-        { id:"survival",  icon:<IconSurvive />,  label:"SURVIVAL", color:"#9fd9ff", shadow:"rgba(159,217,255,0.3)",  action: () => handleStartMode("survival")  },
-        { id:"gauntlet",  icon:<IconGauntlet />, label:"GAUNTLET", color:"#ffd99a", shadow:"rgba(255,217,154,0.3)",  action: () => handleStartMode("gauntlet")  },
+        { id:"arcade",    icon:<IconArcade />,   label:"ARCADE",   color:"#ff2bd6", shadow:"rgba(255,43,214,0.44)", action: () => { btn("arcade"); setMenuState("worlds"); }  },
+        { id:"chill",     icon:<IconChill />,    label:"CHILL",    color:"#9b5cff", shadow:"rgba(155,92,255,0.44)", action: () => handleStartMode("chill")     },
+        { id:"survival",  icon:<IconSurvive />,  label:"SURVIVAL", color:"#00f6ff", shadow:"rgba(0,246,255,0.4)",  action: () => handleStartMode("survival")  },
+        { id:"gauntlet",  icon:<IconGauntlet />, label:"GAUNTLET", color:"#ffe600", shadow:"rgba(255,230,0,0.38)",  action: () => handleStartMode("gauntlet")  },
         back("BACK", () => { btn("back"); setMenuState("root"); }),
       ];
       case "settings": return [
@@ -271,7 +398,7 @@ export function StartupAnimation({
   const panelButtons = showMenu ? getPanelButtons() : [];
   const introPhase: IntroBossPhase | null =
     animPhase === "idle" || animPhase === "flying" || animPhase === "converge" || animPhase === "flash" ||
-    animPhase === "title" || animPhase === "waiting"
+    animPhase === "title" || animPhase === "waiting" || animPhase === "menu"
       ? animPhase
       : null;
 
@@ -286,7 +413,8 @@ export function StartupAnimation({
       className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-black select-none"
       style={{
         cursor: isClickable ? "pointer" : "default",
-        backgroundColor: showMenu ? "rgba(3,5,18,0.97)" : "transparent",
+        backgroundColor: showMenu ? "rgba(5,8,28,0.2)" : "transparent",
+        transition: "background-color 0.75s ease",
       }}
       initial={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -297,49 +425,23 @@ export function StartupAnimation({
       {/* ── CELESTIAL ATMOSPHERE ───────────────────────────────────────── */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{
         zIndex: 0,
-        opacity: showMenu ? 1 : 0.12,
+        opacity: showMenu ? 0.72 : 0.1,
         transition: "opacity 0.45s ease",
-        background: "radial-gradient(ellipse at 50% 42%, rgba(35,51,107,0.92) 0%, rgba(13,24,61,0.82) 37%, rgba(5,10,31,0.98) 83%), linear-gradient(135deg, #091737, #28144b 52%, #071d32)",
+        background: "radial-gradient(ellipse at 50% 42%, rgba(67,22,134,0.3) 0%, rgba(9,70,105,0.18) 42%, transparent 80%), linear-gradient(135deg, rgba(4,17,57,0.16), rgba(60,8,72,0.18) 52%, rgba(0,42,60,0.16))",
       }}>
         <div className="absolute inset-0" style={{
-          opacity: 0.22,
-          backgroundImage: "linear-gradient(rgba(118,216,255,0.28) 1px, transparent 1px), linear-gradient(90deg, rgba(118,216,255,0.28) 1px, transparent 1px)",
+          opacity: 0.16,
+          backgroundImage: "linear-gradient(rgba(0,246,255,0.35) 1px, transparent 1px), linear-gradient(90deg, rgba(255,43,214,0.28) 1px, transparent 1px)",
           backgroundSize: "clamp(26px, 3.7vw, 54px) clamp(26px, 3.7vw, 54px)",
           maskImage: "radial-gradient(ellipse at 50% 48%, black 0%, transparent 76%)",
           WebkitMaskImage: "radial-gradient(ellipse at 50% 48%, black 0%, transparent 76%)",
         }} />
-        {TETROMINOES.map((piece, pieceIndex) => (
-          <motion.div
-            key={pieceIndex}
-            className="absolute pointer-events-none"
-            style={{
-              left: piece.left, top: piece.top, opacity: 0.48, scale: piece.scale,
-              display: "grid", gridTemplateColumns: "repeat(4, clamp(14px, 2vw, 28px))",
-              gridAutoRows: "clamp(14px, 2vw, 28px)", transformOrigin: "center",
-              filter: "drop-shadow(0 8px 10px rgba(0,0,0,0.18))",
-            }}
-            animate={{ y: [0, -10, 0], rotate: [piece.rotate, piece.rotate + 4, piece.rotate] }}
-            transition={{ duration: piece.duration, delay: piece.delay, repeat: Infinity, ease: "easeInOut" }}
-          >
-            {piece.cells.map(([x, y], cellIndex) => (
-              <div
-                key={cellIndex}
-                style={{
-                  gridColumn: x + 1, gridRow: y + 1,
-                  borderRadius: 4, border: "1px solid rgba(255,255,255,0.34)",
-                  background: `linear-gradient(145deg, rgba(255,255,255,0.7), ${piece.color} 23%, ${piece.color}cc)`,
-                  boxShadow: `inset 3px 3px 0 rgba(255,255,255,0.26), inset -3px -3px 0 rgba(0,0,0,0.12), 0 0 18px ${piece.color}55`,
-                }}
-              />
-            ))}
-          </motion.div>
-        ))}
         <motion.div
           className="absolute rounded-full"
           style={{
             width: "min(65vw, 720px)", height: "min(42vw, 460px)",
             left: "7%", top: "8%",
-            background: "radial-gradient(ellipse, rgba(76,157,255,0.28), rgba(76,157,255,0.07) 48%, transparent 72%)",
+            background: "radial-gradient(ellipse, rgba(0,246,255,0.24), rgba(0,246,255,0.05) 48%, transparent 72%)",
             filter: "blur(12px)",
           }}
           animate={{ x: ["-4%", "8%", "-4%"], y: ["2%", "-5%", "2%"], scale: [1, 1.08, 1] }}
@@ -350,7 +452,7 @@ export function StartupAnimation({
           style={{
             width: "min(54vw, 620px)", height: "min(45vw, 500px)",
             right: "-8%", bottom: "3%",
-            background: "radial-gradient(ellipse, rgba(255,98,190,0.22), rgba(255,98,190,0.05) 52%, transparent 74%)",
+            background: "radial-gradient(ellipse, rgba(255,43,214,0.24), rgba(255,43,214,0.05) 52%, transparent 74%)",
             filter: "blur(14px)",
           }}
           animate={{ x: ["3%", "-7%", "3%"], y: ["-4%", "5%", "-4%"], scale: [1.05, 0.94, 1.05] }}
@@ -361,7 +463,7 @@ export function StartupAnimation({
           style={{
             width: "min(34vw, 390px)", height: "min(34vw, 390px)",
             left: "50%", top: "45%", transform: "translate(-50%, -50%)",
-            background: "radial-gradient(circle, rgba(255,209,102,0.12), rgba(120,107,255,0.07) 48%, transparent 72%)",
+            background: "radial-gradient(circle, rgba(255,230,0,0.14), rgba(155,92,255,0.1) 48%, transparent 72%)",
             filter: "blur(4px)",
           }}
           animate={{ scale: [0.9, 1.08, 0.9], opacity: [0.7, 1, 0.7] }}
@@ -372,30 +474,30 @@ export function StartupAnimation({
           style={{
             width: "min(74vw, 760px)", height: "min(36vw, 360px)",
             left: "50%", top: "43%", marginLeft: "min(-37vw, -380px)", marginTop: "min(-18vw, -180px)",
-            border: "1px solid rgba(118,216,255,0.24)", borderRadius: "50%",
+            border: "1px solid rgba(0,246,255,0.32)", borderRadius: "50%",
             transform: "rotate(-12deg)",
-            boxShadow: "0 0 80px rgba(73,171,255,0.14), inset 0 0 72px rgba(255,97,190,0.08)",
+            boxShadow: "0 0 80px rgba(0,246,255,0.16), inset 0 0 72px rgba(255,43,214,0.12)",
           }}
           animate={{ rotate: [0, 5, 0], scale: [1, 1.025, 1] }}
           transition={{ rotate: { duration: 18, repeat: Infinity, ease: "easeInOut" }, scale: { duration: 7, repeat: Infinity, ease: "easeInOut" } }}
         />
-        <div className="absolute left-[14%] top-[24%] h-2 w-2 rounded-sm" style={{ background: "#ffd166", boxShadow: "0 0 24px 7px rgba(255,209,102,0.35)" }} />
-        <div className="absolute right-[18%] bottom-[28%] h-1.5 w-1.5 rounded-sm" style={{ background: "#ff78c8", boxShadow: "0 0 20px 6px rgba(255,120,200,0.34)" }} />
+        <div className="absolute left-[14%] top-[24%] h-2 w-2 rounded-sm" style={{ background: "#ffe600", boxShadow: "0 0 24px 7px rgba(255,230,0,0.38)" }} />
+        <div className="absolute right-[18%] bottom-[28%] h-1.5 w-1.5 rounded-sm" style={{ background: "#ff2bd6", boxShadow: "0 0 20px 6px rgba(255,43,214,0.38)" }} />
       </div>
 
       <div className="absolute left-6 top-6 z-[2] pointer-events-none" style={{
-        color: "rgba(220,244,255,0.82)", fontSize: "clamp(0.48rem, 1vw, 0.64rem)",
+        color: "rgba(210,252,255,0.9)", fontSize: "clamp(0.48rem, 1vw, 0.64rem)",
         fontWeight: 900, letterSpacing: "0.14em", lineHeight: 1.7, fontFamily: "Arial Black, Impact, sans-serif",
       }}>
         <div>ORBLITZ ARCADE</div>
-        <div style={{ color: "rgba(255,209,102,0.88)", letterSpacing: "0.1em" }}>Stack · play · repeat</div>
+        <div style={{ color: "rgba(255,230,0,0.94)", letterSpacing: "0.1em" }}>Stack · play · repeat</div>
       </div>
       <div className="absolute right-6 top-6 z-[2] pointer-events-none text-right" style={{
-        color: "rgba(220,244,255,0.7)", fontSize: "clamp(0.48rem, 1vw, 0.64rem)",
+        color: "rgba(210,252,255,0.78)", fontSize: "clamp(0.48rem, 1vw, 0.64rem)",
         fontWeight: 900, letterSpacing: "0.12em", lineHeight: 1.7, fontFamily: "Arial Black, Impact, sans-serif",
       }}>
         <div>9 WORLDS · 81 LEVELS</div>
-        <div style={{ color: "rgba(255,120,200,0.84)", letterSpacing: "0.09em" }}>Ready when you are</div>
+        <div style={{ color: "rgba(255,43,214,0.94)", letterSpacing: "0.09em" }}>Ready when you are</div>
       </div>
 
       {/* Convergence core and detonation rays */}
@@ -405,7 +507,7 @@ export function StartupAnimation({
             <motion.div className="absolute rounded-full pointer-events-none" style={{
               width: 120, height: 120, left: "50%", top: "50%",
               marginLeft: -60, marginTop: -60,
-               background: "radial-gradient(circle,#fffafc 0%,#c8b6ff 30%,#ff9ebd 60%,transparent 80%)",
+               background: "radial-gradient(circle,#ffffff 0%,#00f6ff 30%,#ff2bd6 60%,transparent 80%)",
               filter: "blur(18px)", zIndex: 3,
             }}
               initial={{ scale: 0, opacity: 0 }}
@@ -424,8 +526,8 @@ export function StartupAnimation({
                   height: 2,
                   transformOrigin: "left center",
                   rotate: ray.rotation,
-                   background: "linear-gradient(90deg,#fffafc,#c8b6ff,#ff9ebd,transparent)",
-                   boxShadow: "0 0 8px rgba(255,158,189,0.75)",
+                   background: "linear-gradient(90deg,#ffffff,#00f6ff,#ff2bd6,transparent)",
+                   boxShadow: "0 0 8px rgba(0,246,255,0.85)",
                   zIndex: 3,
                 }}
                 initial={{ scaleX: 0, opacity: 0 }}
@@ -459,7 +561,7 @@ export function StartupAnimation({
               animate={{ opacity: 0.7, letterSpacing: "0.28em" }}
               transition={{ duration: 0.7, delay: animPhase === "title" ? 0.34 : 0 }}
               style={{
-                margin: "0 0 clamp(8px, 1.5vw, 16px)", color: "#b9efff",
+                margin: "0 0 clamp(8px, 1.5vw, 16px)", color: "#bffaff",
                 fontSize: "clamp(0.42rem, 1.15vw, 0.68rem)", fontWeight: 800,
                 fontFamily: "Arial Black, Impact, sans-serif", textTransform: "uppercase",
               }}
@@ -469,23 +571,40 @@ export function StartupAnimation({
             {/* Letters clickable in menu phase for dev-mode easter egg */}
             {showMenu ? (
               <motion.h1
-                className="font-black tracking-widest flex items-center justify-center orb-title-glow"
+                className="font-black tracking-widest flex items-center justify-center"
                 style={{ fontSize: "clamp(3.5rem, 11vw, 7rem)", lineHeight: 1,
                   fontFamily: "Arial Black, Impact, sans-serif", fontWeight: 900, fontStyle: "normal",
                   letterSpacing: "0.075em", transform: "none",
-                  WebkitTextStroke: "2px rgba(224,249,255,0.16)",
-                  textShadow: "5px 5px 0 rgba(10,20,68,0.6), 0 0 28px rgba(90,215,255,0.28)",
+                  WebkitTextStroke: "2px rgba(210,252,255,0.22)",
+                  textShadow: "5px 5px 0 rgba(10,20,68,0.65), 0 0 18px rgba(190,245,255,0.32)",
                   filter: devFlash ? "drop-shadow(0 0 30px #ffff00) drop-shadow(0 0 60px #ffaa00)" : undefined,
                   transition: devFlash ? "filter 0.1s" : undefined,
                 }}
               >
                 {TITLE_LETTERS.map((letter, idx) => (
                   <motion.span key={idx} className="cursor-pointer"
+                    ref={(node) => { titleLetterRefs.current[idx] = node; }}
                     style={{
-                      backgroundImage: "linear-gradient(135deg,#5ad7ff 0%,#5ad7ff 16%,#ff78c8 16%,#ff78c8 32%,#ffd166 32%,#ffd166 48%,#75e0a4 48%,#75e0a4 64%,#a6a1ff 64%,#a6a1ff 82%,#ff8f70 82%,#ff8f70 100%)",
-                      WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
-                      opacity: idx < devProgress ? 0.4 : 1,
+                       ...getTitleReflectionStyle(idx),
                     }}
+                     animate={{
+                       backgroundPosition: [
+                         "0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, -130% 0%",
+                         "0% 0%, 100% 100%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 130% 0%",
+                         "0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, -130% 0%",
+                       ],
+                       filter: [
+                         "drop-shadow(0 0 7px rgba(180,235,255,0.45)) saturate(1.03)",
+                         "drop-shadow(0 0 12px rgba(255,255,255,0.66)) saturate(1.16)",
+                         "drop-shadow(0 0 7px rgba(180,235,255,0.45)) saturate(1.03)",
+                       ],
+                       opacity: idx < devProgress ? 0.4 : 1,
+                     }}
+                     transition={{
+                       backgroundPosition: { duration: 8.5 + idx * 0.45, repeat: Infinity, ease: "easeInOut", delay: idx * 0.12 },
+                       filter: { duration: 8.5 + idx * 0.45, repeat: Infinity, ease: "easeInOut", delay: idx * 0.12 },
+                       opacity: { duration: 0.2 },
+                     }}
                     whileHover={{ scale: 1.14, y: -3 }}
                     whileTap={{ scale: 0.9 }}
                     onClick={(e) => { e.stopPropagation(); handleLetterClick(letter, idx); }}
@@ -493,22 +612,48 @@ export function StartupAnimation({
                 ))}
               </motion.h1>
             ) : (
-              <h1 className="font-black tracking-widest text-transparent bg-clip-text pointer-events-none orb-title-glow"
+              <h1 className="font-black tracking-widest text-transparent bg-clip-text pointer-events-none"
                 style={{ fontSize: "clamp(3.5rem, 11vw, 7rem)", lineHeight: 1,
                   fontFamily: "Arial Black, Impact, sans-serif", fontWeight: 900, fontStyle: "normal",
                   letterSpacing: "0.075em", transform: "none",
-                  WebkitTextStroke: "2px rgba(224,249,255,0.16)",
-                  textShadow: "5px 5px 0 rgba(10,20,68,0.6), 0 0 28px rgba(90,215,255,0.28)",
-                  backgroundImage: "linear-gradient(135deg,#5ad7ff 0%,#5ad7ff 16%,#ff78c8 16%,#ff78c8 32%,#ffd166 32%,#ffd166 48%,#75e0a4 48%,#75e0a4 64%,#a6a1ff 64%,#a6a1ff 82%,#ff8f70 82%,#ff8f70 100%)" }}
-              >ORBLITZ</h1>
+                  WebkitTextStroke: "2px rgba(210,252,255,0.22)",
+                  textShadow: "5px 5px 0 rgba(10,20,68,0.65), 0 0 18px rgba(190,245,255,0.32)",
+                 }}
+               >
+                 {TITLE_LETTERS.map((letter, idx) => (
+                   <motion.span
+                     key={idx}
+                     ref={(node) => { titleLetterRefs.current[idx] = node; }}
+                     style={getTitleReflectionStyle(idx)}
+                     animate={{
+                       backgroundPosition: [
+                          "0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, -130% 0%",
+                          "0% 0%, 100% 100%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 130% 0%",
+                          "0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, -130% 0%",
+                       ],
+                       filter: [
+                         "drop-shadow(0 0 7px rgba(180,235,255,0.45)) saturate(1.03)",
+                         "drop-shadow(0 0 12px rgba(255,255,255,0.66)) saturate(1.16)",
+                         "drop-shadow(0 0 7px rgba(180,235,255,0.45)) saturate(1.03)",
+                       ],
+                     }}
+                     transition={{
+                       backgroundPosition: { duration: 8.5 + idx * 0.45, repeat: Infinity, ease: "easeInOut", delay: idx * 0.12 },
+                       filter: { duration: 8.5 + idx * 0.45, repeat: Infinity, ease: "easeInOut", delay: idx * 0.12 },
+                     }}
+                   >
+                     {letter}
+                   </motion.span>
+                 ))}
+               </h1>
             )}
 
             {/* Underline */}
             <motion.div className="mt-3 mx-auto" style={{
               height: "clamp(5px, 0.8vw, 8px)", width: "clamp(160px, 36vw, 280px)",
               borderRadius: 3,
-              background: "linear-gradient(90deg,transparent 0%,#5ad7ff 18%,#ff78c8 18%,#ff78c8 36%,#ffd166 36%,#ffd166 54%,#75e0a4 54%,#75e0a4 72%,#a6a1ff 72%,#a6a1ff 88%,transparent 88%)",
-              boxShadow: "0 4px 0 rgba(10,20,68,0.45), 0 0 16px rgba(90,215,255,0.4)",
+              background: "linear-gradient(90deg,transparent 0%,#00f6ff 18%,#ff2bd6 18%,#ff2bd6 36%,#ffe600 36%,#ffe600 54%,#7cff00 54%,#7cff00 72%,#9b5cff 72%,#9b5cff 88%,transparent 88%)",
+              boxShadow: "0 4px 0 rgba(10,20,68,0.45), 0 0 16px rgba(0,246,255,0.5)",
             }}
               initial={{ scaleX: 0, opacity: 0 }}
               animate={{ scaleX: 1, opacity: 0.65 }}
@@ -521,7 +666,7 @@ export function StartupAnimation({
                 animate={{ opacity: 0.58, y: 0 }}
                 transition={{ delay: 0.3 }}
                 style={{
-                  margin: "clamp(8px, 1.5vw, 14px) 0 0", color: "#b9efff",
+                  margin: "clamp(8px, 1.5vw, 14px) 0 0", color: "#bffaff",
                   fontSize: "clamp(0.44rem, 1.1vw, 0.64rem)", fontWeight: 800,
                   letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "Arial Black, Impact, sans-serif",
                 }}
@@ -547,7 +692,7 @@ export function StartupAnimation({
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ delay: 0.15 }}
           >
-            <span style={{ color: "#ffd166", fontSize: "0.72rem" }}>★</span>
+            <span style={{ color: "#ffe600", fontSize: "0.72rem" }}>★</span>
             <span style={{ color: "#fff1bd", fontSize: "0.66rem", fontWeight: 900, letterSpacing: "0.08em", fontFamily: "Arial Black, Impact, sans-serif" }}>{shopStars} STARS</span>
           </motion.div>
         )}
@@ -754,8 +899,8 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
   const btnH  = "clamp(68px,12vw,96px)";
   const iconSz = "clamp(1.2rem,3.2vw,1.8rem)";
   const labelSz = "clamp(0.48rem,1.25vw,0.68rem)";
-  const sc = isMuted ? "#8292ae" : "#5ad7ff";
-  const ss = isMuted ? "rgba(130,146,174,0.22)" : "rgba(90,215,255,0.34)";
+  const sc = isMuted ? "#8292ae" : "#00f6ff";
+  const ss = isMuted ? "rgba(130,146,174,0.22)" : "rgba(0,246,255,0.4)";
   const bPct = Math.round(((brightness - 0.2) / 1.8) * 100);
   const vPct = Math.round(volume * 100);
 
@@ -789,23 +934,23 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
     }} />
   );
   const presetOptions: { id: GraphicsPreset; label: string; detail: string; color: string }[] = [
-    { id: "low", label: "LOW", detail: "0.8× · Efficient FX", color: "#5ad7ff" },
-    { id: "standard", label: "STANDARD", detail: "1.0× · Balanced FX", color: "#a6a1ff" },
-    { id: "high", label: "HIGH", detail: "1.4× · Maximum FX", color: "#ff78c8" },
+    { id: "low", label: "LOW", detail: "0.8× · Efficient FX", color: "#00f6ff" },
+    { id: "standard", label: "STANDARD", detail: "1.0× · Balanced FX", color: "#9b5cff" },
+    { id: "high", label: "HIGH", detail: "1.4× · Maximum FX", color: "#ff2bd6" },
   ];
 
   return (
     <>
-      <style>{`.orb-bslider{-webkit-appearance:none;appearance:none;outline:none;cursor:pointer;border-radius:2px}.orb-bslider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#ffff00;box-shadow:0 0 6px rgba(255,255,0,0.85)}.orb-bslider::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:50%;background:#ffff00;box-shadow:0 0 6px rgba(255,255,0,0.85)}.orb-vslider{-webkit-appearance:none;appearance:none;outline:none;cursor:pointer;border-radius:2px}.orb-vslider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#00ffff;box-shadow:0 0 6px rgba(0,255,255,0.85)}.orb-vslider::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:50%;background:#00ffff;box-shadow:0 0 6px rgba(0,255,255,0.85)}`}</style>
+      <style>{`.orb-bslider{-webkit-appearance:none;appearance:none;outline:none;cursor:pointer;border-radius:2px}.orb-bslider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:3px;background:#ffe600;box-shadow:0 0 8px rgba(255,230,0,0.95)}.orb-bslider::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:3px;background:#ffe600;box-shadow:0 0 8px rgba(255,230,0,0.95)}.orb-vslider{-webkit-appearance:none;appearance:none;outline:none;cursor:pointer;border-radius:2px}.orb-vslider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:3px;background:#00f6ff;box-shadow:0 0 8px rgba(0,246,255,0.95)}.orb-vslider::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:3px;background:#00f6ff;box-shadow:0 0 8px rgba(0,246,255,0.95)}`}</style>
       <div className="flex flex-col w-full" style={{ gap: "clamp(8px,1.5vw,14px)" }}>
         <motion.div
           className="relative flex flex-col items-center justify-center overflow-hidden w-full"
-          style={{ ...btnStyle("#aa88ff", "rgba(170,136,255,0.38)"), height: "clamp(82px,14vw,108px)", cursor: "default", padding: "clamp(8px,1.5vw,14px)" }}
+          style={{ ...btnStyle("#9b5cff", "rgba(155,92,255,0.44)"), height: "clamp(82px,14vw,108px)", cursor: "default", padding: "clamp(8px,1.5vw,14px)" }}
           initial={{ opacity: 0, y: 16, scale: 0.86 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ type: "spring", stiffness: 360, damping: 26 }}
         >
-          <TopLine color="#aa88ff" /><Scanlines />
+          <TopLine color="#9b5cff" /><Scanlines />
           <div className="flex items-center justify-between w-full" style={{ marginBottom: 7 }}>
             <span style={{ fontSize: labelSz, fontWeight: 800, letterSpacing: "0.16em", opacity: 0.9 }}>GRAPHICS</span>
             <span style={{ fontSize: "clamp(0.42rem,1vw,0.56rem)", color: "#cbbcff", letterSpacing: "0.1em", opacity: 0.65 }}>
@@ -850,12 +995,12 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
         {/* BRIGHTNESS slider */}
         <motion.div
           className="relative flex flex-col items-center justify-center overflow-hidden flex-[2]"
-          style={{ ...btnStyle("#ffff00", "rgba(255,255,0,0.38)"), minWidth: 0, cursor: "default",
+          style={{ ...btnStyle("#ffe600", "rgba(255,230,0,0.4)"), minWidth: 0, cursor: "default",
             padding: "0 clamp(6px,1.5vw,14px)" }}
           variants={itemVariants}
         >
-          <TopLine color="#ffff00" /><Scanlines />
-          <span style={{ fontSize: iconSz, lineHeight: 1, marginBottom: 2, filter: "drop-shadow(0 0 5px #ffff0088)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <TopLine color="#ffe600" /><Scanlines />
+          <span style={{ fontSize: iconSz, lineHeight: 1, marginBottom: 2, filter: "drop-shadow(0 0 5px #ffe600aa)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <IconBrightness />
           </span>
           <span style={{ fontSize: labelSz, fontWeight: 800, letterSpacing: "0.13em", lineHeight: 1, opacity: 0.88, marginBottom: 5 }}>
@@ -869,7 +1014,7 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
             className="orb-bslider"
             style={{
               width: "100%", height: 4,
-              background: `linear-gradient(90deg,#ffff00 ${bPct}%,rgba(255,255,255,0.15) ${bPct}%)`,
+              background: `linear-gradient(90deg,#ffe600 ${bPct}%,rgba(255,255,255,0.15) ${bPct}%)`,
             }}
           />
           <span style={{ fontSize: "clamp(0.38rem,1vw,0.5rem)", opacity: 0.4, marginTop: 3, letterSpacing: "0.1em" }}>
@@ -880,12 +1025,12 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
         {/* VOLUME slider */}
         <motion.div
           className="relative flex flex-col items-center justify-center overflow-hidden flex-[2]"
-          style={{ ...btnStyle("#00ffff", "rgba(0,255,255,0.38)"), minWidth: 0, cursor: "default",
+          style={{ ...btnStyle("#00f6ff", "rgba(0,246,255,0.4)"), minWidth: 0, cursor: "default",
             padding: "0 clamp(6px,1.5vw,14px)" }}
           variants={itemVariants}
         >
-          <TopLine color="#00ffff" /><Scanlines />
-          <span style={{ fontSize: iconSz, lineHeight: 1, marginBottom: 2, filter: "drop-shadow(0 0 5px #00ffff88)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <TopLine color="#00f6ff" /><Scanlines />
+          <span style={{ fontSize: iconSz, lineHeight: 1, marginBottom: 2, filter: "drop-shadow(0 0 5px #00f6ffaa)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             {isMuted ? <IconSoundOff /> : <IconSound />}
           </span>
           <span style={{ fontSize: labelSz, fontWeight: 800, letterSpacing: "0.13em", lineHeight: 1, opacity: 0.88, marginBottom: 5 }}>
@@ -899,7 +1044,7 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
             className="orb-vslider"
             style={{
               width: "100%", height: 4,
-              background: `linear-gradient(90deg,#00ffff ${vPct}%,rgba(255,255,255,0.15) ${vPct}%)`,
+              background: `linear-gradient(90deg,#00f6ff ${vPct}%,rgba(255,255,255,0.15) ${vPct}%)`,
             }}
           />
           <span style={{ fontSize: "clamp(0.38rem,1vw,0.5rem)", opacity: 0.4, marginTop: 3, letterSpacing: "0.1em" }}>

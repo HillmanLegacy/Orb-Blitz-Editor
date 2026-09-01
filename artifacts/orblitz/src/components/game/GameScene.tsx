@@ -446,6 +446,7 @@ function canCreateWebGLContext() {
 export function GameScene({ introBossPhase = null }: { introBossPhase?: IntroBossPhase | null }) {
   const [webglAvailable] = useState(canCreateWebGLContext);
   const backgroundEnabled = usePerformanceFeature("background");
+  const foregroundIntroBosses = introBossPhase === "title" || introBossPhase === "waiting";
 
   if (!webglAvailable) return <WebGLUnavailable />;
 
@@ -468,6 +469,9 @@ export function GameScene({ introBossPhase = null }: { introBossPhase?: IntroBos
           width: "100%",
           height: "100%",
           touchAction: "none",
+          zIndex: foregroundIntroBosses ? 120 : undefined,
+          mixBlendMode: foregroundIntroBosses ? "screen" : undefined,
+          pointerEvents: foregroundIntroBosses ? "none" : "auto",
         }}
       >
         <Suspense fallback={null}>

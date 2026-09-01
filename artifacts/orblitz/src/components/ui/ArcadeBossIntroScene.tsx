@@ -13,7 +13,7 @@ import { ToxicBoss } from "@/components/game/ToxicBoss";
 import { MAIN_BOSS_TYPES, type MainBossType } from "@/components/game/BossDefeatPalette";
 import { getGraphicsPresetProfile, useGraphicsPreset } from "@/game-runtime/PerformanceToggles";
 
-export type IntroBossPhase = "idle" | "flying" | "converge" | "flash" | "title" | "waiting";
+export type IntroBossPhase = "idle" | "flying" | "converge" | "flash" | "title" | "waiting" | "menu";
 
 export interface ArcadeBossIntroDef {
   type: MainBossType;
@@ -44,6 +44,59 @@ export const ARCADE_BOSS_INTRO_DEFS: readonly ArcadeBossIntroDef[] = [
 ];
 
 export const ARCADE_BOSS_INTRO_TYPES = MAIN_BOSS_TYPES;
+
+export const MENU_BOSS_LAYOUT: Record<MainBossType, {
+  x: number;
+  y: number;
+  scale: number;
+  driftX: number;
+  driftY: number;
+  phase: number;
+}> = {
+  circle:    { x: -0.43, y: -0.32, scale: 0.54, driftX: 0.012, driftY: 0.018, phase: 0.2 },
+  star:      { x:  0.43, y: -0.32, scale: 0.5,  driftX: 0.015, driftY: 0.014, phase: 1.1 },
+  triangle:  { x: -0.46, y:  0.01, scale: 0.48, driftX: 0.011, driftY: 0.02,  phase: 2.0 },
+  trapezoid: { x:  0.46, y:  0.03, scale: 0.5,  driftX: 0.012, driftY: 0.018, phase: 2.8 },
+  cube:      { x: -0.37, y:  0.38, scale: 0.46, driftX: 0.017, driftY: 0.012, phase: 3.7 },
+  cloud:     { x:  0.37, y:  0.38, scale: 0.5,  driftX: 0.014, driftY: 0.016, phase: 4.5 },
+  arrow:     { x: -0.1,  y: -0.45, scale: 0.43, driftX: 0.018, driftY: 0.01,  phase: 5.3 },
+  tentacle:  { x:  0.12, y:  0.44, scale: 0.43, driftX: 0.016, driftY: 0.012, phase: 6.1 },
+  monster:   { x:  0.02, y:  0.16, scale: 0.38, driftX: 0.01,  driftY: 0.014, phase: 6.8 },
+};
+
+export interface MenuBossSwarmPosition {
+  x: number;
+  y: number;
+  z: number;
+  depth: number;
+  scale: number;
+}
+
+/** Normalized motion shared by the WebGL bosses and the title refraction pass. */
+export function getMenuBossSwarmPosition(
+  type: MainBossType,
+  elapsed: number,
+  width: number,
+  height: number,
+): MenuBossSwarmPosition {
+  const layout = MENU_BOSS_LAYOUT[type];
+  const t = elapsed * (0.27 + (layout.phase % 3) * 0.012) + layout.phase;
+  const swarmX = Math.sin(t) * (0.2 + Math.abs(layout.x) * 0.1);
+  const braidX = Math.sin(t * 1.93 + layout.phase * 0.7) * 0.06;
+  const swarmY = Math.cos(t * (0.82 + Math.abs(layout.y) * 0.12)) * (0.1 + Math.abs(layout.y) * 0.045);
+  const braidY = Math.sin(t * 1.47 + layout.phase) * 0.055;
+  const depth = Math.sin(t * 0.71 + layout.phase * 1.3);
+
+  return {
+    x: (swarmX + braidX + layout.x * 0.08 + Math.sin(t * 1.61) * layout.driftX) * width,
+    y: (swarmY + braidY + layout.y * 0.05 + Math.cos(t * 1.28) * layout.driftY) * height,
+    // The title plane is conceptually at z=0. Keep the bosses in front of it,
+    // close enough to show depth, without pushing them into the camera clip.
+    z: 3.9 + depth * 1.25,
+    depth,
+    scale: layout.scale * (0.72 + depth * 0.08 + Math.sin(t * 0.67) * 0.03),
+  };
+}
 
 const FLYING_DURATION = 2.42;
 const CONVERGE_DURATION = 0.65;
@@ -180,8 +233,20 @@ function ArcadeBossActor({
       return;
     }
 
-    if (phase === "title" || phase === "waiting") {
-      group.scale.setScalar(0.001);
+    if (phase === "title" || phase === "waiting" || phase === "menu") {
+      const layout = MENU_BOSS_LAYOUT[definition.type];
+      const titleRamp = phase === "title" ? easeOutCubic(elapsed / 0.9) : 1;
+      const motion = getMenuBossSwarmPosition(definition.type, elapsed + definition.delay * 0.8, width, height);
+      group.position.set(
+        motion.x,
+        motion.y,
+        motion.z,
+      );
+      group.scale.setScalar(Math.max(0.001, motion.scale * titleRamp));
+      const t = elapsed * 0.27 + definition.delay * 0.8 + layout.phase;
+      group.rotation.z = THREE.MathUtils.degToRad(definition.rotation * 0.35 + Math.sin(t * 0.58) * 7);
+      group.rotation.x = Math.sin(t * 0.45) * 0.14;
+      group.rotation.y = Math.cos(t * 0.38) * 0.14;
       return;
     }
 
@@ -377,6 +442,8 @@ function IntroDetonationParticles({ phase }: { phase: IntroBossPhase }) {
           particle.targetZ + shimmer * 0.15,
         );
         scale = particle.size * (0.9 + shimmer * 0.5);
+      } else if (phase === "menu") {
+        position.set(0, 0, 0);
       }
 
       if (phase === "idle" || phase === "flying" || phase === "converge") {

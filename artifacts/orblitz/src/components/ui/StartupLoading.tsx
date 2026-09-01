@@ -8,7 +8,7 @@ interface Props {
 
 const LOAD_DURATION = 2600;
 
-const ORB_COLORS = ["#5ad7ff", "#ff78c8", "#ffd166", "#a6a1ff", "#75e0a4", "#ff8f70"];
+const ORB_COLORS = ["#00f6ff", "#ff2bd6", "#ffe600", "#9b5cff", "#7cff00", "#ff6b35"];
 
 export function StartupLoading({ onComplete }: Props) {
   const [progress, setProgress] = useState(0);
@@ -68,11 +68,11 @@ export function StartupLoading({ onComplete }: Props) {
       onTouchStart={tryStartAudio}
     >
       <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{
-        background: "radial-gradient(ellipse at 50% 42%, rgba(35,51,107,0.92) 0%, rgba(13,24,61,0.82) 37%, rgba(5,10,31,0.98) 83%), linear-gradient(135deg, #091737, #28144b 52%, #071d32)",
+        background: "radial-gradient(ellipse at 50% 42%, rgba(67,22,134,0.92) 0%, rgba(9,44,105,0.82) 37%, rgba(3,8,31,0.98) 83%), linear-gradient(135deg, #041139, #3c0848 52%, #002a3c)",
       }}>
         <div className="absolute inset-0" style={{
           opacity: 0.22,
-          backgroundImage: "linear-gradient(rgba(118,216,255,0.28) 1px, transparent 1px), linear-gradient(90deg, rgba(118,216,255,0.28) 1px, transparent 1px)",
+          backgroundImage: "linear-gradient(rgba(0,246,255,0.35) 1px, transparent 1px), linear-gradient(90deg, rgba(255,43,214,0.3) 1px, transparent 1px)",
           backgroundSize: "clamp(26px, 3.7vw, 54px) clamp(26px, 3.7vw, 54px)",
           maskImage: "radial-gradient(ellipse at 50% 48%, black 0%, transparent 76%)",
           WebkitMaskImage: "radial-gradient(ellipse at 50% 48%, black 0%, transparent 76%)",
@@ -103,14 +103,14 @@ export function StartupLoading({ onComplete }: Props) {
         fontWeight: 900, letterSpacing: "0.14em", lineHeight: 1.7, fontFamily: "Arial Black, Impact, sans-serif",
       }}>
         <div>ORBLITZ ARCADE</div>
-        <div style={{ color: "rgba(255,209,102,0.88)", letterSpacing: "0.1em" }}>Stack · play · repeat</div>
+        <div style={{ color: "rgba(255,230,0,0.94)", letterSpacing: "0.1em" }}>Stack · play · repeat</div>
       </div>
       <div className="absolute right-6 top-5 z-10 pointer-events-none text-right" style={{
         color: "rgba(220,244,255,0.7)", fontSize: "clamp(0.48rem, 1vw, 0.64rem)",
         fontWeight: 900, letterSpacing: "0.12em", lineHeight: 1.7, fontFamily: "Arial Black, Impact, sans-serif",
       }}>
         <div>9 WORLDS · 81 LEVELS</div>
-        <div style={{ color: "rgba(255,120,200,0.84)", letterSpacing: "0.09em" }}>Ready when you are</div>
+        <div style={{ color: "rgba(255,43,214,0.94)", letterSpacing: "0.09em" }}>Ready when you are</div>
       </div>
 
       {/* Ambient drifting orbs — no per-element blur (avoids 18 separate compositor layers) */}
@@ -145,7 +145,7 @@ export function StartupLoading({ onComplete }: Props) {
         style={{
           width: 560,
           height: 260,
-          background: "radial-gradient(ellipse, rgba(90,215,255,0.12) 0%, rgba(255,120,200,0.08) 40%, transparent 70%)",
+          background: "radial-gradient(ellipse, rgba(0,246,255,0.16) 0%, rgba(255,43,214,0.1) 40%, transparent 70%)",
         }}
       />
 
@@ -158,9 +158,9 @@ export function StartupLoading({ onComplete }: Props) {
           fontWeight: 900,
           fontStyle: "normal",
           letterSpacing: "0.075em",
-          WebkitTextStroke: "2px rgba(224,249,255,0.16)",
-          textShadow: "5px 5px 0 rgba(10,20,68,0.6), 0 0 28px rgba(90,215,255,0.28)",
-          backgroundImage: "linear-gradient(135deg,#5ad7ff 0%,#5ad7ff 16%,#ff78c8 16%,#ff78c8 32%,#ffd166 32%,#ffd166 48%,#75e0a4 48%,#75e0a4 64%,#a6a1ff 64%,#a6a1ff 82%,#ff8f70 82%,#ff8f70 100%)",
+          WebkitTextStroke: "2px rgba(210,252,255,0.22)",
+          textShadow: "5px 5px 0 rgba(10,20,68,0.65), 0 0 28px rgba(0,246,255,0.4), 8px -5px 0 rgba(255,43,214,0.15)",
+          backgroundImage: "linear-gradient(135deg,#00f6ff 0%,#00f6ff 16%,#ff2bd6 16%,#ff2bd6 32%,#ffe600 32%,#ffe600 48%,#7cff00 48%,#7cff00 64%,#9b5cff 64%,#9b5cff 82%,#ff6b35 82%,#ff6b35 100%)",
         }}
         initial={{ opacity: 0, scale: 0.82, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -172,7 +172,7 @@ export function StartupLoading({ onComplete }: Props) {
       {/* Glow line under title */}
       <motion.div
         className="relative z-10 mt-3"
-        style={{ width: "clamp(180px, 40vw, 320px)", height: "clamp(5px, 0.8vw, 8px)", borderRadius: 3, background: "linear-gradient(90deg,transparent 0%,#5ad7ff 18%,#ff78c8 18%,#ff78c8 36%,#ffd166 36%,#ffd166 54%,#75e0a4 54%,#75e0a4 72%,#a6a1ff 72%,#a6a1ff 88%,transparent 88%)", boxShadow: "0 4px 0 rgba(10,20,68,0.45), 0 0 16px rgba(90,215,255,0.4)" }}
+        style={{ width: "clamp(180px, 40vw, 320px)", height: "clamp(5px, 0.8vw, 8px)", borderRadius: 3, background: "linear-gradient(90deg,transparent 0%,#00f6ff 18%,#ff2bd6 18%,#ff2bd6 36%,#ffe600 36%,#ffe600 54%,#7cff00 54%,#7cff00 72%,#9b5cff 72%,#9b5cff 88%,transparent 88%)", boxShadow: "0 4px 0 rgba(10,20,68,0.45), 0 0 16px rgba(0,246,255,0.5)" }}
         initial={{ scaleX: 0, opacity: 0 }}
         animate={{ scaleX: 1, opacity: 0.7 }}
         transition={{ duration: 0.8, delay: 0.35, ease: "easeOut" }}
@@ -191,7 +191,7 @@ export function StartupLoading({ onComplete }: Props) {
             className="h-full rounded-full"
             style={{
               width: `${progress * 100}%`,
-              background: "linear-gradient(90deg, #5ad7ff, #ff78c8, #ffd166, #75e0a4)",
+              background: "linear-gradient(90deg, #00f6ff, #ff2bd6, #ffe600, #7cff00)",
             }}
             transition={{ duration: 0.05 }}
           />
