@@ -9,7 +9,6 @@ import { useFrame }   from "@react-three/fiber";
 import { useGLTF }    from "@react-three/drei";
 import * as THREE     from "three";
 import { getPlayerSkinVisualYaw } from "./PlayerSkinVisualConfig";
-import { clonePlayerOrbMaterial } from "./PlayerOrbMaterial";
 
 // ── Fresnel void rim shader (same GLSL as boss, reused) ───────────────────────
 const rimVert = /* glsl */ `
@@ -265,7 +264,7 @@ interface MiniMonsterOrbProps {
 
 export function MiniMonsterOrb({ radius = 1, particleCount = MINI_PARTICLE_COUNT, showParticles = true, showLight = true, animatePresentationYaw = true }: MiniMonsterOrbProps) {
   const groupRef     = useRef<THREE.Group>(null);
-  const materialsRef = useRef<THREE.Material[]>([]);
+  const materialsRef = useRef<THREE.MeshBasicMaterial[]>([]);
 
   const { scene: modelScene } = useGLTF("/models/boss_orb_9_shadow_texture.glb");
 
@@ -304,19 +303,12 @@ export function MiniMonsterOrb({ radius = 1, particleCount = MINI_PARTICLE_COUNT
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         const sourceMaterial = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
-        const mat = clonePlayerOrbMaterial({
-          baseMaterial: sourceMaterial,
-          textureMaterial: sourceMaterial,
-          coreColor: "#ffffff",
-          glowColor: "#ffffff",
-          tintColors: false,
-          emissiveBoost: 0.7,
+        const mat = new THREE.MeshBasicMaterial({
+          map: orbTexture ?? (sourceMaterial as THREE.MeshBasicMaterial).map ?? undefined,
+          color: new THREE.Color("#ffffff"),
         });
-        const authoredMaterial = mat as THREE.MeshStandardMaterial;
-        if (!authoredMaterial.map && orbTexture) authoredMaterial.map = orbTexture;
-        authoredMaterial.needsUpdate = true;
-        mesh.material = authoredMaterial;
-        materialsRef.current.push(authoredMaterial);
+        mesh.material = mat;
+        materialsRef.current.push(mat);
       }
     });
 
