@@ -32,12 +32,13 @@ export function preloadGameplayScene(): Promise<void> {
 }
 
 // ── Renderer configuration ────────────────────────────────────────────────────
-function RendererSetup() {
+function RendererSetup({ transparent = false }: { transparent?: boolean }) {
   const { gl } = useThree();
   useEffect(() => {
     gl.toneMapping      = THREE.NoToneMapping;
     gl.outputColorSpace = THREE.SRGBColorSpace;
-  }, [gl]);
+    gl.setClearColor(0x000000, transparent ? 0 : 1);
+  }, [gl, transparent]);
   return null;
 }
 
@@ -461,6 +462,7 @@ export function GameScene({ introBossPhase = null }: { introBossPhase?: IntroBos
           powerPreference: "high-performance",
           antialias: false,
           stencil: false,
+          alpha: true,
         }}
         style={{
           position: "fixed",
@@ -470,7 +472,6 @@ export function GameScene({ introBossPhase = null }: { introBossPhase?: IntroBos
           height: "100%",
           touchAction: "none",
           zIndex: foregroundIntroBosses ? 120 : undefined,
-          mixBlendMode: foregroundIntroBosses ? "screen" : undefined,
           pointerEvents: foregroundIntroBosses ? "none" : "auto",
         }}
       >
@@ -479,18 +480,18 @@ export function GameScene({ introBossPhase = null }: { introBossPhase?: IntroBos
           <PerformanceToggleInvalidator />
           <AdaptiveRenderQuality />
           <GameRuntimeLifecycle />
-          <RendererSetup />
+          <RendererSetup transparent={foregroundIntroBosses} />
           <CameraController />
           {introBossPhase && <ArcadeBossIntroScene phase={introBossPhase} />}
 
           {/* Lightweight background — gameplay GPU systems mount below only when needed */}
-          {backgroundEnabled && <Background />}
+          {backgroundEnabled && !foregroundIntroBosses && <Background />}
 
           {/* Gameplay systems — unmounted outside gameplay loading/playing */}
           <GameplayGate />
 
           {/* Post-processing stack */}
-          <PostProcessingWrapper />
+          {!foregroundIntroBosses && <PostProcessingWrapper />}
         </Suspense>
       </Canvas>
     </WebGLErrorBoundary>

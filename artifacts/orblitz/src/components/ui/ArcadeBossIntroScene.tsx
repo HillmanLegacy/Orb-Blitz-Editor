@@ -10,7 +10,7 @@ import { PlasmaBoss } from "@/components/game/PlasmaBoss";
 import { RainbowBoss } from "@/components/game/RainbowBoss";
 import { StarBoss } from "@/components/game/StarBoss";
 import { ToxicBoss } from "@/components/game/ToxicBoss";
-import { MAIN_BOSS_TYPES, type MainBossType } from "@/components/game/BossDefeatPalette";
+import { BOSS_DEFEAT_PALETTES, MAIN_BOSS_TYPES, type MainBossType } from "@/components/game/BossDefeatPalette";
 import { getGraphicsPresetProfile, useGraphicsPreset } from "@/game-runtime/PerformanceToggles";
 
 export type IntroBossPhase = "idle" | "flying" | "converge" | "flash" | "title" | "waiting" | "menu";
@@ -92,9 +92,9 @@ export function getMenuBossSwarmPosition(
     y: (swarmY + braidY + layout.y * 0.05 + Math.cos(t * 1.28) * layout.driftY) * height,
     // The title plane is conceptually at z=0. Keep the bosses in front of it,
     // close enough to show depth, without pushing them into the camera clip.
-    z: 3.9 + depth * 1.25,
+    z: 4.8 + depth * 0.95,
     depth,
-    scale: layout.scale * (0.72 + depth * 0.08 + Math.sin(t * 0.67) * 0.03),
+    scale: layout.scale * (0.62 + depth * 0.06 + Math.sin(t * 0.67) * 0.025),
   };
 }
 
@@ -264,7 +264,25 @@ function ArcadeBossActor({
     group.rotation.z = THREE.MathUtils.degToRad(definition.rotation + 70 * progress);
   });
 
-  return <group ref={groupRef}>{renderArcadeBoss(definition.type)}</group>;
+  const palette = BOSS_DEFEAT_PALETTES[definition.type];
+  return (
+    <group ref={groupRef}>
+      {renderArcadeBoss(definition.type)}
+      <group>
+        <pointLight color={palette.glow} intensity={3.2} distance={7.5} decay={2} />
+        <mesh scale={0.72}>
+          <sphereGeometry args={[1, 24, 18]} />
+          <meshBasicMaterial
+            color={palette.glow}
+            transparent
+            opacity={0.18}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+          />
+        </mesh>
+      </group>
+    </group>
+  );
 }
 
 function ArcadeBossScene({
@@ -275,10 +293,7 @@ function ArcadeBossScene({
   return (
     <>
       <IntroDetonationParticles phase={phase} />
-      <ambientLight intensity={1.7} />
-      <pointLight position={[0, 0, 7]} intensity={4} distance={30} color="#d9ffff" />
-      <pointLight position={[-7, 4, 2]} intensity={2.5} distance={20} color="#00ccff" />
-      <pointLight position={[7, -4, 2]} intensity={2.5} distance={20} color="#ff00dd" />
+      <ambientLight intensity={1.35} />
       <Suspense fallback={null}>
         {ARCADE_BOSS_INTRO_DEFS.map((definition) => (
           <ArcadeBossActor key={definition.type} definition={definition} phase={phase} />
@@ -435,13 +450,14 @@ function IntroDetonationParticles({ phase }: { phase: IntroBossPhase }) {
         );
         scale = particle.size * (1.55 - progress * 0.42);
       } else if (phase === "waiting") {
-        const shimmer = Math.sin(t * particle.twinkle + particle.angle) * 0.5 + 0.5;
         position.set(
           particle.targetX * width + Math.sin(t * 0.55 + particle.angle) * 0.018 * width,
           particle.targetY * height + Math.cos(t * 0.7 + particle.angle) * 0.02 * height,
-          particle.targetZ + shimmer * 0.15,
+          particle.targetZ,
         );
-        scale = particle.size * (0.9 + shimmer * 0.5);
+        // The title has settled into its glass material; remove the tiny
+        // target dots instead of leaving a dark/colored stipple over the text.
+        scale = 0.001;
       } else if (phase === "menu") {
         position.set(0, 0, 0);
       }
