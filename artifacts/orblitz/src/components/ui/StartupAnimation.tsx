@@ -5,6 +5,11 @@ import { useShop } from "@/lib/stores/useShop";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
 import { useOrbTransition } from "@/lib/stores/useOrbTransition";
 import { useGraphicsPreset, setGraphicsPreset, type GraphicsPreset } from "@/game-runtime/PerformanceToggles";
+import {
+  BOSS_DEFEAT_PALETTES,
+  MAIN_BOSS_TYPES,
+  type MainBossType,
+} from "@/components/game/BossDefeatPalette";
 
 // ─── Custom SVG Icons ─────────────────────────────────────────────────────────
 const _svg = { viewBox: "0 0 24 24", fill: "none", width: "1em", height: "1em", style: { display: "block" } } as const;
@@ -32,47 +37,216 @@ interface StartupAnimationProps {
   onMenuReady?: () => void;
 }
 
-// ─── Orb field constants (same as original) ───────────────────────────────────
-const ORB_COLORS = ["#00ffff","#ff00ff","#ffff00","#aa00ff","#00ff88","#ff8800","#ffffff","#00aaff"];
-
-interface OrbDef {
-  startX: number; startY: number; convX: number; convY: number;
-  orbitX: number; orbitY: number; size: number; blur: number;
-  color: string; delay: number;
+// ─── Intro boss swarm ─────────────────────────────────────────────────────────
+interface IntroBossDef {
+  type: MainBossType;
+  startX: number;
+  startY: number;
+  convX: number;
+  convY: number;
+  swayX: number;
+  swayY: number;
+  rotation: number;
+  size: number;
+  delay: number;
 }
 
-const ORB_COUNT = 30;
-const orbDefs: OrbDef[] = Array.from({ length: ORB_COUNT }, (_, i) => {
-  const sa = (i / ORB_COUNT) * Math.PI * 2 + (i % 3) * 0.25;
-  const sd = 380 + (i % 5) * 55;
-  const oa = (i / ORB_COUNT) * Math.PI * 2;
-  return {
-    startX: Math.cos(sa) * sd, startY: Math.sin(sa) * sd * 0.6,
-    convX:  Math.cos(sa * 1.8) * 18, convY: Math.sin(sa * 1.8) * 14,
-    orbitX: Math.cos(oa) * (255 + (i % 4) * 18),
-    orbitY: Math.sin(oa) * (90  + (i % 3) * 12),
-    size: 9 + (i % 5) * 5, blur: 3 + (i % 4) * 2,
-    color: ORB_COLORS[i % ORB_COLORS.length], delay: i * 0.05,
-  };
-});
+export const INTRO_BOSS_DEFS: readonly IntroBossDef[] = [
+  { type: "circle",    startX: -43, startY: -27, convX: -8, convY: -5, swayX:  5, swayY: -3, rotation: -18, size: 72, delay: 0.00 },
+  { type: "star",      startX:  42, startY: -30, convX:  7, convY: -7, swayX: -4, swayY:  4, rotation:  24, size: 68, delay: 0.07 },
+  { type: "triangle",  startX: -46, startY:  12, convX: -9, convY:  4, swayX:  4, swayY:  5, rotation:  12, size: 67, delay: 0.14 },
+  { type: "trapezoid", startX:  45, startY:  13, convX:  9, convY:  3, swayX: -5, swayY: -4, rotation: -14, size: 70, delay: 0.21 },
+  { type: "cube",      startX: -28, startY:  34, convX: -4, convY:  8, swayX:  6, swayY:  3, rotation:  32, size: 66, delay: 0.28 },
+  { type: "cloud",     startX:  25, startY:  35, convX:  5, convY:  8, swayX: -6, swayY: -3, rotation: -28, size: 72, delay: 0.35 },
+  { type: "arrow",     startX: -10, startY: -39, convX: -2, convY: -10, swayX:  5, swayY:  4, rotation: -42, size: 70, delay: 0.42 },
+  { type: "tentacle",  startX:  10, startY:  40, convX:  2, convY: 10, swayX: -4, swayY: -4, rotation:  38, size: 74, delay: 0.49 },
+  { type: "monster",   startX:   0, startY:   3, convX:  0, convY:  0, swayX:  7, swayY: -5, rotation:   8, size: 76, delay: 0.56 },
+];
 
-function getOrbTarget(orb: OrbDef, phase: AnimPhase) {
+export const INTRO_BOSS_TYPES = MAIN_BOSS_TYPES;
+
+function getBossTarget(boss: IntroBossDef, phase: AnimPhase) {
   switch (phase) {
-    case "idle":    return { x: orb.startX, y: orb.startY, scale: 0,   opacity: 0   };
-    case "flying":  return { x: orb.startX * 0.08, y: orb.startY * 0.08, scale: 1, opacity: 0.9 };
-    case "converge":return { x: orb.convX,  y: orb.convY,  scale: 1.2, opacity: 1.0 };
-    case "flash":   return { x: orb.convX * 1.6, y: orb.convY * 1.6, scale: 1.6, opacity: 1.0 };
-    default:        return { x: orb.orbitX, y: orb.orbitY, scale: 0.8, opacity: 0.48 };
+    case "idle":
+      return { x: `${boss.startX}vw`, y: `${boss.startY}vh`, scale: 0.15, opacity: 0 };
+    case "flying":
+      return {
+        x: [
+          `${boss.startX * 1.32}vw`,
+          `${boss.startX * 0.92 + boss.swayX}vw`,
+          `${boss.startX * 1.06 - boss.swayX * 0.4}vw`,
+          `${boss.startX}vw`,
+        ],
+        y: [
+          `${boss.startY * 1.24}vh`,
+          `${boss.startY * 0.92 + boss.swayY}vh`,
+          `${boss.startY * 1.04 - boss.swayY * 0.4}vh`,
+          `${boss.startY}vh`,
+        ],
+        scale: [0.35, 1.08, 0.94, 1],
+        opacity: [0, 0.92, 1, 1],
+        rotate: [boss.rotation - 18, boss.rotation + 12, boss.rotation - 6, boss.rotation],
+      };
+    case "converge":
+      return {
+        x: `${boss.convX}vw`,
+        y: `${boss.convY}vh`,
+        scale: 1.08,
+        opacity: 1,
+        rotate: boss.rotation * 0.35,
+      };
+    case "flash":
+      return {
+        x: [`${boss.convX}vw`, `${boss.convX * 1.45}vw`, "0vw"],
+        y: [`${boss.convY}vh`, `${boss.convY * 1.45}vh`, "0vh"],
+        scale: [1.08, 1.72, 0.12],
+        opacity: [1, 0.86, 0],
+        rotate: [boss.rotation * 0.35, boss.rotation + 55, boss.rotation + 120],
+      };
+    default:
+      return { x: "0vw", y: "0vh", scale: 0.1, opacity: 0 };
   }
 }
 type BezierTuple = [number, number, number, number];
-function getOrbTransition(phase: AnimPhase, delay: number) {
-  if (phase === "flying")  return { duration: 2.4, delay, ease: [0.16,1,0.3,1] as BezierTuple };
+function getBossTransition(phase: AnimPhase, delay: number) {
+  if (phase === "flying")  return { duration: 2.42, delay, ease: [0.16,1,0.3,1] as BezierTuple };
   if (phase === "converge")return { duration: 0.65, ease: "easeOut" as const };
-  if (phase === "flash")   return { duration: 0.28, ease: "easeOut" as const };
+  if (phase === "flash")   return { duration: 0.55, ease: "easeOut" as const };
   if (phase === "title")   return { duration: 1.4, ease: [0.34,1.26,0.64,1] as BezierTuple };
   if (phase === "done")    return { duration: 0.6, ease: "easeIn" as const };
   return { duration: 0.3 };
+}
+
+const EXPLOSION_RAYS = Array.from({ length: 12 }, (_, index) => ({
+  rotation: index * 30,
+  length: 90 + (index % 3) * 24,
+}));
+
+function BossSilhouette({
+  type,
+  palette,
+}: {
+  type: MainBossType;
+  palette: (typeof BOSS_DEFEAT_PALETTES)[MainBossType];
+}) {
+  const fill = palette.primary;
+  const secondary = palette.secondary;
+  const glow = palette.glow;
+  const highlight = palette.highlight;
+  const gradientId = `intro-${type}-gradient`;
+  const face = (eyeY = 51) => (
+    <>
+      <circle cx="42" cy={eyeY} r="4.5" fill={highlight} />
+      <circle cx="58" cy={eyeY} r="4.5" fill={highlight} />
+      <circle cx="43" cy={eyeY + 1} r="2.1" fill={palette.shadow} />
+      <circle cx="59" cy={eyeY + 1} r="2.1" fill={palette.shadow} />
+    </>
+  );
+
+  if (type === "circle") {
+    return (
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="31" fill={fill} stroke={glow} strokeWidth="3" />
+        <circle cx="50" cy="50" r="22" fill={secondary} opacity="0.65" />
+        <circle cx="39" cy="38" r="7" fill={highlight} opacity="0.6" />
+        <path d="M14 50a36 36 0 0 1 72 0" fill="none" stroke={glow} strokeWidth="3" strokeDasharray="8 6" />
+        {face(49)}
+      </svg>
+    );
+  }
+
+  if (type === "star") {
+    return (
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <polygon points="50,10 61,37 90,38 67,56 75,86 50,68 25,86 33,56 10,38 39,37" fill={fill} stroke={glow} strokeWidth="3" />
+        <polygon points="50,22 57,40 76,41 61,52 66,70 50,59 34,70 39,52 24,41 43,40" fill={secondary} opacity="0.72" />
+        {face(49)}
+      </svg>
+    );
+  }
+
+  if (type === "triangle") {
+    return (
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <polygon points="50,9 91,84 9,84" fill={fill} stroke={glow} strokeWidth="3" strokeLinejoin="round" />
+        <polygon points="50,24 75,70 25,70" fill={secondary} opacity="0.68" />
+        <path d="M50 18v50M24 72h52" stroke={highlight} strokeWidth="3" opacity="0.5" />
+        {face(51)}
+      </svg>
+    );
+  }
+
+  if (type === "trapezoid") {
+    return (
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M25 12h50l17 72H8z" fill={fill} stroke={glow} strokeWidth="3" strokeLinejoin="round" />
+        <path d="M31 25h38l9 45H22z" fill={secondary} opacity="0.7" />
+        <path d="M27 76h46" stroke={highlight} strokeWidth="4" opacity="0.7" />
+        {face(49)}
+      </svg>
+    );
+  }
+
+  if (type === "cube") {
+    return (
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <polygon points="50,8 88,28 88,72 50,92 12,72 12,28" fill={fill} stroke={glow} strokeWidth="3" strokeLinejoin="round" />
+        <polygon points="50,8 88,28 50,49 12,28" fill={secondary} opacity="0.75" />
+        <path d="M50 49v43M12 28l38 21 38-21" fill="none" stroke={highlight} strokeWidth="2.5" opacity="0.72" />
+        <circle cx="50" cy="54" r="8" fill={highlight} opacity="0.75" />
+      </svg>
+    );
+  }
+
+  if (type === "cloud") {
+    return (
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M19 72c-10-2-14-13-8-21 3-4 8-6 13-5 2-15 14-25 29-25 13 0 24 7 28 19 11-3 22 5 22 17 0 9-7 16-16 17H19Z" fill={fill} stroke={glow} strokeWidth="3" strokeLinejoin="round" />
+        <path d="M26 68c-6-2-5-9 1-11 3-1 6 0 8 2 3-10 11-15 20-15 9 0 16 4 20 12" fill="none" stroke={secondary} strokeWidth="7" strokeLinecap="round" opacity="0.7" />
+        {face(54)}
+      </svg>
+    );
+  }
+
+  if (type === "arrow") {
+    return (
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <defs>
+          <linearGradient id={gradientId} x1="0" x2="1" y1="1" y2="0">
+            <stop offset="0" stopColor={fill} />
+            <stop offset="0.5" stopColor={secondary} />
+            <stop offset="1" stopColor={glow} />
+          </linearGradient>
+        </defs>
+        <path d="M50 7 91 51 68 50 68 89 32 89 32 50 9 51Z" fill={`url(#${gradientId})`} stroke={highlight} strokeWidth="3" strokeLinejoin="round" />
+        <path d="M50 22 70 45H58v31H42V45H30Z" fill={palette.shadow} opacity="0.55" />
+        <circle cx="50" cy="42" r="5" fill={highlight} />
+      </svg>
+    );
+  }
+
+  if (type === "tentacle") {
+    return (
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        {[0, 1, 2, 3, 4, 5].map((index) => {
+          const x = 16 + index * 14;
+          return <path key={index} d={`M${x} 78c-8-12 8-15 0-29s8-17 2-27`} fill="none" stroke={secondary} strokeWidth="7" strokeLinecap="round" opacity="0.8" />;
+        })}
+        <circle cx="50" cy="48" r="27" fill={fill} stroke={glow} strokeWidth="3" />
+        <circle cx="50" cy="48" r="17" fill={palette.shadow} opacity="0.65" />
+        {face(47)}
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 100 100" aria-hidden="true">
+      <path d="M29 31 21 10l19 13c6-3 14-3 20 0L79 10l-8 21c7 8 8 23 2 35-5 10-13 17-23 17S32 76 27 66c-6-12-5-27 2-35Z" fill={fill} stroke={glow} strokeWidth="3" strokeLinejoin="round" />
+      <path d="M34 35c8-10 24-10 32 0v25c-8 9-24 9-32 0Z" fill={secondary} opacity="0.7" />
+      {face(47)}
+      <path d="M39 65c7 6 15 6 22 0" fill="none" stroke={highlight} strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 // ─── World palette (9 worlds, spans the title gradient arc) ──────────────────
@@ -311,36 +485,78 @@ export function StartupAnimation({
         backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,255,255,0.011) 3px,rgba(0,255,255,0.011) 4px)",
       }} />
 
-      {/* Orbs — no per-element CSS blur (avoids 30 separate GPU compositor layers).
-           Soft glow is achieved via enlarged radial-gradient + low-opacity outer stop. */}
-      {orbDefs.map((orb, i) => (
-        <motion.div key={i} className="absolute rounded-full pointer-events-none" style={{
-          width: orb.size * 2.8, height: orb.size * 2.8,
-          left: "50%", top: "50%",
-          marginLeft: -(orb.size * 2.8) / 2, marginTop: -(orb.size * 2.8) / 2,
-          background: `radial-gradient(circle at 38% 32%, ${orb.color}ee 0%, ${orb.color}66 35%, ${orb.color}22 60%, transparent 80%)`,
-          zIndex: 2,
-          willChange: "transform, opacity",
-        }}
-          animate={getOrbTarget(orb, animPhase)}
-          transition={getOrbTransition(animPhase, orb.delay)}
-        />
-      ))}
+      {/* Nine authored bosses swarm in from around the viewport. Their SVG
+          silhouettes keep the startup overlay lightweight while retaining the
+          personality and palette of each live boss renderer. */}
+      {INTRO_BOSS_DEFS.map((boss) => {
+        const palette = BOSS_DEFEAT_PALETTES[boss.type];
+        const avatarSize = `clamp(46px, 9vw, ${boss.size}px)`;
+        return (
+          <motion.div
+            key={boss.type}
+            className="absolute pointer-events-none"
+            style={{
+              width: avatarSize,
+              height: avatarSize,
+              left: "50%",
+              top: "50%",
+              marginLeft: `calc(${avatarSize} / -2)`,
+              marginTop: `calc(${avatarSize} / -2)`,
+              zIndex: 2,
+              willChange: "transform, opacity",
+              filter: `drop-shadow(0 0 7px ${palette.glow}) drop-shadow(0 0 15px ${palette.primary}99)`,
+            }}
+            animate={getBossTarget(boss, animPhase)}
+            transition={getBossTransition(animPhase, boss.delay)}
+          >
+            <BossSilhouette type={boss.type} palette={palette} />
+          </motion.div>
+        );
+      })}
 
-      {/* Convergence core */}
+      {/* Convergence core and detonation rays */}
       <AnimatePresence>
         {(animPhase === "converge" || animPhase === "flash") && (
-          <motion.div className="absolute rounded-full pointer-events-none" style={{
-            width: 120, height: 120, left: "50%", top: "50%",
-            marginLeft: -60, marginTop: -60,
-            background: "radial-gradient(circle,#ffffff 0%,#00ffff 30%,#ff00ff 60%,transparent 80%)",
-            filter: "blur(18px)", zIndex: 3,
-          }}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={animPhase === "flash" ? { scale: [0.5,2.8,0.3], opacity: [0.8,1,0] } : { scale: 0.5, opacity: 0.6 }}
-            exit={{ opacity: 0, scale: 0 }}
-            transition={{ duration: animPhase === "flash" ? 0.55 : 0.4, ease: "easeOut" }}
-          />
+          <>
+            <motion.div className="absolute rounded-full pointer-events-none" style={{
+              width: 120, height: 120, left: "50%", top: "50%",
+              marginLeft: -60, marginTop: -60,
+              background: "radial-gradient(circle,#ffffff 0%,#00ffff 30%,#ff00ff 60%,transparent 80%)",
+              filter: "blur(18px)", zIndex: 3,
+            }}
+              initial={{ scale: 0, opacity: 0 }}
+              animate={animPhase === "flash" ? { scale: [0.5, 2.8, 0.3], opacity: [0.8, 1, 0] } : { scale: 0.5, opacity: 0.6 }}
+              exit={{ opacity: 0, scale: 0 }}
+              transition={{ duration: animPhase === "flash" ? 0.55 : 0.4, ease: "easeOut" }}
+            />
+            {EXPLOSION_RAYS.map((ray) => (
+              <motion.div
+                key={ray.rotation}
+                className="absolute pointer-events-none"
+                style={{
+                  left: "50%",
+                  top: "50%",
+                  width: ray.length,
+                  height: 2,
+                  transformOrigin: "left center",
+                  rotate: ray.rotation,
+                  background: "linear-gradient(90deg,#ffffff,#00ffff,#ff00ff,transparent)",
+                  boxShadow: "0 0 8px #00ffff",
+                  zIndex: 3,
+                }}
+                initial={{ scaleX: 0, opacity: 0 }}
+                animate={animPhase === "flash"
+                  ? { scaleX: [0.2, 1.35, 0], opacity: [0, 1, 0] }
+                  : { scaleX: 0.42, opacity: 0.42 }}
+                exit={{ scaleX: 0, opacity: 0 }}
+                transition={{
+                  duration: animPhase === "flash" ? 0.55 : 0.4,
+                  delay: animPhase === "flash" ? (ray.rotation % 60) / 900 : 0,
+                  ease: "easeOut",
+                }}
+              />
+            ))}
+          </>
         )}
       </AnimatePresence>
 
