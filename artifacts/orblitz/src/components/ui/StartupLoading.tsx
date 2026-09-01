@@ -8,7 +8,7 @@ interface Props {
 
 const LOAD_DURATION = 2600;
 
-const ORB_COLORS = ["#00ffff", "#ff00ff", "#ffff00", "#aa00ff", "#00ff88", "#ff8800"];
+const ORB_COLORS = ["#5ad7ff", "#ff78c8", "#ffd166", "#a6a1ff", "#75e0a4", "#ff8f70"];
 
 export function StartupLoading({ onComplete }: Props) {
   const [progress, setProgress] = useState(0);
@@ -68,57 +68,62 @@ export function StartupLoading({ onComplete }: Props) {
       onTouchStart={tryStartAudio}
     >
       <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{
-        background: "radial-gradient(ellipse at 50% 42%, rgba(27,24,72,0.72) 0%, rgba(8,12,34,0.58) 37%, rgba(2,4,15,0.94) 83%), linear-gradient(120deg, #05091b, #11051e 52%, #020612)",
+        background: "radial-gradient(ellipse at 50% 42%, rgba(35,51,107,0.92) 0%, rgba(13,24,61,0.82) 37%, rgba(5,10,31,0.98) 83%), linear-gradient(135deg, #091737, #28144b 52%, #071d32)",
       }}>
         <div className="absolute inset-0" style={{
-          opacity: 0.38,
-          backgroundImage: "linear-gradient(rgba(73,156,255,0.13) 1px, transparent 1px), linear-gradient(90deg, rgba(73,156,255,0.13) 1px, transparent 1px)",
-          backgroundSize: "clamp(30px, 5vw, 70px) clamp(30px, 5vw, 70px)",
-          maskImage: "linear-gradient(to bottom, transparent 0%, black 22%, black 74%, transparent 100%)",
-          WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 22%, black 74%, transparent 100%)",
-          transform: "perspective(420px) rotateX(58deg) scale(1.7) translateY(22%)",
-          transformOrigin: "center bottom",
+          opacity: 0.22,
+          backgroundImage: "linear-gradient(rgba(118,216,255,0.28) 1px, transparent 1px), linear-gradient(90deg, rgba(118,216,255,0.28) 1px, transparent 1px)",
+          backgroundSize: "clamp(26px, 3.7vw, 54px) clamp(26px, 3.7vw, 54px)",
+          maskImage: "radial-gradient(ellipse at 50% 48%, black 0%, transparent 76%)",
+          WebkitMaskImage: "radial-gradient(ellipse at 50% 48%, black 0%, transparent 76%)",
         }} />
         <motion.div
           className="absolute"
           style={{
-            width: "min(74vw, 760px)", height: "min(74vw, 760px)",
-            left: "50%", top: "43%", marginLeft: "min(-37vw, -380px)", marginTop: "min(-37vw, -380px)",
-            border: "1px solid rgba(91,223,255,0.18)", borderRadius: "50%",
-            boxShadow: "0 0 90px rgba(41,105,255,0.14), inset 0 0 90px rgba(255,50,216,0.08)",
+            width: "min(74vw, 760px)", height: "min(36vw, 360px)",
+            left: "50%", top: "43%", marginLeft: "min(-37vw, -380px)", marginTop: "min(-18vw, -180px)",
+            border: "1px solid rgba(118,216,255,0.24)", borderRadius: "50%",
+            transform: "rotate(-12deg)",
+            boxShadow: "0 0 80px rgba(73,171,255,0.14), inset 0 0 72px rgba(255,97,190,0.08)",
           }}
-          animate={{ rotate: 360 }}
-          transition={{ duration: 32, repeat: Infinity, ease: "linear" }}
+          animate={{ rotate: [0, 5, 0], scale: [1, 1.025, 1] }}
+          transition={{ rotate: { duration: 18, repeat: Infinity, ease: "easeInOut" }, scale: { duration: 7, repeat: Infinity, ease: "easeInOut" } }}
         />
-        <div className="absolute left-5 top-5 h-14 w-14" style={{ borderLeft: "1px solid rgba(92,247,255,0.7)", borderTop: "1px solid rgba(92,247,255,0.7)" }} />
-        <div className="absolute right-5 top-5 h-14 w-14" style={{ borderRight: "1px solid rgba(213,92,255,0.7)", borderTop: "1px solid rgba(213,92,255,0.7)" }} />
-        <div className="absolute left-5 bottom-5 h-14 w-14" style={{ borderLeft: "1px solid rgba(92,247,255,0.35)", borderBottom: "1px solid rgba(92,247,255,0.35)" }} />
-        <div className="absolute right-5 bottom-5 h-14 w-14" style={{ borderRight: "1px solid rgba(213,92,255,0.35)", borderBottom: "1px solid rgba(213,92,255,0.35)" }} />
+        <motion.div className="absolute rounded-full" style={{
+          width: "min(62vw, 700px)", height: "min(42vw, 460px)", left: "5%", top: "7%",
+          background: "radial-gradient(ellipse, rgba(116,108,255,0.32), transparent 70%)", filter: "blur(14px)",
+        }} animate={{ x: ["-4%", "8%", "-4%"], y: ["2%", "-5%", "2%"] }} transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }} />
+        <motion.div className="absolute rounded-full" style={{
+          width: "min(54vw, 620px)", height: "min(45vw, 500px)", right: "-8%", bottom: "3%",
+          background: "radial-gradient(ellipse, rgba(255,125,170,0.24), transparent 72%)", filter: "blur(14px)",
+        }} animate={{ x: ["3%", "-7%", "3%"], y: ["-4%", "5%", "-4%"] }} transition={{ duration: 17, repeat: Infinity, ease: "easeInOut" }} />
       </div>
       <div className="absolute left-6 top-5 z-10 pointer-events-none" style={{
-        color: "rgba(164,216,255,0.6)", fontSize: "clamp(0.42rem, 1vw, 0.58rem)",
-        fontWeight: 800, letterSpacing: "0.24em", lineHeight: 1.7,
+        color: "rgba(220,244,255,0.82)", fontSize: "clamp(0.48rem, 1vw, 0.64rem)",
+        fontWeight: 900, letterSpacing: "0.14em", lineHeight: 1.7, fontFamily: "Arial Black, Impact, sans-serif",
       }}>
-        <div>ORBLITZ // CORE-09</div>
-        <div style={{ color: "rgba(255,91,218,0.65)" }}>BOOT SEQUENCE</div>
+        <div>ORBLITZ ARCADE</div>
+        <div style={{ color: "rgba(255,209,102,0.88)", letterSpacing: "0.1em" }}>Stack · play · repeat</div>
       </div>
       <div className="absolute right-6 top-5 z-10 pointer-events-none text-right" style={{
-        color: "rgba(164,216,255,0.48)", fontSize: "clamp(0.42rem, 1vw, 0.58rem)",
-        fontWeight: 800, letterSpacing: "0.2em", lineHeight: 1.7,
+        color: "rgba(220,244,255,0.7)", fontSize: "clamp(0.48rem, 1vw, 0.64rem)",
+        fontWeight: 900, letterSpacing: "0.12em", lineHeight: 1.7, fontFamily: "Arial Black, Impact, sans-serif",
       }}>
-        <div>ARCADE NETWORK</div>
-        <div style={{ color: "rgba(92,247,255,0.7)" }}>HANDSHAKE // READY</div>
+        <div>9 WORLDS · 81 LEVELS</div>
+        <div style={{ color: "rgba(255,120,200,0.84)", letterSpacing: "0.09em" }}>Ready when you are</div>
       </div>
 
       {/* Ambient drifting orbs — no per-element blur (avoids 18 separate compositor layers) */}
       {ambientOrbs.map((orb, i) => (
         <motion.div
           key={i}
-          className="absolute rounded-full pointer-events-none"
+          className="absolute rounded-sm pointer-events-none"
           style={{
             width: orb.size * 3,
             height: orb.size * 3,
-            background: `radial-gradient(circle, ${orb.color}99 0%, ${orb.color}33 45%, transparent 75%)`,
+            background: `linear-gradient(145deg, rgba(255,255,255,0.7), ${orb.color} 32%, ${orb.color}55)`,
+            border: "1px solid rgba(255,255,255,0.25)",
+            boxShadow: `0 0 18px ${orb.color}55`,
             left: "50%",
             top: "50%",
             marginLeft: -(orb.size * 3) / 2,
@@ -140,7 +145,7 @@ export function StartupLoading({ onComplete }: Props) {
         style={{
           width: 560,
           height: 260,
-          background: "radial-gradient(ellipse, rgba(0,255,255,0.07) 0%, rgba(170,0,255,0.05) 40%, transparent 70%)",
+          background: "radial-gradient(ellipse, rgba(90,215,255,0.12) 0%, rgba(255,120,200,0.08) 40%, transparent 70%)",
         }}
       />
 
@@ -149,12 +154,13 @@ export function StartupLoading({ onComplete }: Props) {
         className="relative z-10 font-black tracking-widest text-transparent bg-clip-text select-none"
         style={{
           fontSize: "clamp(3.5rem, 12vw, 7rem)",
-          fontFamily: "Inter, Arial Black, sans-serif",
-          fontStyle: "italic",
-          letterSpacing: "0.16em",
-          transform: "skewX(-8deg)",
-          WebkitTextStroke: "1px rgba(197,244,255,0.24)",
-          backgroundImage: "linear-gradient(135deg, #e7ffff 0%, #5cf7ff 24%, #8f77ff 56%, #ff4fbb 82%, #ffd166 100%)",
+          fontFamily: "Arial Black, Impact, sans-serif",
+          fontWeight: 900,
+          fontStyle: "normal",
+          letterSpacing: "0.075em",
+          WebkitTextStroke: "2px rgba(224,249,255,0.16)",
+          textShadow: "5px 5px 0 rgba(10,20,68,0.6), 0 0 28px rgba(90,215,255,0.28)",
+          backgroundImage: "linear-gradient(135deg,#5ad7ff 0%,#5ad7ff 16%,#ff78c8 16%,#ff78c8 32%,#ffd166 32%,#ffd166 48%,#75e0a4 48%,#75e0a4 64%,#a6a1ff 64%,#a6a1ff 82%,#ff8f70 82%,#ff8f70 100%)",
         }}
         initial={{ opacity: 0, scale: 0.82, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -166,7 +172,7 @@ export function StartupLoading({ onComplete }: Props) {
       {/* Glow line under title */}
       <motion.div
         className="relative z-10 mt-3"
-        style={{ width: "clamp(180px, 40vw, 320px)", height: 1, background: "linear-gradient(90deg, transparent, #00ffff 40%, #ff00ff 60%, transparent)" }}
+        style={{ width: "clamp(180px, 40vw, 320px)", height: "clamp(5px, 0.8vw, 8px)", borderRadius: 3, background: "linear-gradient(90deg,transparent 0%,#5ad7ff 18%,#ff78c8 18%,#ff78c8 36%,#ffd166 36%,#ffd166 54%,#75e0a4 54%,#75e0a4 72%,#a6a1ff 72%,#a6a1ff 88%,transparent 88%)", boxShadow: "0 4px 0 rgba(10,20,68,0.45), 0 0 16px rgba(90,215,255,0.4)" }}
         initial={{ scaleX: 0, opacity: 0 }}
         animate={{ scaleX: 1, opacity: 0.7 }}
         transition={{ duration: 0.8, delay: 0.35, ease: "easeOut" }}
@@ -185,7 +191,7 @@ export function StartupLoading({ onComplete }: Props) {
             className="h-full rounded-full"
             style={{
               width: `${progress * 100}%`,
-              background: "linear-gradient(90deg, #00ffff, #aa00ff, #ff00ff)",
+              background: "linear-gradient(90deg, #5ad7ff, #ff78c8, #ffd166, #75e0a4)",
             }}
             transition={{ duration: 0.05 }}
           />
@@ -193,13 +199,13 @@ export function StartupLoading({ onComplete }: Props) {
       </motion.div>
 
       <motion.p
-        className="relative z-10 mt-5 text-[0.62rem] font-semibold uppercase tracking-[0.28em]"
-        style={{ color: "rgba(190, 240, 255, 0.7)" }}
+        className="relative z-10 mt-5 text-[0.62rem] font-semibold uppercase tracking-[0.2em]"
+        style={{ color: "rgba(220, 244, 255, 0.78)", fontFamily: "Arial Black, Impact, sans-serif", textShadow: "2px 2px 0 rgba(10,20,68,0.52)" }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.55 }}
       >
-        Tap or click to enter
+        Tap or click to play
       </motion.p>
     </motion.div>
   );

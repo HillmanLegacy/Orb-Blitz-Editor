@@ -39,10 +39,19 @@ const EXPLOSION_RAYS = Array.from({ length: 12 }, (_, index) => ({
   length: 90 + (index % 3) * 24,
 }));
 
+const TETROMINOES = [
+  { cells: [[0, 0], [1, 0], [2, 0], [3, 0]], color: "#5ad7ff", left: "8%", top: "18%", rotate: -12, scale: 1.2, duration: 9, delay: 0 },
+  { cells: [[0, 0], [0, 1], [1, 1], [2, 1]], color: "#ff78c8", left: "84%", top: "22%", rotate: 16, scale: 1.05, duration: 11, delay: 0.8 },
+  { cells: [[0, 0], [1, 0], [0, 1], [1, 1]], color: "#ffd166", left: "16%", top: "72%", rotate: -8, scale: 1.1, duration: 10, delay: 1.5 },
+  { cells: [[0, 0], [1, 0], [2, 0], [1, 1]], color: "#8d7cff", left: "78%", top: "72%", rotate: 10, scale: 1.15, duration: 12, delay: 0.4 },
+  { cells: [[0, 0], [1, 0], [1, 1], [2, 1]], color: "#75e0a4", left: "3%", top: "48%", rotate: 7, scale: 0.82, duration: 13, delay: 2 },
+  { cells: [[0, 0], [0, 1], [1, 1], [2, 1], [2, 2]], color: "#ff8f70", left: "91%", top: "48%", rotate: -14, scale: 0.78, duration: 10, delay: 1.1 },
+] as const;
+
 // ─── World palette (9 worlds, spans the title gradient arc) ──────────────────
 const WORLD_COLORS = [
-  "#00ffff","#22ddff","#6699ff","#8844ff","#cc22ff",
-  "#ff00ff","#ff44aa","#ff7700","#ffcc00",
+  "#5ad7ff","#8d7cff","#ff78c8","#ff8f70","#ffd166",
+  "#75e0a4","#ffad66","#a6a1ff","#6cd9d8",
 ];
 const WORLD_SHADOWS = WORLD_COLORS.map(c => c + "55");
 
@@ -142,17 +151,17 @@ export function StartupAnimation({
 
     switch (menuState) {
        case "root": return [
-        { id:"play",      icon:<IconPlay />,     label:"LAUNCH",   color:"#00ffff", shadow:"rgba(0,255,255,0.45)",  action: () => { btn("play");      setMenuState("modes");    } },
-        { id:"shop",      icon:<IconShop />,     label:"MARKET",   color:"#ff00ff", shadow:"rgba(255,0,255,0.45)",  action: () => { btn("shop");      openShop();               } },
-        { id:"inventory", icon:<IconGear />,     label:"LOADOUT",  color:"#aa00ff", shadow:"rgba(170,0,255,0.45)",  action: () => { btn("inventory"); openInventory();          } },
-        { id:"trophies",  icon:<IconTrophy />,   label:"ARCHIVE",  color:"#fbbf24", shadow:"rgba(251,191,36,0.4)", action: () => { btn("trophies"); openTrophies(); } },
-        { id:"settings",  icon:<IconSettings />, label:"SYSTEMS",  color:"#ffff00", shadow:"rgba(255,255,0,0.4)",   action: () => { btn("settings");  setMenuState("settings"); } },
+        { id:"play",      icon:<IconPlay />,     label:"LAUNCH",   color:"#a9a0ff", shadow:"rgba(169,160,255,0.34)", action: () => { btn("play");      setMenuState("modes");    } },
+        { id:"shop",      icon:<IconShop />,     label:"MARKET",   color:"#ff9ebd", shadow:"rgba(255,158,189,0.34)", action: () => { btn("shop");      openShop();               } },
+        { id:"inventory", icon:<IconGear />,     label:"LOADOUT",  color:"#c69cff", shadow:"rgba(198,156,255,0.34)", action: () => { btn("inventory"); openInventory();          } },
+        { id:"trophies",  icon:<IconTrophy />,   label:"ARCHIVE",  color:"#ffd99a", shadow:"rgba(255,217,154,0.3)",  action: () => { btn("trophies"); openTrophies(); } },
+        { id:"settings",  icon:<IconSettings />, label:"SYSTEMS",  color:"#b9d5ff", shadow:"rgba(185,213,255,0.3)",  action: () => { btn("settings");  setMenuState("settings"); } },
       ];
       case "modes": return [
-        { id:"arcade",    icon:<IconArcade />,   label:"ARCADE",   color:"#ff00ff", shadow:"rgba(255,0,255,0.45)",  action: () => { btn("arcade"); setMenuState("worlds"); }  },
-        { id:"chill",     icon:<IconChill />,    label:"CHILL",    color:"#aa00ff", shadow:"rgba(170,0,255,0.45)",  action: () => handleStartMode("chill")     },
-        { id:"survival",  icon:<IconSurvive />,  label:"SURVIVAL", color:"#00ffff", shadow:"rgba(0,255,255,0.45)",  action: () => handleStartMode("survival")  },
-        { id:"gauntlet",  icon:<IconGauntlet />, label:"GAUNTLET", color:"#ffff00", shadow:"rgba(255,255,0,0.4)",   action: () => handleStartMode("gauntlet")  },
+        { id:"arcade",    icon:<IconArcade />,   label:"ARCADE",   color:"#ff9ebd", shadow:"rgba(255,158,189,0.34)", action: () => { btn("arcade"); setMenuState("worlds"); }  },
+        { id:"chill",     icon:<IconChill />,    label:"CHILL",    color:"#b9a5ff", shadow:"rgba(185,165,255,0.34)", action: () => handleStartMode("chill")     },
+        { id:"survival",  icon:<IconSurvive />,  label:"SURVIVAL", color:"#9fd9ff", shadow:"rgba(159,217,255,0.3)",  action: () => handleStartMode("survival")  },
+        { id:"gauntlet",  icon:<IconGauntlet />, label:"GAUNTLET", color:"#ffd99a", shadow:"rgba(255,217,154,0.3)",  action: () => handleStartMode("gauntlet")  },
         back("BACK", () => { btn("back"); setMenuState("root"); }),
       ];
       case "settings": return [
@@ -285,68 +294,109 @@ export function StartupAnimation({
       onClick={isClickable ? handleTap : undefined}
       onTouchStart={isClickable ? handleTap : undefined}
     >
-      {/* ── COMMAND-DECK ATMOSPHERE ─────────────────────────────────────── */}
+      {/* ── CELESTIAL ATMOSPHERE ───────────────────────────────────────── */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{
         zIndex: 0,
         opacity: showMenu ? 1 : 0.12,
         transition: "opacity 0.45s ease",
-        background: "radial-gradient(ellipse at 50% 42%, rgba(27,24,72,0.72) 0%, rgba(8,12,34,0.58) 37%, rgba(2,4,15,0.94) 83%), linear-gradient(120deg, #05091b, #11051e 52%, #020612)",
+        background: "radial-gradient(ellipse at 50% 42%, rgba(35,51,107,0.92) 0%, rgba(13,24,61,0.82) 37%, rgba(5,10,31,0.98) 83%), linear-gradient(135deg, #091737, #28144b 52%, #071d32)",
       }}>
         <div className="absolute inset-0" style={{
-          opacity: 0.42,
-          backgroundImage: "linear-gradient(rgba(73,156,255,0.13) 1px, transparent 1px), linear-gradient(90deg, rgba(73,156,255,0.13) 1px, transparent 1px)",
-          backgroundSize: "clamp(30px, 5vw, 70px) clamp(30px, 5vw, 70px)",
-          maskImage: "linear-gradient(to bottom, transparent 0%, black 22%, black 74%, transparent 100%)",
-          WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 22%, black 74%, transparent 100%)",
-          transform: "perspective(420px) rotateX(58deg) scale(1.7) translateY(22%)",
-          transformOrigin: "center bottom",
+          opacity: 0.22,
+          backgroundImage: "linear-gradient(rgba(118,216,255,0.28) 1px, transparent 1px), linear-gradient(90deg, rgba(118,216,255,0.28) 1px, transparent 1px)",
+          backgroundSize: "clamp(26px, 3.7vw, 54px) clamp(26px, 3.7vw, 54px)",
+          maskImage: "radial-gradient(ellipse at 50% 48%, black 0%, transparent 76%)",
+          WebkitMaskImage: "radial-gradient(ellipse at 50% 48%, black 0%, transparent 76%)",
         }} />
+        {TETROMINOES.map((piece, pieceIndex) => (
+          <motion.div
+            key={pieceIndex}
+            className="absolute pointer-events-none"
+            style={{
+              left: piece.left, top: piece.top, opacity: 0.48, scale: piece.scale,
+              display: "grid", gridTemplateColumns: "repeat(4, clamp(14px, 2vw, 28px))",
+              gridAutoRows: "clamp(14px, 2vw, 28px)", transformOrigin: "center",
+              filter: "drop-shadow(0 8px 10px rgba(0,0,0,0.18))",
+            }}
+            animate={{ y: [0, -10, 0], rotate: [piece.rotate, piece.rotate + 4, piece.rotate] }}
+            transition={{ duration: piece.duration, delay: piece.delay, repeat: Infinity, ease: "easeInOut" }}
+          >
+            {piece.cells.map(([x, y], cellIndex) => (
+              <div
+                key={cellIndex}
+                style={{
+                  gridColumn: x + 1, gridRow: y + 1,
+                  borderRadius: 4, border: "1px solid rgba(255,255,255,0.34)",
+                  background: `linear-gradient(145deg, rgba(255,255,255,0.7), ${piece.color} 23%, ${piece.color}cc)`,
+                  boxShadow: `inset 3px 3px 0 rgba(255,255,255,0.26), inset -3px -3px 0 rgba(0,0,0,0.12), 0 0 18px ${piece.color}55`,
+                }}
+              />
+            ))}
+          </motion.div>
+        ))}
         <motion.div
-          className="absolute"
+          className="absolute rounded-full"
           style={{
-            width: "min(74vw, 760px)", height: "min(74vw, 760px)",
-            left: "50%", top: "43%", marginLeft: "min(-37vw, -380px)", marginTop: "min(-37vw, -380px)",
-            border: "1px solid rgba(91,223,255,0.18)", borderRadius: "50%",
-            boxShadow: "0 0 90px rgba(41,105,255,0.14), inset 0 0 90px rgba(255,50,216,0.08)",
+            width: "min(65vw, 720px)", height: "min(42vw, 460px)",
+            left: "7%", top: "8%",
+            background: "radial-gradient(ellipse, rgba(76,157,255,0.28), rgba(76,157,255,0.07) 48%, transparent 72%)",
+            filter: "blur(12px)",
           }}
-          animate={{ rotate: 360, scale: [1, 1.025, 1] }}
-          transition={{ rotate: { duration: 32, repeat: Infinity, ease: "linear" }, scale: { duration: 7, repeat: Infinity, ease: "easeInOut" } }}
+          animate={{ x: ["-4%", "8%", "-4%"], y: ["2%", "-5%", "2%"], scale: [1, 1.08, 1] }}
+          transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute rounded-full"
+          style={{
+            width: "min(54vw, 620px)", height: "min(45vw, 500px)",
+            right: "-8%", bottom: "3%",
+            background: "radial-gradient(ellipse, rgba(255,98,190,0.22), rgba(255,98,190,0.05) 52%, transparent 74%)",
+            filter: "blur(14px)",
+          }}
+          animate={{ x: ["3%", "-7%", "3%"], y: ["-4%", "5%", "-4%"], scale: [1.05, 0.94, 1.05] }}
+          transition={{ duration: 17, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute rounded-full"
+          style={{
+            width: "min(34vw, 390px)", height: "min(34vw, 390px)",
+            left: "50%", top: "45%", transform: "translate(-50%, -50%)",
+            background: "radial-gradient(circle, rgba(255,209,102,0.12), rgba(120,107,255,0.07) 48%, transparent 72%)",
+            filter: "blur(4px)",
+          }}
+          animate={{ scale: [0.9, 1.08, 0.9], opacity: [0.7, 1, 0.7] }}
+          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
           className="absolute"
           style={{
-            left: "-12%", top: "35%", width: "124%", height: 1,
-            background: "linear-gradient(90deg, transparent, rgba(91,223,255,0.6), rgba(222,87,255,0.55), transparent)",
-            filter: "blur(1px)", boxShadow: "0 0 18px rgba(91,223,255,0.45)",
+            width: "min(74vw, 760px)", height: "min(36vw, 360px)",
+            left: "50%", top: "43%", marginLeft: "min(-37vw, -380px)", marginTop: "min(-18vw, -180px)",
+            border: "1px solid rgba(118,216,255,0.24)", borderRadius: "50%",
+            transform: "rotate(-12deg)",
+            boxShadow: "0 0 80px rgba(73,171,255,0.14), inset 0 0 72px rgba(255,97,190,0.08)",
           }}
-          animate={{ y: ["-25vh", "40vh", "-25vh"], opacity: [0, 0.7, 0] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+          animate={{ rotate: [0, 5, 0], scale: [1, 1.025, 1] }}
+          transition={{ rotate: { duration: 18, repeat: Infinity, ease: "easeInOut" }, scale: { duration: 7, repeat: Infinity, ease: "easeInOut" } }}
         />
-        <div className="absolute left-5 top-5 h-14 w-14" style={{ borderLeft: "1px solid rgba(92,247,255,0.7)", borderTop: "1px solid rgba(92,247,255,0.7)" }} />
-        <div className="absolute right-5 top-5 h-14 w-14" style={{ borderRight: "1px solid rgba(213,92,255,0.7)", borderTop: "1px solid rgba(213,92,255,0.7)" }} />
-        <div className="absolute left-5 bottom-5 h-14 w-14" style={{ borderLeft: "1px solid rgba(92,247,255,0.35)", borderBottom: "1px solid rgba(92,247,255,0.35)" }} />
-        <div className="absolute right-5 bottom-5 h-14 w-14" style={{ borderRight: "1px solid rgba(213,92,255,0.35)", borderBottom: "1px solid rgba(213,92,255,0.35)" }} />
+        <div className="absolute left-[14%] top-[24%] h-2 w-2 rounded-sm" style={{ background: "#ffd166", boxShadow: "0 0 24px 7px rgba(255,209,102,0.35)" }} />
+        <div className="absolute right-[18%] bottom-[28%] h-1.5 w-1.5 rounded-sm" style={{ background: "#ff78c8", boxShadow: "0 0 20px 6px rgba(255,120,200,0.34)" }} />
       </div>
 
-      <div className="absolute left-6 top-5 z-[2] pointer-events-none" style={{
-        color: "rgba(164,216,255,0.6)", fontSize: "clamp(0.42rem, 1vw, 0.58rem)",
-        fontWeight: 800, letterSpacing: "0.24em", lineHeight: 1.7,
+      <div className="absolute left-6 top-6 z-[2] pointer-events-none" style={{
+        color: "rgba(220,244,255,0.82)", fontSize: "clamp(0.48rem, 1vw, 0.64rem)",
+        fontWeight: 900, letterSpacing: "0.14em", lineHeight: 1.7, fontFamily: "Arial Black, Impact, sans-serif",
       }}>
-        <div>ORBLITZ // CORE-09</div>
-        <div style={{ color: "rgba(255,91,218,0.65)" }}>SIGNAL LOCKED</div>
+        <div>ORBLITZ ARCADE</div>
+        <div style={{ color: "rgba(255,209,102,0.88)", letterSpacing: "0.1em" }}>Stack · play · repeat</div>
       </div>
-      <div className="absolute right-6 top-5 z-[2] pointer-events-none text-right" style={{
-        color: "rgba(164,216,255,0.48)", fontSize: "clamp(0.42rem, 1vw, 0.58rem)",
-        fontWeight: 800, letterSpacing: "0.2em", lineHeight: 1.7,
+      <div className="absolute right-6 top-6 z-[2] pointer-events-none text-right" style={{
+        color: "rgba(220,244,255,0.7)", fontSize: "clamp(0.48rem, 1vw, 0.64rem)",
+        fontWeight: 900, letterSpacing: "0.12em", lineHeight: 1.7, fontFamily: "Arial Black, Impact, sans-serif",
       }}>
-        <div>ARCADE NETWORK</div>
-        <div style={{ color: "rgba(92,247,255,0.7)" }}>ONLINE // 09.09</div>
+        <div>9 WORLDS · 81 LEVELS</div>
+        <div style={{ color: "rgba(255,120,200,0.84)", letterSpacing: "0.09em" }}>Ready when you are</div>
       </div>
-
-      {/* Scanlines */}
-      <div className="absolute inset-0 pointer-events-none z-[1]" style={{
-        backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(117,224,255,0.025) 3px,rgba(117,224,255,0.025) 4px)",
-      }} />
 
       {/* Convergence core and detonation rays */}
       <AnimatePresence>
@@ -355,7 +405,7 @@ export function StartupAnimation({
             <motion.div className="absolute rounded-full pointer-events-none" style={{
               width: 120, height: 120, left: "50%", top: "50%",
               marginLeft: -60, marginTop: -60,
-              background: "radial-gradient(circle,#ffffff 0%,#00ffff 30%,#ff00ff 60%,transparent 80%)",
+               background: "radial-gradient(circle,#fffafc 0%,#c8b6ff 30%,#ff9ebd 60%,transparent 80%)",
               filter: "blur(18px)", zIndex: 3,
             }}
               initial={{ scale: 0, opacity: 0 }}
@@ -374,8 +424,8 @@ export function StartupAnimation({
                   height: 2,
                   transformOrigin: "left center",
                   rotate: ray.rotation,
-                  background: "linear-gradient(90deg,#ffffff,#00ffff,#ff00ff,transparent)",
-                  boxShadow: "0 0 8px #00ffff",
+                   background: "linear-gradient(90deg,#fffafc,#c8b6ff,#ff9ebd,transparent)",
+                   boxShadow: "0 0 8px rgba(255,158,189,0.75)",
                   zIndex: 3,
                 }}
                 initial={{ scaleX: 0, opacity: 0 }}
@@ -409,21 +459,22 @@ export function StartupAnimation({
               animate={{ opacity: 0.7, letterSpacing: "0.28em" }}
               transition={{ duration: 0.7, delay: animPhase === "title" ? 0.34 : 0 }}
               style={{
-                margin: "0 0 clamp(8px, 1.5vw, 16px)", color: "#8cbcff",
+                margin: "0 0 clamp(8px, 1.5vw, 16px)", color: "#b9efff",
                 fontSize: "clamp(0.42rem, 1.15vw, 0.68rem)", fontWeight: 800,
-                fontFamily: "Inter, sans-serif", textTransform: "uppercase",
+                fontFamily: "Arial Black, Impact, sans-serif", textTransform: "uppercase",
               }}
             >
-              {showWaiting ? "SYNC COMPLETE // AWAITING INPUT" : "ORBITAL COMMAND // NINE SIGNALS"}
+              {showWaiting ? "The board is yours now" : "A bright little arcade"}
             </motion.p>
             {/* Letters clickable in menu phase for dev-mode easter egg */}
             {showMenu ? (
               <motion.h1
                 className="font-black tracking-widest flex items-center justify-center orb-title-glow"
                 style={{ fontSize: "clamp(3.5rem, 11vw, 7rem)", lineHeight: 1,
-                  fontFamily: "Inter, Arial Black, sans-serif", fontStyle: "italic",
-                  letterSpacing: "0.16em", transform: "skewX(-8deg)",
-                  WebkitTextStroke: "1px rgba(197,244,255,0.24)",
+                  fontFamily: "Arial Black, Impact, sans-serif", fontWeight: 900, fontStyle: "normal",
+                  letterSpacing: "0.075em", transform: "none",
+                  WebkitTextStroke: "2px rgba(224,249,255,0.16)",
+                  textShadow: "5px 5px 0 rgba(10,20,68,0.6), 0 0 28px rgba(90,215,255,0.28)",
                   filter: devFlash ? "drop-shadow(0 0 30px #ffff00) drop-shadow(0 0 60px #ffaa00)" : undefined,
                   transition: devFlash ? "filter 0.1s" : undefined,
                 }}
@@ -431,7 +482,7 @@ export function StartupAnimation({
                 {TITLE_LETTERS.map((letter, idx) => (
                   <motion.span key={idx} className="cursor-pointer"
                     style={{
-                      backgroundImage: "linear-gradient(135deg,#00ffff 0%,#aa00ff 45%,#ff00ff 75%,#ffff00 100%)",
+                      backgroundImage: "linear-gradient(135deg,#5ad7ff 0%,#5ad7ff 16%,#ff78c8 16%,#ff78c8 32%,#ffd166 32%,#ffd166 48%,#75e0a4 48%,#75e0a4 64%,#a6a1ff 64%,#a6a1ff 82%,#ff8f70 82%,#ff8f70 100%)",
                       WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
                       opacity: idx < devProgress ? 0.4 : 1,
                     }}
@@ -444,18 +495,20 @@ export function StartupAnimation({
             ) : (
               <h1 className="font-black tracking-widest text-transparent bg-clip-text pointer-events-none orb-title-glow"
                 style={{ fontSize: "clamp(3.5rem, 11vw, 7rem)", lineHeight: 1,
-                  fontFamily: "Inter, Arial Black, sans-serif", fontStyle: "italic",
-                  letterSpacing: "0.16em", transform: "skewX(-8deg)",
-                  WebkitTextStroke: "1px rgba(197,244,255,0.24)",
-                  backgroundImage: "linear-gradient(135deg,#e7ffff 0%,#5cf7ff 24%,#8f77ff 56%,#ff4fbb 82%,#ffd166 100%)" }}
+                  fontFamily: "Arial Black, Impact, sans-serif", fontWeight: 900, fontStyle: "normal",
+                  letterSpacing: "0.075em", transform: "none",
+                  WebkitTextStroke: "2px rgba(224,249,255,0.16)",
+                  textShadow: "5px 5px 0 rgba(10,20,68,0.6), 0 0 28px rgba(90,215,255,0.28)",
+                  backgroundImage: "linear-gradient(135deg,#5ad7ff 0%,#5ad7ff 16%,#ff78c8 16%,#ff78c8 32%,#ffd166 32%,#ffd166 48%,#75e0a4 48%,#75e0a4 64%,#a6a1ff 64%,#a6a1ff 82%,#ff8f70 82%,#ff8f70 100%)" }}
               >ORBLITZ</h1>
             )}
 
             {/* Underline */}
             <motion.div className="mt-3 mx-auto" style={{
-              height: 1, width: "clamp(160px, 36vw, 280px)",
-              background: "linear-gradient(90deg,transparent,#5cf7ff 35%,#ff4fbb 65%,transparent)",
-              boxShadow: "0 0 12px rgba(92,247,255,0.6)",
+              height: "clamp(5px, 0.8vw, 8px)", width: "clamp(160px, 36vw, 280px)",
+              borderRadius: 3,
+              background: "linear-gradient(90deg,transparent 0%,#5ad7ff 18%,#ff78c8 18%,#ff78c8 36%,#ffd166 36%,#ffd166 54%,#75e0a4 54%,#75e0a4 72%,#a6a1ff 72%,#a6a1ff 88%,transparent 88%)",
+              boxShadow: "0 4px 0 rgba(10,20,68,0.45), 0 0 16px rgba(90,215,255,0.4)",
             }}
               initial={{ scaleX: 0, opacity: 0 }}
               animate={{ scaleX: 1, opacity: 0.65 }}
@@ -468,12 +521,12 @@ export function StartupAnimation({
                 animate={{ opacity: 0.58, y: 0 }}
                 transition={{ delay: 0.3 }}
                 style={{
-                  margin: "clamp(8px, 1.5vw, 14px) 0 0", color: "#b7c7ff",
+                  margin: "clamp(8px, 1.5vw, 14px) 0 0", color: "#b9efff",
                   fontSize: "clamp(0.44rem, 1.1vw, 0.64rem)", fontWeight: 800,
-                  letterSpacing: "0.34em", textTransform: "uppercase",
+                  letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "Arial Black, Impact, sans-serif",
                 }}
               >
-                Choose your vector
+                Stack up a little fun
               </motion.p>
             )}
           </motion.div>
@@ -485,12 +538,17 @@ export function StartupAnimation({
         {showMenu && (
           <motion.div
             className="absolute z-10 flex items-center justify-center gap-1.5 pointer-events-none"
-            style={{ top: "calc(50% + clamp(44px, 8vw, 68px))", left: 0, right: 0 }}
+            style={{
+              top: "calc(50% + clamp(48px, 8vw, 72px))", left: "50%", right: "auto",
+              transform: "translateX(-50%)", padding: "5px 13px",
+              border: "2px solid rgba(255,209,102,0.54)", borderRadius: 7,
+              background: "rgba(255,209,102,0.16)", boxShadow: "3px 3px 0 rgba(10,20,68,0.52), 0 0 18px rgba(255,209,102,0.14)",
+            }}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ delay: 0.15 }}
           >
-            <span style={{ color: "#ffd700", fontSize: "0.78rem" }}>★</span>
-            <span style={{ color: "#fde68a", fontSize: "0.78rem", fontWeight: 700 }}>{shopStars}</span>
+            <span style={{ color: "#ffd166", fontSize: "0.72rem" }}>★</span>
+            <span style={{ color: "#fff1bd", fontSize: "0.66rem", fontWeight: 900, letterSpacing: "0.08em", fontFamily: "Arial Black, Impact, sans-serif" }}>{shopStars} STARS</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -507,11 +565,11 @@ export function StartupAnimation({
             transition={{ duration: 0.5, ease: "easeOut" }}
           >
             <p className="text-lg md:text-xl font-semibold tracking-[0.22em] uppercase"
-              style={{ color: "rgba(92,247,255,0.9)", textShadow: "0 0 18px rgba(92,247,255,0.55)", fontSize: "clamp(0.72rem, 2vw, 1.05rem)" }}>
-              Tap to Enter
+              style={{ color: "rgba(226,249,255,0.94)", textShadow: "3px 3px 0 rgba(10,20,68,0.7), 0 0 18px rgba(90,215,255,0.5)", fontSize: "clamp(0.72rem, 2vw, 1.05rem)", fontFamily: "Arial Black, Impact, sans-serif" }}>
+              Press to Play
             </p>
-            <p style={{ margin: "8px 0 0", color: "rgba(183,199,255,0.45)", fontSize: "clamp(0.4rem, 1vw, 0.58rem)", letterSpacing: "0.22em", textTransform: "uppercase" }}>
-              The arena is waiting
+            <p style={{ margin: "8px 0 0", color: "rgba(204,233,255,0.66)", fontSize: "clamp(0.4rem, 1vw, 0.58rem)", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "Arial Black, Impact, sans-serif" }}>
+              Clear the board · chase the high score
             </p>
           </motion.div>
         )}
@@ -626,17 +684,18 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false }: Butt
             style={{
               minWidth: 0, maxWidth: maxW,
               height: btnH,
-              borderRadius: "3px",
-              clipPath: "polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px))",
-              border: `1.5px solid ${isPress ? b.color + "cc" : b.color + "55"}`,
-              background: isPress ? `${b.color}28` : `linear-gradient(145deg,rgba(16,24,54,0.9),${b.color}0b 55%,rgba(3,6,22,0.92))`,
+              borderRadius: "clamp(6px, 1vw, 10px)",
+              border: `2px solid ${isPress ? b.color : b.color + "aa"}`,
+              background: isPress
+                ? `linear-gradient(145deg, ${b.color}65, ${b.color}28)`
+                : `linear-gradient(145deg, rgba(255,255,255,0.12), ${b.color}35 52%, ${b.color}18)`,
               color: b.color,
               boxShadow: isPress
-                ? `0 0 24px ${b.shadow}, 0 0 48px ${b.shadow}, inset 0 0 18px ${b.color}20`
-                : `0 0 18px ${b.shadow}, inset 0 1px 0 ${b.color}26`,
-              textShadow: `0 0 8px ${b.color}66`,
+                ? `3px 3px 0 rgba(10,20,68,0.58), 0 0 24px ${b.shadow}, inset 0 0 12px ${b.color}28`
+                : `4px 5px 0 rgba(10,20,68,0.58), 0 0 14px ${b.shadow}, inset 2px 2px 0 rgba(255,255,255,0.14)`,
               cursor: "pointer",
               WebkitTapHighlightColor: "transparent",
+              backdropFilter: "blur(3px)",
               transition: "background 0.14s, box-shadow 0.14s, border-color 0.14s",
             }}
             variants={{
@@ -653,28 +712,29 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false }: Butt
             onClick={b.action}
             data-orblitz-modal-opener={b.id === "shop" || b.id === "inventory" ? b.id : undefined}
           >
-            {/* Top accent line */}
+            {/* Block highlight */}
             <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{
-              height: 2,
-              background: `linear-gradient(90deg,transparent 8%,${b.color}88 50%,transparent 92%)`,
+              height: 5,
+              background: `linear-gradient(90deg,${b.color}00 0%,${b.color}cc 22%,rgba(255,255,255,0.7) 48%,${b.color}22 78%,${b.color}00 100%)`,
               opacity: isPress ? 1 : 0.55, transition: "opacity 0.14s",
             }} />
-            {/* Scanlines */}
+            {/* Soft glass highlight */}
             <div className="absolute inset-0 pointer-events-none" style={{
-              backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 4px,rgba(255,255,255,0.012) 4px,rgba(255,255,255,0.012) 5px)",
+              background: "linear-gradient(135deg, rgba(255,255,255,0.08), transparent 45%, rgba(0,0,0,0.08))",
               borderRadius: "inherit",
             }} />
             {/* Icon */}
             <span style={{
               fontSize: iconSz, lineHeight: 1,
               marginBottom: compact ? "2px" : "clamp(2px,0.6vw,5px)",
-              filter: `drop-shadow(0 0 5px ${b.color}88)`,
+              filter: `drop-shadow(2px 2px 0 rgba(10,20,68,0.4))`,
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>{b.icon}</span>
             {/* Label */}
             <span style={{
-              fontSize: labelSz, fontWeight: 800,
-              letterSpacing: "0.13em", lineHeight: 1, opacity: 0.88,
+              fontSize: labelSz, fontWeight: 900,
+              letterSpacing: "0.08em", lineHeight: 1, opacity: 0.96,
+              fontFamily: "Arial Black, Impact, sans-serif",
             }}>{b.label}</span>
           </motion.button>
         );
@@ -694,8 +754,8 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
   const btnH  = "clamp(68px,12vw,96px)";
   const iconSz = "clamp(1.2rem,3.2vw,1.8rem)";
   const labelSz = "clamp(0.48rem,1.25vw,0.68rem)";
-  const sc = isMuted ? "#667788" : "#00ffff";
-  const ss = isMuted ? "rgba(100,110,130,0.2)" : "rgba(0,255,255,0.45)";
+  const sc = isMuted ? "#8292ae" : "#5ad7ff";
+  const ss = isMuted ? "rgba(130,146,174,0.22)" : "rgba(90,215,255,0.34)";
   const bPct = Math.round(((brightness - 0.2) / 1.8) * 100);
   const vPct = Math.round(volume * 100);
 
@@ -706,31 +766,32 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
   };
 
   const btnStyle = (color: string, shadow: string): React.CSSProperties => ({
-    height: btnH, borderRadius: "clamp(10px,1.6vw,14px)",
-    border: `1.5px solid ${color}55`,
-    background: `linear-gradient(160deg,${color}10 0%,${color}06 100%)`,
-    color, boxShadow: `0 0 12px ${shadow}, inset 0 1px 0 ${color}14`,
+    height: btnH, borderRadius: "clamp(6px,1vw,10px)",
+    border: `2px solid ${color}aa`,
+    background: `linear-gradient(145deg, rgba(255,255,255,0.12), ${color}35 54%, ${color}18)`,
+    color, boxShadow: `4px 5px 0 rgba(10,20,68,0.58), 0 0 14px ${shadow}, inset 2px 2px 0 rgba(255,255,255,0.14)`,
     cursor: "pointer", WebkitTapHighlightColor: "transparent",
+    backdropFilter: "blur(3px)",
     transition: "background 0.14s, box-shadow 0.14s, border-color 0.14s",
     position: "relative" as const, overflow: "hidden" as const,
   });
 
   const TopLine = ({ color }: { color: string }) => (
     <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{
-      height: 2, opacity: 0.55,
-      background: `linear-gradient(90deg,transparent 8%,${color}88 50%,transparent 92%)`,
+      height: 5, opacity: 0.7,
+      background: `linear-gradient(90deg,${color}00 0%,${color}cc 22%,rgba(255,255,255,0.7) 48%,${color}22 78%,${color}00 100%)`,
     }} />
   );
   const Scanlines = () => (
     <div className="absolute inset-0 pointer-events-none" style={{
-      backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 4px,rgba(255,255,255,0.012) 4px,rgba(255,255,255,0.012) 5px)",
+      background: "linear-gradient(135deg, rgba(255,255,255,0.08), transparent 42%, rgba(255,255,255,0.025))",
       borderRadius: "inherit",
     }} />
   );
   const presetOptions: { id: GraphicsPreset; label: string; detail: string; color: string }[] = [
-    { id: "low", label: "LOW", detail: "0.8× · Efficient FX", color: "#66ddff" },
-    { id: "standard", label: "STANDARD", detail: "1.0× · Balanced FX", color: "#aa88ff" },
-    { id: "high", label: "HIGH", detail: "1.4× · Maximum FX", color: "#ff66cc" },
+    { id: "low", label: "LOW", detail: "0.8× · Efficient FX", color: "#5ad7ff" },
+    { id: "standard", label: "STANDARD", detail: "1.0× · Balanced FX", color: "#a6a1ff" },
+    { id: "high", label: "HIGH", detail: "1.4× · Maximum FX", color: "#ff78c8" },
   ];
 
   return (
