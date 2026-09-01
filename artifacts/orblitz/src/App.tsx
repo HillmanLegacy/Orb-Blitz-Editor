@@ -59,7 +59,9 @@ function App() {
   const loadingRunRef = useRef(0);
   const handleStartupLoadingComplete = useCallback(() => {
     setShowStartupLoading(false);
-    setSkipIntro(true);
+    // The readiness screen gates asset loading; the cinematic intro is the
+    // actual handoff into the title menu and should remain visible afterwards.
+    setSkipIntro(false);
     // Menu sounds are small and immediately useful. Gameplay assets wait until
     // the player has chosen a mode/level, avoiding speculative music and boss
     // downloads during menu browsing.

@@ -9,10 +9,10 @@ import type { IntroBossPhase } from "./ArcadeBossIntroScene";
 
 // ─── Custom SVG Icons ─────────────────────────────────────────────────────────
 const _svg = { viewBox: "0 0 24 24", fill: "none", width: "1em", height: "1em", style: { display: "block" } } as const;
-function IconPlay()      { return <svg {..._svg}><path d="M7 4 L20 12 L7 20 Z" fill="currentColor" opacity="0.92"/></svg>; }
-function IconShop()      { return <svg {..._svg}><path d="M6.5 7.5h11l-1.5 10h-8L6.5 7.5Z" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.15"/><path d="M9.5 7.5V6a2.5 2.5 0 0 1 5 0v1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="12" cy="13" r="1.4" fill="currentColor"/></svg>; }
+function IconPlay()      { return <svg {..._svg}><path d="M6.5 3.8 20.5 12 6.5 20.2V3.8Z" fill="currentColor" opacity="0.92"/><path d="M10 8.2 16.5 12 10 15.8" stroke="#07111f" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" opacity="0.7"/></svg>; }
+function IconShop()      { return <svg {..._svg}><path d="m5.5 8 2.2-3h8.6l2.2 3-1.4 11h-10L5.5 8Z" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.13"/><path d="M5.5 8h13M9.2 8v3.2M14.8 8v3.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><path d="M9.5 15.5h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>; }
 function IconTrophy()    { return <svg {..._svg}><path d="M8 4h8v5.5a4 4 0 0 1-8 0V4Z" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/><path d="M8 6H5.5A1.5 1.5 0 0 0 4 7.5v.4A3.1 3.1 0 0 0 7.1 11H8M16 6h2.5A1.5 1.5 0 0 1 20 7.5v.4a3.1 3.1 0 0 1-3.1 3.1H16M12 13v4M8.5 20h7M9 17h6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
-function IconGear()      { return <svg {..._svg}><rect x="3" y="3" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/><rect x="13" y="3" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/><rect x="3" y="13" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/><rect x="13" y="13" width="8" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.06" strokeDasharray="2 1.5"/></svg>; }
+function IconGear()      { return <svg {..._svg}><path d="m12 3 1.3 2.1 2.5.4.7 2.4 2.1 1.4-.9 2.4.9 2.4-2.1 1.4-.7 2.4-2.5.4L12 21l-1.3-2.1-2.5-.4-.7-2.4-2.1-1.4.9-2.4-.9-2.4 2.1-1.4.7-2.4 2.5-.4L12 3Z" stroke="currentColor" strokeWidth="1.2" fill="currentColor" fillOpacity="0.12"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" strokeWidth="1.3"/><path d="M12 8.3v1M12 14.7v1M8.3 12h1M14.7 12h1" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/></svg>; }
 function IconSettings()  { return <svg {..._svg}><line x1="3" y1="7" x2="21" y2="7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="7" r="2.2" fill="currentColor" fillOpacity="0.9"/><line x1="3" y1="14" x2="21" y2="14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="16" cy="14" r="2.2" fill="currentColor" fillOpacity="0.9"/></svg>; }
 function IconSurvive()   { return <svg {..._svg}><circle cx="12" cy="12" r="2.8" fill="currentColor"/><circle cx="12" cy="12" r="6" stroke="currentColor" strokeWidth="1.2" opacity="0.55"/><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="0.8" opacity="0.25"/></svg>; }
 function IconChill()     { return <svg {..._svg}><path d="M2 10 C5.5 7 7 13 10 10 S14.5 7 18 10 S21 13 22 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M2 15.5 C5.5 12.5 7 18.5 10 15.5 S14.5 12.5 18 15.5 S21 18.5 22 15.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.5"/></svg>; }
@@ -141,12 +141,12 @@ export function StartupAnimation({
       ({ id: "back", icon: <IconBack />, label, color: "#667788", shadow: "rgba(100,110,130,0.25)", action });
 
     switch (menuState) {
-      case "root": return [
-        { id:"play",      icon:<IconPlay />,     label:"PLAY",  color:"#00ffff", shadow:"rgba(0,255,255,0.45)",  action: () => { btn("play");      setMenuState("modes");    } },
-        { id:"shop",      icon:<IconShop />,     label:"SHOP",  color:"#ff00ff", shadow:"rgba(255,0,255,0.45)",  action: () => { btn("shop");      openShop();               } },
-        { id:"inventory", icon:<IconGear />,     label:"GEAR",  color:"#aa00ff", shadow:"rgba(170,0,255,0.45)",  action: () => { btn("inventory"); openInventory();          } },
-        { id:"trophies",  icon:<IconTrophy />,   label:"TROPHIES", color:"#fbbf24", shadow:"rgba(251,191,36,0.4)", action: () => { btn("trophies"); openTrophies(); } },
-        { id:"settings",  icon:<IconSettings />, label:"OPTIONS",  color:"#ffff00", shadow:"rgba(255,255,0,0.4)",   action: () => { btn("settings");  setMenuState("settings"); } },
+       case "root": return [
+        { id:"play",      icon:<IconPlay />,     label:"LAUNCH",   color:"#00ffff", shadow:"rgba(0,255,255,0.45)",  action: () => { btn("play");      setMenuState("modes");    } },
+        { id:"shop",      icon:<IconShop />,     label:"MARKET",   color:"#ff00ff", shadow:"rgba(255,0,255,0.45)",  action: () => { btn("shop");      openShop();               } },
+        { id:"inventory", icon:<IconGear />,     label:"LOADOUT",  color:"#aa00ff", shadow:"rgba(170,0,255,0.45)",  action: () => { btn("inventory"); openInventory();          } },
+        { id:"trophies",  icon:<IconTrophy />,   label:"ARCHIVE",  color:"#fbbf24", shadow:"rgba(251,191,36,0.4)", action: () => { btn("trophies"); openTrophies(); } },
+        { id:"settings",  icon:<IconSettings />, label:"SYSTEMS",  color:"#ffff00", shadow:"rgba(255,255,0,0.4)",   action: () => { btn("settings");  setMenuState("settings"); } },
       ];
       case "modes": return [
         { id:"arcade",    icon:<IconArcade />,   label:"ARCADE",   color:"#ff00ff", shadow:"rgba(255,0,255,0.45)",  action: () => { btn("arcade"); setMenuState("worlds"); }  },
@@ -261,21 +261,23 @@ export function StartupAnimation({
   const isClickable = animPhase === "waiting";
   const panelButtons = showMenu ? getPanelButtons() : [];
   const introPhase: IntroBossPhase | null =
-    animPhase === "idle" || animPhase === "flying" || animPhase === "converge" || animPhase === "flash"
+    animPhase === "idle" || animPhase === "flying" || animPhase === "converge" || animPhase === "flash" ||
+    animPhase === "title" || animPhase === "waiting"
       ? animPhase
       : null;
 
   useEffect(() => {
     onIntroPhaseChange?.(introPhase);
-    return () => onIntroPhaseChange?.(null);
   }, [introPhase, onIntroPhaseChange]);
+
+  useEffect(() => () => onIntroPhaseChange?.(null), [onIntroPhaseChange]);
 
   return (
     <motion.div
       className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-black select-none"
       style={{
         cursor: isClickable ? "pointer" : "default",
-        backgroundColor: showTitle ? "#000" : "transparent",
+        backgroundColor: showMenu ? "rgba(3,5,18,0.97)" : "transparent",
       }}
       initial={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -283,9 +285,67 @@ export function StartupAnimation({
       onClick={isClickable ? handleTap : undefined}
       onTouchStart={isClickable ? handleTap : undefined}
     >
+      {/* ── COMMAND-DECK ATMOSPHERE ─────────────────────────────────────── */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{
+        zIndex: 0,
+        opacity: showMenu ? 1 : 0.12,
+        transition: "opacity 0.45s ease",
+        background: "radial-gradient(ellipse at 50% 42%, rgba(27,24,72,0.72) 0%, rgba(8,12,34,0.58) 37%, rgba(2,4,15,0.94) 83%), linear-gradient(120deg, #05091b, #11051e 52%, #020612)",
+      }}>
+        <div className="absolute inset-0" style={{
+          opacity: 0.42,
+          backgroundImage: "linear-gradient(rgba(73,156,255,0.13) 1px, transparent 1px), linear-gradient(90deg, rgba(73,156,255,0.13) 1px, transparent 1px)",
+          backgroundSize: "clamp(30px, 5vw, 70px) clamp(30px, 5vw, 70px)",
+          maskImage: "linear-gradient(to bottom, transparent 0%, black 22%, black 74%, transparent 100%)",
+          WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 22%, black 74%, transparent 100%)",
+          transform: "perspective(420px) rotateX(58deg) scale(1.7) translateY(22%)",
+          transformOrigin: "center bottom",
+        }} />
+        <motion.div
+          className="absolute"
+          style={{
+            width: "min(74vw, 760px)", height: "min(74vw, 760px)",
+            left: "50%", top: "43%", marginLeft: "min(-37vw, -380px)", marginTop: "min(-37vw, -380px)",
+            border: "1px solid rgba(91,223,255,0.18)", borderRadius: "50%",
+            boxShadow: "0 0 90px rgba(41,105,255,0.14), inset 0 0 90px rgba(255,50,216,0.08)",
+          }}
+          animate={{ rotate: 360, scale: [1, 1.025, 1] }}
+          transition={{ rotate: { duration: 32, repeat: Infinity, ease: "linear" }, scale: { duration: 7, repeat: Infinity, ease: "easeInOut" } }}
+        />
+        <motion.div
+          className="absolute"
+          style={{
+            left: "-12%", top: "35%", width: "124%", height: 1,
+            background: "linear-gradient(90deg, transparent, rgba(91,223,255,0.6), rgba(222,87,255,0.55), transparent)",
+            filter: "blur(1px)", boxShadow: "0 0 18px rgba(91,223,255,0.45)",
+          }}
+          animate={{ y: ["-25vh", "40vh", "-25vh"], opacity: [0, 0.7, 0] }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <div className="absolute left-5 top-5 h-14 w-14" style={{ borderLeft: "1px solid rgba(92,247,255,0.7)", borderTop: "1px solid rgba(92,247,255,0.7)" }} />
+        <div className="absolute right-5 top-5 h-14 w-14" style={{ borderRight: "1px solid rgba(213,92,255,0.7)", borderTop: "1px solid rgba(213,92,255,0.7)" }} />
+        <div className="absolute left-5 bottom-5 h-14 w-14" style={{ borderLeft: "1px solid rgba(92,247,255,0.35)", borderBottom: "1px solid rgba(92,247,255,0.35)" }} />
+        <div className="absolute right-5 bottom-5 h-14 w-14" style={{ borderRight: "1px solid rgba(213,92,255,0.35)", borderBottom: "1px solid rgba(213,92,255,0.35)" }} />
+      </div>
+
+      <div className="absolute left-6 top-5 z-[2] pointer-events-none" style={{
+        color: "rgba(164,216,255,0.6)", fontSize: "clamp(0.42rem, 1vw, 0.58rem)",
+        fontWeight: 800, letterSpacing: "0.24em", lineHeight: 1.7,
+      }}>
+        <div>ORBLITZ // CORE-09</div>
+        <div style={{ color: "rgba(255,91,218,0.65)" }}>SIGNAL LOCKED</div>
+      </div>
+      <div className="absolute right-6 top-5 z-[2] pointer-events-none text-right" style={{
+        color: "rgba(164,216,255,0.48)", fontSize: "clamp(0.42rem, 1vw, 0.58rem)",
+        fontWeight: 800, letterSpacing: "0.2em", lineHeight: 1.7,
+      }}>
+        <div>ARCADE NETWORK</div>
+        <div style={{ color: "rgba(92,247,255,0.7)" }}>ONLINE // 09.09</div>
+      </div>
+
       {/* Scanlines */}
       <div className="absolute inset-0 pointer-events-none z-[1]" style={{
-        backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,255,255,0.011) 3px,rgba(0,255,255,0.011) 4px)",
+        backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(117,224,255,0.025) 3px,rgba(117,224,255,0.025) 4px)",
       }} />
 
       {/* Convergence core and detonation rays */}
@@ -342,13 +402,28 @@ export function StartupAnimation({
             initial={{ opacity: 0, scale: 0.65, y: "-50%" }}
             animate={{ opacity: 1, scale: 1, y: "-50%" }}
             exit={{ opacity: 0, scale: 0.8, y: "-50%" }}
-            transition={{ duration: 1.1, ease: [0.22, 0.61, 0.36, 1] }}
+            transition={{ duration: 0.9, delay: animPhase === "title" ? 0.46 : 0, ease: [0.22, 0.61, 0.36, 1] }}
           >
+            <motion.p
+              initial={{ opacity: 0, letterSpacing: "0.5em" }}
+              animate={{ opacity: 0.7, letterSpacing: "0.28em" }}
+              transition={{ duration: 0.7, delay: animPhase === "title" ? 0.34 : 0 }}
+              style={{
+                margin: "0 0 clamp(8px, 1.5vw, 16px)", color: "#8cbcff",
+                fontSize: "clamp(0.42rem, 1.15vw, 0.68rem)", fontWeight: 800,
+                fontFamily: "Inter, sans-serif", textTransform: "uppercase",
+              }}
+            >
+              {showWaiting ? "SYNC COMPLETE // AWAITING INPUT" : "ORBITAL COMMAND // NINE SIGNALS"}
+            </motion.p>
             {/* Letters clickable in menu phase for dev-mode easter egg */}
             {showMenu ? (
               <motion.h1
                 className="font-black tracking-widest flex items-center justify-center orb-title-glow"
                 style={{ fontSize: "clamp(3.5rem, 11vw, 7rem)", lineHeight: 1,
+                  fontFamily: "Inter, Arial Black, sans-serif", fontStyle: "italic",
+                  letterSpacing: "0.16em", transform: "skewX(-8deg)",
+                  WebkitTextStroke: "1px rgba(197,244,255,0.24)",
                   filter: devFlash ? "drop-shadow(0 0 30px #ffff00) drop-shadow(0 0 60px #ffaa00)" : undefined,
                   transition: devFlash ? "filter 0.1s" : undefined,
                 }}
@@ -369,20 +444,38 @@ export function StartupAnimation({
             ) : (
               <h1 className="font-black tracking-widest text-transparent bg-clip-text pointer-events-none orb-title-glow"
                 style={{ fontSize: "clamp(3.5rem, 11vw, 7rem)", lineHeight: 1,
-                  backgroundImage: "linear-gradient(135deg,#00ffff 0%,#aa00ff 45%,#ff00ff 75%,#ffff00 100%)" }}
+                  fontFamily: "Inter, Arial Black, sans-serif", fontStyle: "italic",
+                  letterSpacing: "0.16em", transform: "skewX(-8deg)",
+                  WebkitTextStroke: "1px rgba(197,244,255,0.24)",
+                  backgroundImage: "linear-gradient(135deg,#e7ffff 0%,#5cf7ff 24%,#8f77ff 56%,#ff4fbb 82%,#ffd166 100%)" }}
               >ORBLITZ</h1>
             )}
 
             {/* Underline */}
             <motion.div className="mt-3 mx-auto" style={{
               height: 1, width: "clamp(160px, 36vw, 280px)",
-              background: "linear-gradient(90deg,transparent,#00ffff 35%,#ff00ff 65%,transparent)",
+              background: "linear-gradient(90deg,transparent,#5cf7ff 35%,#ff4fbb 65%,transparent)",
+              boxShadow: "0 0 12px rgba(92,247,255,0.6)",
             }}
               initial={{ scaleX: 0, opacity: 0 }}
               animate={{ scaleX: 1, opacity: 0.65 }}
-              transition={{ duration: 0.9, delay: 0.25, ease: "easeOut" }}
+              transition={{ duration: 0.9, delay: animPhase === "title" ? 0.68 : 0.25, ease: "easeOut" }}
             />
 
+            {showMenu && (
+              <motion.p
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 0.58, y: 0 }}
+                transition={{ delay: 0.3 }}
+                style={{
+                  margin: "clamp(8px, 1.5vw, 14px) 0 0", color: "#b7c7ff",
+                  fontSize: "clamp(0.44rem, 1.1vw, 0.64rem)", fontWeight: 800,
+                  letterSpacing: "0.34em", textTransform: "uppercase",
+                }}
+              >
+                Choose your vector
+              </motion.p>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -414,8 +507,11 @@ export function StartupAnimation({
             transition={{ duration: 0.5, ease: "easeOut" }}
           >
             <p className="text-lg md:text-xl font-semibold tracking-[0.22em] uppercase"
-              style={{ color: "rgba(0,255,255,0.8)", textShadow: "0 0 18px rgba(0,255,255,0.45)" }}>
-              Tap to Start
+              style={{ color: "rgba(92,247,255,0.9)", textShadow: "0 0 18px rgba(92,247,255,0.55)", fontSize: "clamp(0.72rem, 2vw, 1.05rem)" }}>
+              Tap to Enter
+            </p>
+            <p style={{ margin: "8px 0 0", color: "rgba(183,199,255,0.45)", fontSize: "clamp(0.4rem, 1vw, 0.58rem)", letterSpacing: "0.22em", textTransform: "uppercase" }}>
+              The arena is waiting
             </p>
           </motion.div>
         )}
@@ -530,13 +626,15 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false }: Butt
             style={{
               minWidth: 0, maxWidth: maxW,
               height: btnH,
-              borderRadius: "clamp(10px,1.6vw,14px)",
+              borderRadius: "3px",
+              clipPath: "polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px))",
               border: `1.5px solid ${isPress ? b.color + "cc" : b.color + "55"}`,
-              background: isPress ? `${b.color}20` : `linear-gradient(160deg,${b.color}10 0%,${b.color}06 100%)`,
+              background: isPress ? `${b.color}28` : `linear-gradient(145deg,rgba(16,24,54,0.9),${b.color}0b 55%,rgba(3,6,22,0.92))`,
               color: b.color,
               boxShadow: isPress
-                ? `0 0 24px ${b.shadow}, 0 0 48px ${b.shadow}, inset 0 0 14px ${b.color}14`
-                : `0 0 12px ${b.shadow}, inset 0 1px 0 ${b.color}14`,
+                ? `0 0 24px ${b.shadow}, 0 0 48px ${b.shadow}, inset 0 0 18px ${b.color}20`
+                : `0 0 18px ${b.shadow}, inset 0 1px 0 ${b.color}26`,
+              textShadow: `0 0 8px ${b.color}66`,
               cursor: "pointer",
               WebkitTapHighlightColor: "transparent",
               transition: "background 0.14s, box-shadow 0.14s, border-color 0.14s",

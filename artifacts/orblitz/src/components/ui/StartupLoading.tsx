@@ -67,6 +67,49 @@ export function StartupLoading({ onComplete }: Props) {
       onClick={tryStartAudio}
       onTouchStart={tryStartAudio}
     >
+      <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{
+        background: "radial-gradient(ellipse at 50% 42%, rgba(27,24,72,0.72) 0%, rgba(8,12,34,0.58) 37%, rgba(2,4,15,0.94) 83%), linear-gradient(120deg, #05091b, #11051e 52%, #020612)",
+      }}>
+        <div className="absolute inset-0" style={{
+          opacity: 0.38,
+          backgroundImage: "linear-gradient(rgba(73,156,255,0.13) 1px, transparent 1px), linear-gradient(90deg, rgba(73,156,255,0.13) 1px, transparent 1px)",
+          backgroundSize: "clamp(30px, 5vw, 70px) clamp(30px, 5vw, 70px)",
+          maskImage: "linear-gradient(to bottom, transparent 0%, black 22%, black 74%, transparent 100%)",
+          WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 22%, black 74%, transparent 100%)",
+          transform: "perspective(420px) rotateX(58deg) scale(1.7) translateY(22%)",
+          transformOrigin: "center bottom",
+        }} />
+        <motion.div
+          className="absolute"
+          style={{
+            width: "min(74vw, 760px)", height: "min(74vw, 760px)",
+            left: "50%", top: "43%", marginLeft: "min(-37vw, -380px)", marginTop: "min(-37vw, -380px)",
+            border: "1px solid rgba(91,223,255,0.18)", borderRadius: "50%",
+            boxShadow: "0 0 90px rgba(41,105,255,0.14), inset 0 0 90px rgba(255,50,216,0.08)",
+          }}
+          animate={{ rotate: 360 }}
+          transition={{ duration: 32, repeat: Infinity, ease: "linear" }}
+        />
+        <div className="absolute left-5 top-5 h-14 w-14" style={{ borderLeft: "1px solid rgba(92,247,255,0.7)", borderTop: "1px solid rgba(92,247,255,0.7)" }} />
+        <div className="absolute right-5 top-5 h-14 w-14" style={{ borderRight: "1px solid rgba(213,92,255,0.7)", borderTop: "1px solid rgba(213,92,255,0.7)" }} />
+        <div className="absolute left-5 bottom-5 h-14 w-14" style={{ borderLeft: "1px solid rgba(92,247,255,0.35)", borderBottom: "1px solid rgba(92,247,255,0.35)" }} />
+        <div className="absolute right-5 bottom-5 h-14 w-14" style={{ borderRight: "1px solid rgba(213,92,255,0.35)", borderBottom: "1px solid rgba(213,92,255,0.35)" }} />
+      </div>
+      <div className="absolute left-6 top-5 z-10 pointer-events-none" style={{
+        color: "rgba(164,216,255,0.6)", fontSize: "clamp(0.42rem, 1vw, 0.58rem)",
+        fontWeight: 800, letterSpacing: "0.24em", lineHeight: 1.7,
+      }}>
+        <div>ORBLITZ // CORE-09</div>
+        <div style={{ color: "rgba(255,91,218,0.65)" }}>BOOT SEQUENCE</div>
+      </div>
+      <div className="absolute right-6 top-5 z-10 pointer-events-none text-right" style={{
+        color: "rgba(164,216,255,0.48)", fontSize: "clamp(0.42rem, 1vw, 0.58rem)",
+        fontWeight: 800, letterSpacing: "0.2em", lineHeight: 1.7,
+      }}>
+        <div>ARCADE NETWORK</div>
+        <div style={{ color: "rgba(92,247,255,0.7)" }}>HANDSHAKE // READY</div>
+      </div>
+
       {/* Ambient drifting orbs — no per-element blur (avoids 18 separate compositor layers) */}
       {ambientOrbs.map((orb, i) => (
         <motion.div
@@ -106,7 +149,12 @@ export function StartupLoading({ onComplete }: Props) {
         className="relative z-10 font-black tracking-widest text-transparent bg-clip-text select-none"
         style={{
           fontSize: "clamp(3.5rem, 12vw, 7rem)",
-          backgroundImage: "linear-gradient(135deg, #00ffff 0%, #aa00ff 40%, #ff00ff 70%, #ffff00 100%)",
+          fontFamily: "Inter, Arial Black, sans-serif",
+          fontStyle: "italic",
+          letterSpacing: "0.16em",
+          transform: "skewX(-8deg)",
+          WebkitTextStroke: "1px rgba(197,244,255,0.24)",
+          backgroundImage: "linear-gradient(135deg, #e7ffff 0%, #5cf7ff 24%, #8f77ff 56%, #ff4fbb 82%, #ffd166 100%)",
         }}
         initial={{ opacity: 0, scale: 0.82, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -146,12 +194,12 @@ export function StartupLoading({ onComplete }: Props) {
 
       <motion.p
         className="relative z-10 mt-5 text-[0.62rem] font-semibold uppercase tracking-[0.28em]"
-        style={{ color: "rgba(190, 240, 255, 0.55)" }}
+        style={{ color: "rgba(190, 240, 255, 0.7)" }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.55 }}
       >
-        Tap or click to continue
+        Tap or click to enter
       </motion.p>
     </motion.div>
   );

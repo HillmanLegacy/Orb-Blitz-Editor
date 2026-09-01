@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { CrystalBoss } from "@/components/game/CrystalBoss";
@@ -11,8 +11,9 @@ import { RainbowBoss } from "@/components/game/RainbowBoss";
 import { StarBoss } from "@/components/game/StarBoss";
 import { ToxicBoss } from "@/components/game/ToxicBoss";
 import { MAIN_BOSS_TYPES, type MainBossType } from "@/components/game/BossDefeatPalette";
+import { getGraphicsPresetProfile, useGraphicsPreset } from "@/game-runtime/PerformanceToggles";
 
-export type IntroBossPhase = "idle" | "flying" | "converge" | "flash";
+export type IntroBossPhase = "idle" | "flying" | "converge" | "flash" | "title" | "waiting";
 
 export interface ArcadeBossIntroDef {
   type: MainBossType;
@@ -47,6 +48,17 @@ export const ARCADE_BOSS_INTRO_TYPES = MAIN_BOSS_TYPES;
 const FLYING_DURATION = 2.42;
 const CONVERGE_DURATION = 0.65;
 const FLASH_DURATION = 0.55;
+const TITLE_FORM_DURATION = 1.35;
+
+const TITLE_GLYPHS: Record<string, readonly string[]> = {
+  O: ["01110", "10001", "10001", "10001", "10001", "10001", "01110"],
+  R: ["11110", "10001", "10001", "11110", "10100", "10010", "10001"],
+  B: ["11110", "10001", "10001", "11110", "10001", "10001", "11110"],
+  L: ["10000", "10000", "10000", "10000", "10000", "10000", "11111"],
+  I: ["11111", "00100", "00100", "00100", "00100", "00100", "11111"],
+  T: ["11111", "00100", "00100", "00100", "00100", "00100", "00100"],
+  Z: ["11111", "00001", "00010", "00100", "01000", "10000", "11111"],
+};
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
@@ -64,6 +76,11 @@ function easeInOut(value: number): number {
 
 function lerp(from: number, to: number, progress: number): number {
   return from + (to - from) * progress;
+}
+
+function hash01(value: number): number {
+  const sine = Math.sin(value * 12.9898 + 78.233) * 43758.5453;
+  return sine - Math.floor(sine);
 }
 
 function renderArcadeBoss(type: MainBossType) {
@@ -149,13 +166,22 @@ function ArcadeBossActor({
     if (phase === "converge") {
       const progress = easeInOut(elapsed / CONVERGE_DURATION);
       const origin = initialized.current ? phaseOrigin.current : new THREE.Vector3(startX, startY, 0);
+      const spiral = (1 - progress) * (0.5 + Math.abs(definition.startX) + Math.abs(definition.startY)) * Math.PI * 1.7;
+      const radius = (1 - progress) * Math.min(width, height) * 0.09;
       group.position.set(
-        lerp(origin.x, convergeX, progress),
-        lerp(origin.y, convergeY, progress),
+        lerp(origin.x, convergeX, progress) + Math.cos(spiral + definition.delay * 8) * radius,
+        lerp(origin.y, convergeY, progress) + Math.sin(spiral + definition.delay * 8) * radius,
         0,
       );
       group.scale.setScalar(lerp(0.82, 1.04, progress));
-      group.rotation.z = THREE.MathUtils.degToRad(lerp(definition.rotation, definition.rotation * 0.35, progress));
+      group.rotation.z = THREE.MathUtils.degToRad(
+        lerp(definition.rotation, definition.rotation * 0.35, progress) + spiral * 18,
+      );
+      return;
+    }
+
+    if (phase === "title" || phase === "waiting") {
+      group.scale.setScalar(0.001);
       return;
     }
 
@@ -183,6 +209,7 @@ function ArcadeBossScene({
 }) {
   return (
     <>
+      <IntroDetonationParticles phase={phase} />
       <ambientLight intensity={1.7} />
       <pointLight position={[0, 0, 7]} intensity={4} distance={30} color="#d9ffff" />
       <pointLight position={[-7, 4, 2]} intensity={2.5} distance={20} color="#00ccff" />
@@ -199,5 +226,198 @@ function ArcadeBossScene({
 export function ArcadeBossIntroScene({ phase }: { phase: IntroBossPhase }) {
   return (
     <ArcadeBossScene phase={phase} />
+  );
+}
+
+interface IntroParticle {
+  angle: number;
+  radius: number;
+  speed: number;
+  size: number;
+  colorIndex: number;
+  targetX: number;
+  targetY: number;
+  targetZ: number;
+  twinkle: number;
+}
+
+function createTitleTargets(count: number): Array<[number, number]> {
+  const targets: Array<[number, number]> = [];
+  const title = "ORBLITZ";
+  const letterWidth = 0.105;
+  const letterGap = 0.026;
+  const totalWidth = title.length * letterWidth + (title.length - 1) * letterGap;
+  const left = -totalWidth / 2;
+
+  title.split("").forEach((letter, letterIndex) => {
+    const glyph = TITLE_GLYPHS[letter];
+    if (!glyph) return;
+    const glyphLeft = left + letterIndex * (letterWidth + letterGap);
+    glyph.forEach((row, rowIndex) => {
+      [...row].forEach((filled, columnIndex) => {
+        if (filled !== "1") return;
+        const x = glyphLeft + (columnIndex / 4) * letterWidth;
+        const y = 0.08 - (rowIndex / 6) * 0.18;
+        targets.push([x, y]);
+      });
+    });
+  });
+
+  return Array.from({ length: count }, (_, index) => {
+    const source = targets[index % targets.length] ?? [0, 0];
+    const jitterX = (hash01(index * 2.17) - 0.5) * 0.018;
+    const jitterY = (hash01(index * 3.91) - 0.5) * 0.028;
+    return [source[0] + jitterX, source[1] + jitterY];
+  });
+}
+
+function getIntroParticleCount(preset: ReturnType<typeof useGraphicsPreset>): number {
+  const profile = getGraphicsPresetProfile(preset);
+  if (profile.renderTier === "high") return 1200;
+  if (profile.renderTier === "medium") return 760;
+  return 400;
+}
+
+function IntroDetonationParticles({ phase }: { phase: IntroBossPhase }) {
+  const coreRef = useRef<THREE.InstancedMesh>(null);
+  const haloRef = useRef<THREE.InstancedMesh>(null);
+  const phaseStartedAt = useRef(typeof performance === "undefined" ? 0 : performance.now());
+  const { viewport } = useThree();
+  const preset = useGraphicsPreset();
+  const profile = getGraphicsPresetProfile(preset);
+  const particleCount = getIntroParticleCount(preset);
+
+  const particles = useMemo<IntroParticle[]>(() => {
+    const targets = createTitleTargets(particleCount);
+    return Array.from({ length: particleCount }, (_, index) => {
+      const angle = (index / particleCount) * Math.PI * 2 + hash01(index * 1.31) * 0.14;
+      return {
+        angle,
+        radius: 0.35 + hash01(index * 2.71) * 0.9,
+        speed: 0.7 + hash01(index * 4.17) * 1.8,
+        size: 0.018 + hash01(index * 5.23) * (profile.renderTier === "high" ? 0.045 : 0.035),
+        colorIndex: index % 8,
+        targetX: targets[index][0],
+        targetY: targets[index][1],
+        targetZ: -0.2 + hash01(index * 6.41) * 0.7,
+        twinkle: 1.3 + hash01(index * 7.19) * 4.5,
+      };
+    });
+  }, [particleCount, profile.renderTier]);
+
+  const colors = useMemo(
+    () => ["#ffffff", "#5cf7ff", "#6e7bff", "#d55cff", "#ff4fbb", "#ffd166", "#8bffcf", "#b7c7ff"].map((color) => new THREE.Color(color)),
+    [],
+  );
+
+  useEffect(() => {
+    phaseStartedAt.current = typeof performance === "undefined" ? 0 : performance.now();
+    const core = coreRef.current;
+    const halo = haloRef.current;
+    if (!core || !halo) return;
+    for (let index = 0; index < particleCount; index++) {
+      const color = colors[particles[index].colorIndex];
+      core.setColorAt(index, color);
+      halo.setColorAt(index, color);
+    }
+    if (core.instanceColor) core.instanceColor.needsUpdate = true;
+    if (halo.instanceColor) halo.instanceColor.needsUpdate = true;
+  }, [colors, particleCount, particles, phase]);
+
+  const positionRef = useRef(new THREE.Vector3());
+  const matrixRef = useRef(new THREE.Matrix4());
+
+  useFrame(({ clock }) => {
+    const core = coreRef.current;
+    const halo = haloRef.current;
+    if (!core || !halo) return;
+    const elapsed = Math.max(
+      0,
+      ((typeof performance === "undefined" ? 0 : performance.now()) - phaseStartedAt.current) / 1000,
+    );
+    const width = viewport.width;
+    const height = viewport.height;
+    const position = positionRef.current;
+    const matrix = matrixRef.current;
+    const t = clock.getElapsedTime();
+
+    for (let index = 0; index < particleCount; index++) {
+      const particle = particles[index];
+      let scale = 0.001;
+
+      if (phase === "flash") {
+        const progress = easeOutCubic(elapsed / FLASH_DURATION);
+        const radial = particle.radius * (0.4 + progress * 1.45);
+        const spin = particle.angle + progress * particle.speed * 2.7;
+        position.set(
+          Math.cos(spin) * radial * width * 0.62,
+          Math.sin(spin) * radial * height * 0.7,
+          particle.targetZ + progress * 2.4,
+        );
+        scale = particle.size * (0.7 + progress * 1.65);
+      } else if (phase === "title") {
+        const progress = easeInOut(elapsed / TITLE_FORM_DURATION);
+        const radial = particle.radius * 1.85;
+        const spin = particle.angle + 2.7 + (1 - progress) * particle.speed * 1.8;
+        const burstX = Math.cos(spin) * radial * width * 0.62;
+        const burstY = Math.sin(spin) * radial * height * 0.7;
+        const targetX = particle.targetX * width;
+        const targetY = particle.targetY * height;
+        position.set(
+          lerp(burstX, targetX, progress),
+          lerp(burstY, targetY, progress),
+          lerp(particle.targetZ + 2.4, 0.4, progress),
+        );
+        scale = particle.size * (1.55 - progress * 0.42);
+      } else if (phase === "waiting") {
+        const shimmer = Math.sin(t * particle.twinkle + particle.angle) * 0.5 + 0.5;
+        position.set(
+          particle.targetX * width + Math.sin(t * 0.55 + particle.angle) * 0.018 * width,
+          particle.targetY * height + Math.cos(t * 0.7 + particle.angle) * 0.02 * height,
+          particle.targetZ + shimmer * 0.15,
+        );
+        scale = particle.size * (0.9 + shimmer * 0.5);
+      }
+
+      if (phase === "idle" || phase === "flying" || phase === "converge") {
+        position.set(0, 0, 0);
+      }
+
+      matrix.makeScale(scale, scale, scale);
+      matrix.setPosition(position);
+      core.setMatrixAt(index, matrix);
+
+      matrix.makeScale(scale * (2.5 + Math.sin(t * particle.twinkle + particle.angle) * 0.3), scale * (2.5 + Math.sin(t * particle.twinkle + particle.angle) * 0.3), scale * (2.5 + Math.sin(t * particle.twinkle + particle.angle) * 0.3));
+      matrix.setPosition(position);
+      halo.setMatrixAt(index, matrix);
+    }
+
+    core.instanceMatrix.needsUpdate = true;
+    halo.instanceMatrix.needsUpdate = true;
+  });
+
+  return (
+    <>
+      <instancedMesh key={`intro-core-${preset}`} ref={coreRef} args={[undefined, undefined, particleCount]} frustumCulled={false}>
+        <sphereGeometry args={[1, profile.renderTier === "high" ? 6 : 4, profile.renderTier === "high" ? 4 : 3]} />
+        <meshBasicMaterial
+          transparent
+          opacity={0.95}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          vertexColors
+        />
+      </instancedMesh>
+      <instancedMesh key={`intro-halo-${preset}`} ref={haloRef} args={[undefined, undefined, particleCount]} frustumCulled={false}>
+        <sphereGeometry args={[1, 3, 2]} />
+        <meshBasicMaterial
+          transparent
+          opacity={0.16}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          vertexColors
+        />
+      </instancedMesh>
+    </>
   );
 }
