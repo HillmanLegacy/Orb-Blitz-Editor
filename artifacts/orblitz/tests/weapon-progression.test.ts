@@ -4,9 +4,11 @@ import {
   applyWeaponXp,
   createInitialWeaponProgression,
   getWeaponConfig,
-  getWeaponLevelFromXp,
   getWeaponProgress,
+  getWeaponLevelFromXp,
+  getWeaponXpAward,
   normalizeWeaponProgression,
+  WEAPON_XP_PROFILES,
 } from "../src/game-runtime/WeaponProgression";
 import { useMagicOrb } from "../src/lib/stores/useMagicOrb";
 import { useShop } from "../src/lib/stores/useShop";
@@ -44,25 +46,75 @@ describe("weapon progression", () => {
       homing_launcher: { xp: "not-a-number" },
       unknown_weapon: { xp: 300 },
     });
-    expect(migrated.orbital_rapid_blaster).toEqual({ xp: 300, level: 3 });
+    expect(migrated.orbital_rapid_blaster).toEqual({ xp: 0, level: 3 });
     expect(migrated.homing_launcher).toEqual({ xp: 0, level: 1 });
     expect(migrated.sub_blaster).toEqual({ xp: 0, level: 1 });
   });
 
-  it("caps XP and levels at Lv3 while preserving progress indicators", () => {
-    expect(getWeaponLevelFromXp(0)).toBe(1);
-    expect(getWeaponLevelFromXp(100)).toBe(2);
-    expect(getWeaponLevelFromXp(300)).toBe(3);
-    expect(applyWeaponXp({ xp: 250, level: 2 }, 100).record).toEqual({ xp: 300, level: 3 });
-    expect(applyWeaponXp({ xp: 300, level: 3 }, 500).record).toEqual({ xp: 300, level: 3 });
-    expect(getWeaponProgress({ xp: 300, level: 3 })).toMatchObject({
+  it("uses distinct effectiveness-based targets and awards for every weapon", () => {
+    const profiles = PROGRESSION_WEAPONS.map((weapon) => WEAPON_XP_PROFILES[weapon]);
+    expect(profiles.every((profile) => profile.arcadeLevelXp < profile.levelRequirements[0])).toBe(true);
+    expect(profiles.every((profile) => profile.finishedRunXp < profile.levelRequirements[0])).toBe(true);
+    expect(new Set(profiles.map((profile) => profile.levelRequirements[0])).size).toBe(6);
+    expect(new Set(profiles.map((profile) => profile.levelRequirements[1])).size).toBe(6);
+    expect(getWeaponXpAward("spiral_shooter", "arcade")).toBe(80);
+    expect(getWeaponXpAward("overcharged_blaster", "arcade")).toBe(50);
+    expect(getWeaponXpAward("spiral_shooter", "survival")).toBe(120);
+    expect(getWeaponXpAward("overcharged_blaster", "gauntlet")).toBe(80);
+  });
+
+  it("requires different completion counts for each weapon’s first level", () => {
+    const completionCounts = PROGRESSION_WEAPONS.map((weapon) => {
+      const profile = WEAPON_XP_PROFILES[weapon];
+      return Math.ceil(profile.levelRequirements[0] / profile.arcadeLevelXp);
+    });
+    expect(completionCounts.every((count) => count > 1)).toBe(true);
+    expect(new Set(completionCounts).size).toBeGreaterThan(3);
+    expect(completionCounts[PROGRESSION_WEAPONS.indexOf("spiral_shooter")])
+      .toBeLessThan(completionCounts[PROGRESSION_WEAPONS.indexOf("overcharged_blaster")]);
+  });
+
+  it("uses level-relative XP and resets the bar at each milestone", () => {
+    expect(getWeaponLevelFromXp("spiral_shooter", 0)).toBe(1);
+    expect(getWeaponLevelFromXp("spiral_shooter", 240)).toBe(2);
+    expect(getWeaponLevelFromXp("spiral_shooter", 600)).toBe(3);
+
+    const first = applyWeaponXp("spiral_shooter", { xp: 200, level: 1 }, 80);
+    expect(first.record).toEqual({ xp: 40, level: 2 });
+    expect(first.previousXp).toBe(200);
+    expect(first.leveledUp).toBe(true);
+
+    const second = applyWeaponXp("spiral_shooter", first.record, 320);
+    expect(second.record).toEqual({ xp: 0, level: 3 });
+    expect(second.leveledUp).toBe(true);
+
+    const progress = getWeaponProgress("spiral_shooter", { xp: 40, level: 2 });
+    expect(progress).toMatchObject({
+      level: 2,
+      xp: 40,
+      nextThreshold: 360,
+      xpRemaining: 320,
+      isMaxLevel: false,
+    });
+    expect(progress.progressPercent).toBeCloseTo(40 / 360 * 100, 5);
+    expect(getWeaponProgress("spiral_shooter", { xp: 0, level: 3 })).toMatchObject({
       level: 3,
       progressPercent: 100,
       isMaxLevel: true,
       nextThreshold: null,
+      xpRemaining: 0,
     });
-    expect(getWeaponProgress({ xp: 100, level: 2 }).progressPercent).toBeCloseTo(100 / 3, 5);
-    expect(getWeaponProgress({ xp: 200, level: 2 }).progressPercent).toBeCloseTo(200 / 3, 5);
+  });
+
+  it("migrates old cumulative XP into current-level progress", () => {
+    const migrated = normalizeWeaponProgression({
+      orbital_rapid_blaster: { xp: 50, level: 1 },
+      homing_launcher: { xp: 200, level: 2 },
+      overcharged_blaster: { xp: 300, level: 1 },
+    });
+    expect(migrated.orbital_rapid_blaster).toEqual({ xp: 150, level: 1 });
+    expect(migrated.homing_launcher).toEqual({ xp: 300, level: 2 });
+    expect(migrated.overcharged_blaster).toEqual({ xp: 0, level: 3 });
   });
 
   it("matches the Rapid Blaster continuous-fire limits exactly", () => {
@@ -119,10 +171,13 @@ describe("weapon progression", () => {
     const first = useMagicOrb.getState().awardWeaponProgression();
     const second = useMagicOrb.getState().awardWeaponProgression();
 
-    expect(first?.xpAwarded).toBe(100);
+    expect(first?.xpAwarded).toBe(70);
     expect(first?.previousLevel).toBe(1);
     expect(second).toBe(first);
-    expect(useShop.getState().weaponProgression.orbital_rapid_blaster.xp).toBe(100);
+    expect(useShop.getState().weaponProgression.orbital_rapid_blaster.xp).toBe(70);
+    expect(first?.progressPercent).toBeCloseTo(70 / 300 * 100, 5);
+    expect(first?.xpRemaining).toBe(230);
+    expect(first?.previousProgressPercent).toBe(0);
   });
 
   it("reaches Rapid Blaster overheat after the configured continuous shot count", () => {

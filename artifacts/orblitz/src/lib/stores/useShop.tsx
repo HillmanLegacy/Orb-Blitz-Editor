@@ -5,7 +5,9 @@ import {
   applyWeaponXp,
   createInitialWeaponProgression,
   getWeaponLevelUpChanges,
+  getWeaponProgress,
   WEAPON_DISPLAY_NAMES,
+  WEAPON_PROGRESSION_VERSION,
   isProgressionWeapon,
   normalizeWeaponProgression,
   type WeaponProgressionState,
@@ -151,6 +153,7 @@ interface StoredShopData {
   equippedRing: RingStyle;
   equippedWeapon: WeaponType;
   weaponProgression?: unknown;
+  weaponProgressionVersion?: number;
   trophyProgression?: unknown;
   equippedDefenses: [DefenseType, DefenseType];
   equippedMagiOrb: MagiOrbType;
@@ -239,7 +242,11 @@ const getStoredShopData = (): StoredShopData => {
         equippedTrail: data.equippedTrail ?? "none",
         equippedRing,
         equippedWeapon: equippedWeapon === "orbital_teletransfer" ? "none" as WeaponType : equippedWeapon,
-         weaponProgression: normalizeWeaponProgression(data.weaponProgression),
+          weaponProgression: normalizeWeaponProgression(
+            data.weaponProgression,
+            data.weaponProgressionVersion ?? 1,
+          ),
+          weaponProgressionVersion: WEAPON_PROGRESSION_VERSION,
          trophyProgression: normalizeTrophyProgression(data.trophyProgression),
         equippedDefenses: equippedDefenses as [DefenseType, DefenseType],
         equippedMagiOrb: data.equippedMagiOrb ?? "none",
@@ -256,7 +263,8 @@ const getStoredShopData = (): StoredShopData => {
     equippedTrail: "none",
     equippedRing: "none",
     equippedWeapon: "none",
-     weaponProgression: createInitialWeaponProgression(),
+      weaponProgression: createInitialWeaponProgression(),
+      weaponProgressionVersion: WEAPON_PROGRESSION_VERSION,
      trophyProgression: createInitialTrophyProgression(),
     equippedDefenses: ["none", "none"],
     equippedMagiOrb: "none",
@@ -274,6 +282,7 @@ const createSaveData = (state: ShopState): StoredShopData => ({
   equippedRing: state.equippedRing,
   equippedWeapon: state.equippedWeapon,
   weaponProgression: state.weaponProgression,
+  weaponProgressionVersion: WEAPON_PROGRESSION_VERSION,
   trophyProgression: state.trophyProgression,
   equippedDefenses: state.equippedDefenses,
   equippedMagiOrb: state.equippedMagiOrb,
@@ -289,7 +298,10 @@ export const useShop = create<ShopState>()(
     equippedTrail: storedData.equippedTrail,
     equippedRing: storedData.equippedRing,
     equippedWeapon: storedData.equippedWeapon,
-    weaponProgression: normalizeWeaponProgression(storedData.weaponProgression),
+    weaponProgression: normalizeWeaponProgression(
+      storedData.weaponProgression,
+      storedData.weaponProgressionVersion ?? WEAPON_PROGRESSION_VERSION,
+    ),
     trophyProgression: normalizeTrophyProgression(storedData.trophyProgression),
     equippedDefenses: storedData.equippedDefenses as [DefenseType, DefenseType],
     equippedMagiOrb: storedData.equippedMagiOrb as MagiOrbType,
@@ -354,15 +366,21 @@ export const useShop = create<ShopState>()(
     addWeaponXp: (weapon, amount) => {
       if (!isProgressionWeapon(weapon)) return null;
       const current = get().weaponProgression[weapon];
-      const applied = applyWeaponXp(current, amount);
+      const previousProgress = getWeaponProgress(weapon, current);
+      const applied = applyWeaponXp(weapon, current, amount);
+      const progress = getWeaponProgress(weapon, applied.record);
       const result: WeaponLevelUpResult = {
         weapon,
         displayName: WEAPON_DISPLAY_NAMES[weapon],
         xpAwarded: Math.max(0, Math.floor(amount)),
         previousLevel: applied.previousLevel,
         level: applied.record.level,
-        previousXp: current.xp,
+        previousXp: applied.previousXp,
         xp: applied.record.xp,
+        previousProgressPercent: previousProgress.progressPercent,
+        progressPercent: progress.progressPercent,
+        nextThreshold: progress.nextThreshold,
+        xpRemaining: progress.xpRemaining,
         leveledUp: applied.leveledUp,
         changes: getWeaponLevelUpChanges(weapon, applied.previousLevel, applied.record.level),
       };

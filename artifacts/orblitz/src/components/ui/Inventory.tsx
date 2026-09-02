@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useShop, SHOP_ITEMS, ShopItem, OrbSkin, TrailEffect, RingStyle, WeaponType, DefenseType, MagiOrbType } from "@/lib/stores/useShop";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useShallow } from "zustand/react/shallow";
 import { useModalAccessibility } from "@/components/ui/useModalAccessibility";
 import { getWeaponProgress, isProgressionWeapon, type ProgressionWeapon } from "@/game-runtime/WeaponProgression";
@@ -313,7 +314,10 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
   const selectedWeaponProgress = selectedItem
     && selectedItem.category === "weapon"
     && isProgressionWeapon(selectedItem.value as WeaponType)
-    ? getWeaponProgress(weaponProgression[selectedItem.value as ProgressionWeapon])
+    ? getWeaponProgress(
+        selectedItem.value as ProgressionWeapon,
+        weaponProgression[selectedItem.value as ProgressionWeapon],
+      )
     : null;
 
   const handleDetailAction = () => {
@@ -547,7 +551,7 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                         isFocused={selectedItemId === item.id}
                         isEquipped={currentVal === item.value}
                         color={slot.color}
-                        onClick={() => { setSelectedItemId(item.id); setInspectionOpen(false); }}
+                        onClick={() => { setSelectedItemId(item.id); setInspectionOpen(true); }}
                         itemId={item.id}
                       />
                     ))}
@@ -644,6 +648,10 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                       <div className="orblitz-gear-progress-track">
                         <div className="orblitz-gear-progress-fill" style={{ width: `${selectedWeaponProgress.progressPercent}%` }} />
                       </div>
+                      <div className="flex items-center justify-between gap-2 mt-1" style={{ fontSize: "0.55rem", color: "rgba(255,255,255,0.38)" }}>
+                        <span>{selectedWeaponProgress.isMaxLevel ? "LEVEL CAP REACHED" : `${selectedWeaponProgress.xpRemaining} XP TO NEXT LEVEL`}</span>
+                        <span>LEVEL-RELATIVE XP</span>
+                      </div>
                     </div>
                   )}
 
@@ -653,8 +661,8 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
           </div>
         </motion.div>
 
-        <AnimatePresence>
-          {inspectionOpen && selectedItem && (
+        {inspectionOpen && selectedItem && typeof document !== "undefined" && createPortal(
+          <AnimatePresence>
             <motion.div
               className="fixed inset-0 z-[70] flex items-center justify-center p-4"
               initial={{ opacity: 0 }}
@@ -726,6 +734,10 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                     <div className="orblitz-gear-progress-track">
                       <div className="orblitz-gear-progress-fill" style={{ width: `${selectedWeaponProgress.progressPercent}%` }} />
                     </div>
+                    <div className="flex items-center justify-between gap-2 mt-1" style={{ fontSize: "0.55rem", color: "rgba(255,255,255,0.38)" }}>
+                      <span>{selectedWeaponProgress.isMaxLevel ? "LEVEL CAP REACHED" : `${selectedWeaponProgress.xpRemaining} XP TO NEXT LEVEL`}</span>
+                      <span>LEVEL-RELATIVE XP</span>
+                    </div>
                   </div>
                 )}
 
@@ -734,8 +746,9 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                 </p>
               </motion.div>
             </motion.div>
-          )}
-        </AnimatePresence>
+          </AnimatePresence>,
+          document.body,
+        )}
       </motion.div>}
     </AnimatePresence>
   );

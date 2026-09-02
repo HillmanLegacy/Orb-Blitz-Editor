@@ -21,7 +21,9 @@ function formatRawValue(id: string, value: number): string {
 export function GradeResults({ result, compact = false }: { result: GameplayResultSnapshot | null; compact?: boolean }) {
   const weaponReward = useMagicOrb((state) => state.lastWeaponProgression);
   const weaponProgression = useShop((state) => state.weaponProgression);
-  const weaponProgress = weaponReward ? getWeaponProgress(weaponProgression[weaponReward.weapon]) : null;
+  const weaponProgress = weaponReward
+    ? getWeaponProgress(weaponReward.weapon, weaponProgression[weaponReward.weapon])
+    : null;
   if (!result) return null;
   const gradeColor = GRADE_COLORS[result.overallGrade];
 
@@ -82,13 +84,27 @@ export function GradeResults({ result, compact = false }: { result: GameplayResu
       </div>
 
       {weaponReward && weaponProgress && (
-        <div
+        <motion.div
           className={`${compact ? "mt-1.5 px-2 py-1.5" : "mt-2 px-2.5 py-2"} rounded-xl`}
           style={{
             background: weaponReward.leveledUp
               ? "linear-gradient(110deg,rgba(255,135,40,0.17),rgba(180,110,255,0.15))"
               : "rgba(0,0,0,0.26)",
             border: `1px solid ${weaponReward.leveledUp ? "#ffad4d66" : "rgba(255,255,255,0.1)"}`,
+          }}
+          aria-live="polite"
+          initial={{ opacity: 0, y: 8, scale: 0.98 }}
+          animate={{
+            opacity: 1,
+            y: 0,
+            scale: weaponReward.leveledUp ? [0.98, 1.025, 1] : 1,
+          }}
+          transition={{
+            opacity: { duration: 0.22 },
+            y: { duration: 0.22 },
+            scale: weaponReward.leveledUp
+              ? { duration: 0.72, times: [0, 0.45, 1], ease: "easeOut" }
+              : { duration: 0.22 },
           }}
         >
           <div className="flex items-center justify-between gap-2">
@@ -100,12 +116,45 @@ export function GradeResults({ result, compact = false }: { result: GameplayResu
                 {weaponReward.displayName} · +{weaponReward.xpAwarded} XP
               </p>
             </div>
-            <span className="font-black" style={{ color: weaponProgress.isMaxLevel ? "#facc15" : "#ffad4d", fontSize: "0.65rem" }}>
+            <motion.span
+              className="font-black"
+              style={{ color: weaponProgress.isMaxLevel ? "#facc15" : "#ffad4d", fontSize: "0.65rem" }}
+              initial={{ opacity: 0, x: 8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2, duration: 0.3 }}
+            >
               {weaponProgress.isMaxLevel ? "MAX" : `${weaponProgress.xp}/${weaponProgress.nextThreshold} XP`}
-            </span>
+            </motion.span>
           </div>
           <div style={{ height: 5, marginTop: compact ? 5 : 7, borderRadius: 4, overflow: "hidden", background: "rgba(0,0,0,0.45)" }}>
-            <div style={{ width: `${weaponProgress.progressPercent}%`, height: "100%", borderRadius: 4, background: "linear-gradient(90deg,#ff8d36,#ffd166,#b47cff)" }} />
+            <motion.div
+              key={`${weaponReward.weapon}-${weaponReward.previousLevel}-${weaponReward.level}-${weaponReward.xpAwarded}-${weaponReward.xp}`}
+              initial={{ width: `${Math.min(100, Math.max(0, weaponReward.previousProgressPercent))}%` }}
+              animate={weaponReward.leveledUp
+                ? {
+                    width: [
+                      `${Math.min(100, Math.max(0, weaponReward.previousProgressPercent))}%`,
+                      "100%",
+                      `${weaponReward.progressPercent}%`,
+                    ],
+                  }
+                : { width: `${weaponReward.progressPercent}%` }}
+              transition={weaponReward.leveledUp
+                ? { duration: 1.35, times: [0, 0.52, 1], ease: "easeInOut" }
+                : { duration: 0.85, ease: "easeOut" }}
+              style={{
+                height: "100%",
+                borderRadius: 4,
+                background: weaponReward.leveledUp
+                  ? "linear-gradient(90deg,#ff8d36,#fff1a8,#b47cff)"
+                  : "linear-gradient(90deg,#ff8d36,#ffd166,#b47cff)",
+                boxShadow: weaponReward.leveledUp ? "0 0 12px rgba(255,196,107,0.9)" : "none",
+              }}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-2 mt-1.5" style={{ fontSize: "0.52rem", color: "rgba(255,255,255,0.42)" }}>
+            <span>{weaponProgress.isMaxLevel ? "LEVEL CAP REACHED" : `${weaponProgress.xpRemaining} XP TO NEXT LEVEL`}</span>
+            <span>LV {weaponProgress.level}</span>
           </div>
           {weaponReward.leveledUp && weaponReward.changes.length > 0 && (
             <div className={`mt-2 grid ${compact ? "grid-cols-2" : "grid-cols-1"} gap-1`}>
@@ -119,7 +168,18 @@ export function GradeResults({ result, compact = false }: { result: GameplayResu
               ))}
             </div>
           )}
-        </div>
+          {weaponReward.leveledUp && (
+            <motion.div
+              className="text-center font-black uppercase tracking-[0.24em]"
+              style={{ color: "#ffe2a6", fontSize: "0.52rem", textShadow: "0 0 12px rgba(255,190,100,0.85)" }}
+              initial={{ opacity: 0, letterSpacing: "0.08em" }}
+              animate={{ opacity: [0, 1, 0.72], letterSpacing: ["0.08em", "0.3em", "0.24em"] }}
+              transition={{ delay: 0.45, duration: 1.15, ease: "easeOut" }}
+            >
+              LEVEL UP — NEW POWER UNLOCKED
+            </motion.div>
+          )}
+        </motion.div>
       )}
     </motion.section>
   );

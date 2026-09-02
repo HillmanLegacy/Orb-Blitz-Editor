@@ -2100,7 +2100,7 @@ export const useMagicOrb = create<MagicOrbState>()(
 
       const result = useShop.getState().addWeaponXp(
         state.weaponUsed,
-        getWeaponXpAward(state.gameMode),
+        getWeaponXpAward(state.weaponUsed, state.gameMode),
       );
       if (result) set({ lastWeaponProgression: result });
       return result;

@@ -17,8 +17,57 @@ export const PROGRESSION_WEAPONS: readonly ProgressionWeapon[] = [
   "sub_blaster",
 ];
 
+export const WEAPON_PROGRESSION_VERSION = 2;
+
+export interface WeaponXpProfile {
+  /** XP required to advance from Lv1 to Lv2 and from Lv2 to Lv3. */
+  levelRequirements: readonly [number, number];
+  arcadeLevelXp: number;
+  finishedRunXp: number;
+}
+
+/**
+ * Pokémon-style progression tuning. XP is stored relative to the current
+ * level; these awards are intentionally smaller than every first milestone.
+ */
+export const WEAPON_XP_PROFILES: Record<ProgressionWeapon, WeaponXpProfile> = {
+  spiral_shooter: {
+    levelRequirements: [240, 360],
+    arcadeLevelXp: 80,
+    finishedRunXp: 120,
+  },
+  orbital_rapid_blaster: {
+    levelRequirements: [300, 480],
+    arcadeLevelXp: 70,
+    finishedRunXp: 105,
+  },
+  sub_blaster: {
+    levelRequirements: [330, 540],
+    arcadeLevelXp: 65,
+    finishedRunXp: 100,
+  },
+  homing_launcher: {
+    levelRequirements: [360, 600],
+    arcadeLevelXp: 60,
+    finishedRunXp: 95,
+  },
+  orbital_scattershot: {
+    levelRequirements: [420, 720],
+    arcadeLevelXp: 55,
+    finishedRunXp: 90,
+  },
+  overcharged_blaster: {
+    levelRequirements: [480, 840],
+    arcadeLevelXp: 50,
+    finishedRunXp: 80,
+  },
+};
+
+/** Legacy cumulative values retained only to migrate existing saves safely. */
 export const WEAPON_LEVEL_XP_THRESHOLDS: readonly number[] = [0, 100, 300];
+/** @deprecated Use getWeaponXpAward(weapon, mode). */
 export const WEAPON_XP_PER_ARCADE_LEVEL = 100;
+/** @deprecated Use getWeaponXpAward(weapon, mode). */
 export const WEAPON_XP_PER_FINISHED_RUN = 150;
 
 export type SubBlasterTargetMode = "random-all" | "random-close-mid" | "priority";
@@ -63,6 +112,10 @@ export interface WeaponLevelUpResult {
   level: WeaponLevel;
   previousXp: number;
   xp: number;
+  previousProgressPercent: number;
+  progressPercent: number;
+  nextThreshold: number | null;
+  xpRemaining: number;
   leveledUp: boolean;
   changes: WeaponLevelUpChange[];
 }
@@ -234,15 +287,43 @@ export function isProgressionWeapon(value: string | null | undefined): value is 
   return !!value && (PROGRESSION_WEAPONS as readonly string[]).includes(value);
 }
 
-export function getWeaponLevelFromXp(xp: number): WeaponLevel {
+function getLegacyWeaponLevelFromXp(xp: number): WeaponLevel {
   const safeXp = Math.max(0, Number.isFinite(xp) ? xp : 0);
   if (safeXp >= WEAPON_LEVEL_XP_THRESHOLDS[2]) return 3;
   if (safeXp >= WEAPON_LEVEL_XP_THRESHOLDS[1]) return 2;
   return 1;
 }
 
-export function clampWeaponXp(xp: number): number {
+function clampLegacyWeaponXp(xp: number): number {
   return Math.max(0, Math.min(WEAPON_LEVEL_XP_THRESHOLDS[2], Math.floor(Number.isFinite(xp) ? xp : 0)));
+}
+
+export function getWeaponLevelRequirement(
+  weapon: ProgressionWeapon,
+  level: WeaponLevel,
+): number | null {
+  return level < 3 ? WEAPON_XP_PROFILES[weapon].levelRequirements[level - 1] : null;
+}
+
+export function getWeaponLevelFromXp(
+  weapon: ProgressionWeapon,
+  xp: number,
+): WeaponLevel {
+  const safeXp = Math.max(0, Number.isFinite(xp) ? xp : 0);
+  const [levelTwoXp, levelThreeXp] = WEAPON_XP_PROFILES[weapon].levelRequirements;
+  if (safeXp >= levelTwoXp + levelThreeXp) return 3;
+  if (safeXp >= levelTwoXp) return 2;
+  return 1;
+}
+
+function clampLevelRelativeXp(
+  weapon: ProgressionWeapon,
+  level: WeaponLevel,
+  xp: number,
+): number {
+  const safeXp = Math.max(0, Number.isFinite(xp) ? Math.floor(xp) : 0);
+  const requirement = getWeaponLevelRequirement(weapon, level);
+  return requirement === null ? 0 : Math.min(requirement - 1, safeXp);
 }
 
 export function createInitialWeaponProgression(): WeaponProgressionState {
@@ -252,15 +333,43 @@ export function createInitialWeaponProgression(): WeaponProgressionState {
   }, {} as WeaponProgressionState);
 }
 
-export function normalizeWeaponProgression(raw: unknown): WeaponProgressionState {
+export function normalizeWeaponProgression(
+  raw: unknown,
+  version = 1,
+): WeaponProgressionState {
   const initial = createInitialWeaponProgression();
   if (!raw || typeof raw !== "object") return initial;
   const source = raw as Record<string, unknown>;
   for (const weapon of PROGRESSION_WEAPONS) {
     const entry = source[weapon];
     if (!entry || typeof entry !== "object") continue;
-    const xp = clampWeaponXp(Number((entry as Record<string, unknown>).xp));
-    initial[weapon] = { xp, level: getWeaponLevelFromXp(xp) };
+    const rawEntry = entry as Record<string, unknown>;
+    if (version >= WEAPON_PROGRESSION_VERSION) {
+      const rawLevel = Number(rawEntry.level);
+      const level: WeaponLevel = rawLevel === 3 ? 3 : rawLevel === 2 ? 2 : 1;
+      initial[weapon] = {
+        xp: clampLevelRelativeXp(weapon, level, Number(rawEntry.xp)),
+        level,
+      };
+      continue;
+    }
+
+    // Existing saves used [0, 100, 300] cumulative XP. Preserve the earned
+    // level and map its old within-level percentage into the new target.
+    const legacyXp = clampLegacyWeaponXp(Number(rawEntry.xp));
+    const legacyLevel = getLegacyWeaponLevelFromXp(legacyXp);
+    if (legacyLevel === 3) {
+      initial[weapon] = { xp: 0, level: 3 };
+      continue;
+    }
+    const legacyStart = WEAPON_LEVEL_XP_THRESHOLDS[legacyLevel - 1];
+    const legacyTarget = WEAPON_LEVEL_XP_THRESHOLDS[legacyLevel] - legacyStart;
+    const levelTarget = getWeaponLevelRequirement(weapon, legacyLevel)!;
+    const relativeProgress = Math.max(0, legacyXp - legacyStart) / legacyTarget;
+    initial[weapon] = {
+      xp: Math.min(levelTarget - 1, Math.floor(relativeProgress * levelTarget)),
+      level: legacyLevel,
+    };
   }
   return initial;
 }
@@ -276,43 +385,58 @@ export function getWeaponConfig(weapon: ProgressionWeapon, level: WeaponLevel): 
   }
 }
 
-export function getWeaponProgress(record: WeaponProgressionRecord): {
+export function getWeaponProgress(weapon: ProgressionWeapon, record: WeaponProgressionRecord): {
   level: WeaponLevel;
   xp: number;
-  currentThreshold: number;
+  currentThreshold: number | null;
   nextThreshold: number | null;
+  xpRemaining: number;
   progressPercent: number;
   isMaxLevel: boolean;
 } {
-  const xp = clampWeaponXp(record.xp);
-  const level = getWeaponLevelFromXp(xp);
-  const currentThreshold = WEAPON_LEVEL_XP_THRESHOLDS[level - 1];
-  const nextThreshold = level < 3 ? WEAPON_LEVEL_XP_THRESHOLDS[level] : null;
+  const level: WeaponLevel = record.level === 3 ? 3 : record.level === 2 ? 2 : 1;
+  const nextThreshold = getWeaponLevelRequirement(weapon, level);
+  const xp = nextThreshold === null ? 0 : clampLevelRelativeXp(weapon, level, record.xp);
   return {
     level,
     xp,
-    currentThreshold,
+    currentThreshold: nextThreshold,
     nextThreshold,
-    // Keep this cumulative so the indicator never visually resets when a
-    // weapon crosses from Lv1 → Lv2 or Lv2 → Lv3.
-    progressPercent: Math.max(
-      0,
-      Math.min(100, (xp / WEAPON_LEVEL_XP_THRESHOLDS[2]) * 100),
-    ),
+    xpRemaining: nextThreshold === null ? 0 : Math.max(0, nextThreshold - xp),
+    progressPercent: nextThreshold === null ? 100 : Math.max(0, Math.min(100, (xp / nextThreshold) * 100)),
     isMaxLevel: level === 3,
   };
 }
 
 export function applyWeaponXp(
+  weapon: ProgressionWeapon,
   record: WeaponProgressionRecord,
   amount: number,
-): { record: WeaponProgressionRecord; previousLevel: WeaponLevel; leveledUp: boolean } {
-  const previousLevel = getWeaponLevelFromXp(record.xp);
-  const xp = clampWeaponXp(record.xp + Math.max(0, Math.floor(amount)));
-  const level = getWeaponLevelFromXp(xp);
+): {
+  record: WeaponProgressionRecord;
+  previousLevel: WeaponLevel;
+  previousXp: number;
+  leveledUp: boolean;
+} {
+  const previousLevel: WeaponLevel = record.level === 3 ? 3 : record.level === 2 ? 2 : 1;
+  const previousXp = previousLevel === 3
+    ? 0
+    : clampLevelRelativeXp(weapon, previousLevel, record.xp);
+  let level = previousLevel;
+  let xp = previousXp + Math.max(0, Math.floor(Number.isFinite(amount) ? amount : 0));
+
+  while (level < 3) {
+    const requirement = getWeaponLevelRequirement(weapon, level)!;
+    if (xp < requirement) break;
+    xp -= requirement;
+    level = (level + 1) as WeaponLevel;
+  }
+  if (level === 3) xp = 0;
+
   return {
-    record: { xp, level },
+    record: { xp: clampLevelRelativeXp(weapon, level, xp), level },
     previousLevel,
+    previousXp,
     leveledUp: level > previousLevel,
   };
 }
@@ -373,6 +497,10 @@ export function getWeaponLevelUpChanges(
   return changes;
 }
 
-export function getWeaponXpAward(mode: "survival" | "chill" | "arcade" | "gauntlet"): number {
-  return mode === "arcade" ? WEAPON_XP_PER_ARCADE_LEVEL : WEAPON_XP_PER_FINISHED_RUN;
+export function getWeaponXpAward(
+  weapon: ProgressionWeapon,
+  mode: "survival" | "chill" | "arcade" | "gauntlet",
+): number {
+  const profile = WEAPON_XP_PROFILES[weapon];
+  return mode === "arcade" ? profile.arcadeLevelXp : profile.finishedRunXp;
 }
