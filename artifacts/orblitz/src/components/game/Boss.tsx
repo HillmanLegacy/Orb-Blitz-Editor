@@ -3,15 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useMagicOrb, MovementPattern } from "@/lib/stores/useMagicOrb";
 import { useAudio } from "@/lib/stores/useAudio";
-import { FireBoss } from "./FireBoss";
-import { PlasmaBoss } from "./PlasmaBoss";
-import { DiamondBoss } from "./DiamondBoss";
-import { RainbowBoss } from "./RainbowBoss";
-import { StarBoss } from "./StarBoss";
-import { CrystalBoss } from "./CrystalBoss";
-import { ToxicBoss } from "./ToxicBoss";
-import { MechaBoss } from "./MechaBoss";
-import { MonsterBoss } from "./MonsterBoss";
+import { BossVisual } from "./BossVisual";
 import { FireExplosionVFX } from "./FireExplosionVFX";
 import { BOSS_DEFEAT_DURATION, BOSS_DEFEAT_SIZE_SCALE } from "./BossDefeatPalette";
 import { StarBossTeleportVFX, StarTeleportVFXState } from "./StarBossTeleportVFX";
@@ -1597,7 +1589,7 @@ export function Boss() {
     return (
       <group ref={meshRef} position={boss.position}>
         <Suspense fallback={null}>
-          <FireBoss radius={fireRadius} healthPercent={healthPercent} />
+          <BossVisual type={bossType} radius={fireRadius} healthPercent={healthPercent} />
         </Suspense>
       </group>
     );
@@ -1610,7 +1602,7 @@ export function Boss() {
         <StarBossTeleportVFX vfxRef={starTeleportVFXRef} scale={1.8} />
         <group ref={meshRef} position={boss.position}>
           <Suspense fallback={null}>
-            <StarBoss radius={1.44} healthPercent={healthPercent} />
+            <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} />
           </Suspense>
         </group>
       </>
@@ -1621,7 +1613,7 @@ export function Boss() {
     return (
       <group ref={meshRef} position={boss.position}>
         <Suspense fallback={null}>
-          <RainbowBoss radius={1.44} healthPercent={healthPercent} />
+          <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} />
         </Suspense>
       </group>
     );
@@ -1631,7 +1623,7 @@ export function Boss() {
     return (
       <group ref={meshRef} position={boss.position}>
         <Suspense fallback={null}>
-          <CrystalBoss radius={1.44} healthPercent={healthPercent} />
+          <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} />
         </Suspense>
       </group>
     );
@@ -1641,7 +1633,7 @@ export function Boss() {
     return (
       <group ref={meshRef} position={boss.position}>
         <Suspense fallback={null}>
-          <ToxicBoss radius={1.44} healthPercent={healthPercent} />
+          <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} />
         </Suspense>
       </group>
     );
@@ -1651,7 +1643,7 @@ export function Boss() {
     return (
       <group ref={meshRef} position={boss.position}>
         <Suspense fallback={null}>
-          <PlasmaBoss radius={1.44} healthPercent={healthPercent} />
+          <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} />
         </Suspense>
       </group>
     );
@@ -1661,7 +1653,7 @@ export function Boss() {
     return (
       <group ref={meshRef} position={boss.position}>
         <Suspense fallback={null}>
-          <DiamondBoss radius={1.44} healthPercent={healthPercent} />
+          <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} />
         </Suspense>
       </group>
     );
@@ -1671,7 +1663,7 @@ export function Boss() {
     return (
       <group ref={meshRef} position={boss.position}>
         <Suspense fallback={null}>
-          <MechaBoss radius={1.44} healthPercent={healthPercent} />
+          <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} />
         </Suspense>
       </group>
     );
@@ -1681,7 +1673,7 @@ export function Boss() {
     return (
       <group ref={meshRef} position={boss.position}>
         <Suspense fallback={null}>
-          <MonsterBoss radius={1.44} healthPercent={healthPercent} />
+          <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} />
         </Suspense>
       </group>
     );

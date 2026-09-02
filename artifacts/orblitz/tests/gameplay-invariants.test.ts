@@ -82,6 +82,7 @@ import {
   MAIN_BOSS_TYPES,
   getBossDefeatPalette,
 } from "../src/components/game/BossDefeatPalette";
+import { BOSS_VISUAL_COMPONENTS } from "../src/components/game/BossVisual";
 import { BOSS_DEFEAT_PARTICLE_COUNTS } from "../src/components/game/FireExplosionVFX";
 import {
   ENEMY_DEFEAT_DURATION,
@@ -210,6 +211,23 @@ describe("gameplay runtime invariants", () => {
       expect(palette.highlight).toMatch(/^#[0-9a-f]{6}$/i);
       expect(palette.shadow).toMatch(/^#[0-9a-f]{6}$/i);
     }
+  });
+
+  it("keeps one renderer mapping for all title and arcade boss visuals", () => {
+    expect(Object.keys(BOSS_VISUAL_COMPONENTS).sort()).toEqual([...MAIN_BOSS_TYPES].sort());
+    expect(Object.fromEntries(
+      Object.entries(BOSS_VISUAL_COMPONENTS).map(([type, renderer]) => [type, renderer.name]),
+    )).toEqual({
+      circle: "FireBoss",
+      star: "StarBoss",
+      triangle: "CrystalBoss",
+      trapezoid: "ToxicBoss",
+      cube: "PlasmaBoss",
+      cloud: "DiamondBoss",
+      arrow: "RainbowBoss",
+      tentacle: "MechaBoss",
+      monster: "MonsterBoss",
+    });
   });
 
   it("preserves the 1.9 defeat duration and authored particle budget", () => {

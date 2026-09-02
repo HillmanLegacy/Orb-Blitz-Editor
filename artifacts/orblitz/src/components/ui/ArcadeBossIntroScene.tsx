@@ -1,15 +1,7 @@
 import { Suspense, useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { CrystalBoss } from "@/components/game/CrystalBoss";
-import { DiamondBoss } from "@/components/game/DiamondBoss";
-import { FireBoss } from "@/components/game/FireBoss";
-import { MechaBoss } from "@/components/game/MechaBoss";
-import { MonsterBoss } from "@/components/game/MonsterBoss";
-import { PlasmaBoss } from "@/components/game/PlasmaBoss";
-import { RainbowBoss } from "@/components/game/RainbowBoss";
-import { StarBoss } from "@/components/game/StarBoss";
-import { ToxicBoss } from "@/components/game/ToxicBoss";
+import { BossVisual } from "@/components/game/BossVisual";
 import { BOSS_DEFEAT_PALETTES, MAIN_BOSS_TYPES, type MainBossType } from "@/components/game/BossDefeatPalette";
 
 export type IntroBossPhase = "idle" | "flying" | "converge" | "flash" | "backdrop" | "background" | "title" | "waiting" | "menu";
@@ -141,27 +133,7 @@ function getWorldCardAnchor(world: number): { x: number; y: number } | null {
 }
 
 function renderArcadeBoss(type: MainBossType) {
-  const radius = 1.05;
-  switch (type) {
-    case "circle":
-      return <FireBoss radius={radius} healthPercent={1} />;
-    case "star":
-      return <StarBoss radius={radius} healthPercent={1} />;
-    case "triangle":
-      return <CrystalBoss radius={radius} healthPercent={1} />;
-    case "trapezoid":
-      return <ToxicBoss radius={radius} healthPercent={1} />;
-    case "cube":
-      return <PlasmaBoss radius={radius} healthPercent={1} />;
-    case "cloud":
-      return <DiamondBoss radius={radius} healthPercent={1} />;
-    case "arrow":
-      return <RainbowBoss radius={radius} healthPercent={1} />;
-    case "tentacle":
-      return <MechaBoss radius={radius} healthPercent={1} />;
-    case "monster":
-      return <MonsterBoss radius={radius} healthPercent={1} />;
-  }
+  return <BossVisual type={type} radius={1.05} healthPercent={1} />;
 }
 
 function ArcadeBossActor({
