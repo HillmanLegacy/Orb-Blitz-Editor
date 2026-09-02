@@ -124,7 +124,9 @@ const shimmerFrag = /* glsl */ `
     // Subtle fresnel rim — soft cyan, not white
     col += vec3(0.55, 0.80, 1.00) * pow(fresnel, 3.5) * 0.35;
 
-    float alpha = 0.25 + fresnel * 0.45 + sparkle * 0.30 + star * 0.15;
+    // Keep this additive layer restrained so the authored GLB facets remain
+    // readable instead of clipping the pale base texture to solid white.
+    float alpha = 0.08 + fresnel * 0.18 + sparkle * 0.10 + star * 0.06;
     gl_FragColor = vec4(col, clamp(alpha, 0.0, 1.0));
   }
 `;
@@ -244,6 +246,8 @@ function fract(x: number) { return x - Math.floor(x); }
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
+const DIAMOND_TEXTURE_TINT = "#7894b0";
+
 export interface DiamondBossProps {
   radius?:        number;
   healthPercent?: number;
@@ -279,7 +283,11 @@ export function DiamondBoss({ radius = 1.44, healthPercent = 1 }: DiamondBossPro
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         const sourceMaterial = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
-        const mat = createBossOrbTextureMaterial(sourceMaterial, orbTexture);
+        const mat = createBossOrbTextureMaterial(
+          sourceMaterial,
+          orbTexture,
+          DIAMOND_TEXTURE_TINT,
+        );
         mesh.material = mat;
         materialsRef.current.push(mat);
       }
@@ -317,7 +325,7 @@ export function DiamondBoss({ radius = 1.44, healthPercent = 1 }: DiamondBossPro
         // Angry: shift the texture tint to red-pink
         m.color.setRGB(1.0, 0.3 + anger * 0.2, 0.5);
       } else {
-        m.color.set("#ffffff");
+        m.color.set(DIAMOND_TEXTURE_TINT);
       }
     });
   });

@@ -42,6 +42,7 @@ export function findBossOrbTexture(scene: THREE.Object3D): THREE.Texture | null 
 export function createBossOrbTextureMaterial(
   sourceMaterial: THREE.Material,
   fallbackTexture?: THREE.Texture | null,
+  color: THREE.ColorRepresentation = "#ffffff",
 ): THREE.MeshBasicMaterial {
   const source = sourceMaterial as TexturedMaterialSource;
   const map = source.map ?? fallbackTexture ?? undefined;
@@ -52,7 +53,7 @@ export function createBossOrbTextureMaterial(
 
   return new THREE.MeshBasicMaterial({
     map,
-    color: new THREE.Color("#ffffff"),
+    color: new THREE.Color(color),
     transparent: source.transparent,
     opacity: source.opacity,
     alphaTest: source.alphaTest,
