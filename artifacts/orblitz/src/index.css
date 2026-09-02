@@ -853,6 +853,15 @@ canvas {
   letter-spacing: 0.14em;
 }
 
+.orblitz-gear-action-dock {
+  position: sticky;
+  top: -22px;
+  z-index: 3;
+  margin: 12px -4px 0;
+  padding: 10px 4px 8px;
+  background: linear-gradient(180deg, rgba(12, 19, 49, 0.98) 70%, rgba(12, 19, 49, 0));
+}
+
 .orblitz-gear-status-mark {
   font-size: 0.7rem;
   line-height: 1;
@@ -1167,6 +1176,12 @@ canvas {
     max-height: 310px;
     padding: 16px;
     border-top: 1px solid rgba(255, 255, 255, 0.07);
+  }
+
+  .orblitz-gear-action-dock {
+    top: -16px;
+    margin-top: 8px;
+    background: linear-gradient(180deg, rgba(12, 19, 49, 0.99) 72%, rgba(12, 19, 49, 0));
   }
 
   .orblitz-gear-inspection {

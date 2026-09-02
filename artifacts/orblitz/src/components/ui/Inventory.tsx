@@ -582,33 +582,7 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                     {selectedIsEquipped ? "CURRENTLY EQUIPPED" : selectedItem ? "AVAILABLE TO EQUIP" : "SLOT CONFIGURATION"}
                   </div>
 
-                  <div className="orblitz-gear-stats">
-                    {detail.stats.map(stat => (
-                      <div key={stat.label} className="orblitz-gear-stat">
-                        <span>{stat.label}</span>
-                        <strong>{stat.value}</strong>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="orblitz-gear-mechanics">
-                    <p className="orblitz-loadout-panel-kicker">MECHANICS</p>
-                    <p>{detail.mechanic}</p>
-                  </div>
-
-                  {selectedWeaponProgress && (
-                    <div className="orblitz-gear-progression">
-                      <div className="flex items-center justify-between gap-2">
-                        <span>WEAPON LEVEL {selectedWeaponProgress.level}</span>
-                        <span>{selectedWeaponProgress.isMaxLevel ? "MAX / Lv3" : `${selectedWeaponProgress.xp} / ${selectedWeaponProgress.nextThreshold} XP`}</span>
-                      </div>
-                      <div className="orblitz-gear-progress-track">
-                        <div className="orblitz-gear-progress-fill" style={{ width: `${selectedWeaponProgress.progressPercent}%` }} />
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="mt-auto pt-4">
+                  <div className="orblitz-gear-action-dock">
                     <div className="orblitz-gear-action-row">
                       <motion.button
                         whileTap={{ scale: selectedItem ? 0.97 : 1 }}
@@ -646,6 +620,33 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                       {actionDisabled ? "Select a module to configure this slot" : selectedItem && selectedIsEquipped ? "Inspect details or remove this module" : "Inspect details or apply this module"}
                     </p>
                   </div>
+
+                  <div className="orblitz-gear-stats">
+                    {detail.stats.map(stat => (
+                      <div key={stat.label} className="orblitz-gear-stat">
+                        <span>{stat.label}</span>
+                        <strong>{stat.value}</strong>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="orblitz-gear-mechanics">
+                    <p className="orblitz-loadout-panel-kicker">MECHANICS</p>
+                    <p>{detail.mechanic}</p>
+                  </div>
+
+                  {selectedWeaponProgress && (
+                    <div className="orblitz-gear-progression">
+                      <div className="flex items-center justify-between gap-2">
+                        <span>WEAPON LEVEL {selectedWeaponProgress.level}</span>
+                        <span>{selectedWeaponProgress.isMaxLevel ? "MAX / Lv3" : `${selectedWeaponProgress.xp} / ${selectedWeaponProgress.nextThreshold} XP`}</span>
+                      </div>
+                      <div className="orblitz-gear-progress-track">
+                        <div className="orblitz-gear-progress-fill" style={{ width: `${selectedWeaponProgress.progressPercent}%` }} />
+                      </div>
+                    </div>
+                  )}
+
                 </motion.div>
               </AnimatePresence>
             </aside>
