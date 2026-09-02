@@ -1,9 +1,9 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useShop, SHOP_ITEMS, ShopItem, OrbSkin, TrailEffect, RingStyle, WeaponType, DefenseType, MagiOrbType } from "@/lib/stores/useShop";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useModalAccessibility } from "@/components/ui/useModalAccessibility";
-import { getWeaponProgress, isProgressionWeapon } from "@/game-runtime/WeaponProgression";
+import { getWeaponProgress, isProgressionWeapon, type ProgressionWeapon } from "@/game-runtime/WeaponProgression";
 
 // ─── Slot definitions ─────────────────────────────────────────────────────────
 type SlotKey = "weapon" | "defense_0" | "defense_1" | "magi_orb" | "skin" | "trail" | "aura";
@@ -37,6 +37,177 @@ const SLOTS: SlotDef[] = [
   { key: "trail",     label: "TRAIL",      icon: "≋", color: "#ddcc00", shadow: "rgba(221,204,0,0.4)",   cat: "trail"    },
   { key: "aura",      label: "AURA",       icon: "✦", color: "#00ccee", shadow: "rgba(0,204,238,0.4)",   cat: "aura"     },
 ];
+
+type GearStat = { label: string; value: string };
+type GearDetail = { role: string; stats: GearStat[]; mechanic: string };
+
+const CLEAR_ITEM_ID = "__loadout_clear__";
+
+const SPECIFIC_GEAR_STATS: Record<string, GearStat[]> = {
+  orbital_rapid_blaster: [
+    { label: "RATE", value: "6 shots / sec" },
+    { label: "PATTERN", value: "Single fire" },
+    { label: "DAMAGE", value: "1 enemy / shot" },
+  ],
+  orbital_scattershot: [
+    { label: "VOLLEY", value: "3 projectiles" },
+    { label: "PATTERN", value: "Wedge spread" },
+    { label: "DAMAGE", value: "1 enemy / shot" },
+  ],
+  spiral_shooter: [
+    { label: "VOLLEY", value: "3 spiral shots" },
+    { label: "PIERCE", value: "Up to 3 enemies" },
+    { label: "TRADEOFF", value: "1 particle / hit" },
+  ],
+  overcharged_blaster: [
+    { label: "RATE", value: "1 shot / 1.5 sec" },
+    { label: "POWER", value: "5 boss damage" },
+    { label: "CLEAR", value: "Enemies + projectiles" },
+  ],
+  homing_launcher: [
+    { label: "TARGETING", value: "Nearest enemy" },
+    { label: "TRACKING", value: "Homing" },
+    { label: "ROLE", value: "Auto-aim pressure" },
+  ],
+  sub_blaster: [
+    { label: "PLATFORM", value: "Autonomous orb" },
+    { label: "TARGETING", value: "Nearby enemies" },
+    { label: "FIRE", value: "Automatic" },
+  ],
+  orbital_teletransfer: [
+    { label: "RANGE", value: "Any location" },
+    { label: "COOLDOWN", value: "5 seconds" },
+    { label: "INPUT", value: "Tap to trigger" },
+  ],
+  distort_field: [
+    { label: "DURATION", value: "5 seconds" },
+    { label: "COOLDOWN", value: "5 seconds" },
+    { label: "EFFECT", value: "Stops enemies" },
+  ],
+  pulse_shield: [
+    { label: "RANGE", value: "Close-range" },
+    { label: "COOLDOWN", value: "5 seconds" },
+    { label: "EFFECT", value: "Reflects enemies" },
+  ],
+  defense_system: [
+    { label: "ORBS", value: "5 perishable" },
+    { label: "ROLE", value: "Orbiting defense" },
+    { label: "TRIGGER", value: "Enemy collision" },
+  ],
+  spatial_relocation: [
+    { label: "TRIGGER", value: "On damage" },
+    { label: "EFFECT", value: "Nearby teleport" },
+    { label: "ROLE", value: "Emergency escape" },
+  ],
+  restoration: [
+    { label: "RECOVERY", value: "+1 HP" },
+    { label: "INTERVAL", value: "10 seconds" },
+    { label: "ROLE", value: "Sustain" },
+  ],
+  armor: [
+    { label: "BONUS", value: "+3 max HP" },
+    { label: "TRIGGER", value: "Always active" },
+    { label: "ROLE", value: "Durability" },
+  ],
+  magi_orb_1: [
+    { label: "MOVEMENT", value: "Circular pattern" },
+    { label: "ROLE", value: "Evasion" },
+    { label: "TRIGGER", value: "Always active" },
+  ],
+  magi_orb_2: [
+    { label: "COOLDOWN", value: "15 seconds" },
+    { label: "EFFECT", value: "Clears non-bosses" },
+    { label: "BONUS", value: "Energy siphon" },
+  ],
+  magi_orb_3: [
+    { label: "VOLLEY", value: "10 projectiles" },
+    { label: "TARGETING", value: "Indirect homing" },
+    { label: "TRIGGER", value: "Activated" },
+  ],
+  magi_orb_4: [
+    { label: "DURATION", value: "10 seconds" },
+    { label: "COOLDOWN", value: "15 seconds" },
+    { label: "FORM", value: "Quarter barrier" },
+  ],
+  magi_orb_5: [
+    { label: "SHIELD HP", value: "5 HP" },
+    { label: "ROLE", value: "Damage buffer" },
+    { label: "FORM", value: "Protective cube" },
+  ],
+  magi_orb_6: [
+    { label: "INTERVAL", value: "5 seconds" },
+    { label: "EFFECT", value: "Random teleport" },
+    { label: "ROLE", value: "Displacement" },
+  ],
+  magi_orb_7: [
+    { label: "SLOW", value: "25% enemy speed" },
+    { label: "COOLDOWN", value: "15 seconds" },
+    { label: "RANGE", value: "360-degree pulse" },
+  ],
+  magi_orb_8: [
+    { label: "ALLY HP", value: "Player max HP" },
+    { label: "FIRE", value: "Fires with player" },
+    { label: "PLACEMENT", value: "Random orbit" },
+  ],
+  magi_orb_9: [
+    { label: "INTERVAL", value: "15 seconds" },
+    { label: "EFFECT", value: "Resets spawn rate" },
+    { label: "ROLE", value: "Crowd control" },
+  ],
+};
+
+function getGearDetail(item: ShopItem | null, slot: SlotDef): GearDetail {
+  if (!item) {
+    return {
+      role: "EMPTY SLOT",
+      stats: [
+        { label: "STATUS", value: "Offline" },
+        { label: "EFFECT", value: "No gear active" },
+        { label: "SLOT", value: slot.label },
+      ],
+      mechanic: clearMeta(slot.cat).desc,
+    };
+  }
+
+  const categoryStats: Record<Category, GearStat[]> = {
+    weapon: [
+      { label: "TYPE", value: "Combat weapon" },
+      { label: "PROGRESSION", value: "Run XP enabled" },
+      { label: "SLOT", value: "Primary" },
+    ],
+    defense: [
+      { label: "TYPE", value: "Defensive system" },
+      { label: "SLOTS", value: "1 of 2" },
+      { label: "ROLE", value: "Survival" },
+    ],
+    magi_orb: [
+      { label: "TYPE", value: "Arcane system" },
+      { label: "SLOT", value: "1 active" },
+      { label: "ROLE", value: "Special ability" },
+    ],
+    skin: [
+      { label: "TYPE", value: "Visual shell" },
+      { label: "COMBAT", value: "No stat change" },
+      { label: "EFFECT", value: "Player appearance" },
+    ],
+    trail: [
+      { label: "TYPE", value: "Projectile VFX" },
+      { label: "COMBAT", value: "No stat change" },
+      { label: "EFFECT", value: "Shot presentation" },
+    ],
+    aura: [
+      { label: "TYPE", value: "Player VFX" },
+      { label: "COMBAT", value: "No stat change" },
+      { label: "EFFECT", value: "Orbital presentation" },
+    ],
+  };
+
+  return {
+    role: item.category === "magi_orb" ? "SPECIAL SYSTEM" : `${item.category.toUpperCase()} MODULE`,
+    stats: SPECIFIC_GEAR_STATS[item.value as string] ?? categoryStats[item.category],
+    mechanic: item.description,
+  };
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getEquippedValue(slot: SlotDef, eq: EquippedState): string {
@@ -93,6 +264,7 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
   })));
 
   const [activeSlot, setActiveSlot] = useState<SlotDef>(SLOTS[0]);
+  const [selectedItemId, setSelectedItemId] = useState(CLEAR_ITEM_ID);
   const dialogRef = useModalAccessibility<HTMLDivElement>(
     inventoryOpen,
     closeInventory,
@@ -119,13 +291,37 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
   const currentVal = getEquippedValue(slot, eq);
   const clear = clearMeta(slot.cat);
   const isDefaultSelected = currentVal === "none" || currentVal === "default";
-  const currentWeaponProgress = slot.cat === "weapon" && isProgressionWeapon(currentVal)
-    ? getWeaponProgress(weaponProgression[currentVal])
-    : null;
 
   const ownedCatItems = useMemo(() => SHOP_ITEMS.filter(
     i => i.category === slot.cat && ownedItems.includes(i.id)
   ), [ownedItems, slot.cat]);
+
+  useEffect(() => {
+    const equippedItem = ownedCatItems.find(item => item.value === currentVal);
+    setSelectedItemId(equippedItem?.id ?? CLEAR_ITEM_ID);
+  }, [activeSlot.key, inventoryOpen, ownedCatItems]);
+
+  const selectedItem = selectedItemId === CLEAR_ITEM_ID
+    ? null
+    : ownedCatItems.find(item => item.id === selectedItemId) ?? null;
+  const selectedIsEquipped = selectedItem
+    ? currentVal === selectedItem.value
+    : isDefaultSelected;
+  const actionDisabled = !selectedItem && isDefaultSelected;
+  const detail = getGearDetail(selectedItem, slot);
+  const selectedWeaponProgress = selectedItem
+    && selectedItem.category === "weapon"
+    && isProgressionWeapon(selectedItem.value as WeaponType)
+    ? getWeaponProgress(weaponProgression[selectedItem.value as ProgressionWeapon])
+    : null;
+
+  const handleDetailAction = () => {
+    if (selectedItem) {
+      doEquip(slot, selectedIsEquipped ? null : selectedItem);
+      return;
+    }
+    if (!isDefaultSelected) doEquip(slot, null);
+  };
 
   return (
     <AnimatePresence onExitComplete={onExitComplete}>
@@ -154,13 +350,13 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
           tabIndex={-1}
           className="relative flex flex-col w-full"
           style={{
-            maxWidth: "min(720px, 100%)",
-            maxHeight: "min(88vh, 680px)",
+            maxWidth: "min(1080px, 100%)",
+            maxHeight: "min(90vh, 760px)",
             background: "rgba(4,4,18,0.97)",
-            border: "1px solid rgba(0,255,255,0.14)",
-            borderRadius: "clamp(16px, 2.5vw, 24px)",
+            border: "1px solid rgba(0,255,255,0.18)",
+            borderRadius: "clamp(18px, 2.5vw, 26px)",
             backdropFilter: "blur(32px)",
-            boxShadow: "0 0 80px rgba(0,255,255,0.07), 0 28px 90px rgba(0,0,0,0.75)",
+            boxShadow: "0 0 100px rgba(0,255,255,0.08), 0 28px 90px rgba(0,0,0,0.78)",
           }}
           initial={{ scale: 0.88, y: 28, opacity: 0 }}
           animate={{ scale: 1, y: 0, opacity: 1 }}
@@ -176,21 +372,21 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
           </div>
 
           {/* ── Header ─────────────────────────────────────────────────── */}
-          <div
-            className="relative flex-none flex items-center justify-between px-5 pt-4 pb-3"
-            style={{ borderBottom: "1px solid rgba(255,255,255,0.07)", zIndex: 1 }}
-          >
-            <span
-              id="orblitz-loadout-title"
-              className="font-black text-lg tracking-[0.18em] uppercase"
-              style={{
-                background: "linear-gradient(90deg,#ff7700,#ff00ff,#8844ff)",
-                WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-                filter: "drop-shadow(0 0 8px rgba(255,119,0,0.4))",
-              }}
-            >
-              LOADOUT
-            </span>
+          <div className="orblitz-loadout-header relative flex-none flex items-center justify-between px-5 pt-4 pb-3" style={{ zIndex: 1 }}>
+            <div>
+              <p className="orblitz-loadout-kicker">GEAR CONTROL / ACTIVE CONFIGURATION</p>
+              <span
+                id="orblitz-loadout-title"
+                className="orblitz-loadout-title font-black text-lg tracking-[0.18em] uppercase"
+              >
+                LOADOUT
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="orblitz-loadout-status">
+                <span className="orblitz-loadout-status-dot" />
+                <span>READY</span>
+              </div>
             <motion.button
               whileTap={{ scale: 0.85 }}
               onClick={closeInventory}
@@ -205,16 +401,17 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
             >
               ×
             </motion.button>
+            </div>
           </div>
 
-          {/* ── Body: slot sidebar + picker ────────────────────────────── */}
-          <div className="orblitz-modal-body relative flex flex-1 min-h-0 flex-col min-[480px]:flex-row" style={{ zIndex: 1 }}>
+          {/* ── Body: slot rail + item picker + detail panel ─────────────── */}
+          <div className="orblitz-modal-body orblitz-loadout-body relative flex flex-1 min-h-0 flex-col min-[760px]:flex-row" style={{ zIndex: 1 }}>
 
-            {/* Left sidebar — all 7 slots always visible */}
+            {/* Slot rail — every gear slot is always one tap away */}
             <div
-              className="orblitz-modal-sidebar flex-none flex flex-col max-[479px]:flex-row max-[479px]:overflow-x-auto max-[479px]:!w-full max-[479px]:!border-r-0 max-[479px]:border-b gap-1 py-3 px-2"
+              className="orblitz-modal-sidebar orblitz-loadout-slots flex-none flex flex-col max-[759px]:flex-row max-[759px]:overflow-x-auto max-[759px]:!w-full max-[759px]:!border-r-0 max-[759px]:border-b gap-1 py-3 px-2"
               style={{
-                width: "clamp(130px, 24%, 164px)",
+                width: "clamp(148px, 18%, 184px)",
                 borderRight: "1px solid rgba(255,255,255,0.06)",
               }}
             >
@@ -230,6 +427,7 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                     onClick={() => setActiveSlot(s)}
                     aria-pressed={active}
                     aria-label={`Edit ${s.label.toLowerCase()}`}
+                    data-testid={`button-loadout-slot-${s.key}`}
                     className="relative flex items-center gap-2 px-2.5 py-2 rounded-xl w-full text-left"
                     style={{
                       background: active ? `${s.color}16` : "rgba(255,255,255,0.03)",
@@ -298,84 +496,18 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
               })}
             </div>
 
-            {/* Right — item picker for the active slot */}
-            <div className="flex flex-col flex-1 min-w-0">
+            {/* Item picker for the active slot */}
+            <div className="orblitz-loadout-picker flex flex-col flex-1 min-w-0">
 
-              {/* Picker header */}
-              <div
-                className="flex-none flex items-center gap-3 px-4 py-3"
-                style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
-              >
-                  {currentWeaponProgress && (
-                    <div style={{
-                      padding: "10px 11px",
-                      marginBottom: 2,
-                      borderRadius: 12,
-                      background: "linear-gradient(135deg,rgba(255,119,0,0.12),rgba(136,68,255,0.1))",
-                      border: "1px solid rgba(255,145,55,0.3)",
-                    }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                        <span style={{ color: "#ffb347", fontSize: "0.62rem", fontWeight: 900, letterSpacing: "0.14em" }}>
-                          WEAPON LEVEL {currentWeaponProgress.level}
-                        </span>
-                        <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.58rem", fontVariantNumeric: "tabular-nums" }}>
-                          {currentWeaponProgress.isMaxLevel ? "MAX / Lv3" : `${currentWeaponProgress.xp} / ${currentWeaponProgress.nextThreshold} XP`}
-                        </span>
-                      </div>
-                      <div style={{ height: 6, marginTop: 7, borderRadius: 4, overflow: "hidden", background: "rgba(0,0,0,0.45)" }}>
-                        <div style={{
-                          width: `${currentWeaponProgress.progressPercent}%`,
-                          height: "100%",
-                          borderRadius: 4,
-                          background: "linear-gradient(90deg,#ff8c2f,#ffcf5a,#b47cff)",
-                          boxShadow: "0 0 10px rgba(255,150,55,0.6)",
-                        }} />
-                      </div>
-                      <p style={{ margin: "6px 0 0", color: "rgba(255,220,175,0.48)", fontSize: "0.55rem", letterSpacing: "0.08em" }}>
-                        {currentWeaponProgress.isMaxLevel ? "FULLY UPGRADED — ALL BENEFITS ACTIVE" : "COMPLETE RUNS WITH THIS WEAPON TO EARN XP"}
-                      </p>
-                    </div>
-                  )}
-
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={slot.key}
-                    className="flex items-center gap-2.5"
-                    initial={{ opacity: 0, x: 8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -8 }}
-                    transition={{ duration: 0.16 }}
-                  >
-                    <div
-                      className="flex items-center justify-center flex-shrink-0"
-                      style={{
-                        width: 30, height: 30, borderRadius: 8,
-                        background: `${slot.color}18`, border: `1px solid ${slot.color}44`,
-                        color: slot.color, fontSize: "1rem", lineHeight: 1,
-                      }}
-                    >
-                      {slot.icon}
-                    </div>
-                    <div>
-                      <p
-                        className="font-black tracking-widest uppercase leading-none"
-                        style={{ color: slot.color, fontSize: "0.72rem", textShadow: `0 0 10px ${slot.color}66` }}
-                      >
-                        {slot.label}
-                      </p>
-                      <p className="text-white/30 text-[10px] mt-0.5">
-                        Select an item to equip
-                      </p>
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
+              <div className="orblitz-loadout-panel-head flex-none flex items-center justify-between px-4 py-3">
+                <div>
+                  <p className="orblitz-loadout-panel-kicker">SELECT MODULE</p>
+                  <p className="orblitz-loadout-panel-title" style={{ color: slot.color }}>{slot.label}</p>
+                </div>
+                <span className="orblitz-loadout-count">{ownedCatItems.length} OWNED</span>
               </div>
 
-              {/* Picker list */}
-              <div
-                className="flex-1 min-h-0 overflow-y-auto px-4 py-3"
-                style={{ scrollbarWidth: "thin", scrollbarColor: `${slot.color}22 transparent` }}
-              >
+              <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3" style={{ scrollbarWidth: "thin", scrollbarColor: `${slot.color}22 transparent` }}>
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={slot.key}
@@ -385,17 +517,18 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                     exit={{ opacity: 0, x: -8 }}
                     transition={{ duration: 0.18 }}
                   >
-                    {/* Default / clear option */}
                     <PickerRow
                       label={clear.label}
                       desc={clear.desc}
-                      isSelected={isDefaultSelected}
+                      isFocused={selectedItemId === CLEAR_ITEM_ID}
+                      isEquipped={isDefaultSelected}
                       color={slot.color}
-                      onClick={() => doEquip(slot, null)}
+                      onClick={() => setSelectedItemId(CLEAR_ITEM_ID)}
+                      itemId={`${slot.key}-clear`}
                     />
 
                     {ownedCatItems.length === 0 && (
-                      <div className="py-8 text-center">
+                      <div className="orblitz-loadout-empty py-8 text-center">
                         <p className="text-white/20 text-sm uppercase tracking-widest">No items owned</p>
                         <p className="text-white/15 text-xs mt-1">Visit the Shop to get some!</p>
                       </div>
@@ -406,15 +539,94 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                         key={item.id}
                         label={item.name}
                         desc={item.description}
-                        isSelected={currentVal === item.value}
+                        isFocused={selectedItemId === item.id}
+                        isEquipped={currentVal === item.value}
                         color={slot.color}
-                        onClick={() => doEquip(slot, item)}
+                        onClick={() => setSelectedItemId(item.id)}
+                        itemId={item.id}
                       />
                     ))}
                   </motion.div>
                 </AnimatePresence>
               </div>
             </div>
+
+            {/* Selected item detail and explicit equip action */}
+            <aside className="orblitz-gear-detail flex flex-col min-w-0" aria-live="polite">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={selectedItem?.id ?? CLEAR_ITEM_ID}
+                  className="flex flex-col h-full"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.18 }}
+                >
+                  <div className="orblitz-gear-detail-head">
+                    <div className="orblitz-gear-detail-icon" style={{ color: slot.color, borderColor: `${slot.color}55`, background: `${slot.color}16`, boxShadow: `0 0 24px ${slot.shadow}` }}>
+                      {slot.icon}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="orblitz-loadout-panel-kicker">{detail.role}</p>
+                      <h3 className="orblitz-gear-detail-title">{selectedItem?.name ?? clear.label}</h3>
+                    </div>
+                  </div>
+
+                  <div className="orblitz-gear-detail-status" style={{ color: selectedIsEquipped ? slot.color : "rgba(255,255,255,0.36)" }}>
+                    <span className="orblitz-gear-status-mark">{selectedIsEquipped ? "●" : "○"}</span>
+                    {selectedIsEquipped ? "CURRENTLY EQUIPPED" : selectedItem ? "AVAILABLE TO EQUIP" : "SLOT CONFIGURATION"}
+                  </div>
+
+                  <div className="orblitz-gear-stats">
+                    {detail.stats.map(stat => (
+                      <div key={stat.label} className="orblitz-gear-stat">
+                        <span>{stat.label}</span>
+                        <strong>{stat.value}</strong>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="orblitz-gear-mechanics">
+                    <p className="orblitz-loadout-panel-kicker">MECHANICS</p>
+                    <p>{detail.mechanic}</p>
+                  </div>
+
+                  {selectedWeaponProgress && (
+                    <div className="orblitz-gear-progression">
+                      <div className="flex items-center justify-between gap-2">
+                        <span>WEAPON LEVEL {selectedWeaponProgress.level}</span>
+                        <span>{selectedWeaponProgress.isMaxLevel ? "MAX / Lv3" : `${selectedWeaponProgress.xp} / ${selectedWeaponProgress.nextThreshold} XP`}</span>
+                      </div>
+                      <div className="orblitz-gear-progress-track">
+                        <div className="orblitz-gear-progress-fill" style={{ width: `${selectedWeaponProgress.progressPercent}%` }} />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-auto pt-4">
+                    <motion.button
+                      whileTap={{ scale: actionDisabled ? 1 : 0.97 }}
+                      type="button"
+                      onClick={handleDetailAction}
+                      disabled={actionDisabled}
+                      data-testid="button-loadout-equip"
+                      className="orblitz-gear-action w-full"
+                      style={{
+                        color: actionDisabled ? "rgba(255,255,255,0.22)" : slot.color,
+                        borderColor: actionDisabled ? "rgba(255,255,255,0.1)" : `${slot.color}66`,
+                        background: actionDisabled ? "rgba(255,255,255,0.04)" : `${slot.color}14`,
+                        boxShadow: actionDisabled ? "none" : `0 0 22px ${slot.shadow}`,
+                      }}
+                    >
+                      {selectedItem && selectedIsEquipped ? "UNEQUIP" : selectedItem ? "EQUIP GEAR" : "UNEQUIP SLOT"}
+                    </motion.button>
+                    <p className="orblitz-gear-action-hint">
+                      {actionDisabled ? "Select a module to configure this slot" : selectedItem && selectedIsEquipped ? "Remove this module from the active loadout" : "Apply this module to the active loadout"}
+                    </p>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            </aside>
           </div>
         </motion.div>
       </motion.div>}
@@ -423,18 +635,21 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
 }
 
 // ─── Single picker row ────────────────────────────────────────────────────────
-function PickerRow({ label, desc, isSelected, color, onClick }: {
-  label: string; desc: string; isSelected: boolean; color: string; onClick: () => void;
+function PickerRow({ label, desc, isFocused, isEquipped, color, onClick, itemId }: {
+  label: string; desc: string; isFocused: boolean; isEquipped: boolean; color: string; onClick: () => void; itemId: string;
 }) {
   return (
     <motion.button
       whileTap={{ scale: 0.97 }}
       onClick={onClick}
+      type="button"
+      aria-pressed={isFocused}
+      data-testid={`button-loadout-item-${itemId}`}
       className="w-full flex items-center gap-3 text-left px-3 py-3 rounded-xl"
       style={{
-        background: isSelected ? `${color}12` : "rgba(255,255,255,0.025)",
-        border: `1px solid ${isSelected ? color + "55" : "rgba(255,255,255,0.07)"}`,
-        boxShadow: isSelected ? `0 0 16px ${color}30` : "none",
+        background: isFocused ? `${color}12` : isEquipped ? `${color}08` : "rgba(255,255,255,0.025)",
+        border: `1px solid ${isFocused ? color + "66" : isEquipped ? color + "35" : "rgba(255,255,255,0.07)"}`,
+        boxShadow: isFocused ? `0 0 16px ${color}30` : "none",
         cursor: "pointer",
         transition: "all 0.14s",
       }}
@@ -442,8 +657,8 @@ function PickerRow({ label, desc, isSelected, color, onClick }: {
       {/* Selection dot */}
       <div style={{
         width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
-        background: isSelected ? color : "rgba(255,255,255,0.12)",
-        boxShadow: isSelected ? `0 0 8px ${color}` : "none",
+         background: isFocused || isEquipped ? color : "rgba(255,255,255,0.12)",
+         boxShadow: isFocused || isEquipped ? `0 0 8px ${color}` : "none",
         transition: "all 0.14s",
       }} />
       {/* Text */}
@@ -452,12 +667,20 @@ function PickerRow({ label, desc, isSelected, color, onClick }: {
         <p className="text-white/35 text-[11px] leading-tight mt-0.5">{desc}</p>
       </div>
       {/* Equipped badge */}
-      {isSelected && (
+      {isEquipped && (
         <span
           className="flex-shrink-0 text-[9px] font-black tracking-widest uppercase px-2 py-1 rounded-md"
           style={{ color, background: `${color}18`, border: `1px solid ${color}44` }}
         >
           EQUIPPED
+        </span>
+      )}
+      {isFocused && !isEquipped && (
+        <span
+          className="flex-shrink-0 text-[9px] font-black tracking-widest uppercase px-2 py-1 rounded-md"
+          style={{ color, background: `${color}12`, border: `1px solid ${color}35` }}
+        >
+          INSPECT
         </span>
       )}
     </motion.button>
