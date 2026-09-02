@@ -152,10 +152,12 @@ function ArcadeBossActor({
   definition,
   phase,
   presentation,
+  selectedWorld,
 }: {
   definition: ArcadeBossIntroDef;
   phase: IntroBossPhase;
   presentation: IntroBossPresentation;
+  selectedWorld: number;
 }) {
   type IntroMaterialState = {
     material: THREE.Material;
@@ -270,14 +272,15 @@ function ArcadeBossActor({
       );
       const rosterX = (rosterColumn - 1) * width * 0.27;
       const rosterY = (1 - rosterRow) * height * 0.18;
+      const isSelected = rosterIndex === selectedWorld - 1;
       const rosterTime = elapsed * 0.72 + definition.delay * 2.2;
 
       group.position.set(
-        rosterX + Math.sin(rosterTime) * width * 0.008,
-        rosterY + Math.cos(rosterTime * 0.83) * height * 0.009,
-        4.55 + Math.sin(rosterTime * 0.61) * 0.18,
+        (isSelected ? 0 : rosterX) + Math.sin(rosterTime) * width * 0.008,
+        (isSelected ? 0 : rosterY) + Math.cos(rosterTime * 0.83) * height * 0.009,
+        (isSelected ? 5.05 : 4.55) + Math.sin(rosterTime * 0.61) * 0.18,
       );
-      group.scale.setScalar(Math.max(0.001, (0.44 + Math.sin(rosterTime * 0.9) * 0.018) * rosterProgress));
+      group.scale.setScalar(Math.max(0.001, (isSelected ? 0.62 : 0.38) * rosterProgress));
       group.rotation.z = THREE.MathUtils.degToRad(
         definition.rotation * 0.28 + Math.sin(rosterTime * 0.62) * 5,
       );
@@ -434,9 +437,11 @@ function IntroExplosionLight({ phase }: { phase: IntroBossPhase }) {
 function ArcadeBossScene({
   phase,
   presentation,
+  selectedWorld,
 }: {
   phase: IntroBossPhase;
   presentation: IntroBossPresentation;
+  selectedWorld: number;
 }) {
   return (
     <>
@@ -449,6 +454,7 @@ function ArcadeBossScene({
             definition={definition}
             phase={phase}
             presentation={presentation}
+            selectedWorld={selectedWorld}
           />
         ))}
       </Suspense>
@@ -459,11 +465,17 @@ function ArcadeBossScene({
 export function ArcadeBossIntroScene({
   phase,
   presentation = "menu",
+  selectedWorld = 1,
 }: {
   phase: IntroBossPhase;
   presentation?: IntroBossPresentation;
+  selectedWorld?: number;
 }) {
   return (
-    <ArcadeBossScene phase={phase} presentation={presentation} />
+    <ArcadeBossScene
+      phase={phase}
+      presentation={presentation}
+      selectedWorld={selectedWorld}
+    />
   );
 }

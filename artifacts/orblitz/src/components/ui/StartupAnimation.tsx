@@ -26,6 +26,9 @@ function IconGauntlet()  { return <svg {..._svg}><path d="M12 3 L21 12 L12 21 L3
 function IconStar()      { return <svg {..._svg}><path d="m12 2.9 2.75 5.58 6.16.9-4.46 4.34 1.05 6.13L12 16.95l-5.5 2.9 1.05-6.13L3.1 9.38l6.15-.9L12 2.9Z" fill="currentColor"/><path d="m12 5.8 1.75 3.54 3.91.57-2.83 2.76.67 3.9L12 14.73l-3.5 1.84.67-3.9-2.83-2.76 3.91-.57L12 5.8Z" fill="#fff8c9" fillOpacity="0.7"/></svg>; }
 function IconBack()      { return <svg {..._svg}><path d="M11 7 L6 12 L11 17" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 12 H16 C18.2 12 20 13.8 20 16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
 function IconLock()      { return <svg {..._svg}><rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.1"/><path d="M8 10V7.8a4 4 0 0 1 8 0V10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="12" cy="15" r="1.1" fill="currentColor"/></svg>; }
+function IconChevron({ direction }: { direction: "previous" | "next" }) {
+  return <svg {..._svg} aria-hidden="true"><path d={direction === "previous" ? "M14.5 5 7.5 12l7 7" : "m9.5 5 7 7-7 7"} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /><path d={direction === "previous" ? "M8 12h9" : "M7 12h9"} stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.62" /></svg>;
+}
 function IconSound()     { return <svg {..._svg}><path d="M4 9 H7 L12 5 V19 L7 15 H4 V9 Z" fill="currentColor" fillOpacity="0.85"/><path d="M15 8 C17 9.5 17.5 11.5 17.5 12 S17 14.5 15 16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M17.5 5.5 C20.5 7.5 21.5 9.8 21.5 12 S20.5 16.5 17.5 18.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
 function IconSoundOff()  { return <svg {..._svg}><path d="M4 9 H7 L12 5 V19 L7 15 H4 V9 Z" fill="currentColor" fillOpacity="0.5"/><line x1="16.5" y1="9" x2="22" y2="15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/><line x1="22" y1="9" x2="16.5" y2="15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>; }
 function IconBrightness(){ return <svg {..._svg}><circle cx="12" cy="12" r="3.8" fill="currentColor" fillOpacity="0.85"/><line x1="12" y1="2" x2="12" y2="5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><line x1="12" y1="19" x2="12" y2="22" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><line x1="2" y1="12" x2="5" y2="12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><line x1="19" y1="12" x2="22" y2="12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><line x1="4.93" y1="4.93" x2="7.07" y2="7.07" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="16.93" y1="16.93" x2="19.07" y2="19.07" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="19.07" y1="4.93" x2="16.93" y2="7.07" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="7.07" y1="16.93" x2="4.93" y2="19.07" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>; }
@@ -38,7 +41,7 @@ interface StartupAnimationProps {
   skipIntro?: boolean;
   initialState?: MenuState;
   onMenuReady?: () => void;
-  onIntroPhaseChange?: (phase: IntroBossPhase | null, menuState?: MenuState) => void;
+  onIntroPhaseChange?: (phase: IntroBossPhase | null, menuState?: MenuState, selectedWorld?: number) => void;
 }
 
 // ─── World palette (9 worlds, spans the title gradient arc) ──────────────────
@@ -47,6 +50,31 @@ const WORLD_COLORS = [
   "#7cff00","#ff9f1c","#b45cff","#00e5ff",
 ];
 const WORLD_SHADOWS = WORLD_COLORS.map(c => c + "55");
+const WORLD_NAMES = [
+  "Ignition Field", "Prism Ruins", "Pulse Garden", "Ashen Relay", "Solar Foundry",
+  "Verdant Drift", "Cinder Crown", "Lumen Vault", "The Core",
+] as const;
+const WORLD_BOSS_TYPES = ARCADE_BOSS_INTRO_DEFS.map((definition) => definition.type);
+
+function WorldBossGlyph({ type, color }: { type: MainBossType; color: string }) {
+  const common = { fill: `${color}22`, stroke: color, strokeWidth: 1.35, vectorEffect: "non-scaling-stroke" as const };
+  return (
+    <svg className={`orblitz-world-glyph orblitz-world-glyph-${type}`} viewBox="0 0 100 100" aria-hidden="true">
+      <circle cx="50" cy="50" r="40" fill="none" stroke={color} strokeOpacity="0.16" strokeWidth="1" strokeDasharray="2 5" />
+      <circle cx="50" cy="50" r="31" fill="none" stroke={color} strokeOpacity="0.28" strokeWidth="0.8" />
+      {type === "circle" && <circle cx="50" cy="50" r="22" {...common} />}
+      {type === "star" && <path d="m50 17 8.5 22.5L83 42l-19 14.5L70 81 50 67.5 30 81l6-24.5L17 42l24.5-2.5Z" {...common} />}
+      {type === "triangle" && <path d="m50 17 31 61H19Z" {...common} />}
+      {type === "trapezoid" && <path d="m31 21h38l14 58H17Z" {...common} />}
+      {type === "cube" && <path d="m50 17 28 16v34L50 83 22 67V33Z M50 17v34m28-18L50 51 22 33m28 18v32" {...common} fill={`${color}18`} />}
+      {type === "cloud" && <path d="M23 62c0-9 7-15 16-15 3-11 12-17 22-14 8 2 12 8 13 15 9 0 15 6 15 14 0 10-7 16-18 16H40c-10 0-17-6-17-16Z" {...common} />}
+      {type === "arrow" && <path d="M17 50 67 18v20h16L61 82V61H38v18Z" {...common} />}
+      {type === "tentacle" && <path d="M32 77c-7-13-5-23 3-31 8-8 8-17 2-23m18 54c-3-14 0-23 9-30 8-7 10-14 7-22m-3 52c10-7 13-15 11-24" {...common} fill="none" strokeLinecap="round" />}
+      {type === "monster" && <path d="M25 71V44c0-13 10-23 25-23s25 10 25 23v27l-10-6-15 10-15-10Z M38 48h1m22 0h1" {...common} />}
+      <circle cx="50" cy="50" r="4" fill={color} opacity="0.9" />
+    </svg>
+  );
+}
 
 // ─── Level helpers (from original LevelSelect) ────────────────────────────────
 const getStoredProgress = (): number => {
@@ -264,6 +292,8 @@ export function StartupAnimation({
   const [devFlash, setDevFlash]       = useState(false);
   const [highestLevel, setHighestLevel] = useState(1.1);
   const [pressedBtn, setPressedBtn]   = useState<string | null>(null);
+  const worldPointerStartX = useRef<number | null>(null);
+  const worldSwipeRef = useRef(false);
 
   const { playOrbWhoosh, playOrbConverge, playTitleReveal, playLevelSelect, isMuted, toggleMute, volume, setVolume, brightness, setBrightness, startMenuBgm, stopMenuBgm } = useAudio();
   const { openShop, openInventory, openTrophies, activateDevMode, coins: shopStars, devMode } = useShop();
@@ -313,6 +343,33 @@ export function StartupAnimation({
   const isLevelUnlocked = (level: number) => devMode || level <= highestLevel + 0.01;
   const isBossLevel     = (level: number) => Math.round((level % 1) * 10) === 9;
   const isWorldUnlocked = (w: number)     => devMode || (w + 0.1) <= highestLevel + 0.01;
+  const moveWorld = useCallback((direction: number) => {
+    setSelectedWorld((current) => ((current - 1 + direction + 9) % 9) + 1);
+  }, []);
+  const openWorldLevels = useCallback((world: number) => {
+    if (!isWorldUnlocked(world)) return;
+    btn(`w${world}`);
+    setSelectedWorld(world);
+    setMenuState("levels");
+  }, [btn, devMode, highestLevel]);
+  const handleWorldKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault();
+      moveWorld(-1);
+    } else if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault();
+      moveWorld(1);
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      setSelectedWorld(1);
+    } else if (event.key === "End") {
+      event.preventDefault();
+      setSelectedWorld(9);
+    } else if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openWorldLevels(selectedWorld);
+    }
+  }, [moveWorld, openWorldLevels, selectedWorld]);
 
   // ── Button definitions per state ──────────────────────────────────────────
   const getPanelButtons = useCallback((): BtnDef[] => {
@@ -348,56 +405,157 @@ export function StartupAnimation({
 
   // ── Content panels ────────────────────────────────────────────────────────
   const renderContent = () => {
-    if (menuState === "worlds") return (
-      <>
-        {Array.from({ length: 9 }, (_, i) => i + 1).map(w => {
-          const unlocked = isWorldUnlocked(w);
-          const wc = WORLD_COLORS[w - 1];
-          const done = w + 0.9 <= highestLevel + 0.01;
-          return (
-            <motion.button key={w}
-              onClick={() => { if (unlocked) { btn(`w${w}`); setSelectedWorld(w); setMenuState("levels"); } }}
-              disabled={!unlocked}
-                data-testid={`button-world-${w}`}
-                aria-label={unlocked ? `Select World ${w}` : `World ${w} locked`}
-                className={`orblitz-select-card ${unlocked ? "is-unlocked" : "is-locked"} ${done ? "is-complete" : ""}`}
-              style={{
-                  "--select-color": unlocked ? wc : "#536079",
-                  background: unlocked
-                    ? `linear-gradient(145deg, rgba(220,252,255,0.13), ${wc}28 42%, rgba(7,12,38,0.94) 100%)`
-                    : "linear-gradient(145deg, rgba(120,135,160,0.1), rgba(11,16,39,0.96))",
-                  borderColor: unlocked ? `${wc}aa` : "rgba(104,118,148,0.3)",
-                  boxShadow: unlocked
-                    ? `5px 7px 0 rgba(3,7,26,0.72), 0 0 18px ${wc}42, inset 1px 1px 0 rgba(255,255,255,0.18), inset -1px -1px 0 rgba(0,0,0,0.44)`
-                    : "5px 7px 0 rgba(3,7,26,0.72), inset 1px 1px 0 rgba(255,255,255,0.08)",
-                color: unlocked ? wc : "#445",
-                cursor: unlocked ? "pointer" : "default",
-                } as React.CSSProperties}
-                whileHover={unlocked ? { scale: 1.035, y: -2 } : {}}
-                whileTap={unlocked ? { scale: 0.96 } : {}}
+    if (menuState === "worlds") {
+      const selectedColor = WORLD_COLORS[selectedWorld - 1];
+      const selectedDone = selectedWorld + 0.9 <= highestLevel + 0.01;
+      const selectedUnlocked = isWorldUnlocked(selectedWorld);
+      return (
+        <div
+          className="orblitz-world-carousel"
+          tabIndex={0}
+          role="region"
+          aria-label="Arcade world carousel"
+          onKeyDown={handleWorldKeyDown}
+          onPointerDown={(event) => { worldPointerStartX.current = event.clientX; worldSwipeRef.current = false; }}
+          onPointerUp={(event) => {
+            const start = worldPointerStartX.current;
+            worldPointerStartX.current = null;
+            if (start === null || Math.abs(event.clientX - start) < 36) return;
+            worldSwipeRef.current = true;
+            moveWorld(event.clientX < start ? 1 : -1);
+          }}
+          onPointerCancel={() => { worldPointerStartX.current = null; worldSwipeRef.current = false; }}
+        >
+          <div className="orblitz-world-carousel-topline">
+            <span>SECTOR ARRAY / 09 WORLDS</span>
+            <span className="orblitz-world-carousel-hint">ARROW KEYS / SWIPE TO SCAN</span>
+          </div>
+
+          <div className="orblitz-world-carousel-stage">
+            <button
+              type="button"
+              className="orblitz-carousel-arrow orblitz-carousel-arrow-prev"
+              onClick={() => moveWorld(-1)}
+              aria-label="Previous world"
+              data-testid="button-world-previous"
             >
-                <span className="orblitz-select-corner orblitz-select-corner-tl" />
-                <span className="orblitz-select-corner orblitz-select-corner-br" />
-              {unlocked ? (
-                <>
-                    <span className="orblitz-select-index">SECTOR {String(w).padStart(2, "0")}</span>
-                    <span className="orblitz-select-number">{w}</span>
-                    <span className="orblitz-select-label">WORLD</span>
-                    <span className="orblitz-select-status">{done ? "CLEARED" : "READY"}</span>
-                    {done && <span className="orblitz-select-status-dot" style={{ background: wc }} />}
-                </>
-              ) : (
-                  <>
-                    <span className="orblitz-select-locked-icon" aria-hidden="true"><IconLock /></span>
-                    <span className="orblitz-select-label">LOCKED</span>
-                    <span className="orblitz-select-status">CLEARANCE REQUIRED</span>
-                  </>
-              )}
-            </motion.button>
-          );
-        })}
-      </>
-    );
+              <IconChevron direction="previous" />
+            </button>
+            <div className="orblitz-world-carousel-window">
+              <div className="orblitz-world-side-rail" aria-hidden="true">
+                <span className="orblitz-world-rail-line" />
+                <span className="orblitz-world-rail-dot" style={{ background: selectedColor }} />
+              </div>
+              {[-1, 0, 1].map((offset) => {
+                const world = ((selectedWorld - 1 + offset + 9) % 9) + 1;
+                const unlocked = isWorldUnlocked(world);
+                const wc = WORLD_COLORS[world - 1];
+                const done = world + 0.9 <= highestLevel + 0.01;
+                const isCurrent = offset === 0;
+                const type = WORLD_BOSS_TYPES[world - 1];
+                return (
+                  <motion.button
+                    key={`${world}-${selectedWorld}`}
+                    type="button"
+                    onClick={() => {
+                      if (worldSwipeRef.current) {
+                        worldSwipeRef.current = false;
+                        return;
+                      }
+                      openWorldLevels(world);
+                    }}
+                    disabled={!unlocked}
+                    data-testid={`button-world-${world}`}
+                    aria-label={unlocked ? `Select World ${world}, ${WORLD_NAMES[world - 1]}` : `World ${world} locked`}
+                    aria-current={isCurrent ? "true" : undefined}
+                    className={`orblitz-world-card ${isCurrent ? "is-current" : "is-adjacent"} ${unlocked ? "is-unlocked" : "is-locked"} ${done ? "is-complete" : ""}`}
+                    style={{
+                      "--world-color": unlocked ? wc : "#536079",
+                      "--world-shadow": unlocked ? WORLD_SHADOWS[world - 1] : "rgba(50,62,85,0.3)",
+                    } as React.CSSProperties}
+                    initial={{ opacity: 0, x: offset < 0 ? -28 : 28 }}
+                    animate={{ opacity: isCurrent ? 1 : 0.58, x: 0, scale: isCurrent ? 1 : 0.82, rotateY: isCurrent ? 0 : offset < 0 ? 7 : -7 }}
+                    transition={{ duration: 0.3, ease: [0.22, 0.61, 0.36, 1] }}
+                    whileHover={unlocked ? { y: -4, opacity: 1 } : undefined}
+                    whileTap={unlocked ? { scale: isCurrent ? 0.97 : 0.79 } : undefined}
+                  >
+                    <span className="orblitz-world-card-grid" />
+                    <span className="orblitz-world-card-corner orblitz-world-card-corner-tl" />
+                    <span className="orblitz-world-card-corner orblitz-world-card-corner-br" />
+                    <span className="orblitz-world-card-index">SECTOR {String(world).padStart(2, "0")}</span>
+                    <span className="orblitz-world-card-signal">{done ? "CLEARANCE // VERIFIED" : unlocked ? "SIGNAL // STABLE" : "SIGNAL // LOST"}</span>
+                    <span className="orblitz-world-card-art">
+                      {unlocked ? <WorldBossGlyph type={type} color={wc} /> : <span className="orblitz-world-card-lock"><IconLock /></span>}
+                    </span>
+                    <span className="orblitz-world-card-copy">
+                      <strong>{WORLD_NAMES[world - 1]}</strong>
+                      <small>{unlocked ? `BOSS // ${type.toUpperCase()}` : "CLEARANCE REQUIRED"}</small>
+                    </span>
+                    <span className="orblitz-world-card-footer">
+                      <span>{done ? "CLEARED" : unlocked ? "READY" : "LOCKED"}</span>
+                      <span className="orblitz-world-card-status-dot" />
+                    </span>
+                  </motion.button>
+                );
+              })}
+              <div className="orblitz-world-side-rail is-right" aria-hidden="true">
+                <span className="orblitz-world-rail-line" />
+                <span className="orblitz-world-rail-dot" style={{ background: selectedColor }} />
+              </div>
+            </div>
+            <button
+              type="button"
+              className="orblitz-carousel-arrow orblitz-carousel-arrow-next"
+              onClick={() => moveWorld(1)}
+              aria-label="Next world"
+              data-testid="button-world-next"
+            >
+              <IconChevron direction="next" />
+            </button>
+          </div>
+
+          <div className="orblitz-world-carousel-readout">
+            <div>
+              <span className="orblitz-world-readout-kicker">ACTIVE COMBAT SECTOR</span>
+              <strong style={{ color: selectedUnlocked ? selectedColor : "#9ba7bd" }}>WORLD {String(selectedWorld).padStart(2, "0")}</strong>
+              <span>{WORLD_NAMES[selectedWorld - 1]} <i /> {selectedUnlocked ? (selectedDone ? "CLEARED" : "AVAILABLE") : "LOCKED"}</span>
+            </div>
+            <button
+              type="button"
+              className="orblitz-world-deploy"
+              disabled={!selectedUnlocked}
+              onClick={() => openWorldLevels(selectedWorld)}
+              style={{ "--world-color": selectedUnlocked ? selectedColor : "#657087" } as React.CSSProperties}
+            >
+              <span>{selectedUnlocked ? "OPEN ROUTES" : "LOCKED"}</span>
+              <small>{selectedUnlocked ? "ENTER WORLD" : "CLEAR PRIOR SECTOR"}</small>
+            </button>
+          </div>
+
+          <div className="orblitz-world-index" aria-label="World positions">
+            {WORLD_COLORS.map((color, index) => {
+              const world = index + 1;
+              const active = world === selectedWorld;
+              const unlocked = isWorldUnlocked(world);
+              return (
+                <button
+                  key={world}
+                  type="button"
+                  className={`orblitz-world-index-button ${active ? "is-active" : ""} ${unlocked ? "" : "is-locked"}`}
+                  onClick={() => setSelectedWorld(world)}
+                  disabled={!unlocked}
+                  aria-label={`Focus World ${world}`}
+                  aria-current={active ? "true" : undefined}
+                  style={{ "--world-color": unlocked ? color : "#536079" } as React.CSSProperties}
+                >
+                  <span>{String(world).padStart(2, "0")}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
 
     if (menuState === "levels") {
       const wc = WORLD_COLORS[selectedWorld - 1];
@@ -471,8 +629,8 @@ export function StartupAnimation({
       : null;
 
   useEffect(() => {
-    onIntroPhaseChange?.(introPhase, menuState);
-  }, [introPhase, menuState, onIntroPhaseChange]);
+    onIntroPhaseChange?.(introPhase, menuState, selectedWorld);
+  }, [introPhase, menuState, onIntroPhaseChange, selectedWorld]);
 
   useEffect(() => () => onIntroPhaseChange?.(null), [onIntroPhaseChange]);
 
@@ -797,11 +955,13 @@ export function StartupAnimation({
               <span className="orblitz-selection-subtitle">{menuState === "worlds" ? "Choose your next combat sector" : "Select a mission route to deploy"}</span>
             </div>
 
-            {/* Grid */}
+             {/* Responsive world carousel / mission grid */}
             <div className="flex-1 min-h-0 flex flex-col orblitz-selection-content">
-              <div className="grid grid-cols-3 gap-2 h-full orblitz-selection-grid" style={{ gridAutoRows: "1fr" }}>
-                {renderContent()}
-              </div>
+               {menuState === "worlds" ? renderContent() : (
+                 <div className="grid grid-cols-3 gap-2 h-full orblitz-selection-grid" style={{ gridAutoRows: "1fr" }}>
+                   {renderContent()}
+                 </div>
+               )}
             </div>
 
             {/* Back button — styled to match ButtonRow */}

@@ -451,9 +451,11 @@ function canCreateWebGLContext() {
 export function GameScene({
   introBossPhase = null,
   introBossPresentation = "menu",
+  introSelectedWorld = 1,
 }: {
   introBossPhase?: IntroBossPhase | null;
   introBossPresentation?: IntroBossPresentation;
+  introSelectedWorld?: number;
 }) {
   const [webglAvailable] = useState(canCreateWebGLContext);
   const backgroundEnabled = usePerformanceFeature("background");
@@ -496,6 +498,7 @@ export function GameScene({
             <ArcadeBossIntroScene
               phase={introBossPhase}
               presentation={introBossPresentation}
+              selectedWorld={introSelectedWorld}
             />
           )}
 

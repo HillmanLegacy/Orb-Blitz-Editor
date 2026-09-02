@@ -53,6 +53,7 @@ function App() {
   const [skipIntro, setSkipIntro] = useState(false);
   const [introBossPhase, setIntroBossPhase] = useState<IntroBossPhase | null>(null);
   const [introBossPresentation, setIntroBossPresentation] = useState<IntroBossPresentation>("menu");
+  const [introSelectedWorld, setIntroSelectedWorld] = useState(1);
   const [initialMenuState, setInitialMenuState] = useState<MenuState>("root");
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
   const [shopLayerVisible, setShopLayerVisible] = useState(false);
@@ -63,8 +64,10 @@ function App() {
   const handleIntroPhaseChange = useCallback((
     nextPhase: IntroBossPhase | null,
     menuState?: MenuState,
+    selectedWorld?: number,
   ) => {
     setIntroBossPhase(nextPhase);
+    if (selectedWorld !== undefined) setIntroSelectedWorld(selectedWorld);
     setIntroBossPresentation(
       menuState === "worlds" ? "worlds" : menuState === "levels" ? "levels" : "menu",
     );
@@ -190,6 +193,7 @@ function App() {
            <GameScene
              introBossPhase={introBossPhase}
              introBossPresentation={introBossPresentation}
+        introSelectedWorld={introSelectedWorld}
            />
         </div>
       </div>
