@@ -605,7 +605,7 @@ export function StartupAnimation({
 
   return (
     <motion.div
-      className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden select-none"
+      className="orblitz-startup-shell fixed inset-0 z-[100] flex items-center justify-center overflow-hidden select-none"
       style={{
         cursor: "default",
       }}
@@ -814,7 +814,8 @@ export function StartupAnimation({
         {showMenu && !isContent && (
           <motion.div
             key={menuState}
-            className="absolute inset-0 z-20"
+            className="absolute inset-0 z-20 orblitz-command-layer"
+            data-menu-state={menuState}
             style={{
               pointerEvents: menuState === "settings" ? "auto" : "none",
               padding: menuState === "settings" ? "0 clamp(10px, 3.5vw, 44px)" : 0,

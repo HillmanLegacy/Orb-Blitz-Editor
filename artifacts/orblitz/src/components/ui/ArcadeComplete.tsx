@@ -49,7 +49,7 @@ export function ArcadeComplete() {
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto cursor-pointer select-none"
+      className="orblitz-arcade-complete fixed inset-0 z-50 flex items-center justify-center overflow-y-auto cursor-pointer select-none"
       onClick={handleTap}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}

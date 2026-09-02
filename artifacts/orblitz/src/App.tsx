@@ -201,7 +201,7 @@ function App() {
     !shopOpen && !inventoryOpen && !trophiesOpen;
 
   return (
-    <div style={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden", filter: `brightness(${brightness})` }}>
+    <div className="orblitz-app-shell" style={{ width: "100vw", height: "100dvh", position: "relative", overflow: "hidden", filter: `brightness(${brightness})` }}>
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
         <div style={{ pointerEvents: "auto", width: "100%", height: "100%" }}>
            <GameScene

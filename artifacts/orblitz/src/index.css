@@ -99,12 +99,20 @@
     padding: 0;
     overflow: hidden;
     width: 100vw;
-    height: 100vh;
+    height: 100%;
+    min-height: 100dvh;
     touch-action: none;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
   }
+}
+
+html,
+#root {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
 }
 
 /* ─── Orblitz arcade menu ────────────────────────────────────────────────────
@@ -3036,5 +3044,269 @@ canvas {
   .orblitz-result-orbs,
   .orblitz-result-rings {
     display: none !important;
+  }
+}
+
+/* ── Viewport-safe menu and result contract ────────────────────────────────
+   Full-screen game UI must size itself to the visible mobile viewport. The
+   document remains locked for gameplay; only the active UI surface may scroll. */
+.orblitz-app-shell,
+.orblitz-startup-shell {
+  box-sizing: border-box;
+  min-height: 100dvh;
+  height: 100dvh !important;
+}
+
+.orblitz-startup-shell {
+  overflow: hidden;
+}
+
+.orblitz-startup-shell .orblitz-command-layer,
+.orblitz-selection-screen,
+.orblitz-result-screen,
+.orblitz-arcade-complete,
+.orblitz-main-menu-screen,
+.orblitz-settings-screen,
+.orblitz-loadout-screen {
+  box-sizing: border-box;
+  min-height: 100dvh;
+  height: 100dvh;
+}
+
+.orblitz-startup-shell .orblitz-command-layer,
+.orblitz-selection-screen,
+.orblitz-result-screen,
+.orblitz-arcade-complete,
+.orblitz-main-menu-screen,
+.orblitz-settings-screen,
+.orblitz-loadout-screen,
+.orblitz-result-card,
+.orblitz-arcade-complete > div.relative {
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(143, 255, 224, 0.28) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+.orblitz-startup-shell .orblitz-command-layer,
+.orblitz-settings-screen,
+.orblitz-selection-screen {
+  touch-action: pan-y;
+}
+
+.orblitz-main-menu-screen {
+  align-items: flex-start !important;
+  overflow-y: auto !important;
+  padding-top: max(8px, env(safe-area-inset-top));
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+
+.orblitz-main-menu-screen > .relative.z-10 {
+  margin-block: auto;
+}
+
+.orblitz-selection-screen {
+  overflow-y: auto;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.orblitz-selection-content {
+  min-height: 0;
+}
+
+.orblitz-result-screen,
+.orblitz-arcade-complete {
+  align-items: flex-start !important;
+  overflow-y: auto !important;
+  padding-top: max(8px, env(safe-area-inset-top)) !important;
+  padding-bottom: max(8px, env(safe-area-inset-bottom)) !important;
+}
+
+.orblitz-result-card,
+.orblitz-arcade-complete > div.relative {
+  margin-block: auto;
+}
+
+.orblitz-result-card {
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px) !important;
+  min-height: 0;
+  touch-action: pan-y;
+}
+
+.orblitz-arcade-complete > div.relative {
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);
+  min-height: 0;
+  touch-action: pan-y;
+}
+
+.orblitz-settings-screen {
+  padding-bottom: env(safe-area-inset-bottom);
+  touch-action: pan-y;
+}
+
+.orblitz-settings-screen > .relative.z-10 {
+  box-sizing: border-box;
+  min-height: 100%;
+  padding-bottom: max(4rem, env(safe-area-inset-bottom)) !important;
+  touch-action: pan-y;
+}
+
+.orblitz-loadout-screen {
+  align-items: flex-start !important;
+  overflow-y: auto;
+  padding-top: max(10px, env(safe-area-inset-top)) !important;
+  padding-bottom: max(10px, env(safe-area-inset-bottom)) !important;
+  touch-action: pan-y;
+}
+
+.orblitz-loadout-dialog {
+  box-sizing: border-box;
+  max-height: min(calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 20px), 720px) !important;
+  min-height: 0;
+  margin-block: auto;
+}
+
+.orblitz-loadout-body {
+  min-height: 0;
+}
+
+.orblitz-loadout-picker,
+.orblitz-gear-detail {
+  min-height: 0;
+}
+
+/* Compact screens keep the normal menu content in a scrollable command layer
+   rather than allowing the settings controls to fall below the viewport. */
+@media (max-width: 700px) and (max-height: 520px) {
+  .orblitz-button-stage[data-layout="root"],
+  .orblitz-button-stage[data-layout="modes"] {
+    top: calc(50% + clamp(66px, 16vh, 90px)) !important;
+    width: min(560px, calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right))) !important;
+    gap: 6px !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"] .orblitz-command-button,
+  .orblitz-button-stage[data-layout="modes"] .orblitz-command-button {
+    height: 52px !important;
+    padding-block: 7px !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"] .orblitz-command-play,
+  .orblitz-button-stage[data-layout="modes"] .orblitz-command-arcade {
+    height: 66px !important;
+  }
+
+  .orblitz-title-lockup {
+    top: 31% !important;
+  }
+
+  .orblitz-selection-header {
+    padding-top: max(12px, env(safe-area-inset-top)) !important;
+  }
+
+  .orblitz-selection-footer {
+    padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
+  }
+
+  .orblitz-result-card,
+  .orblitz-arcade-complete > div.relative {
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 10px) !important;
+    padding-block: 10px !important;
+  }
+
+  .orblitz-result-actions {
+    padding-block: 8px 6px !important;
+  }
+
+  .orblitz-loadout-dialog {
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 10px) !important;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .orblitz-startup-shell .orblitz-command-layer[data-menu-state="settings"] {
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    max-height: none !important;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-left)) max(8px, env(safe-area-inset-bottom)) !important;
+    overflow-y: auto !important;
+  }
+
+  .orblitz-startup-shell .orblitz-command-layer[data-menu-state="settings"] .orblitz-options-deck {
+    width: min(580px, 100%);
+    margin-block: 0 auto;
+  }
+
+  .orblitz-selection-content {
+    overflow-y: auto;
+  }
+
+  .orblitz-selection-grid {
+    height: auto !important;
+    min-height: 0;
+    grid-auto-rows: minmax(74px, 1fr) !important;
+  }
+
+  .orblitz-loadout-dialog {
+    margin-block: 0 auto;
+  }
+}
+
+@media (max-height: 380px) and (orientation: landscape) {
+  .orblitz-title-lockup {
+    top: 27% !important;
+  }
+
+  .orblitz-title-wordmark {
+    font-size: clamp(2.25rem, 11vw, 4.25rem) !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"],
+  .orblitz-button-stage[data-layout="modes"] {
+    top: calc(50% + 30px) !important;
+    gap: 5px !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"] .orblitz-command-button,
+  .orblitz-button-stage[data-layout="modes"] .orblitz-command-button {
+    height: 40px !important;
+    padding-block: 5px !important;
+    border-radius: 13px !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"] .orblitz-command-play,
+  .orblitz-button-stage[data-layout="modes"] .orblitz-command-arcade {
+    height: 44px !important;
+  }
+
+  .orblitz-button-stage .orblitz-command-label {
+    font-size: 0.48rem !important;
+  }
+}
+
+@media (max-width: 700px) and (max-height: 380px) {
+  .orblitz-title-lockup {
+    top: 26% !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"],
+  .orblitz-button-stage[data-layout="modes"] {
+    top: calc(50% + 28px) !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"] .orblitz-command-button,
+  .orblitz-button-stage[data-layout="modes"] .orblitz-command-button {
+    height: 42px !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"] .orblitz-command-play,
+  .orblitz-button-stage[data-layout="modes"] .orblitz-command-arcade {
+    height: 48px !important;
   }
 }

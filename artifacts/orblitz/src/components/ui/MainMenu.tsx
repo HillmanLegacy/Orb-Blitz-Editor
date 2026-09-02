@@ -212,7 +212,7 @@ export function MainMenu({ onShowHowToPlay, onShowModeSelect, onShowSettings }: 
   }), []);
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-auto overflow-y-auto">
+    <div className="orblitz-main-menu-screen fixed inset-0 flex items-center justify-center z-50 pointer-events-auto overflow-y-auto">
       <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-violet-900" />
       
       {/* Animated grid pattern */}

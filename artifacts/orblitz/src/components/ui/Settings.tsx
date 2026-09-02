@@ -9,7 +9,7 @@ export function Settings({ onBack }: SettingsProps) {
   const { isMuted, toggleMute } = useAudio();
 
   return (
-    <div className="fixed inset-0 z-50 pointer-events-auto overflow-y-auto">
+    <div className="orblitz-settings-screen fixed inset-0 z-50 pointer-events-auto overflow-y-auto">
       <div className="fixed inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-violet-900" />
       
       <motion.button
