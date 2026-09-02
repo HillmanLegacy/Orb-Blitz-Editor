@@ -8,8 +8,8 @@ import { FireExplosionVFX } from "./FireExplosionVFX";
 import { BOSS_DEFEAT_DURATION, BOSS_DEFEAT_SIZE_SCALE } from "./BossDefeatPalette";
 import { StarBossTeleportVFX, StarTeleportVFXState } from "./StarBossTeleportVFX";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
-import { FireAuraVFX, FlameAura } from "./FlameAura";
-import { getBackwardFlameAuraRotation } from "./Projectiles";
+import { FlameAura } from "./FlameAura";
+import { FireAura } from "./FireAura";
 import { getPerspectiveViewAtPlane } from "@/game-runtime/EnemySpawnConfig";
 import {
   canStartFireBossAmbush,
@@ -1791,12 +1791,6 @@ export function Boss() {
       )
       : 0;
     const chargeScale = 1 + getFireBossAmbushChargeSpeedMultiplier(chargeProgress) * 0.7;
-    const [dashStartX, dashStartY] = fireAmbushDashStartRef.current;
-    const [dashEndX, dashEndY] = fireAmbushDashDestinationRef.current;
-    const dashLength = Math.hypot(dashEndX - dashStartX, dashEndY - dashStartY);
-    const dashDirection: [number, number, number] = dashLength > 0.001
-      ? [(dashEndX - dashStartX) / dashLength, (dashEndY - dashStartY) / dashLength, 0]
-      : [0, 1, 0];
     const fireAmbushImpact = boss.fireAmbushImpact;
 
     return (
@@ -1826,10 +1820,8 @@ export function Boss() {
             </group>
           )}
           {fireAmbushPhase === "dashing" && (
-            <FireAuraVFX
-              scale={fireRadius * 1.7 * FIRE_BOSS_AMBUSH_DASH_VFX_SCALE_MULTIPLIER}
-              rotation={getBackwardFlameAuraRotation(dashDirection)}
-              speedMultiplier={1.35}
+            <FireAura
+              scale={fireRadius * FIRE_BOSS_AMBUSH_DASH_VFX_SCALE_MULTIPLIER}
             />
           )}
         </group>
