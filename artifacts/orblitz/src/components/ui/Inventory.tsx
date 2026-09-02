@@ -383,7 +383,6 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
           {/* ── Header ─────────────────────────────────────────────────── */}
           <div className="orblitz-loadout-header relative flex-none flex items-center justify-between px-5 pt-4 pb-3" style={{ zIndex: 1 }}>
             <div>
-              <p className="orblitz-loadout-kicker">GEAR CONTROL / ACTIVE CONFIGURATION</p>
               <span
                 id="orblitz-loadout-title"
                 className="orblitz-loadout-title font-black text-lg tracking-[0.18em] uppercase"
@@ -392,10 +391,6 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
               </span>
             </div>
             <div className="flex items-center gap-3">
-              <div className="orblitz-loadout-status">
-                <span className="orblitz-loadout-status-dot" />
-                <span>READY</span>
-              </div>
             <motion.button
               whileTap={{ scale: 0.85 }}
               onClick={closeInventory}
@@ -510,10 +505,8 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
 
               <div className="orblitz-loadout-panel-head flex-none flex items-center justify-between px-4 py-3">
                 <div>
-                  <p className="orblitz-loadout-panel-kicker">SELECT MODULE</p>
                   <p className="orblitz-loadout-panel-title" style={{ color: slot.color }}>{slot.label}</p>
                 </div>
-                <span className="orblitz-loadout-count">{ownedCatItems.length} OWNED</span>
               </div>
 
               <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3" style={{ scrollbarWidth: "thin", scrollbarColor: `${slot.color}22 transparent` }}>
@@ -576,14 +569,8 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                       {slot.icon}
                     </div>
                     <div className="min-w-0">
-                      <p className="orblitz-loadout-panel-kicker">{detail.role}</p>
                       <h3 className="orblitz-gear-detail-title">{selectedItem?.name ?? clear.label}</h3>
                     </div>
-                  </div>
-
-                  <div className="orblitz-gear-detail-status" style={{ color: selectedIsEquipped ? slot.color : "rgba(255,255,255,0.36)" }}>
-                    <span className="orblitz-gear-status-mark">{selectedIsEquipped ? "●" : "○"}</span>
-                    {selectedIsEquipped ? "CURRENTLY EQUIPPED" : selectedItem ? "AVAILABLE TO EQUIP" : "SLOT CONFIGURATION"}
                   </div>
 
                   <div className="orblitz-gear-action-dock">
@@ -620,9 +607,6 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                         {selectedItem && selectedIsEquipped ? "UNEQUIP" : selectedItem ? "EQUIP GEAR" : "UNEQUIP SLOT"}
                       </motion.button>
                     </div>
-                    <p className="orblitz-gear-action-hint">
-                      {actionDisabled ? "Select a module to configure this slot" : selectedItem && selectedIsEquipped ? "Inspect details or remove this module" : "Inspect details or apply this module"}
-                    </p>
                   </div>
 
                   <div className="orblitz-gear-stats">
@@ -704,11 +688,6 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                   >
                     ×
                   </button>
-                </div>
-
-                <div className="orblitz-gear-inspection-status" style={{ color: selectedIsEquipped ? slot.color : "rgba(255,255,255,0.45)" }}>
-                  <span>{selectedIsEquipped ? "●" : "○"}</span>
-                  {selectedIsEquipped ? "CURRENTLY EQUIPPED" : "AVAILABLE IN LOADOUT"}
                 </div>
 
                 <div className="orblitz-gear-inspection-stats">

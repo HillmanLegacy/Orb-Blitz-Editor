@@ -54,7 +54,6 @@ const WORLD_NAMES = [
   "Ignition Field", "Prism Ruins", "Pulse Garden", "Ashen Relay", "Solar Foundry",
   "Verdant Drift", "Cinder Crown", "Lumen Vault", "The Core",
 ] as const;
-const WORLD_BOSS_TYPES = ARCADE_BOSS_INTRO_DEFS.map((definition) => definition.type);
 
 // ─── Level helpers (from original LevelSelect) ────────────────────────────────
 const getStoredProgress = (): number => {
@@ -256,7 +255,7 @@ function useTitleRefraction(
 // ─── Button row definitions ───────────────────────────────────────────────────
 interface BtnDef {
   id: string; icon: React.ReactNode; label: string;
-  color: string; shadow: string; action: () => void;
+  color: string; shadow: string; action: () => void; hideLabel?: boolean;
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -354,8 +353,8 @@ export function StartupAnimation({
 
   // ── Button definitions per state ──────────────────────────────────────────
   const getPanelButtons = useCallback((): BtnDef[] => {
-    const back = (label: string, action: () => void): BtnDef =>
-      ({ id: "back", icon: <IconBack />, label, color: "#667788", shadow: "rgba(100,110,130,0.25)", action });
+    const back = (label: string, action: () => void, hideLabel = false): BtnDef =>
+      ({ id: "back", icon: <IconBack />, label, color: "#667788", shadow: "rgba(100,110,130,0.25)", action, hideLabel });
 
     switch (menuState) {
        case "root": return [
@@ -376,7 +375,7 @@ export function StartupAnimation({
         back("BACK", () => { btn("back"); setMenuState("root"); }),
       ];
       case "worlds": return [
-        back("BACK", () => { btn("back"); setMenuState("modes"); }),
+        back("BACK", () => { btn("back"); setMenuState("modes"); }, true),
       ];
       case "levels": return [
         back("WORLDS", () => { btn("back"); setMenuState("worlds"); }),
@@ -388,8 +387,6 @@ export function StartupAnimation({
   const renderContent = () => {
     if (menuState === "worlds") {
       const selectedColor = WORLD_COLORS[selectedWorld - 1];
-      const selectedDone = selectedWorld + 0.9 <= highestLevel + 0.01;
-      const selectedUnlocked = isWorldUnlocked(selectedWorld);
       return (
         <div
           className="orblitz-world-carousel"
@@ -407,11 +404,6 @@ export function StartupAnimation({
           }}
           onPointerCancel={() => { worldPointerStartX.current = null; worldSwipeRef.current = false; }}
         >
-          <div className="orblitz-world-carousel-topline">
-            <span>WORLDS / 09 STAGES</span>
-            <span className="orblitz-world-carousel-hint">ARROWS OR SWIPE TO EXPLORE</span>
-          </div>
-
           <div className="orblitz-world-carousel-stage">
             <button
               type="button"
@@ -433,7 +425,6 @@ export function StartupAnimation({
                 const wc = WORLD_COLORS[world - 1];
                 const done = world + 0.9 <= highestLevel + 0.01;
                 const isCurrent = offset === 0;
-                const type = WORLD_BOSS_TYPES[world - 1];
                 return (
                   <motion.button
                     key={`${world}-${selectedWorld}`}
@@ -470,7 +461,6 @@ export function StartupAnimation({
                     </span>
                     <span className="orblitz-world-card-copy">
                       <strong>{WORLD_NAMES[world - 1]}</strong>
-                      <small>{unlocked ? `BOSS TYPE · ${type.toUpperCase()}` : "COMPLETE EARLIER WORLDS"}</small>
                     </span>
                     <span className="orblitz-world-card-footer">
                       <span>{done ? "CLEARED" : unlocked ? "READY" : "LOCKED"}</span>
@@ -492,24 +482,6 @@ export function StartupAnimation({
               data-testid="button-world-next"
             >
               <IconChevron direction="next" />
-            </button>
-          </div>
-
-          <div className="orblitz-world-carousel-readout">
-            <div>
-              <span className="orblitz-world-readout-kicker">CURRENT WORLD</span>
-              <strong style={{ color: selectedUnlocked ? selectedColor : "#9ba7bd" }}>WORLD {String(selectedWorld).padStart(2, "0")}</strong>
-              <span>{WORLD_NAMES[selectedWorld - 1]} <i /> {selectedUnlocked ? (selectedDone ? "COMPLETE" : "AVAILABLE") : "LOCKED"}</span>
-            </div>
-            <button
-              type="button"
-              className="orblitz-world-deploy"
-              disabled={!selectedUnlocked}
-              onClick={() => openWorldLevels(selectedWorld)}
-              style={{ "--world-color": selectedUnlocked ? selectedColor : "#657087" } as React.CSSProperties}
-            >
-               <span>{selectedUnlocked ? "VIEW LEVELS" : "LOCKED"}</span>
-               <small>{selectedUnlocked ? "CHOOSE A STAGE" : "COMPLETE PRIOR WORLD"}</small>
             </button>
           </div>
 
@@ -924,7 +896,6 @@ export function StartupAnimation({
           >
             {/* Header */}
             <div className="flex-none orblitz-selection-header">
-              <span className="orblitz-selection-kicker">{menuState === "worlds" ? "ARCADE / WORLDS" : `WORLD ${String(selectedWorld).padStart(2, "0")} / LEVELS`}</span>
               <p data-testid={`text-${menuState}-title`} className="font-black tracking-widest uppercase" style={{
                 color: menuState === "worlds" ? "#00ffff" : WORLD_COLORS[selectedWorld - 1],
                 fontSize: "clamp(0.85rem, 2.5vw, 1.1rem)",
@@ -936,7 +907,7 @@ export function StartupAnimation({
               <span className="orblitz-selection-subtitle">{menuState === "worlds" ? "Choose a world to play" : "Choose a level to play"}</span>
             </div>
 
-             {/* Responsive world carousel / mission grid */}
+             {/* Responsive world carousel / level grid */}
             <div className="flex-1 min-h-0 flex flex-col orblitz-selection-content">
                {menuState === "worlds" ? renderContent() : (
                  <div className="grid grid-cols-3 gap-2 h-full orblitz-selection-grid" style={{ gridAutoRows: "1fr" }}>
@@ -945,7 +916,7 @@ export function StartupAnimation({
                )}
             </div>
 
-            {/* Back button — styled to match ButtonRow */}
+             {/* Back button — icon-only on world select, text elsewhere */}
             <div className="flex-none border-t flex justify-center orblitz-selection-footer" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
               <div style={{ width: "clamp(120px, 40vw, 200px)" }}>
                 <ButtonRow buttons={panelButtons} pressedBtn={pressedBtn} setPressedBtn={setPressedBtn} compact />
@@ -1047,11 +1018,11 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false }: Butt
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>{b.icon}</span>
             {/* Label */}
-            <span style={{
+            {!b.hideLabel && <span style={{
               fontSize: labelSz, fontWeight: 900,
-               letterSpacing: "0.12em", lineHeight: 1, opacity: 0.96,
-               fontFamily: "var(--font-display)",
-            }}>{b.label}</span>
+              letterSpacing: "0.12em", lineHeight: 1, opacity: 0.96,
+              fontFamily: "var(--font-display)",
+            }}>{b.label}</span>}
           </motion.button>
         );
       })}
@@ -1114,10 +1085,6 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
     <>
       <style>{`.orb-bslider{-webkit-appearance:none;appearance:none;outline:none;cursor:pointer;border-radius:2px}.orb-bslider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:3px;background:#ffe600;box-shadow:0 0 8px rgba(255,230,0,0.95)}.orb-bslider::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:3px;background:#ffe600;box-shadow:0 0 8px rgba(255,230,0,0.95)}.orb-vslider{-webkit-appearance:none;appearance:none;outline:none;cursor:pointer;border-radius:2px}.orb-vslider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:3px;background:#00f6ff;box-shadow:0 0 8px rgba(0,246,255,0.95)}.orb-vslider::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:3px;background:#00f6ff;box-shadow:0 0 8px rgba(0,246,255,0.95)}`}</style>
        <div className="flex flex-col w-full orblitz-options-deck" style={{ gap: "clamp(8px,1.5vw,14px)" }}>
-         <div className="orblitz-options-heading">
-            <span>SETTINGS / PERSONALIZE</span>
-            <small>MAKE THE ARENA YOURS</small>
-         </div>
         <motion.div
            className="relative flex flex-col items-center justify-center overflow-hidden w-full orblitz-options-control"
           style={{ ...btnStyle("#9b5cff", "rgba(155,92,255,0.44)"), height: "clamp(82px,14vw,108px)", cursor: "default", padding: "clamp(8px,1.5vw,14px)" }}

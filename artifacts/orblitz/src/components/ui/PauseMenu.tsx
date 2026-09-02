@@ -359,7 +359,6 @@ export function PauseMenu({ onMainMenu }: { onMainMenu?: () => void }) {
         >
           {/* Title */}
           <div className="text-center">
-            <p className="orblitz-pause-kicker">ORBLITZ / COMBAT BREAK</p>
             <motion.h1
               className="font-black tracking-widest text-transparent bg-clip-text"
               style={{
@@ -386,7 +385,6 @@ export function PauseMenu({ onMainMenu }: { onMainMenu?: () => void }) {
               boxShadow: "0 4px 0 rgba(10,20,68,0.45), 0 0 16px rgba(0,246,255,0.5)",
               opacity: 0.7,
             }} />
-            <p className="orblitz-pause-status">TAKE A BREATH · YOUR RUN IS SAFE</p>
           </div>
 
           {/* Score pill */}
@@ -407,7 +405,6 @@ export function PauseMenu({ onMainMenu }: { onMainMenu?: () => void }) {
             <OrbButtonRow buttons={topRow} delayStart={0.05} />
             {/* Secondary row: SOUND · QUIT */}
             <OrbButtonRow buttons={bottomRow} delayStart={0.18} />
-            <p className="orblitz-pause-deck-label">PAUSED · CHOOSE YOUR NEXT MOVE</p>
           </div>
         </motion.div>
       </motion.div>

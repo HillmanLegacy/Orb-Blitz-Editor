@@ -191,17 +191,6 @@
   letter-spacing: 0.16em;
 }
 
-.orblitz-command-button.orblitz-command-primary::before {
-  content: "01";
-  position: absolute;
-  left: 12px;
-  top: 10px;
-  color: currentColor;
-  font: 700 0.52rem / 1 var(--font-mono);
-  opacity: 0.6;
-  letter-spacing: 0.08em;
-}
-
 .orblitz-layout-root .orblitz-command-play {
   top: calc(50% + clamp(108px, 14vh, 142px));
 }
@@ -995,7 +984,7 @@
 }
 
 .orblitz-selection-footer::before {
-  content: "BACK";
+  content: none;
   position: absolute;
   left: clamp(16px, 5vw, 74px);
   top: 50%;
@@ -2636,6 +2625,13 @@ canvas {
   background:
     radial-gradient(circle at 50% 18%, rgba(92, 57, 146, 0.28), transparent 38%),
     linear-gradient(145deg, rgba(16,13,32,0.98), rgba(22,17,42,0.98) 55%, rgba(9,12,25,0.99)) !important;
+}
+
+.orblitz-selection-screen.orblitz-world-select {
+  background:
+    radial-gradient(circle at 50% 42%, rgba(92, 57, 146, 0.22), transparent 58%),
+    linear-gradient(145deg, rgba(16,13,32,0.5), rgba(22,17,42,0.54) 55%, rgba(9,12,25,0.5)) !important;
+  backdrop-filter: blur(2px);
 }
 
 .orblitz-selection-screen::before {

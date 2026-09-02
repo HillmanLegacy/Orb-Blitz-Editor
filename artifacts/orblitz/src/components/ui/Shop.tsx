@@ -218,7 +218,6 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
               style={{ borderBottom: "1px solid rgba(255,255,255,0.07)", zIndex: 1 }}
             >
                <div className="orblitz-shop-title-wrap">
-                 <span className="orblitz-shop-kicker">ARMORY // GEAR SYSTEMS</span>
                  <span
                  id="orblitz-shop-title"
                  className="font-black text-lg tracking-[0.18em] uppercase"
