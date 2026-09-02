@@ -4,6 +4,8 @@ export const FIRE_BOSS_AMBUSH_HEALTH_THRESHOLD = 25;
 export const FIRE_BOSS_AMBUSH_MAX_USES = 1;
 export const FIRE_BOSS_AMBUSH_INITIAL_DELAY = 3.5;
 export const FIRE_BOSS_AMBUSH_REPOSITION_DURATION = 1.35;
+export const FIRE_BOSS_AMBUSH_AURA_DURATION = 1.1;
+export const FIRE_BOSS_AMBUSH_AURA_START_SCALE = 0.35;
 export const FIRE_BOSS_AMBUSH_CHARGE_DURATION = 1.9;
 export const FIRE_BOSS_AMBUSH_CHARGE_VFX_SCALE_MULTIPLIER = 1.5;
 export const FIRE_BOSS_AMBUSH_DASH_DURATION = 0.9;
@@ -23,6 +25,7 @@ export const FIRE_BOSS_AMBUSH_DASH_EXIT_DISTANCE = 5;
 export type FireBossAmbushPhase =
   | "idle"
   | "repositioning"
+  | "aura"
   | "charging"
   | "dashing"
   | "recovery";
@@ -125,6 +128,19 @@ export function getFireBossAmbushChargeProgress(
 
 export function getFireBossAmbushChargeSpeedMultiplier(progress: number): number {
   return 0.35 + clamp01(progress) * 0.65;
+}
+
+export function getFireBossAmbushAuraProgress(
+  elapsed: number,
+  duration = FIRE_BOSS_AMBUSH_AURA_DURATION,
+): number {
+  return clamp01(elapsed / Math.max(0.001, duration));
+}
+
+/** Grow the radial Fire Aura from a sub-orb spark to its full rush size. */
+export function getFireBossAmbushAuraScale(progress: number): number {
+  return FIRE_BOSS_AMBUSH_AURA_START_SCALE +
+    clamp01(progress) * (1 - FIRE_BOSS_AMBUSH_AURA_START_SCALE);
 }
 
 export function getFireBossAmbushDashProgress(

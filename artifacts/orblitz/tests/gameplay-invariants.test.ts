@@ -35,6 +35,8 @@ import {
 import {
   FIRE_BOSS_AMBUSH_CHARGE_DURATION,
   FIRE_BOSS_AMBUSH_CHARGE_VFX_SCALE_MULTIPLIER,
+  FIRE_BOSS_AMBUSH_AURA_DURATION,
+  FIRE_BOSS_AMBUSH_AURA_START_SCALE,
   FIRE_BOSS_AMBUSH_HEALTH_THRESHOLD,
   FIRE_BOSS_AMBUSH_IMPACT_BASE_SCALE,
   FIRE_BOSS_AMBUSH_IMPACT_SCALE,
@@ -46,6 +48,8 @@ import {
   createFireBossAmbushImpact,
   getFireBossAmbushChargeProgress,
   getFireBossAmbushChargeSpeedMultiplier,
+  getFireBossAmbushAuraProgress,
+  getFireBossAmbushAuraScale,
   getFireBossAmbushDashDestination,
   getFireBossAmbushDashProgress,
   getFireBossAmbushImpactProgress,
@@ -275,6 +279,16 @@ describe("gameplay runtime invariants", () => {
 
   it("makes the Fire Ambush rush Fire Aura trail 2x larger", () => {
     expect(FIRE_BOSS_AMBUSH_DASH_VFX_SCALE_MULTIPLIER).toBe(2);
+  });
+
+  it("grows the radial Fire Aura after repositioning, then reaches full rush size", () => {
+    expect(getFireBossAmbushAuraProgress(0)).toBe(0);
+    expect(getFireBossAmbushAuraProgress(FIRE_BOSS_AMBUSH_AURA_DURATION)).toBe(1);
+    expect(FIRE_BOSS_AMBUSH_AURA_START_SCALE).toBeLessThan(1);
+    expect(getFireBossAmbushAuraScale(0)).toBe(FIRE_BOSS_AMBUSH_AURA_START_SCALE);
+    expect(getFireBossAmbushAuraScale(1)).toBe(1);
+    expect(getFireBossAmbushAuraScale(0.5))
+      .toBeGreaterThan(FIRE_BOSS_AMBUSH_AURA_START_SCALE);
   });
 
   it("continues the Fire Ambush dash past the player without marking a defeat", () => {

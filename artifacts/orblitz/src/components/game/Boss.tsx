@@ -14,6 +14,8 @@ import { getPerspectiveViewAtPlane } from "@/game-runtime/EnemySpawnConfig";
 import {
   canStartFireBossAmbush,
   createFireBossAmbushImpact,
+  FIRE_BOSS_AMBUSH_AURA_DURATION,
+  FIRE_BOSS_AMBUSH_AURA_START_SCALE,
   FIRE_BOSS_AMBUSH_CHARGE_DURATION,
   FIRE_BOSS_AMBUSH_CHARGE_VFX_SCALE_MULTIPLIER,
   FIRE_BOSS_AMBUSH_DASH_DURATION,
@@ -24,6 +26,8 @@ import {
   FIRE_BOSS_AMBUSH_REPOSITION_DURATION,
   FIRE_BOSS_AMBUSH_REPOSITION_SPEED,
   FIRE_BOSS_AMBUSH_RECOVERY_DURATION,
+  getFireBossAmbushAuraProgress,
+  getFireBossAmbushAuraScale,
   getFireBossAmbushChargeProgress,
   getFireBossAmbushChargeSpeedMultiplier,
   getFireBossAmbushDashDestination,
@@ -969,12 +973,21 @@ export function Boss() {
             if (distance < 0.35 || fireAmbushTimerRef.current <= 0) {
               bx = tx;
               by = ty;
-              fireAmbushPhaseRef.current = "charging";
-              fireAmbushTimerRef.current = FIRE_BOSS_AMBUSH_CHARGE_DURATION;
+              fireAmbushPhaseRef.current = "aura";
+              fireAmbushTimerRef.current = FIRE_BOSS_AMBUSH_AURA_DURATION;
             } else {
               const step = Math.min(1, delta * FIRE_BOSS_AMBUSH_REPOSITION_SPEED / Math.max(0.001, distance));
               bx = curX + dx * step;
               by = curY + dy * step;
+            }
+          } else if (ambushPhase === "aura") {
+            const [tx, ty] = fireAmbushLaunchPointRef.current;
+            bx = tx;
+            by = ty;
+            fireAmbushTimerRef.current -= delta;
+            if (fireAmbushTimerRef.current <= 0) {
+              fireAmbushPhaseRef.current = "charging";
+              fireAmbushTimerRef.current = FIRE_BOSS_AMBUSH_CHARGE_DURATION;
             }
           } else if (ambushPhase === "charging") {
             const [tx, ty] = fireAmbushLaunchPointRef.current;
@@ -1785,6 +1798,12 @@ export function Boss() {
     // radius = 2 × player base scale (0.72 × 2 = 1.44)
     const fireRadius = 1.44;
     const fireAmbushPhase = fireAmbushPhaseRef.current;
+    const auraProgress = fireAmbushPhase === "aura"
+      ? getFireBossAmbushAuraProgress(
+        FIRE_BOSS_AMBUSH_AURA_DURATION - fireAmbushTimerRef.current,
+      )
+      : 0;
+    const auraScale = getFireBossAmbushAuraScale(auraProgress);
     const chargeProgress = fireAmbushPhase === "charging"
       ? getFireBossAmbushChargeProgress(
         FIRE_BOSS_AMBUSH_CHARGE_DURATION - fireAmbushTimerRef.current,
@@ -1811,18 +1830,20 @@ export function Boss() {
           <Suspense fallback={null}>
             <BossVisual type={bossType} radius={fireRadius} healthPercent={healthPercent} />
           </Suspense>
-          {(fireAmbushPhase === "repositioning" || fireAmbushPhase === "charging") && (
+          {fireAmbushPhase === "aura" && (
+            <group scale={[auraScale, auraScale, auraScale]}>
+              <FireAura
+                scale={fireRadius * FIRE_BOSS_AMBUSH_DASH_VFX_SCALE_MULTIPLIER}
+              />
+            </group>
+          )}
+          {fireAmbushPhase === "charging" && (
             <group scale={chargeScale}>
               <FlameAura
                 scale={fireRadius * 1.25 * FIRE_BOSS_AMBUSH_CHARGE_VFX_SCALE_MULTIPLIER}
                 speedMultiplier={getFireBossAmbushChargeSpeedMultiplier(chargeProgress)}
               />
             </group>
-          )}
-          {fireAmbushPhase === "dashing" && (
-            <FireAura
-              scale={fireRadius * FIRE_BOSS_AMBUSH_DASH_VFX_SCALE_MULTIPLIER}
-            />
           )}
         </group>
       </>
