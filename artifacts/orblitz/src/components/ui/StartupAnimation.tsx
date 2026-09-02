@@ -81,16 +81,20 @@ const BOSS_LIGHT_WHEEL = [
   ),
 ];
 
-const ORB_EXPLOSION_PARTICLES = Array.from({ length: 84 }, (_, index) => {
+// Dense enough to act as a true scene-change curtain rather than a sparse
+// sparkle burst. The deterministic golden-angle distribution keeps the field
+// even without introducing per-render randomness.
+const ORB_EXPLOSION_PARTICLES = Array.from({ length: 720 }, (_, index) => {
   const angle = index * 2.399963;
-  const distance = 26 + (index % 8) * 8 + (index % 3) * 3;
+  const distance = 24 + (index % 18) * 4.8 + ((index * 7) % 11) * 1.7;
+  const baseSize = 2.8 + (index % 7) * 0.95;
   return {
     x: Math.cos(angle) * distance,
     y: Math.sin(angle) * distance * 0.72,
-    size: 3 + (index % 5) * 1.6,
+    size: baseSize + (index % 23 === 0 ? 7 : index % 37 === 0 ? 4 : 0),
     color: WORLD_COLORS[index % WORLD_COLORS.length],
-    delay: (index % 9) * 0.018,
-    duration: 1.7 + (index % 6) * 0.08,
+    delay: (index % 17) * 0.012,
+    duration: 2.35 + (index % 9) * 0.11,
   };
 });
 
