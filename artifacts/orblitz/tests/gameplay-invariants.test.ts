@@ -125,6 +125,7 @@ import {
   getPlayerSkinTrailPalette,
   getPlayerSkinTrailColor,
 } from "../src/components/game/PlayerSkinVisualConfig";
+import { advanceClockwiseOrbSpin } from "../src/components/game/OrbPresentationSpin";
 import { clonePlayerOrbMaterial } from "../src/components/game/PlayerOrbMaterial";
 import {
   createPlayerFireBurstPool,
@@ -254,6 +255,16 @@ describe("gameplay runtime invariants", () => {
   it("keeps the player model spin slow and clockwise from the player view", () => {
     expect(PLAYER_MODEL_ROTATION_SPEED).toBeLessThan(0);
     expect(Math.abs(PLAYER_MODEL_ROTATION_SPEED)).toBeLessThan(0.5);
+  });
+
+  it("shares the player's clockwise spin with orb presentation groups", () => {
+    const object = new THREE.Group();
+    const spinRef = { current: 0 };
+
+    advanceClockwiseOrbSpin(spinRef, object, 1);
+
+    expect(spinRef.current).toBeCloseTo(PLAYER_MODEL_ROTATION_SPEED * 0.05);
+    expect(object.rotation.z).toBeCloseTo(spinRef.current);
   });
 
   it("renders Toxic's authored map with the same unlit material pattern as Fire", () => {

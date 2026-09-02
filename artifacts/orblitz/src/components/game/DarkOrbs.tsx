@@ -15,6 +15,7 @@ import { MiniRainbowOrb } from "./MiniRainbowOrb";
 import { MiniMechaOrb } from "./MiniMechaOrb";
 import { MiniMonsterOrb } from "./MiniMonsterOrb";
 import { ToxicBoss } from "./ToxicBoss";
+import { advanceClockwiseOrbSpin } from "./OrbPresentationSpin";
 import { StandardEnemyParticles } from "./StandardEnemyParticles";
 import { addExplosionImpulse } from "./Background";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
@@ -64,14 +65,16 @@ function FireHurtFlash({ hurtTimer }: { hurtTimer: number }) {
 function BossOrbMesh({ orb }: { orb: DarkOrb }) {
   const bossType   = orb.bossType || "circle";
   const groupRef   = useRef<THREE.Group>(null);
+  const spinRef    = useRef(0);
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     if (!groupRef.current) return;
     const physics = orbPhysicsMap.get(orb.id);
     if (!physics) return;
     const pulse = 1 + Math.sin(state.clock.elapsedTime * 6) * 0.1;
     groupRef.current.position.set(physics.position[0], physics.position[1], physics.position[2]);
     groupRef.current.scale.setScalar(orb.size * pulse);
+    advanceClockwiseOrbSpin(spinRef, groupRef.current, delta);
   });
 
   if (orb.destroying) {
@@ -399,13 +402,15 @@ function UnifiedDarkOrbMesh({ orb }: { orb: DarkOrb }) {
 // ── World enemy meshes — all use groupRef + useFrame, no time prop ─────────────
 function World1EnemyMesh({ orb }: { orb: DarkOrb }) {
   const groupRef = useRef<THREE.Group>(null);
-  useFrame((state) => {
+  const spinRef = useRef(0);
+  useFrame((state, delta) => {
     if (!groupRef.current) return;
     const p = orbPhysicsMap.get(orb.id);
     if (!p) return;
     const pulse = 1 + Math.sin(state.clock.elapsedTime * 4 + orb.seed * 6) * 0.06;
     groupRef.current.position.set(p.position[0], p.position[1], p.position[2]);
     groupRef.current.scale.setScalar(orb.size * pulse);
+    advanceClockwiseOrbSpin(spinRef, groupRef.current, delta);
   });
   if (orb.destroying) {
     return null;
@@ -415,13 +420,15 @@ function World1EnemyMesh({ orb }: { orb: DarkOrb }) {
 
 function World2EnemyMesh({ orb }: { orb: DarkOrb }) {
   const groupRef = useRef<THREE.Group>(null);
-  useFrame((state) => {
+  const spinRef = useRef(0);
+  useFrame((state, delta) => {
     if (!groupRef.current) return;
     const p = orbPhysicsMap.get(orb.id);
     if (!p) return;
     const pulse = 1 + Math.sin(state.clock.elapsedTime * 3.5 + orb.seed * 6) * 0.06;
     groupRef.current.position.set(p.position[0], p.position[1], p.position[2]);
     groupRef.current.scale.setScalar(orb.size * pulse);
+    advanceClockwiseOrbSpin(spinRef, groupRef.current, delta);
   });
   if (orb.destroying) {
     return null;
@@ -431,13 +438,15 @@ function World2EnemyMesh({ orb }: { orb: DarkOrb }) {
 
 function World3EnemyMesh({ orb }: { orb: DarkOrb }) {
   const groupRef = useRef<THREE.Group>(null);
-  useFrame((state) => {
+  const spinRef = useRef(0);
+  useFrame((state, delta) => {
     if (!groupRef.current) return;
     const p = orbPhysicsMap.get(orb.id);
     if (!p) return;
     const pulse = 1 + Math.sin(state.clock.elapsedTime * 4.5 + orb.seed * 6) * 0.06;
     groupRef.current.position.set(p.position[0], p.position[1], p.position[2]);
     groupRef.current.scale.setScalar(orb.size * pulse);
+    advanceClockwiseOrbSpin(spinRef, groupRef.current, delta);
   });
   if (orb.destroying) {
     return null;
@@ -447,13 +456,15 @@ function World3EnemyMesh({ orb }: { orb: DarkOrb }) {
 
 function World4EnemyMesh({ orb }: { orb: DarkOrb }) {
   const groupRef = useRef<THREE.Group>(null);
-  useFrame((state) => {
+  const spinRef = useRef(0);
+  useFrame((state, delta) => {
     if (!groupRef.current) return;
     const p = orbPhysicsMap.get(orb.id);
     if (!p) return;
     const pulse = 1 + Math.sin(state.clock.elapsedTime * 4 + orb.seed * 6) * 0.06;
     groupRef.current.position.set(p.position[0], p.position[1], p.position[2]);
     groupRef.current.scale.setScalar(orb.size * pulse);
+    advanceClockwiseOrbSpin(spinRef, groupRef.current, delta);
   });
   if (orb.destroying) {
     return null;
@@ -463,13 +474,15 @@ function World4EnemyMesh({ orb }: { orb: DarkOrb }) {
 
 function World5EnemyMesh({ orb }: { orb: DarkOrb }) {
   const groupRef = useRef<THREE.Group>(null);
-  useFrame((state) => {
+  const spinRef = useRef(0);
+  useFrame((state, delta) => {
     if (!groupRef.current) return;
     const p = orbPhysicsMap.get(orb.id);
     if (!p) return;
     const pulse = 1 + Math.sin(state.clock.elapsedTime * 4 + orb.seed * 6) * 0.06;
     groupRef.current.position.set(p.position[0], p.position[1], p.position[2]);
     groupRef.current.scale.setScalar(orb.size * pulse);
+    advanceClockwiseOrbSpin(spinRef, groupRef.current, delta);
   });
   if (orb.destroying) {
     return null;
@@ -479,13 +492,15 @@ function World5EnemyMesh({ orb }: { orb: DarkOrb }) {
 
 function World6EnemyMesh({ orb }: { orb: DarkOrb }) {
   const groupRef = useRef<THREE.Group>(null);
-  useFrame((state) => {
+  const spinRef = useRef(0);
+  useFrame((state, delta) => {
     if (!groupRef.current) return;
     const p = orbPhysicsMap.get(orb.id);
     if (!p) return;
     const pulse = 1 + Math.sin(state.clock.elapsedTime * 4 + orb.seed * 6) * 0.06;
     groupRef.current.position.set(p.position[0], p.position[1], p.position[2]);
     groupRef.current.scale.setScalar(orb.size * pulse);
+    advanceClockwiseOrbSpin(spinRef, groupRef.current, delta);
   });
   if (orb.destroying) {
     return null;
@@ -495,13 +510,15 @@ function World6EnemyMesh({ orb }: { orb: DarkOrb }) {
 
 function World7EnemyMesh({ orb }: { orb: DarkOrb }) {
   const groupRef = useRef<THREE.Group>(null);
-  useFrame((state) => {
+  const spinRef = useRef(0);
+  useFrame((state, delta) => {
     if (!groupRef.current) return;
     const p = orbPhysicsMap.get(orb.id);
     if (!p) return;
     const pulse = 1 + Math.sin(state.clock.elapsedTime * 4 + orb.seed * 6) * 0.06;
     groupRef.current.position.set(p.position[0], p.position[1], p.position[2]);
     groupRef.current.scale.setScalar(orb.size * pulse);
+    advanceClockwiseOrbSpin(spinRef, groupRef.current, delta);
   });
   if (orb.destroying) {
     return null;
@@ -511,13 +528,15 @@ function World7EnemyMesh({ orb }: { orb: DarkOrb }) {
 
 function World8EnemyMesh({ orb }: { orb: DarkOrb }) {
   const groupRef = useRef<THREE.Group>(null);
-  useFrame((state) => {
+  const spinRef = useRef(0);
+  useFrame((state, delta) => {
     if (!groupRef.current) return;
     const p = orbPhysicsMap.get(orb.id);
     if (!p) return;
     const pulse = 1 + Math.sin(state.clock.elapsedTime * 4 + orb.seed * 6) * 0.06;
     groupRef.current.position.set(p.position[0], p.position[1], p.position[2]);
     groupRef.current.scale.setScalar(orb.size * pulse);
+    advanceClockwiseOrbSpin(spinRef, groupRef.current, delta);
   });
   if (orb.destroying) {
     return null;
@@ -527,13 +546,15 @@ function World8EnemyMesh({ orb }: { orb: DarkOrb }) {
 
 function World9EnemyMesh({ orb }: { orb: DarkOrb }) {
   const groupRef = useRef<THREE.Group>(null);
-  useFrame((state) => {
+  const spinRef = useRef(0);
+  useFrame((state, delta) => {
     if (!groupRef.current) return;
     const p = orbPhysicsMap.get(orb.id);
     if (!p) return;
     const pulse = 1 + Math.sin(state.clock.elapsedTime * 4 + orb.seed * 6) * 0.06;
     groupRef.current.position.set(p.position[0], p.position[1], p.position[2]);
     groupRef.current.scale.setScalar(orb.size * pulse);
+    advanceClockwiseOrbSpin(spinRef, groupRef.current, delta);
   });
   if (orb.destroying) {
     return null;

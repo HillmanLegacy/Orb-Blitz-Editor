@@ -19,6 +19,7 @@
 - [Orblitz enemy entry bounds](orblitz-enemy-entry-bounds.md) — Regular enemies spawn/cull relative to the live camera; boss attack orbs retain fixed world cleanup bounds.
 - [Imported artifact preview routing](imported-artifact-preview-routing.md) — Healthy imported workflows can still fail preview when artifact catalog forwarding cannot resolve them.
 - [Orblitz player VFX transform boundary](orblitz-player-vfx-transform-boundary.md) — Weapon morphs belong on the model child; player-attached VFX stay on the stable world anchor.
+- [Orblitz presentation spin](orblitz-presentation-spin.md) — Player, bosses, boss projectiles, and standard enemies share one clamped negative-Z visual roll.
 - [Orblitz guaranteed firing presentation](orblitz-guaranteed-firing-presentation.md) — Every-shot VFX need a dedicated bounded admission path tied to runtime reset, not an optional dropping event queue.
 - [Orblitz overcharged VFX presets](orblitz-overcharged-vfx-presets.md) — Overcharged detonation VFX remain visible on Low via reduced budgets; do not gate them with the global VFX switch.
 - [Orblitz SFX variation](orblitz-sfx-variation.md) — Repetitive cues vary only after throttle admission; use bounded anti-repeat profiles and reset history with audio disposal.

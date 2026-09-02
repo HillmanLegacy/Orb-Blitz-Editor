@@ -9,6 +9,7 @@ import { RainbowBoss } from "./RainbowBoss";
 import { StarBoss } from "./StarBoss";
 import { ToxicBoss } from "./ToxicBoss";
 import type { MainBossType } from "./BossDefeatPalette";
+import { ClockwiseOrbSpin } from "./OrbPresentationSpin";
 
 export interface BossVisualProps {
   radius?: number;
@@ -39,5 +40,9 @@ export function BossVisual({
   healthPercent = 1,
 }: BossVisualProps & { type: MainBossType }) {
   const Renderer = BOSS_VISUAL_COMPONENTS[type];
-  return <Renderer radius={radius} healthPercent={healthPercent} />;
+  return (
+    <ClockwiseOrbSpin>
+      <Renderer radius={radius} healthPercent={healthPercent} />
+    </ClockwiseOrbSpin>
+  );
 }
