@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap");
 @import "tailwindcss";
 
 @theme inline {
@@ -31,31 +32,60 @@
 }
 
 :root {
-  --background: 222 47% 11%;
-  --foreground: 210 40% 98%;
-  --card: 222 47% 15%;
-  --card-foreground: 210 40% 98%;
-  --popover: 222 47% 11%;
-  --popover-foreground: 210 40% 98%;
-  --primary: 263 85% 65%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 217 33% 17%;
-  --secondary-foreground: 210 40% 98%;
-  --muted: 217 33% 17%;
-  --muted-foreground: 215 20% 65%;
-  --accent: 263 85% 65%;
-  --accent-foreground: 210 40% 98%;
-  --destructive: 0 62% 30%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 217 33% 25%;
-  --input: 217 33% 25%;
-  --ring: 263 85% 65%;
-  --chart-1: 263 85% 65%;
-  --chart-2: 188 91% 45%;
-  --chart-3: 142 76% 36%;
-  --chart-4: 43 96% 56%;
-  --chart-5: 0 84% 60%;
+  --background: 228 47% 7%;
+  --foreground: 192 58% 95%;
+  --card: 226 38% 13%;
+  --card-foreground: 192 58% 95%;
+  --popover: 228 47% 7%;
+  --popover-foreground: 192 58% 95%;
+  --primary: 187 100% 50%;
+  --primary-foreground: 228 47% 7%;
+  --secondary: 237 36% 18%;
+  --secondary-foreground: 192 58% 95%;
+  --muted: 230 30% 20%;
+  --muted-foreground: 219 24% 66%;
+  --accent: 322 100% 58%;
+  --accent-foreground: 228 47% 7%;
+  --destructive: 2 84% 61%;
+  --destructive-foreground: 192 58% 95%;
+  --border: 222 28% 28%;
+  --input: 222 28% 28%;
+  --ring: 187 100% 50%;
+  --chart-1: 187 100% 50%;
+  --chart-2: 322 100% 58%;
+  --chart-3: 53 100% 50%;
+  --chart-4: 271 100% 68%;
+  --chart-5: 2 84% 61%;
   --radius: 0.5rem;
+  --font-display: "Orbitron", "Trebuchet MS", sans-serif;
+  --font-mono: "Space Mono", "Courier New", monospace;
+}
+
+.dark {
+  --background: 228 47% 7%;
+  --foreground: 192 58% 95%;
+  --card: 226 38% 13%;
+  --card-foreground: 192 58% 95%;
+  --popover: 228 47% 7%;
+  --popover-foreground: 192 58% 95%;
+  --primary: 187 100% 50%;
+  --primary-foreground: 228 47% 7%;
+  --secondary: 237 36% 18%;
+  --secondary-foreground: 192 58% 95%;
+  --muted: 230 30% 20%;
+  --muted-foreground: 219 24% 66%;
+  --accent: 322 100% 58%;
+  --accent-foreground: 228 47% 7%;
+  --destructive: 2 84% 61%;
+  --destructive-foreground: 192 58% 95%;
+  --border: 222 28% 28%;
+  --input: 222 28% 28%;
+  --ring: 187 100% 50%;
+  --chart-1: 187 100% 50%;
+  --chart-2: 322 100% 58%;
+  --chart-3: 53 100% 50%;
+  --chart-4: 271 100% 68%;
+  --chart-5: 2 84% 61%;
 }
 
 @layer base {
@@ -63,7 +93,8 @@
     @apply border-border;
   }
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply antialiased bg-background text-foreground;
+    font-family: var(--font-mono);
     margin: 0;
     padding: 0;
     overflow: hidden;
@@ -73,6 +104,240 @@
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
+  }
+}
+
+/* ─── Orblitz command-deck menu ─────────────────────────────────────────────
+   The title owns the center. Controls orbit the safe space around it, with a
+   flex fallback below 620px / 500px for short landscape phone screens. */
+.orblitz-button-stage {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.orblitz-button-stage[data-layout="root"],
+.orblitz-button-stage[data-layout="modes"] {
+  isolation: isolate;
+}
+
+.orblitz-button-stage[data-layout="root"]::before,
+.orblitz-button-stage[data-layout="modes"]::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(74vw, 980px);
+  height: min(43vw, 500px);
+  border: 1px solid rgba(111, 222, 255, 0.15);
+  border-radius: 50%;
+  translate: -50% -50%;
+  rotate: -8deg;
+  box-shadow: 0 0 42px rgba(0, 246, 255, 0.05), inset 0 0 38px rgba(255, 43, 214, 0.035);
+  pointer-events: none;
+}
+
+.orblitz-button-stage[data-layout="root"]::after,
+.orblitz-button-stage[data-layout="modes"]::after {
+  content: "COMMAND DECK  //  READY";
+  position: absolute;
+  left: 50%;
+  top: calc(50% + clamp(177px, 22vh, 225px));
+  translate: -50% 0;
+  color: rgba(167, 221, 235, 0.46);
+  font: 700 clamp(0.42rem, 0.62vw, 0.56rem) / 1 var(--font-mono);
+  letter-spacing: 0.27em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.orblitz-command-button {
+  pointer-events: auto;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  width: clamp(142px, 14vw, 198px);
+  min-width: 0;
+  padding: 0 clamp(12px, 1.5vw, 22px);
+  font-family: var(--font-display);
+  letter-spacing: 0.095em;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+.orblitz-command-button::after {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 1px solid rgba(215, 250, 255, 0.12);
+  clip-path: polygon(0 0, 14px 0, 14px 1px, calc(100% - 14px) 1px, calc(100% - 14px) 0, 100% 0, 100% 14px, calc(100% - 1px) 14px, calc(100% - 1px) calc(100% - 14px), 100% calc(100% - 14px), 100% 100%, calc(100% - 14px) 100%, calc(100% - 14px) calc(100% - 1px), 14px calc(100% - 1px), 14px 100%, 0 100%, 0 calc(100% - 14px), 1px calc(100% - 14px), 1px 14px, 0 14px);
+  opacity: 0.56;
+  pointer-events: none;
+}
+
+.orblitz-command-button:hover,
+.orblitz-command-button:focus-visible {
+  z-index: 3;
+}
+
+.orblitz-command-button:focus-visible {
+  outline: 2px solid rgba(226, 252, 255, 0.96);
+  outline-offset: 5px;
+}
+
+.orblitz-command-button.orblitz-command-primary {
+  width: clamp(190px, 20vw, 280px);
+  height: clamp(82px, 11vw, 112px) !important;
+  letter-spacing: 0.16em;
+}
+
+.orblitz-command-button.orblitz-command-primary::before {
+  content: "01";
+  position: absolute;
+  left: 12px;
+  top: 10px;
+  color: currentColor;
+  font: 700 0.52rem / 1 var(--font-mono);
+  opacity: 0.6;
+  letter-spacing: 0.08em;
+}
+
+.orblitz-layout-root .orblitz-command-play {
+  top: calc(50% + clamp(108px, 14vh, 142px));
+}
+.orblitz-layout-root .orblitz-command-shop {
+  left: calc(50% - clamp(205px, 25vw, 360px));
+  top: calc(50% - clamp(112px, 15vh, 156px));
+}
+.orblitz-layout-root .orblitz-command-inventory {
+  left: calc(50% - clamp(235px, 30vw, 430px));
+  top: calc(50% + clamp(112px, 15vh, 156px));
+}
+.orblitz-layout-root .orblitz-command-trophies {
+  left: calc(50% + clamp(205px, 25vw, 360px));
+  top: calc(50% - clamp(128px, 16vh, 168px));
+}
+.orblitz-layout-root .orblitz-command-settings {
+  left: calc(50% + clamp(232px, 30vw, 430px));
+  top: calc(50% + clamp(116px, 15vh, 160px));
+}
+
+.orblitz-layout-modes .orblitz-command-arcade {
+  left: calc(50% + clamp(184px, 24vw, 350px));
+  top: calc(50% + clamp(92px, 12vh, 132px));
+}
+.orblitz-layout-modes .orblitz-command-chill {
+  left: calc(50% - clamp(210px, 27vw, 380px));
+  top: calc(50% - clamp(120px, 15vh, 158px));
+}
+.orblitz-layout-modes .orblitz-command-survival {
+  left: calc(50% - clamp(232px, 31vw, 440px));
+  top: calc(50% + clamp(108px, 14vh, 150px));
+}
+.orblitz-layout-modes .orblitz-command-gauntlet {
+  left: calc(50% + clamp(208px, 28vw, 400px));
+  top: calc(50% - clamp(126px, 16vh, 164px));
+}
+.orblitz-layout-modes .orblitz-command-back {
+  left: calc(50% - clamp(198px, 25vw, 352px));
+  top: calc(50% + clamp(147px, 19vh, 190px));
+}
+
+.orblitz-layout-modes .orblitz-command-arcade.orblitz-command-primary {
+  width: clamp(200px, 21vw, 294px);
+}
+
+.orblitz-layout-root .orblitz-command-shop,
+.orblitz-layout-root .orblitz-command-inventory,
+.orblitz-layout-root .orblitz-command-trophies,
+.orblitz-layout-root .orblitz-command-settings,
+.orblitz-layout-modes .orblitz-command-chill,
+.orblitz-layout-modes .orblitz-command-survival,
+.orblitz-layout-modes .orblitz-command-gauntlet,
+.orblitz-layout-modes .orblitz-command-back {
+  height: clamp(68px, 8vw, 88px) !important;
+}
+
+.orblitz-command-button[data-active="true"]::after {
+  border-color: currentColor;
+  opacity: 0.82;
+}
+
+.orblitz-compact-stage {
+  position: relative;
+  inset: auto;
+  display: flex;
+  width: 100%;
+  pointer-events: auto;
+}
+.orblitz-compact-stage .orblitz-command-button {
+  position: relative;
+  left: auto;
+  top: auto;
+  translate: none;
+  width: auto;
+  height: auto !important;
+}
+
+@media (max-width: 700px), (max-height: 560px) and (orientation: landscape) {
+  .orblitz-button-stage[data-layout="root"]::before,
+  .orblitz-button-stage[data-layout="modes"]::before {
+    width: 88vw;
+    height: 42vw;
+  }
+  .orblitz-command-button {
+    width: clamp(118px, 19vw, 158px);
+    padding-inline: 8px;
+  }
+  .orblitz-command-button.orblitz-command-primary {
+    width: clamp(148px, 25vw, 214px);
+    height: clamp(64px, 13vw, 82px) !important;
+  }
+  .orblitz-layout-root .orblitz-command-shop { left: 13%; top: 40%; }
+  .orblitz-layout-root .orblitz-command-inventory { left: 14%; top: 67%; }
+  .orblitz-layout-root .orblitz-command-trophies { left: 87%; top: 40%; }
+  .orblitz-layout-root .orblitz-command-settings { left: 86%; top: 67%; }
+  .orblitz-layout-root .orblitz-command-play { top: 78%; }
+  .orblitz-layout-modes .orblitz-command-chill { left: 13%; top: 37%; }
+  .orblitz-layout-modes .orblitz-command-survival { left: 14%; top: 67%; }
+  .orblitz-layout-modes .orblitz-command-gauntlet { left: 87%; top: 37%; }
+  .orblitz-layout-modes .orblitz-command-arcade { left: 86%; top: 67%; }
+  .orblitz-layout-modes .orblitz-command-back { left: 15%; top: 84%; }
+  .orblitz-button-stage[data-layout="root"]::after,
+  .orblitz-button-stage[data-layout="modes"]::after {
+    top: 92%;
+  }
+}
+
+@media (max-height: 430px) and (orientation: landscape) {
+  .orblitz-button-stage[data-layout="root"]::before,
+  .orblitz-button-stage[data-layout="modes"]::before,
+  .orblitz-button-stage[data-layout="root"]::after,
+  .orblitz-button-stage[data-layout="modes"]::after {
+    display: none;
+  }
+  .orblitz-command-button,
+  .orblitz-command-button.orblitz-command-primary {
+    height: 54px !important;
+    width: clamp(112px, 18vw, 148px);
+  }
+  .orblitz-layout-root .orblitz-command-shop,
+  .orblitz-layout-modes .orblitz-command-chill { left: 15%; top: 30%; }
+  .orblitz-layout-root .orblitz-command-inventory,
+  .orblitz-layout-modes .orblitz-command-survival { left: 15%; top: 70%; }
+  .orblitz-layout-root .orblitz-command-trophies,
+  .orblitz-layout-modes .orblitz-command-gauntlet { left: 85%; top: 30%; }
+  .orblitz-layout-root .orblitz-command-settings,
+  .orblitz-layout-modes .orblitz-command-arcade { left: 85%; top: 70%; }
+  .orblitz-layout-root .orblitz-command-play { left: 50%; top: 86%; }
+  .orblitz-layout-modes .orblitz-command-back { left: 50%; top: 87%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orblitz-command-button,
+  .orblitz-command-button::after {
+    transition-duration: 0.01ms !important;
   }
 }
 

@@ -25,6 +25,7 @@ function IconArcade()    { return <svg {..._svg}><rect x="4" y="14" width="16" h
 function IconGauntlet()  { return <svg {..._svg}><path d="M12 3 L21 12 L12 21 L3 12 Z" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.1"/><line x1="12" y1="7" x2="12" y2="17" stroke="currentColor" strokeWidth="0.75" opacity="0.4"/><line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" strokeWidth="0.75" opacity="0.4"/><circle cx="12" cy="12" r="2" fill="currentColor" fillOpacity="0.9"/></svg>; }
 function IconStar()      { return <svg {..._svg}><path d="m12 2.9 2.75 5.58 6.16.9-4.46 4.34 1.05 6.13L12 16.95l-5.5 2.9 1.05-6.13L3.1 9.38l6.15-.9L12 2.9Z" fill="currentColor"/><path d="m12 5.8 1.75 3.54 3.91.57-2.83 2.76.67 3.9L12 14.73l-3.5 1.84.67-3.9-2.83-2.76 3.91-.57L12 5.8Z" fill="#fff8c9" fillOpacity="0.7"/></svg>; }
 function IconBack()      { return <svg {..._svg}><path d="M11 7 L6 12 L11 17" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 12 H16 C18.2 12 20 13.8 20 16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
+function IconLock()      { return <svg {..._svg}><rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.1"/><path d="M8 10V7.8a4 4 0 0 1 8 0V10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="12" cy="15" r="1.1" fill="currentColor"/></svg>; }
 function IconSound()     { return <svg {..._svg}><path d="M4 9 H7 L12 5 V19 L7 15 H4 V9 Z" fill="currentColor" fillOpacity="0.85"/><path d="M15 8 C17 9.5 17.5 11.5 17.5 12 S17 14.5 15 16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M17.5 5.5 C20.5 7.5 21.5 9.8 21.5 12 S20.5 16.5 17.5 18.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
 function IconSoundOff()  { return <svg {..._svg}><path d="M4 9 H7 L12 5 V19 L7 15 H4 V9 Z" fill="currentColor" fillOpacity="0.5"/><line x1="16.5" y1="9" x2="22" y2="15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/><line x1="22" y1="9" x2="16.5" y2="15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>; }
 function IconBrightness(){ return <svg {..._svg}><circle cx="12" cy="12" r="3.8" fill="currentColor" fillOpacity="0.85"/><line x1="12" y1="2" x2="12" y2="5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><line x1="12" y1="19" x2="12" y2="22" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><line x1="2" y1="12" x2="5" y2="12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><line x1="19" y1="12" x2="22" y2="12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><line x1="4.93" y1="4.93" x2="7.07" y2="7.07" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="16.93" y1="16.93" x2="19.07" y2="19.07" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="19.07" y1="4.93" x2="16.93" y2="7.07" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="7.07" y1="16.93" x2="4.93" y2="19.07" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>; }
@@ -357,6 +358,7 @@ export function StartupAnimation({
             <motion.button key={w}
               onClick={() => { if (unlocked) { btn(`w${w}`); setSelectedWorld(w); setMenuState("levels"); } }}
               disabled={!unlocked}
+               data-testid={`button-world-${w}`}
               className="relative flex flex-col items-center justify-center rounded-2xl font-black"
               style={{
                 background: unlocked ? `linear-gradient(145deg, ${wc}22, ${wc}0a)` : "rgba(20,20,30,0.6)",
@@ -376,7 +378,7 @@ export function StartupAnimation({
                   {done && <div className="absolute top-2 right-2 w-2 h-2 rounded-full" style={{ background: wc }} />}
                 </>
               ) : (
-                <span style={{ fontSize: "1.2em", opacity: 0.4 }}>🔒</span>
+                 <span aria-label="Locked world" style={{ fontSize: "1.2em", opacity: 0.4 }}><IconLock /></span>
               )}
             </motion.button>
           );
@@ -398,6 +400,7 @@ export function StartupAnimation({
               <motion.button key={sub}
                 onClick={() => { if (unlocked) { btn(`l${level}`); try { stopMenuBgm(); } catch {} useOrbTransition.getState().loadingSweep(() => { setGameMode("arcade"); startLoading("nextLevel", level); }); } }}
                 disabled={!unlocked}
+                 data-testid={`button-level-${selectedWorld}-${sub}`}
                 className="relative flex flex-col items-center justify-center rounded-2xl font-bold"
                 style={{
                   background: unlocked ? `linear-gradient(145deg, ${bc}22, ${bc}0a)` : "rgba(20,20,30,0.6)",
@@ -419,7 +422,7 @@ export function StartupAnimation({
                     {completed && <div className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ background: bc }} />}
                   </>
                 ) : (
-                  <span style={{ fontSize: "1.1em", opacity: 0.35 }}>🔒</span>
+                   <span aria-label="Locked level" style={{ fontSize: "1.1em", opacity: 0.35 }}><IconLock /></span>
                 )}
               </motion.button>
             );
@@ -707,18 +710,18 @@ export function StartupAnimation({
         )}
       </AnimatePresence>
 
-      {/* ── BUTTON ROW (root / modes) — floats between title and bottom ── */}
+      {/* ── COMMAND DECK (root / modes) — title owns the center ─────────── */}
       <AnimatePresence mode="wait">
         {showMenu && !isContent && (
           <motion.div
             key={menuState}
-            className="absolute left-0 right-0 z-20"
+            className="absolute inset-0 z-20"
             style={{
-              top: menuState === "settings"
-                ? "calc(50% + clamp(48px, 8vh, 72px))"
-                : "calc(50% + clamp(80px, 11vw, 108px))",
-              padding: "0 clamp(10px, 3.5vw, 44px)",
+              pointerEvents: menuState === "settings" ? "auto" : "none",
+              padding: menuState === "settings" ? "0 clamp(10px, 3.5vw, 44px)" : 0,
               ...(menuState === "settings" ? {
+                top: "calc(50% + clamp(48px, 8vh, 72px))",
+                bottom: "auto",
                 maxHeight: "calc(50dvh - clamp(16px, 8vh, 72px))",
                 overflowY: "auto" as const,
                 overscrollBehavior: "contain" as const,
@@ -797,18 +800,17 @@ interface ButtonRowProps {
   compact?: boolean;
 }
 function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false }: ButtonRowProps) {
-  const btnH = compact ? "clamp(48px,8vw,64px)" : "clamp(68px,12vw,96px)";
+  const btnH = compact ? "clamp(48px,8vw,64px)" : "clamp(72px,10vw,96px)";
   const iconSz = compact ? "clamp(1rem,2.5vw,1.4rem)" : "clamp(1.2rem,3.2vw,1.8rem)";
   const labelSz = compact ? "clamp(0.44rem,1.1vw,0.6rem)" : "clamp(0.48rem,1.25vw,0.68rem)";
-  const maxW =
-    buttons.length === 1 ? "clamp(120px,32vw,200px)" :
-    buttons.length === 2 ? "clamp(90px,22vw,150px)" :
-    "clamp(52px,17vw,100px)";
+  const isRoot = buttons.some((button) => button.id === "play");
+  const layout = compact ? "compact" : isRoot ? "root" : "modes";
 
   return (
     <motion.div
-      className="flex flex-row items-stretch justify-center w-full"
-      style={{ gap: compact ? "clamp(5px,1.4vw,12px)" : "clamp(6px,1.8vw,16px)" }}
+      className={compact ? "orblitz-compact-stage flex flex-row items-stretch justify-center" : `orblitz-button-stage orblitz-layout-${layout}`}
+      data-layout={layout}
+      style={compact ? { gap: "clamp(5px,1.4vw,12px)" } : undefined}
       initial="hidden"
       animate="visible"
       variants={{
@@ -818,26 +820,31 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false }: Butt
     >
       {buttons.map((b) => {
         const isPress = pressedBtn === b.id;
+        const isPrimary = b.id === "play" || b.id === "arcade";
         return (
           <motion.button
             key={b.id}
-            className="relative flex flex-col items-center justify-center overflow-hidden flex-1"
+            type="button"
+            aria-label={b.label}
+            className={`orblitz-command-button ${isPrimary ? "orblitz-command-primary" : ""} orblitz-command-${b.id} relative flex flex-col items-center justify-center overflow-hidden ${compact ? "flex-1" : ""}`}
             style={{
-              minWidth: 0, maxWidth: maxW,
+              position: compact ? "relative" : "absolute",
+              minWidth: 0,
+              maxWidth: compact ? (buttons.length === 1 ? "clamp(120px,32vw,200px)" : "clamp(52px,17vw,100px)") : undefined,
               height: btnH,
-              borderRadius: "clamp(6px, 1vw, 10px)",
-              border: `2px solid ${isPress ? b.color : b.color + "aa"}`,
+              borderRadius: "clamp(8px, 1.1vw, 14px)",
+              border: `1px solid ${isPress ? b.color : b.color + "aa"}`,
               background: isPress
-                ? `linear-gradient(145deg, ${b.color}65, ${b.color}28)`
-                : `linear-gradient(145deg, rgba(255,255,255,0.12), ${b.color}35 52%, ${b.color}18)`,
+                ? `linear-gradient(145deg, ${b.color}70, ${b.color}28 64%, rgba(7,12,38,0.92))`
+                : `linear-gradient(145deg, rgba(220,252,255,0.14), ${b.color}2b 42%, rgba(7,12,38,0.9) 100%)`,
               color: b.color,
               boxShadow: isPress
-                ? `3px 3px 0 rgba(10,20,68,0.58), 0 0 24px ${b.shadow}, inset 0 0 12px ${b.color}28`
-                : `4px 5px 0 rgba(10,20,68,0.58), 0 0 14px ${b.shadow}, inset 2px 2px 0 rgba(255,255,255,0.14)`,
+                ? `2px 3px 0 rgba(3,7,26,0.78), 0 0 30px ${b.shadow}, inset 0 0 20px ${b.color}35`
+                : `5px 7px 0 rgba(3,7,26,0.72), 0 0 18px ${b.shadow}, inset 1px 1px 0 rgba(255,255,255,0.2), inset -1px -1px 0 rgba(0,0,0,0.42)`,
               cursor: "pointer",
               WebkitTapHighlightColor: "transparent",
-              backdropFilter: "blur(3px)",
-              transition: "background 0.14s, box-shadow 0.14s, border-color 0.14s",
+              backdropFilter: "blur(8px)",
+              transition: "background 0.14s, box-shadow 0.14s, border-color 0.14s, transform 0.14s",
             }}
             variants={{
               hidden:  { opacity: 0, y: 16, scale: 0.86 },
@@ -851,31 +858,33 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false }: Butt
             onPointerUp={() => setPressedBtn(null)}
             onPointerLeave={() => setPressedBtn(null)}
             onClick={b.action}
+            data-testid={`button-menu-${b.id}`}
+            data-active={isPress}
             data-orblitz-modal-opener={b.id === "shop" || b.id === "inventory" ? b.id : undefined}
           >
-            {/* Block highlight */}
+            {/* Material edge */}
             <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{
-              height: 5,
-              background: `linear-gradient(90deg,${b.color}00 0%,${b.color}cc 22%,rgba(255,255,255,0.7) 48%,${b.color}22 78%,${b.color}00 100%)`,
-              opacity: isPress ? 1 : 0.55, transition: "opacity 0.14s",
+              height: 3,
+              background: `linear-gradient(90deg,${b.color}00 0%,${b.color}cc 20%,rgba(255,255,255,0.95) 50%,${b.color}22 80%,${b.color}00 100%)`,
+              opacity: isPress ? 1 : 0.72, transition: "opacity 0.14s",
             }} />
-            {/* Soft glass highlight */}
+            {/* Glass pass */}
             <div className="absolute inset-0 pointer-events-none" style={{
-              background: "linear-gradient(135deg, rgba(255,255,255,0.08), transparent 45%, rgba(0,0,0,0.08))",
+              background: "linear-gradient(132deg, rgba(255,255,255,0.11), transparent 30%, transparent 58%, rgba(0,0,0,0.22))",
               borderRadius: "inherit",
             }} />
             {/* Icon */}
             <span style={{
               fontSize: iconSz, lineHeight: 1,
               marginBottom: compact ? "2px" : "clamp(2px,0.6vw,5px)",
-              filter: `drop-shadow(2px 2px 0 rgba(10,20,68,0.4))`,
+               filter: `drop-shadow(0 0 7px ${b.color}88) drop-shadow(2px 2px 0 rgba(3,7,26,0.55))`,
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>{b.icon}</span>
             {/* Label */}
             <span style={{
               fontSize: labelSz, fontWeight: 900,
-              letterSpacing: "0.08em", lineHeight: 1, opacity: 0.96,
-              fontFamily: "Arial Black, Impact, sans-serif",
+               letterSpacing: "0.12em", lineHeight: 1, opacity: 0.96,
+               fontFamily: "var(--font-display)",
             }}>{b.label}</span>
           </motion.button>
         );
@@ -960,6 +969,7 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
                 <button
                   key={option.id}
                   type="button"
+                  data-testid={`button-graphics-${option.id}`}
                   aria-pressed={selected}
                   onClick={() => { btn(`graphics-${option.id}`); setGraphicsPreset(option.id); }}
                   style={{
@@ -1005,6 +1015,8 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
           <input
             type="range" min={0.2} max={2.0} step={0.05}
             value={brightness}
+            aria-label="Brightness"
+            data-testid="input-brightness"
             onChange={e => setBrightness(Number(e.target.value))}
             onClick={e => e.stopPropagation()}
             className="orb-bslider"
@@ -1035,6 +1047,8 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
           <input
             type="range" min={0} max={1} step={0.01}
             value={volume}
+            aria-label="Volume"
+            data-testid="input-volume"
             onChange={e => setVolume(Number(e.target.value))}
             onClick={e => e.stopPropagation()}
             className="orb-vslider"
@@ -1050,10 +1064,12 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
 
         {/* MUTE / UNMUTE */}
         <motion.button
+          type="button"
           className="relative flex flex-col items-center justify-center overflow-hidden flex-1"
           style={{ ...btnStyle(sc, ss), minWidth: 0, maxWidth: "clamp(52px,17vw,100px)" }}
           variants={itemVariants} whileTap={{ scale: 0.9 }}
           onClick={() => { btn("sound"); toggleMute(); }}
+          data-testid="button-sound-toggle"
         >
           <TopLine color={sc} /><Scanlines />
           <span style={{ fontSize: iconSz, lineHeight: 1, marginBottom: "clamp(2px,0.6vw,5px)", filter: `drop-shadow(0 0 5px ${sc}88)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1066,10 +1082,12 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
 
         {/* BACK */}
         <motion.button
+          type="button"
           className="relative flex flex-col items-center justify-center overflow-hidden flex-1"
           style={{ ...btnStyle("#667788", "rgba(100,110,130,0.2)"), minWidth: 0, maxWidth: "clamp(52px,17vw,100px)" }}
           variants={itemVariants} whileTap={{ scale: 0.9 }}
           onClick={() => { btn("back"); onBack(); }}
+          data-testid="button-settings-back"
         >
           <TopLine color="#667788" /><Scanlines />
           <span style={{ fontSize: iconSz, lineHeight: 1, marginBottom: "clamp(2px,0.6vw,5px)", filter: "drop-shadow(0 0 5px #66778888)", display: "flex", alignItems: "center", justifyContent: "center" }}>
