@@ -99,7 +99,10 @@ export function getMenuBossSwarmPosition(
 }
 
 const FLYING_DURATION = 2.42;
-const CONVERGE_DURATION = 0.65;
+const CONVERGE_DURATION = 1.05;
+const RING_START_ANGLE = -Math.PI / 2;
+const RING_SPIN_SPEED = Math.PI * 0.92;
+const CONVERGE_SPIN_SPEED = Math.PI * 1.42;
 // The flash phase is the shared detonation window: bosses hold at the center
 // while the white screen curtain takes over the transition.
 const FLASH_DURATION = 1.85;
@@ -181,16 +184,12 @@ function ArcadeBossActor({
   const { viewport, camera } = useThree();
   const phaseStartedAt = useRef(typeof performance === "undefined" ? 0 : performance.now());
   const previousPhase = useRef<IntroBossPhase | null>(null);
-  const phaseOrigin = useRef(new THREE.Vector3());
   const menuRevealStartedAt = useRef<number | null>(null);
   const previousPresentation = useRef<IntroBossPresentation | null>(null);
   const introMaterialStates = useRef<IntroMaterialState[]>([]);
   const materialFadeInitialized = useRef(false);
-  const initialized = useRef(false);
 
   useEffect(() => {
-    const group = groupRef.current;
-    if (group) phaseOrigin.current.copy(group.position);
     const now = typeof performance === "undefined" ? 0 : performance.now();
     if (phase === "menu" && presentation === "worlds" && previousPresentation.current !== "worlds") {
       menuRevealStartedAt.current = now;
@@ -237,40 +236,48 @@ function ArcadeBossActor({
       group.position.set(offscreenX, offscreenY, 0);
       group.scale.setScalar(0.03);
       group.rotation.z = THREE.MathUtils.degToRad(definition.rotation - 20);
-      initialized.current = true;
       return;
     }
 
     if (phase === "flying") {
       const progress = easeOutCubic((elapsed - definition.delay) / FLYING_DURATION);
-      const startRadius = Math.hypot(offscreenX, offscreenY);
-      const orbitRadius = lerp(startRadius, Math.min(width, height) * 0.16, easeOutCubic(progress));
-      const startAngle = Math.atan2(offscreenY, offscreenX) + definition.delay * 1.8;
-      const orbitAngle = startAngle + progress * Math.PI * 2.15;
+      const ringIndex = ARCADE_BOSS_INTRO_DEFS.findIndex((entry) => entry.type === definition.type);
+      const ringAngle = RING_START_ANGLE + ringIndex * (Math.PI * 2 / ARCADE_BOSS_INTRO_DEFS.length)
+        + Math.min(elapsed, FLYING_DURATION) * RING_SPIN_SPEED;
+      const ringRadius = lerp(Math.min(width, height) * 0.34, Math.min(width, height) * 0.16, easeOutCubic(progress));
+      const ringX = Math.cos(ringAngle) * ringRadius;
+      const ringY = Math.sin(ringAngle) * ringRadius;
+      const entryProgress = easeOutCubic(elapsed / (FLYING_DURATION * 0.82));
       group.position.set(
-        Math.cos(orbitAngle) * orbitRadius + definition.swayX * width * (1 - progress) * 0.32,
-        Math.sin(orbitAngle) * orbitRadius + definition.swayY * height * (1 - progress) * 0.32,
+        lerp(offscreenX, ringX, entryProgress) + definition.swayX * width * (1 - entryProgress) * 0.16,
+        lerp(offscreenY, ringY, entryProgress) + definition.swayY * height * (1 - entryProgress) * 0.16,
         0,
       );
       group.scale.setScalar(lerp(0.16, 0.82, progress));
-      group.rotation.z = THREE.MathUtils.degToRad(lerp(definition.rotation - 20, definition.rotation, progress));
-      initialized.current = true;
+      group.rotation.z = THREE.MathUtils.degToRad(definition.rotation - 20)
+        + (ringAngle - RING_START_ANGLE) * 0.42;
       return;
     }
 
     if (phase === "converge") {
       const progress = easeInOut(elapsed / CONVERGE_DURATION);
-      const origin = initialized.current ? phaseOrigin.current : new THREE.Vector3(convergeX, convergeY, 0);
-      const spiral = (1 - progress) * (0.5 + Math.abs(definition.startX) + Math.abs(definition.startY)) * Math.PI * 1.7;
-      const radius = (1 - progress) * Math.min(width, height) * 0.09;
+      const ringIndex = ARCADE_BOSS_INTRO_DEFS.findIndex((entry) => entry.type === definition.type);
+      // Every actor shares the same shrinking radius and turn clock. The
+      // index offset is the only per-boss difference, so the ring stays evenly
+      // spaced until all nine paths meet at the drain.
+      const spiral = RING_START_ANGLE
+        + ringIndex * (Math.PI * 2 / ARCADE_BOSS_INTRO_DEFS.length)
+        + FLYING_DURATION * RING_SPIN_SPEED
+        + elapsed * CONVERGE_SPIN_SPEED;
+      const radius = (1 - progress) * Math.min(width, height) * 0.16;
       group.position.set(
-        lerp(origin.x, convergeX, progress) + Math.cos(spiral + definition.delay * 8) * radius,
-        lerp(origin.y, convergeY, progress) + Math.sin(spiral + definition.delay * 8) * radius,
+        convergeX + Math.cos(spiral) * radius,
+        convergeY + Math.sin(spiral) * radius,
         0,
       );
       group.scale.setScalar(lerp(0.82, 1.04, progress));
       group.rotation.z = THREE.MathUtils.degToRad(
-        lerp(definition.rotation, definition.rotation * 0.35, progress) + spiral * 18,
+        definition.rotation * 0.35 + spiral * 18,
       );
       return;
     }
