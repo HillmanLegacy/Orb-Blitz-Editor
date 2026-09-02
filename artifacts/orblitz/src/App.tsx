@@ -26,9 +26,12 @@ import { AchievementToast } from "@/components/ui/AchievementToast";
 // These screens contain large UI trees (and the shop can create an optional
 // preview WebGL context). Keep them out of the initial menu/gameplay bundle and
 // do not mount their stateful trees until the player asks to open one.
-const Shop = lazy(() => import("@/components/ui/Shop").then(({ Shop }) => ({ default: Shop })));
-const Inventory = lazy(() => import("@/components/ui/Inventory").then(({ Inventory }) => ({ default: Inventory })));
-const TrophyCollection = lazy(() => import("@/components/ui/TrophyCollection").then(({ TrophyCollection }) => ({ default: TrophyCollection })));
+const loadShop = () => import("@/components/ui/Shop");
+const loadInventory = () => import("@/components/ui/Inventory");
+const loadTrophyCollection = () => import("@/components/ui/TrophyCollection");
+const Shop = lazy(() => loadShop().then(({ Shop }) => ({ default: Shop })));
+const Inventory = lazy(() => loadInventory().then(({ Inventory }) => ({ default: Inventory })));
+const TrophyCollection = lazy(() => loadTrophyCollection().then(({ TrophyCollection }) => ({ default: TrophyCollection })));
 
 function App() {
   const phase = useMagicOrb(s => s.phase);
@@ -76,6 +79,17 @@ function App() {
   useEffect(() => {
     void preloadMenuAssets();
   }, []);
+
+  // Fetch optional menu screens after the branded intro has handed control to
+  // the player. Their component trees still stay unmounted until opened, but
+  // the first MARKET/LOADOUT/ARCHIVE click no longer waits on a new chunk.
+  useEffect(() => {
+    if (!skipIntro) return;
+    const prefetchTimer = window.setTimeout(() => {
+      void Promise.all([loadShop(), loadInventory(), loadTrophyCollection()]);
+    }, 350);
+    return () => window.clearTimeout(prefetchTimer);
+  }, [skipIntro]);
 
   // Stripe payment callback
   useEffect(() => {

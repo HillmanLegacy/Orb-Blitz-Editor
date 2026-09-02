@@ -81,6 +81,7 @@ const MENU_START = TITLE_START + 1650;
 const MENU_BACKGROUND_REVEAL_DURATION = 1.15;
 const MENU_TITLE_REVEAL_DELAY = MENU_BACKGROUND_REVEAL_DURATION;
 const MENU_SECONDARY_REVEAL_DELAY = MENU_TITLE_REVEAL_DELAY + 0.5;
+const MENU_NAVIGATION_DELAY = 0.04;
 const TITLE_REFLECTION_BOSSES: readonly MainBossType[] = [
   "circle", "star", "triangle", "trapezoid", "cube", "arrow", "monster",
 ];
@@ -873,7 +874,7 @@ export function StartupAnimation({
       </AnimatePresence>
 
       {/* ── COMMAND DECK (root / modes) — title owns the center ─────────── */}
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="sync">
         {showMenu && !isContent && (
           <motion.div
             key={menuState}
@@ -894,7 +895,7 @@ export function StartupAnimation({
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.3, delay: MENU_SECONDARY_REVEAL_DELAY, ease: [0.22, 0.61, 0.36, 1] }}
+            transition={{ duration: 0.2, delay: MENU_NAVIGATION_DELAY, ease: [0.22, 0.61, 0.36, 1] }}
           >
             {menuState === "settings"
               ? <SettingsButtonRow

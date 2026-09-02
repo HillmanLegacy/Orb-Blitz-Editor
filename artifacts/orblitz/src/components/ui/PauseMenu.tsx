@@ -275,7 +275,7 @@ function StatusPanel({ onClose }: { onClose: () => void }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function PauseMenu({ onMainMenu }: { onMainMenu?: () => void }) {
-  const { phase, resumeGame, startLoading, score } = useMagicOrb();
+  const { phase, resumeGame, score } = useMagicOrb();
   const { openShop, shopOpen, inventoryOpen } = useShop();
   const { isMuted, toggleMute, playLevelSelect, playExitToMenu, stopArcadeBgm } = useAudio();
   const [statusOpen, setStatusOpen] = useState(false);
@@ -318,8 +318,10 @@ export function PauseMenu({ onMainMenu }: { onMainMenu?: () => void }) {
       action: () => {
         try { playExitToMenu(); } catch {}
         try { stopArcadeBgm(); } catch {}
-        onMainMenu?.();
-        useOrbTransition.getState().loadingSweep(() => startLoading("exiting_to_menu"));
+        useOrbTransition.getState().fastSweep(() => {
+          onMainMenu?.();
+          useMagicOrb.getState().setPhase("menu");
+        });
       },
     },
   ];
