@@ -50,6 +50,7 @@ import {
   getFireBossAmbushChargeSpeedMultiplier,
   getFireBossAmbushAuraProgress,
   getFireBossAmbushAuraScale,
+  getFireBossAmbushChargeAuraScale,
   getFireBossAmbushDashDestination,
   getFireBossAmbushDashProgress,
   getFireBossAmbushImpactProgress,
@@ -273,8 +274,12 @@ describe("gameplay runtime invariants", () => {
       .toBeLessThan(getFireBossAmbushChargeSpeedMultiplier(end));
   });
 
-  it("makes the Fire Ambush charge flame VFX 1.5x larger", () => {
-    expect(FIRE_BOSS_AMBUSH_CHARGE_VFX_SCALE_MULTIPLIER).toBe(1.5);
+  it("dissipates the radial Fire Aura as the boss starts charging", () => {
+    expect(getFireBossAmbushChargeAuraScale(0)).toBe(1);
+    expect(getFireBossAmbushChargeAuraScale(FIRE_BOSS_AMBUSH_CHARGE_DURATION / 8))
+      .toBe(0.5);
+    expect(getFireBossAmbushChargeAuraScale(FIRE_BOSS_AMBUSH_CHARGE_DURATION / 2))
+      .toBe(0);
   });
 
   it("makes the Fire Ambush rush Fire Aura trail 2x larger", () => {

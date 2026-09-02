@@ -8,7 +8,6 @@ import { FireExplosionVFX } from "./FireExplosionVFX";
 import { BOSS_DEFEAT_DURATION, BOSS_DEFEAT_SIZE_SCALE } from "./BossDefeatPalette";
 import { StarBossTeleportVFX, StarTeleportVFXState } from "./StarBossTeleportVFX";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
-import { FlameAura } from "./FlameAura";
 import { FireAura } from "./FireAura";
 import { getPerspectiveViewAtPlane } from "@/game-runtime/EnemySpawnConfig";
 import {
@@ -17,7 +16,6 @@ import {
   FIRE_BOSS_AMBUSH_AURA_DURATION,
   FIRE_BOSS_AMBUSH_AURA_START_SCALE,
   FIRE_BOSS_AMBUSH_CHARGE_DURATION,
-  FIRE_BOSS_AMBUSH_CHARGE_VFX_SCALE_MULTIPLIER,
   FIRE_BOSS_AMBUSH_DASH_DURATION,
   FIRE_BOSS_AMBUSH_DASH_VFX_SCALE_MULTIPLIER,
   FIRE_BOSS_AMBUSH_INITIAL_DELAY,
@@ -28,8 +26,7 @@ import {
   FIRE_BOSS_AMBUSH_RECOVERY_DURATION,
   getFireBossAmbushAuraProgress,
   getFireBossAmbushAuraScale,
-  getFireBossAmbushChargeProgress,
-  getFireBossAmbushChargeSpeedMultiplier,
+  getFireBossAmbushChargeAuraScale,
   getFireBossAmbushDashDestination,
   getFireBossAmbushDashProgress,
   getFireBossAmbushImpactProgress,
@@ -1809,7 +1806,9 @@ export function Boss() {
         FIRE_BOSS_AMBUSH_CHARGE_DURATION - fireAmbushTimerRef.current,
       )
       : 0;
-    const chargeScale = 1 + getFireBossAmbushChargeSpeedMultiplier(chargeProgress) * 0.7;
+    const chargeAuraScale = getFireBossAmbushChargeAuraScale(
+      FIRE_BOSS_AMBUSH_CHARGE_DURATION - fireAmbushTimerRef.current,
+    );
     const fireAmbushImpact = boss.fireAmbushImpact;
 
     return (
@@ -1837,11 +1836,10 @@ export function Boss() {
               />
             </group>
           )}
-          {fireAmbushPhase === "charging" && (
-            <group scale={chargeScale}>
-              <FlameAura
-                scale={fireRadius * 1.25 * FIRE_BOSS_AMBUSH_CHARGE_VFX_SCALE_MULTIPLIER}
-                speedMultiplier={getFireBossAmbushChargeSpeedMultiplier(chargeProgress)}
+          {fireAmbushPhase === "charging" && chargeAuraScale > 0 && (
+            <group scale={[chargeAuraScale, chargeAuraScale, chargeAuraScale]}>
+              <FireAura
+                scale={fireRadius * FIRE_BOSS_AMBUSH_DASH_VFX_SCALE_MULTIPLIER}
               />
             </group>
           )}

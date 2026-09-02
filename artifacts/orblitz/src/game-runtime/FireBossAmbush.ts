@@ -143,6 +143,15 @@ export function getFireBossAmbushAuraScale(progress: number): number {
     clamp01(progress) * (1 - FIRE_BOSS_AMBUSH_AURA_START_SCALE);
 }
 
+/** Fade the radial Fire Aura away as the boss begins its charge. */
+export function getFireBossAmbushChargeAuraScale(
+  elapsed: number,
+  duration = FIRE_BOSS_AMBUSH_CHARGE_DURATION,
+): number {
+  const progress = clamp01(elapsed / Math.max(0.001, duration));
+  return 1 - clamp01(progress * 4);
+}
+
 export function getFireBossAmbushDashProgress(
   elapsed: number,
   duration = FIRE_BOSS_AMBUSH_DASH_DURATION,
