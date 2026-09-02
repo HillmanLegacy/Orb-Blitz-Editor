@@ -17,6 +17,7 @@ import {
   FIRE_BOSS_AMBUSH_CHARGE_DURATION,
   FIRE_BOSS_AMBUSH_DASH_DURATION,
   FIRE_BOSS_AMBUSH_INITIAL_DELAY,
+  FIRE_BOSS_AMBUSH_IMPACT_SCALE,
   FIRE_BOSS_AMBUSH_MAX_USES,
   FIRE_BOSS_AMBUSH_REPOSITION_DURATION,
   FIRE_BOSS_AMBUSH_REPOSITION_SPEED,
@@ -27,6 +28,7 @@ import {
   getFireBossAmbushDashProgress,
   getFireBossAmbushImpactProgress,
   getFireBossAmbushTarget,
+  shouldTriggerFireBossAmbushHit,
   type FireBossAmbushPhase,
 } from "@/game-runtime/FireBossAmbush";
 
@@ -1011,11 +1013,14 @@ export function Boss() {
               FIRE_BOSS_AMBUSH_DASH_DURATION - fireAmbushTimerRef.current,
             );
 
-            if (
-              !fireAmbushImpactTriggeredRef.current &&
-              dashProgress >= fireAmbushPlayerProgressRef.current
-            ) {
+            if (shouldTriggerFireBossAmbushHit(
+              previousProgress,
+              dashProgress,
+              fireAmbushPlayerProgressRef.current,
+              fireAmbushImpactTriggeredRef.current,
+            )) {
               fireAmbushImpactTriggeredRef.current = true;
+              useMagicOrb.getState().takeDamage();
               fireAmbushImpactIdRef.current += 1;
               fireAmbushImpactRef.current = createFireBossAmbushImpact(
                 fireAmbushImpactIdRef.current,
@@ -1802,7 +1807,7 @@ export function Boss() {
             <FireExplosionVFX
               progress={getFireBossAmbushImpactProgress(fireAmbushImpact.timer)}
               bossType="circle"
-              scale={2.15}
+              scale={FIRE_BOSS_AMBUSH_IMPACT_SCALE}
             />
           </group>
         )}

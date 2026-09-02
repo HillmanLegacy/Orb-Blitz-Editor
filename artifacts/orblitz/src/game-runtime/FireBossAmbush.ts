@@ -8,6 +8,10 @@ export const FIRE_BOSS_AMBUSH_CHARGE_DURATION = 1.9;
 export const FIRE_BOSS_AMBUSH_DASH_DURATION = 0.9;
 export const FIRE_BOSS_AMBUSH_RECOVERY_DURATION = 0.55;
 export const FIRE_BOSS_AMBUSH_IMPACT_DURATION = 1.15;
+export const FIRE_BOSS_AMBUSH_IMPACT_BASE_SCALE = 2.15;
+export const FIRE_BOSS_AMBUSH_IMPACT_SCALE_MULTIPLIER = 1.3;
+export const FIRE_BOSS_AMBUSH_IMPACT_SCALE =
+  FIRE_BOSS_AMBUSH_IMPACT_BASE_SCALE * FIRE_BOSS_AMBUSH_IMPACT_SCALE_MULTIPLIER;
 export const FIRE_BOSS_AMBUSH_REPOSITION_SPEED = 7.5;
 export const FIRE_BOSS_AMBUSH_DASH_EDGE_PADDING = 1.8;
 export const FIRE_BOSS_AMBUSH_PLAYER_CLEARANCE = 4.5;
@@ -126,6 +130,19 @@ export function getFireBossAmbushDashProgress(
   duration = FIRE_BOSS_AMBUSH_DASH_DURATION,
 ): number {
   return clamp01(elapsed / Math.max(0.001, duration));
+}
+
+export function shouldTriggerFireBossAmbushHit(
+  previousProgress: number,
+  currentProgress: number,
+  playerProgress: number,
+  alreadyTriggered: boolean,
+): boolean {
+  if (alreadyTriggered) return false;
+  const previous = clamp01(previousProgress);
+  const current = clamp01(currentProgress);
+  const target = clamp01(playerProgress);
+  return current >= target && (previous < target || target <= 0);
 }
 
 /**

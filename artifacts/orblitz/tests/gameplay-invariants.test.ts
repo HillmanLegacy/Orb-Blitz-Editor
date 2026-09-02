@@ -35,6 +35,9 @@ import {
 import {
   FIRE_BOSS_AMBUSH_CHARGE_DURATION,
   FIRE_BOSS_AMBUSH_HEALTH_THRESHOLD,
+  FIRE_BOSS_AMBUSH_IMPACT_BASE_SCALE,
+  FIRE_BOSS_AMBUSH_IMPACT_SCALE,
+  FIRE_BOSS_AMBUSH_IMPACT_SCALE_MULTIPLIER,
   FIRE_BOSS_AMBUSH_MAX_USES,
   FIRE_BOSS_AMBUSH_PLAYER_CLEARANCE,
   canStartFireBossAmbush,
@@ -45,6 +48,7 @@ import {
   getFireBossAmbushDashProgress,
   getFireBossAmbushImpactProgress,
   getFireBossAmbushTarget,
+  shouldTriggerFireBossAmbushHit,
 } from "../src/game-runtime/FireBossAmbush";
 import {
   POWER_UP_DESTROY_DURATION,
@@ -275,6 +279,20 @@ describe("gameplay runtime invariants", () => {
     expect(impact.position).toEqual([0, 0, 0]);
     expect(getFireBossAmbushImpactProgress(impact.timer)).toBe(0);
     expect(FIRE_BOSS_AMBUSH_PLAYER_CLEARANCE).toBeGreaterThan(0);
+  });
+
+  it("enlarges the Fire Ambush impact by exactly 1.3x", () => {
+    expect(FIRE_BOSS_AMBUSH_IMPACT_SCALE_MULTIPLIER).toBe(1.3);
+    expect(FIRE_BOSS_AMBUSH_IMPACT_SCALE).toBe(
+      FIRE_BOSS_AMBUSH_IMPACT_BASE_SCALE * 1.3,
+    );
+  });
+
+  it("triggers one player hit exactly when the dash crosses the captured location", () => {
+    expect(shouldTriggerFireBossAmbushHit(0.4, 0.6, 0.5, false)).toBe(true);
+    expect(shouldTriggerFireBossAmbushHit(0.6, 0.7, 0.5, true)).toBe(false);
+    expect(shouldTriggerFireBossAmbushHit(0.5, 0.6, 0.5, false)).toBe(false);
+    expect(shouldTriggerFireBossAmbushHit(0, 0.1, 0, false)).toBe(true);
   });
 
   it("defines a complete defeat palette for every authored main boss", () => {
