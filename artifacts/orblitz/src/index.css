@@ -1632,3 +1632,309 @@ canvas {
     overflow-y: auto;
   }
 }
+
+/* ── Command surfaces: final layout contract ───────────────────────────────
+   These rules intentionally define geometry separately from the decorative
+   command-deck skin above. The old surface rules mix absolute menu buttons
+   with flex children, which makes the panels drift or overlap at intermediate
+   viewport sizes. */
+.orblitz-pause-command {
+  left: auto !important;
+  top: auto !important;
+  translate: none !important;
+  position: relative !important;
+  flex: 1 1 0 !important;
+  width: auto !important;
+  max-width: none !important;
+  min-height: 0;
+}
+
+.orblitz-pause-deck {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 16px 14px;
+}
+
+.orblitz-pause-deck > div {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.orblitz-pause-deck > div:first-of-type > .orblitz-pause-command {
+  grid-column: span 2;
+}
+
+.orblitz-pause-deck > div:last-of-type > .orblitz-pause-command {
+  grid-column: span 3;
+}
+
+.orblitz-pause-deck-label {
+  display: block;
+}
+
+.orblitz-pause-content {
+  width: min(620px, calc(100vw - 28px)) !important;
+  max-height: calc(100dvh - 18px) !important;
+}
+
+.orblitz-pause-deck::before {
+  border-radius: 18px;
+}
+
+.orblitz-pause-command .orblitz-command-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.orblitz-shop-dialog {
+  width: min(900px, calc(100vw - 28px)) !important;
+  max-width: 900px !important;
+  max-height: min(86dvh, 720px) !important;
+}
+
+.orblitz-shop-dialog > .orblitz-modal-body {
+  display: grid !important;
+  grid-template-columns: 168px minmax(0, 1fr) !important;
+  min-height: 0;
+}
+
+.orblitz-shop-sidebar {
+  width: auto !important;
+  min-width: 0;
+  padding: 14px 12px !important;
+  gap: 7px !important;
+}
+
+.orblitz-shop-category {
+  position: relative;
+  min-height: 46px;
+  padding: 8px 10px !important;
+}
+
+.orblitz-shop-list {
+  min-width: 0;
+  padding: 14px 18px 18px !important;
+}
+
+.orblitz-shop-list > .flex {
+  gap: 10px !important;
+}
+
+.orblitz-shop-item {
+  min-height: 72px;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 11px 13px !important;
+}
+
+.orblitz-shop-item > div:nth-child(2) {
+  min-width: 0;
+}
+
+.orblitz-shop-item > div:nth-child(2) p:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.orblitz-shop-item > div:last-child {
+  margin-left: auto;
+}
+
+.orblitz-shop-preview,
+.orblitz-shop-purchase {
+  white-space: nowrap;
+}
+
+.orblitz-loadout-dialog {
+  width: min(1040px, calc(100vw - 28px)) !important;
+  max-width: 1040px !important;
+  max-height: min(86dvh, 720px) !important;
+}
+
+.orblitz-loadout-body {
+  display: grid !important;
+  grid-template-columns: 172px minmax(0, 1fr) minmax(270px, 31%) !important;
+  min-height: 0;
+}
+
+.orblitz-loadout-slots {
+  width: auto !important;
+  min-width: 0;
+  padding: 14px 11px !important;
+  gap: 7px !important;
+}
+
+.orblitz-loadout-slots > button {
+  min-height: 54px;
+}
+
+.orblitz-loadout-picker {
+  min-width: 0;
+  min-height: 0;
+}
+
+.orblitz-loadout-picker > div:last-child {
+  min-height: 0;
+  padding: 14px 16px !important;
+}
+
+.orblitz-gear-detail {
+  min-width: 0;
+  padding: 18px 16px 16px;
+}
+
+.orblitz-loadout-close,
+.orblitz-shop-close {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 820px) and (min-width: 761px) {
+  .orblitz-shop-dialog {
+    width: min(760px, calc(100vw - 22px)) !important;
+  }
+
+  .orblitz-shop-dialog > .orblitz-modal-body {
+    grid-template-columns: 142px minmax(0, 1fr) !important;
+  }
+
+  .orblitz-loadout-dialog {
+    width: min(780px, calc(100vw - 22px)) !important;
+  }
+
+  .orblitz-loadout-body {
+    grid-template-columns: 142px minmax(0, 1fr) minmax(230px, 31%) !important;
+  }
+
+  .orblitz-loadout-panel-head,
+  .orblitz-shop-header {
+    padding-inline: 14px !important;
+  }
+
+  .orblitz-gear-detail {
+    padding-inline: 12px;
+  }
+}
+
+@media (max-width: 760px) {
+  .orblitz-pause-content {
+    width: min(580px, calc(100vw - 20px)) !important;
+  }
+
+  .orblitz-pause-deck {
+    gap: 7px;
+    padding: 12px 10px 10px;
+  }
+
+  .orblitz-pause-command {
+    height: clamp(56px, 15vw, 72px) !important;
+  }
+
+  .orblitz-shop-dialog,
+  .orblitz-loadout-dialog {
+    width: calc(100vw - 18px) !important;
+    max-height: calc(100dvh - 18px) !important;
+  }
+
+  .orblitz-shop-dialog > .orblitz-modal-body,
+  .orblitz-loadout-body {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .orblitz-shop-sidebar,
+  .orblitz-loadout-slots {
+    flex: 0 0 auto !important;
+    flex-direction: row !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    padding: 9px 10px !important;
+  }
+
+  .orblitz-shop-category {
+    min-width: 112px;
+    flex: 0 0 auto;
+  }
+
+  .orblitz-loadout-slots > button {
+    min-width: 142px;
+    flex: 0 0 auto;
+  }
+
+  .orblitz-shop-list {
+    min-height: 230px;
+    padding: 10px !important;
+  }
+
+  .orblitz-shop-item {
+    min-height: 66px;
+    padding: 9px 10px !important;
+  }
+
+  .orblitz-gear-detail {
+    flex: 0 0 auto;
+    max-height: 330px;
+    padding: 14px 12px 12px;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .orblitz-pause-content {
+    padding-block: 4px !important;
+  }
+
+  .orblitz-pause-content h1 {
+    font-size: clamp(2rem, 7vw, 3rem) !important;
+  }
+
+  .orblitz-pause-deck {
+    padding-block: 10px 8px;
+  }
+
+  .orblitz-pause-command {
+    height: 54px !important;
+  }
+
+  .orblitz-shop-dialog,
+  .orblitz-loadout-dialog {
+    max-height: calc(100dvh - 10px) !important;
+  }
+
+  .orblitz-loadout-header,
+  .orblitz-shop-header {
+    min-height: 58px;
+    padding-block: 9px 8px !important;
+  }
+
+  .orblitz-loadout-slots,
+  .orblitz-shop-sidebar {
+    padding-block: 8px !important;
+  }
+}
+
+/* BACK occupies the old LAUNCH anchor on every mode-menu breakpoint. */
+.orblitz-layout-modes .orblitz-command-back {
+  left: 50% !important;
+  top: calc(50% + clamp(108px, 14vh, 142px)) !important;
+}
+
+@media (max-width: 700px), (max-height: 560px) and (orientation: landscape) {
+  .orblitz-layout-modes .orblitz-command-back {
+    left: 50% !important;
+    top: 78% !important;
+  }
+}
+
+@media (max-height: 430px) and (orientation: landscape) {
+  .orblitz-layout-modes .orblitz-command-back {
+    left: 50% !important;
+    top: 86% !important;
+  }
+}

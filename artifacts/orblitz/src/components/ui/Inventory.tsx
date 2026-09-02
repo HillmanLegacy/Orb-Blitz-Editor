@@ -335,7 +335,7 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
   return (
     <AnimatePresence onExitComplete={onExitComplete}>
       {inventoryOpen && <motion.div
-        className="fixed inset-0 z-50 flex items-center justify-center"
+        className="orblitz-loadout-screen fixed inset-0 z-50 flex items-center justify-center"
         style={{ padding: "clamp(10px, 2.5vw, 20px)" }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -357,7 +357,7 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
           aria-modal="true"
           aria-labelledby="orblitz-loadout-title"
           tabIndex={-1}
-          className="relative flex flex-col w-full"
+          className="orblitz-loadout-dialog relative flex flex-col w-full"
           style={{
             maxWidth: "min(1080px, 100%)",
             maxHeight: "min(90vh, 760px)",
@@ -401,7 +401,7 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
               onClick={closeInventory}
               aria-label="Close loadout"
               title="Close loadout"
-              className="flex items-center justify-center rounded-lg"
+              className="orblitz-loadout-close flex items-center justify-center rounded-lg"
               style={{
                 width: 32, height: 32,
                 background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
