@@ -34,6 +34,7 @@ import {
 } from "../src/game-runtime/EnemySpawnConfig";
 import {
   FIRE_BOSS_AMBUSH_CHARGE_DURATION,
+  FIRE_BOSS_AMBUSH_CHARGE_VFX_SCALE_MULTIPLIER,
   FIRE_BOSS_AMBUSH_HEALTH_THRESHOLD,
   FIRE_BOSS_AMBUSH_IMPACT_BASE_SCALE,
   FIRE_BOSS_AMBUSH_IMPACT_SCALE,
@@ -265,6 +266,10 @@ describe("gameplay runtime invariants", () => {
       .toBeLessThan(getFireBossAmbushChargeSpeedMultiplier(middle));
     expect(getFireBossAmbushChargeSpeedMultiplier(middle))
       .toBeLessThan(getFireBossAmbushChargeSpeedMultiplier(end));
+  });
+
+  it("makes the Fire Ambush charge flame VFX 1.5x larger", () => {
+    expect(FIRE_BOSS_AMBUSH_CHARGE_VFX_SCALE_MULTIPLIER).toBe(1.5);
   });
 
   it("continues the Fire Ambush dash past the player without marking a defeat", () => {

@@ -15,6 +15,7 @@ import {
   canStartFireBossAmbush,
   createFireBossAmbushImpact,
   FIRE_BOSS_AMBUSH_CHARGE_DURATION,
+  FIRE_BOSS_AMBUSH_CHARGE_VFX_SCALE_MULTIPLIER,
   FIRE_BOSS_AMBUSH_DASH_DURATION,
   FIRE_BOSS_AMBUSH_INITIAL_DELAY,
   FIRE_BOSS_AMBUSH_IMPACT_SCALE,
@@ -1818,7 +1819,7 @@ export function Boss() {
           {(fireAmbushPhase === "repositioning" || fireAmbushPhase === "charging") && (
             <group scale={chargeScale}>
               <FlameAura
-                scale={fireRadius * 1.25}
+                scale={fireRadius * 1.25 * FIRE_BOSS_AMBUSH_CHARGE_VFX_SCALE_MULTIPLIER}
                 speedMultiplier={getFireBossAmbushChargeSpeedMultiplier(chargeProgress)}
               />
             </group>
