@@ -38,7 +38,7 @@ interface StartupAnimationProps {
   skipIntro?: boolean;
   initialState?: MenuState;
   onMenuReady?: () => void;
-  onIntroPhaseChange?: (phase: IntroBossPhase | null) => void;
+  onIntroPhaseChange?: (phase: IntroBossPhase | null, menuState?: MenuState) => void;
 }
 
 // ─── World palette (9 worlds, spans the title gradient arc) ──────────────────
@@ -358,27 +358,40 @@ export function StartupAnimation({
             <motion.button key={w}
               onClick={() => { if (unlocked) { btn(`w${w}`); setSelectedWorld(w); setMenuState("levels"); } }}
               disabled={!unlocked}
-               data-testid={`button-world-${w}`}
-              className="relative flex flex-col items-center justify-center rounded-2xl font-black"
+                data-testid={`button-world-${w}`}
+                aria-label={unlocked ? `Select World ${w}` : `World ${w} locked`}
+                className={`orblitz-select-card ${unlocked ? "is-unlocked" : "is-locked"} ${done ? "is-complete" : ""}`}
               style={{
-                background: unlocked ? `linear-gradient(145deg, ${wc}22, ${wc}0a)` : "rgba(20,20,30,0.6)",
-                border: `1.5px solid ${unlocked ? wc + "66" : "#33355555"}`,
-                boxShadow: unlocked ? `0 0 18px ${wc}30` : "none",
+                  "--select-color": unlocked ? wc : "#536079",
+                  background: unlocked
+                    ? `linear-gradient(145deg, rgba(220,252,255,0.13), ${wc}28 42%, rgba(7,12,38,0.94) 100%)`
+                    : "linear-gradient(145deg, rgba(120,135,160,0.1), rgba(11,16,39,0.96))",
+                  borderColor: unlocked ? `${wc}aa` : "rgba(104,118,148,0.3)",
+                  boxShadow: unlocked
+                    ? `5px 7px 0 rgba(3,7,26,0.72), 0 0 18px ${wc}42, inset 1px 1px 0 rgba(255,255,255,0.18), inset -1px -1px 0 rgba(0,0,0,0.44)`
+                    : "5px 7px 0 rgba(3,7,26,0.72), inset 1px 1px 0 rgba(255,255,255,0.08)",
                 color: unlocked ? wc : "#445",
                 cursor: unlocked ? "pointer" : "default",
-                fontSize: "clamp(1rem, 3.5vw, 1.6rem)",
-              }}
-              whileHover={unlocked ? { scale: 1.05 } : {}}
-              whileTap={unlocked ? { scale: 0.93 } : {}}
+                } as React.CSSProperties}
+                whileHover={unlocked ? { scale: 1.035, y: -2 } : {}}
+                whileTap={unlocked ? { scale: 0.96 } : {}}
             >
+                <span className="orblitz-select-corner orblitz-select-corner-tl" />
+                <span className="orblitz-select-corner orblitz-select-corner-br" />
               {unlocked ? (
                 <>
-                  <span>{w}</span>
-                  <span style={{ fontSize: "0.4em", opacity: 0.65, letterSpacing: "0.12em", marginTop: 3 }}>WORLD</span>
-                  {done && <div className="absolute top-2 right-2 w-2 h-2 rounded-full" style={{ background: wc }} />}
+                    <span className="orblitz-select-index">SECTOR {String(w).padStart(2, "0")}</span>
+                    <span className="orblitz-select-number">{w}</span>
+                    <span className="orblitz-select-label">WORLD</span>
+                    <span className="orblitz-select-status">{done ? "CLEARED" : "READY"}</span>
+                    {done && <span className="orblitz-select-status-dot" style={{ background: wc }} />}
                 </>
               ) : (
-                 <span aria-label="Locked world" style={{ fontSize: "1.2em", opacity: 0.4 }}><IconLock /></span>
+                  <>
+                    <span className="orblitz-select-locked-icon" aria-hidden="true"><IconLock /></span>
+                    <span className="orblitz-select-label">LOCKED</span>
+                    <span className="orblitz-select-status">CLEARANCE REQUIRED</span>
+                  </>
               )}
             </motion.button>
           );
@@ -400,29 +413,40 @@ export function StartupAnimation({
               <motion.button key={sub}
                 onClick={() => { if (unlocked) { btn(`l${level}`); try { stopMenuBgm(); } catch {} useOrbTransition.getState().loadingSweep(() => { setGameMode("arcade"); startLoading("nextLevel", level); }); } }}
                 disabled={!unlocked}
-                 data-testid={`button-level-${selectedWorld}-${sub}`}
-                className="relative flex flex-col items-center justify-center rounded-2xl font-bold"
+                data-testid={`button-level-${selectedWorld}-${sub}`}
+                aria-label={unlocked ? `Select level ${selectedWorld}.${sub}` : `Level ${selectedWorld}.${sub} locked`}
+                className={`orblitz-select-card ${unlocked ? "is-unlocked" : "is-locked"} ${boss ? "is-boss" : ""} ${completed ? "is-complete" : ""}`}
                 style={{
-                  background: unlocked ? `linear-gradient(145deg, ${bc}22, ${bc}0a)` : "rgba(20,20,30,0.6)",
-                  border: `1.5px solid ${unlocked ? bc + "66" : "#333"}`,
-                  boxShadow: unlocked ? `0 0 14px ${bc}28` : "none",
+                  "--select-color": unlocked ? bc : "#536079",
+                  background: unlocked
+                    ? `linear-gradient(145deg, rgba(220,252,255,0.13), ${bc}28 42%, rgba(7,12,38,0.94) 100%)`
+                    : "linear-gradient(145deg, rgba(120,135,160,0.1), rgba(11,16,39,0.96))",
+                  borderColor: unlocked ? `${bc}aa` : "rgba(104,118,148,0.3)",
+                  boxShadow: unlocked
+                    ? `5px 7px 0 rgba(3,7,26,0.72), 0 0 18px ${bc}42, inset 1px 1px 0 rgba(255,255,255,0.18), inset -1px -1px 0 rgba(0,0,0,0.44)`
+                    : "5px 7px 0 rgba(3,7,26,0.72), inset 1px 1px 0 rgba(255,255,255,0.08)",
                   color: unlocked ? bc : "#445",
                   cursor: unlocked ? "pointer" : "default",
-                  fontSize: "clamp(0.85rem, 2.8vw, 1.2rem)",
-                }}
-                whileHover={unlocked ? { scale: 1.05 } : {}}
-                whileTap={unlocked ? { scale: 0.93 } : {}}
+                } as React.CSSProperties}
+                whileHover={unlocked ? { scale: 1.035, y: -2 } : {}}
+                whileTap={unlocked ? { scale: 0.96 } : {}}
               >
+                <span className="orblitz-select-corner orblitz-select-corner-tl" />
+                <span className="orblitz-select-corner orblitz-select-corner-br" />
                 {unlocked ? (
                   <>
-                    <span>{selectedWorld}.{sub}</span>
-                    <span style={{ fontSize: "0.42em", opacity: 0.7, marginTop: 3, letterSpacing: "0.08em" }}>
-                      {boss ? "BOSS" : `${getOrbGoal(selectedWorld, sub)} orbs`}
-                    </span>
-                    {completed && <div className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ background: bc }} />}
+                    <span className="orblitz-select-index">ROUTE {String(sub).padStart(2, "0")}</span>
+                    <span className="orblitz-select-number">{selectedWorld}.{sub}</span>
+                    <span className="orblitz-select-label">{boss ? "BOSS ENCOUNTER" : `${getOrbGoal(selectedWorld, sub)} ORBS`}</span>
+                    <span className="orblitz-select-status">{completed ? "CLEARED" : boss ? "HIGH THREAT" : "READY"}</span>
+                    {completed && <span className="orblitz-select-status-dot" style={{ background: bc }} />}
                   </>
                 ) : (
-                   <span aria-label="Locked level" style={{ fontSize: "1.1em", opacity: 0.35 }}><IconLock /></span>
+                  <>
+                    <span className="orblitz-select-locked-icon" aria-hidden="true"><IconLock /></span>
+                    <span className="orblitz-select-label">LOCKED</span>
+                    <span className="orblitz-select-status">CLEARANCE REQUIRED</span>
+                  </>
                 )}
               </motion.button>
             );
@@ -447,8 +471,8 @@ export function StartupAnimation({
       : null;
 
   useEffect(() => {
-    onIntroPhaseChange?.(introPhase);
-  }, [introPhase, onIntroPhaseChange]);
+    onIntroPhaseChange?.(introPhase, menuState);
+  }, [introPhase, menuState, onIntroPhaseChange]);
 
   useEffect(() => () => onIntroPhaseChange?.(null), [onIntroPhaseChange]);
 
@@ -753,16 +777,16 @@ export function StartupAnimation({
         {showMenu && isContent && (
           <motion.div
             key={menuState}
-            className="fixed inset-0 z-[150] flex flex-col"
-            style={{ background: "rgba(4,4,18,0.97)", backdropFilter: "blur(24px)" }}
+            className={`fixed inset-0 z-[150] flex flex-col orblitz-selection-screen ${menuState === "worlds" ? "orblitz-world-select" : ""}`}
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.96 }}
             transition={{ duration: 0.22, ease: [0.22, 0.61, 0.36, 1] }}
           >
             {/* Header */}
-            <div className="flex-none flex items-center justify-center" style={{ paddingTop: "clamp(28px, 5vh, 56px)", paddingBottom: "clamp(12px, 2vh, 24px)" }}>
-              <p className="font-black tracking-widest uppercase" style={{
+            <div className="flex-none orblitz-selection-header">
+              <span className="orblitz-selection-kicker">{menuState === "worlds" ? "NAVIGATION / SECTOR MAP" : `SECTOR ${String(selectedWorld).padStart(2, "0")} / MISSION ROUTE`}</span>
+              <p data-testid={`text-${menuState}-title`} className="font-black tracking-widest uppercase" style={{
                 color: menuState === "worlds" ? "#00ffff" : WORLD_COLORS[selectedWorld - 1],
                 fontSize: "clamp(0.85rem, 2.5vw, 1.1rem)",
                 letterSpacing: "0.22em",
@@ -770,17 +794,18 @@ export function StartupAnimation({
               }}>
                 {menuState === "worlds" ? "Select World" : `World ${selectedWorld}`}
               </p>
+              <span className="orblitz-selection-subtitle">{menuState === "worlds" ? "Choose your next combat sector" : "Select a mission route to deploy"}</span>
             </div>
 
             {/* Grid */}
-            <div className="flex-1 min-h-0 flex flex-col" style={{ padding: "0 clamp(16px, 4vw, 56px)" }}>
-              <div className="grid grid-cols-3 gap-2 h-full" style={{ gridAutoRows: "1fr" }}>
+            <div className="flex-1 min-h-0 flex flex-col orblitz-selection-content">
+              <div className="grid grid-cols-3 gap-2 h-full orblitz-selection-grid" style={{ gridAutoRows: "1fr" }}>
                 {renderContent()}
               </div>
             </div>
 
             {/* Back button — styled to match ButtonRow */}
-            <div className="flex-none border-t flex justify-center" style={{ borderColor: "rgba(255,255,255,0.07)", padding: "clamp(10px, 2vh, 20px) clamp(16px, 4vw, 56px) clamp(16px, 3vh, 32px)" }}>
+            <div className="flex-none border-t flex justify-center orblitz-selection-footer" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
               <div style={{ width: "clamp(120px, 40vw, 200px)" }}>
                 <ButtonRow buttons={panelButtons} pressedBtn={pressedBtn} setPressedBtn={setPressedBtn} compact />
               </div>

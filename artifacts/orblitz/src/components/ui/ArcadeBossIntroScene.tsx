@@ -13,6 +13,7 @@ import { ToxicBoss } from "@/components/game/ToxicBoss";
 import { BOSS_DEFEAT_PALETTES, MAIN_BOSS_TYPES, type MainBossType } from "@/components/game/BossDefeatPalette";
 
 export type IntroBossPhase = "idle" | "flying" | "converge" | "flash" | "title" | "waiting" | "menu";
+export type IntroBossPresentation = "menu" | "worlds" | "levels";
 
 export interface ArcadeBossIntroDef {
   type: MainBossType;
@@ -150,9 +151,11 @@ function renderArcadeBoss(type: MainBossType) {
 function ArcadeBossActor({
   definition,
   phase,
+  presentation,
 }: {
   definition: ArcadeBossIntroDef;
   phase: IntroBossPhase;
+  presentation: IntroBossPresentation;
 }) {
   type IntroMaterialState = {
     material: THREE.Material;
@@ -166,6 +169,7 @@ function ArcadeBossActor({
   const previousPhase = useRef<IntroBossPhase>(phase);
   const phaseOrigin = useRef(new THREE.Vector3());
   const menuRevealStartedAt = useRef<number | null>(null);
+  const previousPresentation = useRef<IntroBossPresentation>(presentation);
   const introMaterialStates = useRef<IntroMaterialState[]>([]);
   const materialFadeInitialized = useRef(false);
   const initialized = useRef(false);
@@ -174,7 +178,9 @@ function ArcadeBossActor({
     const group = groupRef.current;
     if (group) phaseOrigin.current.copy(group.position);
     const now = typeof performance === "undefined" ? 0 : performance.now();
-    if (phase === "menu" && previousPhase.current !== "menu") {
+    if (phase === "menu" && presentation === "worlds" && previousPresentation.current !== "worlds") {
+      menuRevealStartedAt.current = now;
+    } else if (phase === "menu" && presentation === "menu" && previousPhase.current !== "menu") {
       menuRevealStartedAt.current = now;
     } else if (phase !== "menu") {
       menuRevealStartedAt.current = null;
@@ -184,7 +190,8 @@ function ArcadeBossActor({
       (previousPhase.current === "title" || previousPhase.current === "waiting" || previousPhase.current === "menu");
     if (!preserveTitleClock) phaseStartedAt.current = now;
     previousPhase.current = phase;
-  }, [phase]);
+    previousPresentation.current = presentation;
+  }, [phase, presentation]);
 
   useFrame(() => {
     const group = groupRef.current;
@@ -251,6 +258,55 @@ function ArcadeBossActor({
       group.rotation.z = THREE.MathUtils.degToRad(
         lerp(definition.rotation, definition.rotation * 0.35, progress) + spiral * 18,
       );
+      return;
+    }
+
+    if (phase === "menu" && presentation === "worlds") {
+      const rosterIndex = ARCADE_BOSS_INTRO_DEFS.findIndex((entry) => entry.type === definition.type);
+      const rosterColumn = rosterIndex % 3;
+      const rosterRow = Math.floor(rosterIndex / 3);
+      const rosterProgress = easeOutCubic(
+        (now - (menuRevealStartedAt.current ?? now)) / 950,
+      );
+      const rosterX = (rosterColumn - 1) * width * 0.27;
+      const rosterY = (1 - rosterRow) * height * 0.18;
+      const rosterTime = elapsed * 0.72 + definition.delay * 2.2;
+
+      group.position.set(
+        rosterX + Math.sin(rosterTime) * width * 0.008,
+        rosterY + Math.cos(rosterTime * 0.83) * height * 0.009,
+        4.55 + Math.sin(rosterTime * 0.61) * 0.18,
+      );
+      group.scale.setScalar(Math.max(0.001, (0.44 + Math.sin(rosterTime * 0.9) * 0.018) * rosterProgress));
+      group.rotation.z = THREE.MathUtils.degToRad(
+        definition.rotation * 0.28 + Math.sin(rosterTime * 0.62) * 5,
+      );
+      group.rotation.x = Math.sin(rosterTime * 0.4) * 0.08;
+      group.rotation.y = Math.cos(rosterTime * 0.36) * 0.08;
+
+      if (!materialFadeInitialized.current) {
+        group.traverse((object) => {
+          const mesh = object as THREE.Mesh;
+          const materials = mesh.material
+            ? (Array.isArray(mesh.material) ? mesh.material : [mesh.material])
+            : [];
+          materials.forEach((material) => {
+            introMaterialStates.current.push({
+              material,
+              opacity: material.opacity,
+              transparent: material.transparent,
+              depthWrite: material.depthWrite,
+            });
+            material.transparent = true;
+            material.depthWrite = false;
+            material.needsUpdate = true;
+          });
+        });
+        materialFadeInitialized.current = true;
+      }
+      introMaterialStates.current.forEach(({ material, opacity }) => {
+        material.opacity = opacity * rosterProgress;
+      });
       return;
     }
 
@@ -377,8 +433,10 @@ function IntroExplosionLight({ phase }: { phase: IntroBossPhase }) {
 
 function ArcadeBossScene({
   phase,
+  presentation,
 }: {
   phase: IntroBossPhase;
+  presentation: IntroBossPresentation;
 }) {
   return (
     <>
@@ -386,15 +444,26 @@ function ArcadeBossScene({
       <ambientLight intensity={1.35} />
       <Suspense fallback={null}>
         {ARCADE_BOSS_INTRO_DEFS.map((definition) => (
-          <ArcadeBossActor key={definition.type} definition={definition} phase={phase} />
+          <ArcadeBossActor
+            key={definition.type}
+            definition={definition}
+            phase={phase}
+            presentation={presentation}
+          />
         ))}
       </Suspense>
     </>
   );
 }
 
-export function ArcadeBossIntroScene({ phase }: { phase: IntroBossPhase }) {
+export function ArcadeBossIntroScene({
+  phase,
+  presentation = "menu",
+}: {
+  phase: IntroBossPhase;
+  presentation?: IntroBossPresentation;
+}) {
   return (
-    <ArcadeBossScene phase={phase} />
+    <ArcadeBossScene phase={phase} presentation={presentation} />
   );
 }

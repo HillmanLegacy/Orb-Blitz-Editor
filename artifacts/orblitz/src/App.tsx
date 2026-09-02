@@ -15,7 +15,10 @@ import { GameOver } from "@/components/ui/GameOver";
 import { PauseMenu } from "@/components/ui/PauseMenu";
 import { LevelTransition } from "@/components/ui/LevelTransition";
 import { StartupAnimation, type MenuState } from "@/components/ui/StartupAnimation";
-import type { IntroBossPhase } from "@/components/ui/ArcadeBossIntroScene";
+import type {
+  IntroBossPhase,
+  IntroBossPresentation,
+} from "@/components/ui/ArcadeBossIntroScene";
 import { ArcadeComplete } from "@/components/ui/ArcadeComplete";
 import { OrbSweepOverlay } from "@/components/ui/OrbSweepOverlay";
 import { AchievementToast } from "@/components/ui/AchievementToast";
@@ -49,6 +52,7 @@ function App() {
 
   const [skipIntro, setSkipIntro] = useState(false);
   const [introBossPhase, setIntroBossPhase] = useState<IntroBossPhase | null>(null);
+  const [introBossPresentation, setIntroBossPresentation] = useState<IntroBossPresentation>("menu");
   const [initialMenuState, setInitialMenuState] = useState<MenuState>("root");
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
   const [shopLayerVisible, setShopLayerVisible] = useState(false);
@@ -56,6 +60,15 @@ function App() {
   const [trophiesLayerVisible, setTrophiesLayerVisible] = useState(false);
   const loadingRunRef = useRef(0);
   const handleMenuReady = useCallback(() => { setSkipIntro(true); }, []);
+  const handleIntroPhaseChange = useCallback((
+    nextPhase: IntroBossPhase | null,
+    menuState?: MenuState,
+  ) => {
+    setIntroBossPhase(nextPhase);
+    setIntroBossPresentation(
+      menuState === "worlds" ? "worlds" : menuState === "levels" ? "levels" : "menu",
+    );
+  }, []);
 
   useEffect(() => {
     void preloadMenuAssets();
@@ -174,7 +187,10 @@ function App() {
     <div style={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden", filter: `brightness(${brightness})` }}>
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
         <div style={{ pointerEvents: "auto", width: "100%", height: "100%" }}>
-           <GameScene introBossPhase={introBossPhase} />
+           <GameScene
+             introBossPhase={introBossPhase}
+             introBossPresentation={introBossPresentation}
+           />
         </div>
       </div>
 
@@ -185,7 +201,7 @@ function App() {
             skipIntro={skipIntro}
             initialState={initialMenuState}
             onMenuReady={handleMenuReady}
-            onIntroPhaseChange={setIntroBossPhase}
+            onIntroPhaseChange={handleIntroPhaseChange}
           />
         )}
       </AnimatePresence>

@@ -21,7 +21,11 @@ import {
   usePerformanceToggleVersion,
   type PerformanceFeature,
 } from "@/game-runtime/PerformanceToggles";
-import { ArcadeBossIntroScene, type IntroBossPhase } from "@/components/ui/ArcadeBossIntroScene";
+import {
+  ArcadeBossIntroScene,
+  type IntroBossPhase,
+  type IntroBossPresentation,
+} from "@/components/ui/ArcadeBossIntroScene";
 
 const loadGameplayScene = () => import("./GameplayScene");
 let loadedGameplayScene: ComponentType | null = null;
@@ -444,7 +448,13 @@ function canCreateWebGLContext() {
 }
 
 // ── Scene ─────────────────────────────────────────────────────────────────────
-export function GameScene({ introBossPhase = null }: { introBossPhase?: IntroBossPhase | null }) {
+export function GameScene({
+  introBossPhase = null,
+  introBossPresentation = "menu",
+}: {
+  introBossPhase?: IntroBossPhase | null;
+  introBossPresentation?: IntroBossPresentation;
+}) {
   const [webglAvailable] = useState(canCreateWebGLContext);
   const backgroundEnabled = usePerformanceFeature("background");
   const foregroundIntroBosses = introBossPhase === "title" || introBossPhase === "waiting";
@@ -482,7 +492,12 @@ export function GameScene({ introBossPhase = null }: { introBossPhase?: IntroBos
           <GameRuntimeLifecycle />
           <RendererSetup transparent={foregroundIntroBosses} />
           <CameraController />
-          {introBossPhase && <ArcadeBossIntroScene phase={introBossPhase} />}
+          {introBossPhase && (
+            <ArcadeBossIntroScene
+              phase={introBossPhase}
+              presentation={introBossPresentation}
+            />
+          )}
 
           {/* Lightweight background — gameplay GPU systems mount below only when needed */}
           {backgroundEnabled && <Background visible={!foregroundIntroBosses} />}
