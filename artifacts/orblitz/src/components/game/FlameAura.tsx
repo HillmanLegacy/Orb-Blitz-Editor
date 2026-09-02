@@ -112,3 +112,30 @@ export function FlameAura({ scale = 0.75, speedMultiplier = 1 }: FlameAuraProps)
     </instancedMesh>
   );
 }
+
+export interface FireAuraVFXProps {
+  scale?: number;
+  rotation?: number;
+  lengthMultiplier?: number;
+  speedMultiplier?: number;
+}
+
+/**
+ * The complete Fire Aura trail sold as the player's flame_aura trail.
+ * Keeping the orientation and elongated wrapper here lets other actors use
+ * the exact equipped effect instead of recreating a lookalike.
+ */
+export function FireAuraVFX({
+  scale = 0.75,
+  rotation = 0,
+  lengthMultiplier = 1.4,
+  speedMultiplier = 1,
+}: FireAuraVFXProps) {
+  return (
+    <group rotation={[0, 0, rotation]}>
+      <group scale={[1, lengthMultiplier, 1]}>
+        <FlameAura scale={scale} speedMultiplier={speedMultiplier} />
+      </group>
+    </group>
+  );
+}

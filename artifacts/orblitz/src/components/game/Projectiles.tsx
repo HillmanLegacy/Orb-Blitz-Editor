@@ -7,7 +7,7 @@ import { StarBossTeleportVFX, StarTeleportVFXState } from "./StarBossTeleportVFX
 import { useAudio } from "@/lib/stores/useAudio";
 import { useShop, TrailEffect } from "@/lib/stores/useShop";
 import { getSkinColors } from "./PlayerOrb";
-import { FlameAura } from "./FlameAura";
+import { FireAuraVFX } from "./FlameAura";
 import { PlayerParticles } from "./PlayerParticles";
 import { MiniStarOrb } from "./MiniStarOrb";
 import { EnergyDissipationVFX } from "./EnergyDissipationVFX";
@@ -314,9 +314,10 @@ function FlameAuraProjectileTrail({
 
   return (
     <group ref={groupRef} visible={false}>
-      <group scale={[1, BACKDRAFT_TRAIL_LENGTH_MULTIPLIER, 1]}>
-        <FlameAura scale={flameScale} />
-      </group>
+      <FireAuraVFX
+        scale={flameScale}
+        lengthMultiplier={BACKDRAFT_TRAIL_LENGTH_MULTIPLIER}
+      />
     </group>
   );
 }

@@ -41,6 +41,7 @@ import {
   FIRE_BOSS_AMBUSH_IMPACT_SCALE_MULTIPLIER,
   FIRE_BOSS_AMBUSH_MAX_USES,
   FIRE_BOSS_AMBUSH_PLAYER_CLEARANCE,
+  FIRE_BOSS_AMBUSH_DASH_VFX_SCALE_MULTIPLIER,
   canStartFireBossAmbush,
   createFireBossAmbushImpact,
   getFireBossAmbushChargeProgress,
@@ -270,6 +271,10 @@ describe("gameplay runtime invariants", () => {
 
   it("makes the Fire Ambush charge flame VFX 1.5x larger", () => {
     expect(FIRE_BOSS_AMBUSH_CHARGE_VFX_SCALE_MULTIPLIER).toBe(1.5);
+  });
+
+  it("makes the Fire Ambush rush Fire Aura trail 2x larger", () => {
+    expect(FIRE_BOSS_AMBUSH_DASH_VFX_SCALE_MULTIPLIER).toBe(2);
   });
 
   it("continues the Fire Ambush dash past the player without marking a defeat", () => {
