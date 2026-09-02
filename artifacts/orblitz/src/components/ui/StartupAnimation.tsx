@@ -109,26 +109,6 @@ function OrbExplosionTransition({ phase }: { phase: AnimPhase }) {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.9, ease: "easeOut" }}
         >
-          <motion.div
-            className="absolute inset-[-28%]"
-            style={{
-              background: "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.98) 0%, rgba(0,246,255,0.92) 15%, rgba(155,92,255,0.82) 34%, rgba(255,43,214,0.62) 58%, rgba(4,7,30,0) 82%)",
-              filter: "blur(2px)",
-            }}
-            initial={{ scale: 0.08, opacity: 0 }}
-            animate={{ scale: [0.08, 0.7, 1.28, 1.72], opacity: [0, 0.98, 0.82, 0] }}
-            transition={{ duration: 1.85, times: [0, 0.2, 0.58, 1], ease: [0.16, 0.8, 0.3, 1] }}
-          />
-          <motion.div
-            className="absolute inset-0"
-            style={{
-              background: "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.9) 0%, rgba(0,246,255,0.5) 24%, rgba(255,43,214,0.32) 54%, rgba(4,7,30,0) 78%)",
-              mixBlendMode: "screen",
-            }}
-            initial={{ opacity: 0, scale: 0.12 }}
-            animate={{ opacity: [0, 0.9, 0.55, 0], scale: [0.12, 1, 1.2, 1.5] }}
-            transition={{ duration: 1.65, times: [0, 0.22, 0.56, 1], ease: "easeOut" }}
-          />
           {ORB_EXPLOSION_PARTICLES.map((particle, index) => (
             <motion.span
               key={index}

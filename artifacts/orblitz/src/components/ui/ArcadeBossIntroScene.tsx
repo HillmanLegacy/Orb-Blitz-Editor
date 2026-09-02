@@ -279,6 +279,46 @@ function ArcadeBossActor({
   );
 }
 
+function IntroExplosionLight({ phase }: { phase: IntroBossPhase }) {
+  const lightRef = useRef<THREE.PointLight>(null);
+  const explosionStartedAt = useRef(0);
+
+  useEffect(() => {
+    if (phase === "flash") {
+      explosionStartedAt.current = typeof performance === "undefined" ? 0 : performance.now();
+    }
+    if (phase !== "flash" && phase !== "title" && lightRef.current) {
+      lightRef.current.intensity = 0;
+    }
+  }, [phase]);
+
+  useFrame(() => {
+    const light = lightRef.current;
+    if (!light || (phase !== "flash" && phase !== "title")) return;
+
+    const now = typeof performance === "undefined" ? 0 : performance.now();
+    const elapsed = Math.max(0, (now - explosionStartedAt.current) / 1000);
+    const progress = clamp01(elapsed / FLASH_DURATION);
+    const attack = easeOutCubic(progress / 0.18);
+    const decay = 1 - easeOutCubic((progress - 0.18) / 0.82);
+    const pulse = progress < 0.18 ? attack : Math.max(0, decay);
+
+    light.position.set(0, 0, 3.2);
+    light.distance = 7 + progress * 12;
+    light.intensity = pulse * 9;
+  });
+
+  return (
+    <pointLight
+      ref={lightRef}
+      color="#c8fbff"
+      intensity={0}
+      distance={7}
+      decay={1.6}
+    />
+  );
+}
+
 function ArcadeBossScene({
   phase,
 }: {
@@ -286,6 +326,7 @@ function ArcadeBossScene({
 }) {
   return (
     <>
+      <IntroExplosionLight phase={phase} />
       <ambientLight intensity={1.35} />
       <Suspense fallback={null}>
         {ARCADE_BOSS_INTRO_DEFS.map((definition) => (
