@@ -724,8 +724,17 @@ export function StartupAnimation({
             key={menuState}
             className="absolute left-0 right-0 z-20"
             style={{
-              top: "calc(50% + clamp(80px, 11vw, 108px))",
+              top: menuState === "settings"
+                ? "calc(50% + clamp(48px, 8vh, 72px))"
+                : "calc(50% + clamp(80px, 11vw, 108px))",
               padding: "0 clamp(10px, 3.5vw, 44px)",
+              ...(menuState === "settings" ? {
+                maxHeight: "calc(50dvh - clamp(16px, 8vh, 72px))",
+                overflowY: "auto" as const,
+                overscrollBehavior: "contain" as const,
+                paddingBottom: "clamp(8px, 2vh, 16px)",
+                scrollbarWidth: "thin" as const,
+              } : {}),
             }}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
