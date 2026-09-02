@@ -110,6 +110,9 @@ import {
   POWER_UP_EVAPORATION_MAX_REMNANTS,
 } from "../src/components/game/PowerUpEvaporationVFX";
 import {
+  createToxicBossMaterial,
+} from "../src/components/game/ToxicBoss";
+import {
   PLAYER_MODEL_ROTATION_SPEED,
   PLAYER_SKIN_MODEL_PATHS,
   getPlayerSkinModelPath,
@@ -234,6 +237,33 @@ describe("gameplay runtime invariants", () => {
   it("keeps the player model spin slow and clockwise from the player view", () => {
     expect(PLAYER_MODEL_ROTATION_SPEED).toBeLessThan(0);
     expect(Math.abs(PLAYER_MODEL_ROTATION_SPEED)).toBeLessThan(0.5);
+  });
+
+  it("preserves Toxic's authored map without applying a full-model green tint", () => {
+    const texture = new THREE.Texture();
+    const source = new THREE.MeshStandardMaterial({
+      map: texture,
+      color: "#ffffff",
+      emissive: "#22aa08",
+      emissiveIntensity: 0.3,
+      roughness: 1,
+      metalness: 1,
+    });
+
+    const material = createToxicBossMaterial(source);
+
+    expect(material.map).toBe(texture);
+    expect(material.color.getHexString()).toBe("ffffff");
+    expect(material.emissive.getHexString()).toBe("ffffff");
+    expect(material.emissiveIntensity).toBeCloseTo(0.06);
+    expect(material.roughness).toBeCloseTo(0.45);
+    expect(material.metalness).toBeCloseTo(0.2);
+    expect(material.transparent).toBe(false);
+    expect(material.opacity).toBe(1);
+
+    material.dispose();
+    source.dispose();
+    texture.dispose();
   });
 
   it("preserves the 1.9 defeat duration and authored particle budget", () => {
