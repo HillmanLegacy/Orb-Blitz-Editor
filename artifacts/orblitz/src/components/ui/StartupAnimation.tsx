@@ -23,6 +23,7 @@ function IconSurvive()   { return <svg {..._svg}><circle cx="12" cy="12" r="2.8"
 function IconChill()     { return <svg {..._svg}><path d="M2 10 C5.5 7 7 13 10 10 S14.5 7 18 10 S21 13 22 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M2 15.5 C5.5 12.5 7 18.5 10 15.5 S14.5 12.5 18 15.5 S21 18.5 22 15.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.5"/></svg>; }
 function IconArcade()    { return <svg {..._svg}><rect x="4" y="14" width="16" height="7" rx="3" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.1"/><path d="M12 14 L12 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><circle cx="12" cy="7" r="3.2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.15"/><circle cx="8" cy="17.5" r="1" fill="currentColor"/><circle cx="16" cy="17.5" r="1" fill="currentColor"/></svg>; }
 function IconGauntlet()  { return <svg {..._svg}><path d="M12 3 L21 12 L12 21 L3 12 Z" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.1"/><line x1="12" y1="7" x2="12" y2="17" stroke="currentColor" strokeWidth="0.75" opacity="0.4"/><line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" strokeWidth="0.75" opacity="0.4"/><circle cx="12" cy="12" r="2" fill="currentColor" fillOpacity="0.9"/></svg>; }
+function IconStar()      { return <svg {..._svg}><path d="m12 2.9 2.75 5.58 6.16.9-4.46 4.34 1.05 6.13L12 16.95l-5.5 2.9 1.05-6.13L3.1 9.38l6.15-.9L12 2.9Z" fill="currentColor"/><path d="m12 5.8 1.75 3.54 3.91.57-2.83 2.76.67 3.9L12 14.73l-3.5 1.84.67-3.9-2.83-2.76 3.91-.57L12 5.8Z" fill="#fff8c9" fillOpacity="0.7"/></svg>; }
 function IconBack()      { return <svg {..._svg}><path d="M11 7 L6 12 L11 17" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 12 H16 C18.2 12 20 13.8 20 16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
 function IconSound()     { return <svg {..._svg}><path d="M4 9 H7 L12 5 V19 L7 15 H4 V9 Z" fill="currentColor" fillOpacity="0.85"/><path d="M15 8 C17 9.5 17.5 11.5 17.5 12 S17 14.5 15 16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M17.5 5.5 C20.5 7.5 21.5 9.8 21.5 12 S20.5 16.5 17.5 18.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
 function IconSoundOff()  { return <svg {..._svg}><path d="M4 9 H7 L12 5 V19 L7 15 H4 V9 Z" fill="currentColor" fillOpacity="0.5"/><line x1="16.5" y1="9" x2="22" y2="15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/><line x1="22" y1="9" x2="16.5" y2="15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>; }
@@ -642,22 +643,66 @@ export function StartupAnimation({
         )}
       </AnimatePresence>
 
-      {/* ── STARS BADGE — separate element so title height never changes ── */}
+      {/* ── STAR BALANCE — dedicated arcade HUD counter ─────────────────── */}
       <AnimatePresence>
         {showMenu && (
           <motion.div
-            className="absolute z-10 flex items-center justify-center gap-1.5 pointer-events-none"
+            className="absolute z-30 pointer-events-none"
+            aria-label={`${shopStars} stars`}
             style={{
-              top: "calc(50% + clamp(48px, 8vw, 72px))", left: "50%", right: "auto",
-              transform: "translateX(-50%)", padding: "5px 13px",
-              border: "2px solid rgba(255,209,102,0.54)", borderRadius: 7,
-              background: "rgba(255,209,102,0.16)", boxShadow: "3px 3px 0 rgba(10,20,68,0.52), 0 0 18px rgba(255,209,102,0.14)",
+              top: "clamp(16px, 4vh, 38px)",
+              right: "clamp(16px, 4vw, 44px)",
+              minWidth: "clamp(142px, 17vw, 196px)",
+              padding: "8px 13px 8px 9px",
+              border: "1px solid rgba(255,230,120,0.72)",
+              borderRadius: 10,
+              background: "linear-gradient(135deg, rgba(255,255,255,0.16), rgba(102,58,16,0.42) 44%, rgba(255,196,48,0.14))",
+              boxShadow: "4px 5px 0 rgba(5,10,34,0.58), 0 0 22px rgba(255,193,46,0.22), inset 0 1px 0 rgba(255,255,255,0.3)",
+              backdropFilter: "blur(8px)",
             }}
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            initial={{ opacity: 0, y: -10, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.94 }}
             transition={{ delay: MENU_SECONDARY_REVEAL_DELAY }}
           >
-            <span style={{ color: "#ffe600", fontSize: "0.72rem" }}>★</span>
-            <span style={{ color: "#fff1bd", fontSize: "0.66rem", fontWeight: 900, letterSpacing: "0.08em", fontFamily: "Arial Black, Impact, sans-serif" }}>{shopStars} STARS</span>
+            <div style={{
+              position: "absolute", top: 0, left: 12, right: 12, height: 2,
+              background: "linear-gradient(90deg, transparent, #fff3a1 24%, #ffe600 50%, transparent)",
+              boxShadow: "0 0 9px rgba(255,230,0,0.8)",
+            }} />
+            <div className="flex items-center gap-2">
+              <motion.div
+                aria-hidden="true"
+                animate={{ rotate: [0, 5, -3, 0], scale: [1, 1.06, 1] }}
+                transition={{ duration: 3.8, repeat: Infinity, ease: "easeInOut" }}
+                style={{
+                  flex: "0 0 auto", width: "clamp(30px, 3.6vw, 42px)", height: "clamp(30px, 3.6vw, 42px)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "#ffe600", border: "1px solid rgba(255,244,171,0.82)", borderRadius: 8,
+                  background: "radial-gradient(circle, rgba(255,247,175,0.42), rgba(255,186,28,0.14) 58%, rgba(255,186,28,0.03))",
+                  boxShadow: "0 0 12px rgba(255,230,0,0.62), inset 0 0 10px rgba(255,247,175,0.18)",
+                }}
+              >
+                <IconStar />
+              </motion.div>
+              <div style={{ minWidth: 0, lineHeight: 1 }}>
+                <div style={{
+                  color: "rgba(255,244,195,0.72)", fontSize: "clamp(0.4rem, 0.7vw, 0.52rem)",
+                  fontWeight: 900, letterSpacing: "0.18em", fontFamily: "Arial Black, Impact, sans-serif",
+                  marginBottom: 5,
+                }}>
+                  STAR BANK
+                </div>
+                <div style={{
+                  display: "flex", alignItems: "baseline", gap: 5, color: "#fff8c9",
+                  fontSize: "clamp(1rem, 2vw, 1.38rem)", fontWeight: 900, letterSpacing: "0.04em",
+                  fontFamily: "Arial Black, Impact, sans-serif", textShadow: "0 0 10px rgba(255,230,0,0.45)",
+                }}>
+                  <span>{shopStars.toLocaleString()}</span>
+                  <span style={{ color: "#ffe600", fontSize: "clamp(0.42rem, 0.75vw, 0.56rem)", letterSpacing: "0.12em" }}>STARS</span>
+                </div>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
