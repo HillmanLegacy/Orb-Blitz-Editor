@@ -39,11 +39,6 @@ interface StartupAnimationProps {
   onIntroPhaseChange?: (phase: IntroBossPhase | null) => void;
 }
 
-const EXPLOSION_RAYS = Array.from({ length: 12 }, (_, index) => ({
-  rotation: index * 30,
-  length: 90 + (index % 3) * 24,
-}));
-
 // ─── World palette (9 worlds, spans the title gradient arc) ──────────────────
 const WORLD_COLORS = [
   "#00f6ff","#9b5cff","#ff2bd6","#ff6b35","#ffe600",
@@ -71,8 +66,8 @@ const SPLASH_DURATION = 2400;
 const FLYING_START = SPLASH_DURATION;
 const CONVERGE_START = FLYING_START + 2550;
 const FLASH_START = CONVERGE_START + 650;
-const TITLE_START = FLASH_START + 350;
-const MENU_START = TITLE_START + 1750;
+const TITLE_START = FLASH_START + 820;
+const MENU_START = TITLE_START + 1650;
 const TITLE_REFLECTION_BOSSES: readonly MainBossType[] = [
   "circle", "star", "triangle", "trapezoid", "cube", "arrow", "monster",
 ];
@@ -85,6 +80,89 @@ const BOSS_LIGHT_WHEEL = [
     ]),
   ),
 ];
+
+const ORB_EXPLOSION_PARTICLES = Array.from({ length: 84 }, (_, index) => {
+  const angle = index * 2.399963;
+  const distance = 26 + (index % 8) * 8 + (index % 3) * 3;
+  return {
+    x: Math.cos(angle) * distance,
+    y: Math.sin(angle) * distance * 0.72,
+    size: 3 + (index % 5) * 1.6,
+    color: WORLD_COLORS[index % WORLD_COLORS.length],
+    delay: (index % 9) * 0.018,
+    duration: 1.7 + (index % 6) * 0.08,
+  };
+});
+
+function OrbExplosionTransition({ phase }: { phase: AnimPhase }) {
+  const visible = phase === "flash" || phase === "title";
+
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          key="orb-explosion"
+          className="absolute inset-0 pointer-events-none overflow-hidden"
+          style={{ zIndex: 30 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.9, ease: "easeOut" }}
+        >
+          <motion.div
+            className="absolute inset-[-28%]"
+            style={{
+              background: "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.98) 0%, rgba(0,246,255,0.92) 15%, rgba(155,92,255,0.82) 34%, rgba(255,43,214,0.62) 58%, rgba(4,7,30,0) 82%)",
+              filter: "blur(2px)",
+            }}
+            initial={{ scale: 0.08, opacity: 0 }}
+            animate={{ scale: [0.08, 0.7, 1.28, 1.72], opacity: [0, 0.98, 0.82, 0] }}
+            transition={{ duration: 1.85, times: [0, 0.2, 0.58, 1], ease: [0.16, 0.8, 0.3, 1] }}
+          />
+          <motion.div
+            className="absolute inset-0"
+            style={{
+              background: "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.9) 0%, rgba(0,246,255,0.5) 24%, rgba(255,43,214,0.32) 54%, rgba(4,7,30,0) 78%)",
+              mixBlendMode: "screen",
+            }}
+            initial={{ opacity: 0, scale: 0.12 }}
+            animate={{ opacity: [0, 0.9, 0.55, 0], scale: [0.12, 1, 1.2, 1.5] }}
+            transition={{ duration: 1.65, times: [0, 0.22, 0.56, 1], ease: "easeOut" }}
+          />
+          {ORB_EXPLOSION_PARTICLES.map((particle, index) => (
+            <motion.span
+              key={index}
+              className="absolute rounded-full"
+              style={{
+                left: "50%",
+                top: "50%",
+                width: particle.size,
+                height: particle.size,
+                background: `radial-gradient(circle at 32% 28%, #ffffff 0 10%, ${particle.color} 38%, ${particle.color}00 78%)`,
+                boxShadow: `0 0 ${particle.size * 3}px ${particle.color}`,
+                marginLeft: -particle.size / 2,
+                marginTop: -particle.size / 2,
+              }}
+              initial={{ left: "50%", top: "50%", scale: 0.08, opacity: 0 }}
+              animate={{
+                left: ["50%", `calc(50% + ${particle.x}vw)`, `calc(50% + ${particle.x * 1.12}vw)`],
+                top: ["50%", `calc(50% + ${particle.y}vh)`, `calc(50% + ${particle.y * 1.16}vh)`],
+                scale: [0.08, 1, 0.72, 0.22],
+                opacity: [0, 1, 0.72, 0],
+              }}
+              transition={{
+                duration: particle.duration,
+                delay: particle.delay,
+                times: [0, 0.18, 0.66, 1],
+                ease: [0.12, 0.74, 0.3, 1],
+              }}
+            />
+          ))}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
 
 function getTitleReflectionStyle(index: number): React.CSSProperties {
   const palette = BOSS_DEFEAT_PALETTES[TITLE_REFLECTION_BOSSES[index % TITLE_REFLECTION_BOSSES.length]];
@@ -562,51 +640,8 @@ export function StartupAnimation({
         </>
       )}
 
-      {/* Convergence core and detonation rays */}
-      <AnimatePresence>
-        {(animPhase === "converge" || animPhase === "flash") && (
-          <>
-            <motion.div className="absolute rounded-full pointer-events-none" style={{
-              width: 120, height: 120, left: "50%", top: "50%",
-              marginLeft: -60, marginTop: -60,
-               background: "radial-gradient(circle,#ffffff 0%,#00f6ff 30%,#ff2bd6 60%,transparent 80%)",
-              filter: "blur(18px)", zIndex: 3,
-            }}
-              initial={{ scale: 0, opacity: 0 }}
-              animate={animPhase === "flash" ? { scale: [0.5, 2.8, 0.3], opacity: [0.8, 1, 0] } : { scale: 0.5, opacity: 0.6 }}
-              exit={{ opacity: 0, scale: 0 }}
-              transition={{ duration: animPhase === "flash" ? 0.55 : 0.4, ease: "easeOut" }}
-            />
-            {EXPLOSION_RAYS.map((ray) => (
-              <motion.div
-                key={ray.rotation}
-                className="absolute pointer-events-none"
-                style={{
-                  left: "50%",
-                  top: "50%",
-                  width: ray.length,
-                  height: 2,
-                  transformOrigin: "left center",
-                  rotate: ray.rotation,
-                   background: "linear-gradient(90deg,#ffffff,#00f6ff,#ff2bd6,transparent)",
-                   boxShadow: "0 0 8px rgba(0,246,255,0.85)",
-                  zIndex: 3,
-                }}
-                initial={{ scaleX: 0, opacity: 0 }}
-                animate={animPhase === "flash"
-                  ? { scaleX: [0.2, 1.35, 0], opacity: [0, 1, 0] }
-                  : { scaleX: 0.42, opacity: 0.42 }}
-                exit={{ scaleX: 0, opacity: 0 }}
-                transition={{
-                  duration: animPhase === "flash" ? 0.55 : 0.4,
-                  delay: animPhase === "flash" ? (ray.rotation % 60) / 900 : 0,
-                  ease: "easeOut",
-                }}
-              />
-            ))}
-          </>
-        )}
-      </AnimatePresence>
+      {/* The boss collision hands off to one full-screen orb explosion. */}
+      <OrbExplosionTransition phase={animPhase} />
 
       {/* ── ORBLITZ TITLE — pinned at viewport center, never moves ─────── */}
       <AnimatePresence>

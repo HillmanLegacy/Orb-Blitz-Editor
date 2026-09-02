@@ -99,7 +99,9 @@ export function getMenuBossSwarmPosition(
 
 const FLYING_DURATION = 2.42;
 const CONVERGE_DURATION = 0.65;
-const FLASH_DURATION = 0.55;
+// The flash phase is the shared detonation window: bosses leave the center
+// while the screen-space orb explosion takes over the transition.
+const FLASH_DURATION = 1.85;
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
@@ -176,12 +178,12 @@ function ArcadeBossActor({
     const elapsed = Math.max(0, (now - phaseStartedAt.current) / 1000);
     const width = viewport.width;
     const height = viewport.height;
-    const startX = definition.startX * width;
-    const startY = definition.startY * height;
     const offscreenX = definition.startX * 1.28 * width;
     const offscreenY = definition.startY * 1.22 * height;
-    const convergeX = definition.convergeX * width;
-    const convergeY = definition.convergeY * height;
+    // Every boss must hit the same screen-space origin so the detonation and
+    // title reveal share one exact anchor.
+    const convergeX = 0;
+    const convergeY = 0;
 
     if (phase === "idle") {
       group.position.set(offscreenX, offscreenY, 0);
@@ -193,10 +195,13 @@ function ArcadeBossActor({
 
     if (phase === "flying") {
       const progress = easeOutCubic((elapsed - definition.delay) / FLYING_DURATION);
-      const sway = Math.sin(progress * Math.PI * 3 + definition.delay * 7) * (1 - progress * 0.65);
+      const startRadius = Math.hypot(offscreenX, offscreenY);
+      const orbitRadius = lerp(startRadius, Math.min(width, height) * 0.16, easeOutCubic(progress));
+      const startAngle = Math.atan2(offscreenY, offscreenX) + definition.delay * 1.8;
+      const orbitAngle = startAngle + progress * Math.PI * 2.15;
       group.position.set(
-        lerp(offscreenX, startX, progress) + definition.swayX * width * sway,
-        lerp(offscreenY, startY, progress) + definition.swayY * height * sway,
+        Math.cos(orbitAngle) * orbitRadius + definition.swayX * width * (1 - progress) * 0.32,
+        Math.sin(orbitAngle) * orbitRadius + definition.swayY * height * (1 - progress) * 0.32,
         0,
       );
       group.scale.setScalar(lerp(0.16, 0.82, progress));
@@ -207,7 +212,7 @@ function ArcadeBossActor({
 
     if (phase === "converge") {
       const progress = easeInOut(elapsed / CONVERGE_DURATION);
-      const origin = initialized.current ? phaseOrigin.current : new THREE.Vector3(startX, startY, 0);
+      const origin = initialized.current ? phaseOrigin.current : new THREE.Vector3(convergeX, convergeY, 0);
       const spiral = (1 - progress) * (0.5 + Math.abs(definition.startX) + Math.abs(definition.startY)) * Math.PI * 1.7;
       const radius = (1 - progress) * Math.min(width, height) * 0.09;
       group.position.set(
