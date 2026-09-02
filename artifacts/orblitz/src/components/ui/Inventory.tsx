@@ -265,6 +265,7 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
 
   const [activeSlot, setActiveSlot] = useState<SlotDef>(SLOTS[0]);
   const [selectedItemId, setSelectedItemId] = useState(CLEAR_ITEM_ID);
+  const [inspectionOpen, setInspectionOpen] = useState(false);
   const dialogRef = useModalAccessibility<HTMLDivElement>(
     inventoryOpen,
     closeInventory,
@@ -321,6 +322,10 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
       return;
     }
     if (!isDefaultSelected) doEquip(slot, null);
+  };
+
+  const handleInspect = () => {
+    if (selectedItem) setInspectionOpen(true);
   };
 
   return (
@@ -424,7 +429,7 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                   <motion.button
                     key={s.key}
                     whileTap={{ scale: 0.94 }}
-                    onClick={() => setActiveSlot(s)}
+                    onClick={() => { setActiveSlot(s); setInspectionOpen(false); }}
                     aria-pressed={active}
                     aria-label={`Edit ${s.label.toLowerCase()}`}
                     data-testid={`button-loadout-slot-${s.key}`}
@@ -523,7 +528,7 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                       isFocused={selectedItemId === CLEAR_ITEM_ID}
                       isEquipped={isDefaultSelected}
                       color={slot.color}
-                      onClick={() => setSelectedItemId(CLEAR_ITEM_ID)}
+                      onClick={() => { setSelectedItemId(CLEAR_ITEM_ID); setInspectionOpen(false); }}
                       itemId={`${slot.key}-clear`}
                     />
 
@@ -542,7 +547,7 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                         isFocused={selectedItemId === item.id}
                         isEquipped={currentVal === item.value}
                         color={slot.color}
-                        onClick={() => setSelectedItemId(item.id)}
+                        onClick={() => { setSelectedItemId(item.id); setInspectionOpen(false); }}
                         itemId={item.id}
                       />
                     ))}
@@ -604,24 +609,41 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                   )}
 
                   <div className="mt-auto pt-4">
-                    <motion.button
-                      whileTap={{ scale: actionDisabled ? 1 : 0.97 }}
-                      type="button"
-                      onClick={handleDetailAction}
-                      disabled={actionDisabled}
-                      data-testid="button-loadout-equip"
-                      className="orblitz-gear-action w-full"
-                      style={{
-                        color: actionDisabled ? "rgba(255,255,255,0.22)" : slot.color,
-                        borderColor: actionDisabled ? "rgba(255,255,255,0.1)" : `${slot.color}66`,
-                        background: actionDisabled ? "rgba(255,255,255,0.04)" : `${slot.color}14`,
-                        boxShadow: actionDisabled ? "none" : `0 0 22px ${slot.shadow}`,
-                      }}
-                    >
-                      {selectedItem && selectedIsEquipped ? "UNEQUIP" : selectedItem ? "EQUIP GEAR" : "UNEQUIP SLOT"}
-                    </motion.button>
+                    <div className="orblitz-gear-action-row">
+                      <motion.button
+                        whileTap={{ scale: selectedItem ? 0.97 : 1 }}
+                        type="button"
+                        onClick={handleInspect}
+                        disabled={!selectedItem}
+                        data-testid="button-loadout-inspect"
+                        className="orblitz-gear-inspect"
+                        style={{
+                          color: !selectedItem ? "rgba(255,255,255,0.22)" : slot.color,
+                          borderColor: !selectedItem ? "rgba(255,255,255,0.1)" : `${slot.color}55`,
+                          background: !selectedItem ? "rgba(255,255,255,0.04)" : `${slot.color}0d`,
+                        }}
+                      >
+                        INSPECT
+                      </motion.button>
+                      <motion.button
+                        whileTap={{ scale: actionDisabled ? 1 : 0.97 }}
+                        type="button"
+                        onClick={handleDetailAction}
+                        disabled={actionDisabled}
+                        data-testid="button-loadout-equip"
+                        className="orblitz-gear-action"
+                        style={{
+                          color: actionDisabled ? "rgba(255,255,255,0.22)" : slot.color,
+                          borderColor: actionDisabled ? "rgba(255,255,255,0.1)" : `${slot.color}66`,
+                          background: actionDisabled ? "rgba(255,255,255,0.04)" : `${slot.color}14`,
+                          boxShadow: actionDisabled ? "none" : `0 0 22px ${slot.shadow}`,
+                        }}
+                      >
+                        {selectedItem && selectedIsEquipped ? "UNEQUIP" : selectedItem ? "EQUIP GEAR" : "UNEQUIP SLOT"}
+                      </motion.button>
+                    </div>
                     <p className="orblitz-gear-action-hint">
-                      {actionDisabled ? "Select a module to configure this slot" : selectedItem && selectedIsEquipped ? "Remove this module from the active loadout" : "Apply this module to the active loadout"}
+                      {actionDisabled ? "Select a module to configure this slot" : selectedItem && selectedIsEquipped ? "Inspect details or remove this module" : "Inspect details or apply this module"}
                     </p>
                   </div>
                 </motion.div>
@@ -629,6 +651,90 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
             </aside>
           </div>
         </motion.div>
+
+        <AnimatePresence>
+          {inspectionOpen && selectedItem && (
+            <motion.div
+              className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.16 }}
+            >
+              <button
+                type="button"
+                className="absolute inset-0 cursor-pointer"
+                style={{ border: 0, background: "rgba(0,0,8,0.72)", backdropFilter: "blur(10px)" }}
+                onClick={() => setInspectionOpen(false)}
+                aria-label="Close gear inspection"
+              />
+              <motion.div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="orblitz-inspection-title"
+                className="orblitz-gear-inspection relative w-full"
+                initial={{ scale: 0.9, y: 18, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                exit={{ scale: 0.92, y: 12, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 360, damping: 28 }}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="orblitz-gear-inspection-line" style={{ background: slot.color, boxShadow: `0 0 18px ${slot.color}` }} />
+                <div className="orblitz-gear-inspection-header">
+                  <div>
+                    <p className="orblitz-loadout-kicker">MODULE INSPECTION / {slot.label}</p>
+                    <h2 id="orblitz-inspection-title">{selectedItem.name}</h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setInspectionOpen(false)}
+                    aria-label="Close gear inspection"
+                    title="Close inspection"
+                    className="orblitz-gear-inspection-close"
+                    data-testid="button-close-loadout-inspect"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div className="orblitz-gear-inspection-status" style={{ color: selectedIsEquipped ? slot.color : "rgba(255,255,255,0.45)" }}>
+                  <span>{selectedIsEquipped ? "●" : "○"}</span>
+                  {selectedIsEquipped ? "CURRENTLY EQUIPPED" : "AVAILABLE IN LOADOUT"}
+                </div>
+
+                <div className="orblitz-gear-inspection-stats">
+                  {detail.stats.map(stat => (
+                    <div key={stat.label} className="orblitz-gear-inspection-stat">
+                      <span>{stat.label}</span>
+                      <strong>{stat.value}</strong>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="orblitz-gear-inspection-mechanics">
+                  <p className="orblitz-loadout-panel-kicker">HOW IT WORKS</p>
+                  <p>{detail.mechanic}</p>
+                </div>
+
+                {selectedWeaponProgress && (
+                  <div className="orblitz-gear-progression">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>WEAPON LEVEL {selectedWeaponProgress.level}</span>
+                      <span>{selectedWeaponProgress.isMaxLevel ? "MAX / Lv3" : `${selectedWeaponProgress.xp} / ${selectedWeaponProgress.nextThreshold} XP`}</span>
+                    </div>
+                    <div className="orblitz-gear-progress-track">
+                      <div className="orblitz-gear-progress-fill" style={{ width: `${selectedWeaponProgress.progressPercent}%` }} />
+                    </div>
+                  </div>
+                )}
+
+                <p className="orblitz-gear-inspection-footer">
+                  Close this readout to equip or unequip the selected module.
+                </p>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>}
     </AnimatePresence>
   );

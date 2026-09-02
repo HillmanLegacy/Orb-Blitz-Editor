@@ -946,6 +946,31 @@ canvas {
   transition: background 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
+.orblitz-gear-action-row {
+  display: grid;
+  grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+  gap: 7px;
+}
+
+.orblitz-gear-inspect {
+  min-height: 44px;
+  border: 1px solid;
+  border-radius: 11px;
+  font: 900 0.58rem / 1 var(--font-mono);
+  letter-spacing: 0.16em;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, filter 0.16s ease;
+}
+
+.orblitz-gear-inspect:not(:disabled):hover {
+  filter: brightness(1.2);
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.orblitz-gear-inspect:disabled {
+  cursor: default;
+}
+
 .orblitz-gear-action:not(:disabled):hover {
   filter: brightness(1.18);
   transform: translateY(-1px);
@@ -959,6 +984,164 @@ canvas {
   margin: 8px 0 0;
   color: rgba(161, 204, 219, 0.35);
   font: 700 0.43rem / 1.35 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.orblitz-gear-inspection {
+  max-width: min(560px, 100%);
+  padding: 23px 22px 18px;
+  overflow: hidden;
+  border: 1px solid rgba(143, 226, 244, 0.22);
+  border-radius: 19px;
+  background:
+    radial-gradient(circle at 92% 2%, rgba(0, 255, 255, 0.12), transparent 32%),
+    linear-gradient(145deg, rgba(12, 19, 49, 0.98), rgba(13, 5, 34, 0.98));
+  box-shadow: 0 0 70px rgba(0, 255, 255, 0.1), 0 28px 90px rgba(0, 0, 0, 0.82);
+}
+
+.orblitz-gear-inspection::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 1px solid rgba(163, 225, 238, 0.08);
+  border-radius: 14px;
+  pointer-events: none;
+}
+
+.orblitz-gear-inspection-line {
+  position: absolute;
+  top: 0;
+  left: 22px;
+  right: 22px;
+  height: 2px;
+  border-radius: 0 0 4px 4px;
+}
+
+.orblitz-gear-inspection-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.orblitz-gear-inspection-header h2 {
+  max-width: 410px;
+  margin: 0;
+  color: rgba(242, 252, 255, 0.96);
+  font-size: clamp(1rem, 2.2vw, 1.38rem);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-shadow: 0 0 14px rgba(141, 239, 255, 0.22);
+}
+
+.orblitz-gear-inspection-close {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  color: rgba(225, 249, 255, 0.72);
+  border: 1px solid rgba(170, 233, 245, 0.22);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.055);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.16s ease, border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.orblitz-gear-inspection-close:hover {
+  color: #effeff;
+  border-color: rgba(0, 255, 255, 0.62);
+  background: rgba(0, 255, 255, 0.12);
+  box-shadow: 0 0 16px rgba(0, 255, 255, 0.25);
+}
+
+.orblitz-gear-inspection-status {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 15px;
+  color: rgba(201, 234, 242, 0.64);
+  font: 800 0.5rem / 1 var(--font-mono);
+  letter-spacing: 0.15em;
+}
+
+.orblitz-gear-inspection-stats {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 14px;
+}
+
+.orblitz-gear-inspection-stat {
+  min-width: 0;
+  padding: 11px 10px;
+  border: 1px solid rgba(163, 225, 238, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.orblitz-gear-inspection-stat span,
+.orblitz-gear-inspection-stat strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.orblitz-gear-inspection-stat span {
+  color: rgba(161, 204, 219, 0.48);
+  font: 800 0.43rem / 1 var(--font-mono);
+  letter-spacing: 0.14em;
+}
+
+.orblitz-gear-inspection-stat strong {
+  margin-top: 7px;
+  color: rgba(239, 253, 255, 0.9);
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.orblitz-gear-inspection-mechanics {
+  position: relative;
+  z-index: 1;
+  margin-top: 14px;
+  padding: 14px 13px;
+  border: 1px solid rgba(196, 160, 255, 0.2);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(136, 68, 255, 0.14), rgba(0, 255, 255, 0.05));
+}
+
+.orblitz-gear-inspection-mechanics p:last-child {
+  margin: 0;
+  color: rgba(231, 242, 255, 0.78);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.orblitz-gear-inspection-footer {
+  position: relative;
+  z-index: 1;
+  margin: 15px 0 0;
+  color: rgba(161, 204, 219, 0.38);
+  font: 700 0.46rem / 1.4 var(--font-mono);
   letter-spacing: 0.08em;
   text-align: center;
   text-transform: uppercase;
@@ -984,6 +1167,14 @@ canvas {
     max-height: 310px;
     padding: 16px;
     border-top: 1px solid rgba(255, 255, 255, 0.07);
+  }
+
+  .orblitz-gear-inspection {
+    padding: 19px 16px 15px;
+  }
+
+  .orblitz-gear-inspection-header h2 {
+    font-size: 0.98rem;
   }
 }
 
