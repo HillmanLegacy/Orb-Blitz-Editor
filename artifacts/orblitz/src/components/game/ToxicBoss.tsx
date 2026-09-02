@@ -111,7 +111,6 @@ export interface ToxicBossProps {
 export interface ToxicOrbVisualProps extends ToxicBossProps {
   particleCount?: number;
   showParticles?: boolean;
-  showLight?: boolean;
   animatePresentationYaw?: boolean;
   internalRotationSpeed?: number;
 }
@@ -149,7 +148,6 @@ export function ToxicOrbVisual({
   healthPercent = 1,
   particleCount = TOXIC_DRIP_COUNT,
   showParticles = true,
-  showLight = true,
   animatePresentationYaw = false,
   internalRotationSpeed = 0,
 }: ToxicOrbVisualProps) {
@@ -252,8 +250,6 @@ export function ToxicOrbVisual({
 
   return (
     <group>
-      {/* Neutral front fill keeps the authored texture readable. */}
-      {showLight && <pointLight color="#ffffff" intensity={0.9} distance={10} decay={2} position={[0, 0, 3]} />}
       {/* Base model */}
       <group ref={groupRef} />
       {/* Falling droplet instances */}

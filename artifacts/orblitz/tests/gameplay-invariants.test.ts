@@ -288,13 +288,11 @@ describe("gameplay runtime invariants", () => {
       radius: 1,
       particleCount: TOXIC_DRIP_COUNT,
       showParticles: true,
-      showLight: true,
       animatePresentationYaw: false,
     }) as any;
     expect(miniVisual.type).toBe(ToxicOrbVisual);
     expect(miniVisual.props.particleCount).toBe(TOXIC_DRIP_COUNT);
     expect(miniVisual.props.showParticles).toBe(true);
-    expect(miniVisual.props.showLight).toBe(true);
 
     const playerVisual = PlayerBossSkin({
       skin: "toxic",
