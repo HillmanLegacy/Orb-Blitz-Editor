@@ -58,6 +58,13 @@ import {
   shouldTriggerFireBossAmbushHit,
 } from "../src/game-runtime/FireBossAmbush";
 import {
+  FIRE_BOSS_NORMAL_PLAYER_CLEARANCE,
+  fireBossPathIntersectsPlayer,
+  getFireBossAvoidanceWaypoint,
+  getFireBossPlayerRelativeTarget,
+  stepFireBossMotion,
+} from "../src/game-runtime/FireBossMovement";
+import {
   POWER_UP_DESTROY_DURATION,
   PowerUpRuntime,
 } from "../src/game-runtime/PowerUpRuntime";
@@ -300,6 +307,12 @@ describe("gameplay runtime invariants", () => {
     const view = { centerX: 0, centerY: 0, halfWidth: 12, halfHeight: 8 };
     const destination = getFireBossAmbushDashDestination([-10, 0], [0, 0], view);
     expect(destination[0]).toBeGreaterThan(0);
+    expect(fireBossPathIntersectsPlayer(
+      [-10, 0],
+      destination,
+      [0, 0],
+      FIRE_BOSS_NORMAL_PLAYER_CLEARANCE,
+    )).toBe(true);
     expect(getFireBossAmbushDashProgress(0)).toBe(0);
     expect(getFireBossAmbushDashProgress(10)).toBe(1);
 
@@ -308,6 +321,65 @@ describe("gameplay runtime invariants", () => {
     expect(impact.position).toEqual([0, 0, 0]);
     expect(getFireBossAmbushImpactProgress(impact.timer)).toBe(0);
     expect(FIRE_BOSS_AMBUSH_PLAYER_CLEARANCE).toBeGreaterThan(0);
+  });
+
+  it("retargets normal Fire movement from the live player position", () => {
+    const view = { centerX: 0, centerY: 0, halfWidth: 12, halfHeight: 8 };
+    const firstTarget = getFireBossPlayerRelativeTarget(view, [0, 0], 0, 7);
+    const movedTarget = getFireBossPlayerRelativeTarget(view, [2, -1], 0, 7);
+
+    expect(firstTarget).toEqual([7, 0]);
+    expect(movedTarget).toEqual([9, -1]);
+  });
+
+  it("routes normal Fire movement around the player's swept clearance", () => {
+    const player: [number, number] = [0, 0];
+    const start: [number, number] = [-10, 0];
+    const goal: [number, number] = [10, 0];
+    const waypoint = getFireBossAvoidanceWaypoint(
+      start,
+      goal,
+      player,
+      FIRE_BOSS_NORMAL_PLAYER_CLEARANCE,
+    );
+
+    expect(fireBossPathIntersectsPlayer(start, goal, player)).toBe(true);
+    expect(waypoint).not.toBeNull();
+    expect(fireBossPathIntersectsPlayer(start, waypoint!, player)).toBe(false);
+    expect(fireBossPathIntersectsPlayer(waypoint!, goal, player)).toBe(false);
+  });
+
+  it("accelerates and brakes normal Fire movement without a waypoint snap", () => {
+    const first = stepFireBossMotion(
+      [0, 0],
+      [0, 0],
+      [10, 0],
+      0.05,
+      { maxSpeed: 8, acceleration: 4 },
+    );
+    const second = stepFireBossMotion(
+      first.position,
+      first.velocity,
+      [10, 0],
+      0.05,
+      { maxSpeed: 8, acceleration: 4 },
+    );
+
+    expect(first.position[0]).toBeGreaterThan(0);
+    expect(first.position[0]).toBeLessThan(1);
+    expect(first.velocity[0]).toBeCloseTo(0.2);
+    expect(second.position[0]).toBeGreaterThan(first.position[0]);
+    expect(second.velocity[0] - first.velocity[0]).toBeCloseTo(0.2);
+
+    const braking = stepFireBossMotion(
+      [9.8, 0],
+      [3, 0],
+      [10, 0],
+      0.016,
+      { maxSpeed: 8, acceleration: 8 },
+    );
+    expect(braking.position[0]).toBeGreaterThan(9.8);
+    expect(braking.position[0]).toBeLessThan(10);
   });
 
   it("enlarges the Fire Ambush impact by exactly 1.3x", () => {

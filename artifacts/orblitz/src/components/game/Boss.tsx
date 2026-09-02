@@ -9,7 +9,18 @@ import { BOSS_DEFEAT_DURATION, BOSS_DEFEAT_SIZE_SCALE } from "./BossDefeatPalett
 import { StarBossTeleportVFX, StarTeleportVFXState } from "./StarBossTeleportVFX";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
 import { FireAura } from "./FireAura";
-import { getPerspectiveViewAtPlane } from "@/game-runtime/EnemySpawnConfig";
+import {
+  getEnemySpawnPoint,
+  getPerspectiveViewAtPlane,
+  type EnemySpawnView,
+} from "@/game-runtime/EnemySpawnConfig";
+import {
+  FIRE_BOSS_NORMAL_PLAYER_CLEARANCE,
+  fireBossPathIntersectsPlayer,
+  getFireBossAvoidanceWaypoint,
+  getFireBossPlayerRelativeTarget,
+  stepFireBossMotion,
+} from "@/game-runtime/FireBossMovement";
 import {
   canStartFireBossAmbush,
   createFireBossAmbushImpact,
@@ -127,12 +138,16 @@ export function Boss() {
     fireAmbushImpactRef.current = null;
     fireAmbushImpactTriggeredRef.current = false;
     fireAmbushPlayerProgressRef.current = 0;
+    fireMotionVelocityRef.current = [0, 0];
   };
 
   // ── FireBoss (circle) strike-and-retreat state machine ──────────────────────
   const fireMovePhaseRef = useRef<'entering' | 'waiting' | 'exiting'>('entering');
   const fireTargetRef    = useRef<[number, number]>([0, 0]);
   const fireOffscreenRef = useRef<[number, number]>([18, 0]);
+  const fireTargetAngleRef = useRef(0);
+  const fireTargetDistanceRef = useRef(7);
+  const fireMotionVelocityRef = useRef<[number, number]>([0, 0]);
   const fireWaitTimerRef = useRef(3.0);
   const fireInitRef      = useRef(false);
   const fireShotTimerRef = useRef(0); // countdown until next shot while moving
@@ -315,6 +330,7 @@ export function Boss() {
         frameCountRef.current       = 0;
         fireMovePhaseRef.current    = 'entering';
         fireInitRef.current         = false;
+        fireMotionVelocityRef.current = [0, 0];
         fireShotTimerRef.current    = 0;
         resetFireAmbush();
         triPatternRef.current       = 0;
@@ -348,6 +364,9 @@ export function Boss() {
     if (fireBossIdRef.current !== boss.id) {
       resetFireAmbush();
       fireBossIdRef.current = boss.id;
+      fireInitRef.current = false;
+      fireMovePhaseRef.current = "entering";
+      fireMotionVelocityRef.current = [0, 0];
     }
 
     if (fireAmbushImpactRef.current) {
@@ -837,17 +856,8 @@ export function Boss() {
         // ── FireBoss "strike-and-retreat" state machine ──────────────────────
         // Phases: entering (fires while moving) → waiting (3 s, no fire)
         //       → exiting (fires while moving) → repeat
-        // Landing target is 100–300 px from the player in world units.
-        // All fired orbs use indirect approach movement patterns.
-
-        const PW  = 12;
-        const PH  = 8;
-        const OFF = 18;
-
-        // Live px→world-unit conversion.
-        const pxPerWU   = state.size.height / state.viewport.height;
-        const minDistWU = 100 / pxPerWU;
-        const maxDistWU = 300 / pxPerWU;
+        // Normal entry and retreat goals stay relative to the live player and
+        // camera. All fired orbs use indirect approach movement patterns.
 
         // Indirect movement patterns for fired orbs.
         const INDIRECT: MovementPattern[] = [
@@ -857,24 +867,18 @@ export function Boss() {
 
         // ── Helpers ─────────────────────────────────────────────────────────
 
-        const pickNewCycle = () => {
-          // Random edge for off-screen origin/destination.
-          const side = Math.floor(Math.random() * 4);
-          if (side === 0) {
-            fireOffscreenRef.current = [-OFF, (Math.random() - 0.5) * PH * 1.4];
-          } else if (side === 1) {
-            fireOffscreenRef.current = [ OFF, (Math.random() - 0.5) * PH * 1.4];
-          } else if (side === 2) {
-            fireOffscreenRef.current = [(Math.random() - 0.5) * PW * 1.6,  OFF];
-          } else {
-            fireOffscreenRef.current = [(Math.random() - 0.5) * PW * 1.6, -OFF];
-          }
-          // Landing: random angle around player, radius in [100 px, 300 px].
-          const angle  = Math.random() * Math.PI * 2;
-          const radius = minDistWU + Math.random() * (maxDistWU - minDistWU);
-          const tx = Math.max(-PW * 0.9, Math.min(PW * 0.9, playerX + Math.cos(angle) * radius));
-          const ty = Math.max(-PH * 0.85, Math.min(PH * 0.85, playerY + Math.sin(angle) * radius));
-          fireTargetRef.current = [tx, ty];
+        const pickNewCycle = (view: EnemySpawnView) => {
+          // Use the live camera edge for entry/exit instead of fixed world
+          // coordinates that can appear abruptly at different view sizes.
+          fireOffscreenRef.current = getEnemySpawnPoint(view, Math.random);
+          fireTargetAngleRef.current = Math.random() * Math.PI * 2;
+          fireTargetDistanceRef.current = 6.5 + Math.random() * 1.5;
+          fireTargetRef.current = getFireBossPlayerRelativeTarget(
+            view,
+            [playerX, playerY],
+            fireTargetAngleRef.current,
+            fireTargetDistanceRef.current,
+          );
         };
 
         // Spawn one orb aimed roughly at the player with a random indirect pattern.
@@ -904,22 +908,10 @@ export function Boss() {
           });
         };
 
-        // ── First-frame init ─────────────────────────────────────────────────
-        if (!fireInitRef.current) {
-          pickNewCycle();
-          bossPosRef.current       = [fireOffscreenRef.current[0], fireOffscreenRef.current[1], 0];
-          fireMovePhaseRef.current = 'entering';
-          fireShotTimerRef.current = 0.5;
-          fireInitRef.current      = true;
-        }
-
-        const curX = bossPosRef.current[0];
-        const curY = bossPosRef.current[1];
+        let curX = bossPosRef.current[0];
+        let curY = bossPosRef.current[1];
         let bx = curX;
         let by = curY;
-
-        const ENTER_SPEED = 5.0;
-        const EXIT_SPEED  = 6.5;
 
         const viewCamera = state.camera as THREE.PerspectiveCamera;
         const fireView = getPerspectiveViewAtPlane({
@@ -930,6 +922,84 @@ export function Boss() {
           verticalFovDegrees: viewCamera.fov,
           aspect: viewCamera.aspect,
         });
+
+        // ── First-frame init ─────────────────────────────────────────────────
+        if (!fireInitRef.current) {
+          pickNewCycle(fireView);
+          bossPosRef.current = [
+            fireOffscreenRef.current[0],
+            fireOffscreenRef.current[1],
+            0,
+          ];
+          fireMovePhaseRef.current = "entering";
+          fireMotionVelocityRef.current = [0, 0];
+          fireShotTimerRef.current = 0.5;
+          fireInitRef.current = true;
+          curX = bossPosRef.current[0];
+          curY = bossPosRef.current[1];
+        }
+
+        const advanceNormalMovement = (
+          preferredGoal: readonly [number, number],
+          maxSpeed: number,
+          acceleration: number,
+        ) => {
+          const current: [number, number] = [curX, curY];
+          const player: [number, number] = [playerX, playerY];
+          const waypoint = getFireBossAvoidanceWaypoint(
+            current,
+            preferredGoal,
+            player,
+            FIRE_BOSS_NORMAL_PLAYER_CLEARANCE,
+          );
+          const travelGoal = waypoint ?? preferredGoal;
+          let step = stepFireBossMotion(
+            current,
+            fireMotionVelocityRef.current,
+            travelGoal,
+            delta,
+            { maxSpeed, acceleration },
+          );
+
+          // Inertia can carry a boss toward the player even after its goal has
+          // been rerouted. Never commit a frame whose swept segment violates
+          // the normal-movement clearance.
+          if (fireBossPathIntersectsPlayer(
+            current,
+            step.position,
+            player,
+            FIRE_BOSS_NORMAL_PLAYER_CLEARANCE,
+          )) {
+            const emergencyWaypoint = getFireBossAvoidanceWaypoint(
+              current,
+              travelGoal,
+              player,
+              FIRE_BOSS_NORMAL_PLAYER_CLEARANCE,
+            );
+            if (emergencyWaypoint) {
+              step = stepFireBossMotion(
+                current,
+                fireMotionVelocityRef.current,
+                emergencyWaypoint,
+                delta,
+                { maxSpeed, acceleration },
+              );
+            }
+            if (fireBossPathIntersectsPlayer(
+              current,
+              step.position,
+              player,
+              FIRE_BOSS_NORMAL_PLAYER_CLEARANCE,
+            )) {
+              step = { position: current, velocity: [0, 0] };
+            }
+          }
+
+          fireMotionVelocityRef.current = step.velocity;
+          bx = step.position[0];
+          by = step.position[1];
+          return step;
+        }
 
         // ── Rare low-health Backdraft Ambush ─────────────────────────────────
         // The ambush owns the Fire boss transform for its short lifetime. It
@@ -955,6 +1025,9 @@ export function Boss() {
               fireAmbushUsesRef.current + 1,
             );
             fireAmbushImpactTriggeredRef.current = false;
+            // The ambush owns the transform; do not carry normal-movement
+            // inertia into the post-dash retreat.
+            fireMotionVelocityRef.current = [0, 0];
           }
         }
 
@@ -1056,7 +1129,7 @@ export function Boss() {
               fireAmbushPhaseRef.current = "idle";
               // Re-enter the authored Fire strike-and-retreat loop from a
               // fresh edge target after the ambush has left the screen.
-              pickNewCycle();
+              pickNewCycle(fireView);
               fireMovePhaseRef.current = "exiting";
             }
           } else {
@@ -1069,11 +1142,14 @@ export function Boss() {
           switch (fireMovePhaseRef.current) {
 
           case 'entering': {
-            const tx   = fireTargetRef.current[0];
-            const ty   = fireTargetRef.current[1];
-            const dx   = tx - curX;
-            const dy   = ty - curY;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+            const target = getFireBossPlayerRelativeTarget(
+              fireView,
+              [playerX, playerY],
+              fireTargetAngleRef.current,
+              fireTargetDistanceRef.current,
+            );
+            fireTargetRef.current = target;
+            const dist = Math.hypot(target[0] - curX, target[1] - curY);
 
             // Fire while moving.
             fireShotTimerRef.current -= delta;
@@ -1082,24 +1158,30 @@ export function Boss() {
               fireShotTimerRef.current = 0.4 + Math.random() * 0.4;
             }
 
-            if (dist < 0.3) {
-              bx = tx; by = ty;
+            const step = advanceNormalMovement(target, 7, 8);
+            if (dist < 0.45 && Math.hypot(step.velocity[0], step.velocity[1]) < 0.9) {
               fireWaitTimerRef.current = 3.0;
               fireMovePhaseRef.current = 'waiting';
-            } else {
-              const f = Math.min(1, delta * ENTER_SPEED);
-              bx = curX + dx * f;
-              by = curY + dy * f;
             }
             break;
           }
 
           case 'waiting': {
-            // Stationary — no firing.
-            bx = curX; by = curY;
+            // Gently orbit a live player-relative target rather than holding a
+            // stale world coordinate while the player moves.
+            fireOrbitAngleRef.current += delta * 0.55;
+            const target = getFireBossPlayerRelativeTarget(
+              fireView,
+              [playerX, playerY],
+              fireTargetAngleRef.current + fireOrbitAngleRef.current,
+              fireTargetDistanceRef.current,
+            );
+            fireTargetRef.current = target;
+            advanceNormalMovement(target, 2.2, 4.5);
             fireWaitTimerRef.current -= delta;
             if (fireWaitTimerRef.current <= 0) {
               fireShotTimerRef.current = 0.3; // fire shortly after movement begins
+              fireOffscreenRef.current = getEnemySpawnPoint(fireView, Math.random);
               fireMovePhaseRef.current = 'exiting';
             }
             break;
@@ -1108,9 +1190,7 @@ export function Boss() {
           case 'exiting': {
             const ex   = fireOffscreenRef.current[0];
             const ey   = fireOffscreenRef.current[1];
-            const dx   = ex - curX;
-            const dy   = ey - curY;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+            const dist = Math.hypot(ex - curX, ey - curY);
 
             // Fire while retreating.
             fireShotTimerRef.current -= delta;
@@ -1119,17 +1199,11 @@ export function Boss() {
               fireShotTimerRef.current = 0.4 + Math.random() * 0.4;
             }
 
-            if (dist < 0.6) {
-              pickNewCycle();
-              bx = fireOffscreenRef.current[0];
-              by = fireOffscreenRef.current[1];
-              bossPosRef.current       = [bx, by, 0];
+            const step = advanceNormalMovement([ex, ey], 8, 9);
+            if (dist < 0.65 && Math.hypot(step.velocity[0], step.velocity[1]) < 1.2) {
+              pickNewCycle(fireView);
               fireShotTimerRef.current = 0.5;
               fireMovePhaseRef.current = 'entering';
-            } else {
-              const f = Math.min(1, delta * EXIT_SPEED);
-              bx = curX + dx * f;
-              by = curY + dy * f;
             }
             break;
           }
