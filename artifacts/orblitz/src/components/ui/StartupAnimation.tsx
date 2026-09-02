@@ -74,13 +74,16 @@ const TITLE_LETTERS = ["O","R","B","L","I","T","Z"];
 const SPLASH_DURATION = 2400;
 const FLYING_START = SPLASH_DURATION;
 const CONVERGE_START = FLYING_START + 2550;
-const FLASH_START = CONVERGE_START + 1050;
-const TITLE_START = FLASH_START + 820;
-const MENU_START = TITLE_START + 1650;
-const MENU_BACKGROUND_REVEAL_DURATION = 1.15;
-const MENU_TITLE_REVEAL_DELAY = MENU_BACKGROUND_REVEAL_DURATION;
-const MENU_SECONDARY_REVEAL_DELAY = MENU_TITLE_REVEAL_DELAY + 0.5;
+const CONVERGE_DURATION_MS = 1050;
+const FLASH_START = CONVERGE_START + CONVERGE_DURATION_MS;
+const TITLE_START = FLASH_START + 90;
+const WHITE_FLASH_DURATION = 0.14;
+const MENU_START = FLASH_START + WHITE_FLASH_DURATION * 1000 + 24;
+const MENU_BACKGROUND_REVEAL_DURATION = 1.25;
+const MENU_TITLE_REVEAL_DELAY = 0.14;
+const MENU_SECONDARY_REVEAL_DELAY = MENU_TITLE_REVEAL_DELAY + 0.38;
 const MENU_NAVIGATION_DELAY = 0.04;
+const PRE_FLASH_CHARGE_DURATION = 0.48;
 const TITLE_REFLECTION_BOSSES: readonly MainBossType[] = [
   "circle", "star", "triangle", "trapezoid", "cube", "arrow", "monster",
 ];
@@ -111,12 +114,13 @@ function BrightFlashTransition({ phase }: { phase: AnimPhase }) {
             opacity: revealing
               ? [1, 0]
               : charging
-                ? [0, 0.04, 0.12, 0.3, 0.58]
+                ? [0, 0.035, 0.11, 0.34, 0.84]
                 : 1,
           }}
           exit={{ opacity: 0 }}
           transition={{
-            duration: revealing ? MENU_BACKGROUND_REVEAL_DURATION : charging ? 0.65 : 0.22,
+            delay: charging ? CONVERGE_DURATION_MS / 1000 - PRE_FLASH_CHARGE_DURATION : 0,
+            duration: revealing ? MENU_BACKGROUND_REVEAL_DURATION : charging ? PRE_FLASH_CHARGE_DURATION : WHITE_FLASH_DURATION,
             ease: revealing ? [0.22, 0.61, 0.36, 1] : "easeOut",
           }}
         />
