@@ -128,7 +128,7 @@ function OverheatFlames({ heat, overheated }: { heat: number; overheated: boolea
             animationDelay: `${index * -0.12}s`,
           }}
         >
-          🔥
+           <span className="orblitz-heat-notch" />
         </span>
       ))}
     </motion.div>
@@ -217,6 +217,9 @@ export function HealthBar() {
             : { x: 0, y: 0 }
         }
         transition={{ duration: 0.24, ease: "easeOut" }}
+        className="orblitz-healthbar-shell"
+        role="group"
+        aria-label={`Player energy ${Math.round(health)} of ${Math.round(maxHealth)}`}
         style={{
           position: "relative",
           display: "flex",
@@ -276,7 +279,14 @@ export function HealthBar() {
         <OrbEmblem color={accentColor} />
 
         {/* ── Bar track ── */}
-        <div style={{
+        <div
+          role="progressbar"
+          aria-label="Player energy"
+          aria-valuemin={0}
+          aria-valuemax={maxHealth}
+          aria-valuenow={health}
+          className="orblitz-healthbar-track"
+          style={{
           flex: 1, position: "relative", height: 16,
           background: "rgba(0,0,0,0.6)",
           borderRadius: 5,

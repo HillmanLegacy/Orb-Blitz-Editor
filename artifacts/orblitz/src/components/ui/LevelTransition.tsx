@@ -197,12 +197,12 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
   };
 
   const buttons: BtnDef[] = [
-    { id: "next",      icon: <IconNext />,   label: "NEXT",   color: CYAN,              shadow: `${CYAN}55`,                   action: handleContinue },
-    { id: "inventory", icon: <IconGear />,   label: "GEAR",   color: PURPLE,            shadow: "rgba(167,139,250,0.4)",        action: () => { sfx(); openInventory(); } },
+    { id: "next",      icon: <IconNext />,   label: "CONTINUE", color: CYAN,             shadow: `${CYAN}55`,                   action: handleContinue },
+    { id: "inventory", icon: <IconGear />,   label: "GEAR",     color: PURPLE,           shadow: "rgba(167,139,250,0.4)",        action: () => { sfx(); openInventory(); } },
     ...(onLevelSelect
-      ? [{ id: "levels", icon: <IconLevels />, label: "LEVELS", color: PINK,             shadow: "rgba(244,114,182,0.4)",        action: handleLevelSelect }]
+      ? [{ id: "levels", icon: <IconLevels />, label: "STAGES", color: PINK,              shadow: "rgba(244,114,182,0.4)",        action: handleLevelSelect }]
       : []),
-    { id: "menu",      icon: <IconHome />,   label: "MENU",   color: "rgba(148,163,184,0.9)", shadow: "rgba(100,110,130,0.22)", action: handleMainMenu },
+    { id: "menu",      icon: <IconHome />,   label: "MENU",     color: "rgba(148,163,184,0.9)", shadow: "rgba(100,110,130,0.22)", action: handleMainMenu },
   ];
 
   return (
@@ -211,14 +211,14 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
       style={{ padding: "clamp(8px,2vh,18px) clamp(10px,4vw,32px)", backgroundColor: "rgba(5,8,28,0.34)" }}
     >
       {/* Main-menu atmosphere carried into the level-complete state. */}
-      <div className="absolute inset-0 pointer-events-none" style={{
+      <div className="absolute inset-0 pointer-events-none orblitz-result-atmosphere" style={{
         opacity: 0.9,
         background: "radial-gradient(ellipse at 50% 42%, rgba(67,22,134,0.3) 0%, rgba(9,70,105,0.18) 42%, transparent 80%), linear-gradient(135deg, rgba(4,17,57,0.16), rgba(60,8,72,0.18) 52%, rgba(0,42,60,0.16))",
       }} />
 
       {/* Cyan grid pattern */}
       <motion.div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 pointer-events-none orblitz-result-grid"
         style={{
           backgroundImage: `
             linear-gradient(rgba(0,255,255,0.3) 1px, transparent 1px),
@@ -232,7 +232,7 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
       />
 
       {/* Floating background orbs */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none orblitz-result-orbs">
         {floatingOrbs.map((orb, i) => (
           <motion.div
             key={i}
@@ -256,7 +256,7 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
       </div>
 
       {/* Decorative rings */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none orblitz-result-rings">
         {[
           { size: 220, color: isBoss ? GOLD   : CYAN,   thickness: 1.5 },
           { size: 340, color: isBoss ? PINK   : PURPLE, thickness: 1   },
@@ -280,7 +280,7 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
       />
 
       {/* Scanlines */}
-      <div className="absolute inset-0 pointer-events-none" style={{
+       <div className="absolute inset-0 pointer-events-none orblitz-result-scanlines" style={{
         backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,255,255,0.006) 3px,rgba(0,255,255,0.006) 4px)",
       }} />
 
@@ -305,7 +305,7 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
 
       {/* Glass card */}
       <motion.div
-        className="relative z-10 w-full flex flex-col items-center"
+        className="relative z-10 w-full flex flex-col items-center orblitz-result-card"
         style={{
           maxWidth: "clamp(320px,92vw,520px)",
           maxHeight: "calc(100dvh - 16px)",

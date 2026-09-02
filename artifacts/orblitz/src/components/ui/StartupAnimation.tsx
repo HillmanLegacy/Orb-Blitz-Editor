@@ -359,11 +359,11 @@ export function StartupAnimation({
 
     switch (menuState) {
        case "root": return [
-        { id:"play",      icon:<IconPlay />,     label:"LAUNCH",   color:"#00f6ff", shadow:"rgba(0,246,255,0.44)", action: () => { btn("play");      setMenuState("modes");    } },
-        { id:"shop",      icon:<IconShop />,     label:"MARKET",   color:"#ff2bd6", shadow:"rgba(255,43,214,0.44)", action: () => { btn("shop");      openShop();               } },
-        { id:"inventory", icon:<IconGear />,     label:"LOADOUT",  color:"#9b5cff", shadow:"rgba(155,92,255,0.44)", action: () => { btn("inventory"); openInventory();          } },
-        { id:"trophies",  icon:<IconTrophy />,   label:"ARCHIVE",  color:"#ffe600", shadow:"rgba(255,230,0,0.38)",  action: () => { btn("trophies"); openTrophies(); } },
-        { id:"settings",  icon:<IconSettings />, label:"SYSTEMS",  color:"#70e8ff", shadow:"rgba(112,232,255,0.36)",  action: () => { btn("settings");  setMenuState("settings"); } },
+         { id:"play",      icon:<IconPlay />,     label:"PLAY",     color:"#8fffe0", shadow:"rgba(143,255,224,0.34)", action: () => { btn("play");      setMenuState("modes");    } },
+         { id:"shop",      icon:<IconShop />,     label:"SHOP",     color:"#ff8e72", shadow:"rgba(255,142,114,0.3)", action: () => { btn("shop");      openShop();               } },
+         { id:"inventory", icon:<IconGear />,     label:"GEAR",     color:"#bba1ff", shadow:"rgba(187,161,255,0.3)", action: () => { btn("inventory"); openInventory();          } },
+         { id:"trophies",  icon:<IconTrophy />,   label:"RECORDS",  color:"#e9dd85", shadow:"rgba(233,221,133,0.24)", action: () => { btn("trophies"); openTrophies(); } },
+         { id:"settings",  icon:<IconSettings />, label:"SETTINGS", color:"#9bdcff", shadow:"rgba(155,220,255,0.26)", action: () => { btn("settings");  setMenuState("settings"); } },
       ];
       case "modes": return [
         { id:"arcade",    icon:<IconArcade />,   label:"ARCADE",   color:"#ff2bd6", shadow:"rgba(255,43,214,0.44)", action: () => { btn("arcade"); setMenuState("worlds"); }  },
@@ -408,8 +408,8 @@ export function StartupAnimation({
           onPointerCancel={() => { worldPointerStartX.current = null; worldSwipeRef.current = false; }}
         >
           <div className="orblitz-world-carousel-topline">
-            <span>SECTOR ARRAY / 09 WORLDS</span>
-            <span className="orblitz-world-carousel-hint">ARROW KEYS / SWIPE TO SCAN</span>
+            <span>WORLDS / 09 STAGES</span>
+            <span className="orblitz-world-carousel-hint">ARROWS OR SWIPE TO EXPLORE</span>
           </div>
 
           <div className="orblitz-world-carousel-stage">
@@ -463,14 +463,14 @@ export function StartupAnimation({
                     <span className="orblitz-world-card-grid" />
                     <span className="orblitz-world-card-corner orblitz-world-card-corner-tl" />
                     <span className="orblitz-world-card-corner orblitz-world-card-corner-br" />
-                    <span className="orblitz-world-card-index">SECTOR {String(world).padStart(2, "0")}</span>
-                    <span className="orblitz-world-card-signal">{done ? "CLEARANCE // VERIFIED" : unlocked ? "SIGNAL // STABLE" : "SIGNAL // LOST"}</span>
+                    <span className="orblitz-world-card-index">WORLD {String(world).padStart(2, "0")}</span>
+                    <span className="orblitz-world-card-signal">{done ? "COMPLETE" : unlocked ? "READY TO PLAY" : "LOCKED"}</span>
                     <span className="orblitz-world-card-art" aria-hidden="true">
                       {!unlocked && <span className="orblitz-world-card-lock"><IconLock /></span>}
                     </span>
                     <span className="orblitz-world-card-copy">
                       <strong>{WORLD_NAMES[world - 1]}</strong>
-                      <small>{unlocked ? `BOSS // ${type.toUpperCase()}` : "CLEARANCE REQUIRED"}</small>
+                      <small>{unlocked ? `BOSS TYPE · ${type.toUpperCase()}` : "COMPLETE EARLIER WORLDS"}</small>
                     </span>
                     <span className="orblitz-world-card-footer">
                       <span>{done ? "CLEARED" : unlocked ? "READY" : "LOCKED"}</span>
@@ -497,9 +497,9 @@ export function StartupAnimation({
 
           <div className="orblitz-world-carousel-readout">
             <div>
-              <span className="orblitz-world-readout-kicker">ACTIVE COMBAT SECTOR</span>
+              <span className="orblitz-world-readout-kicker">CURRENT WORLD</span>
               <strong style={{ color: selectedUnlocked ? selectedColor : "#9ba7bd" }}>WORLD {String(selectedWorld).padStart(2, "0")}</strong>
-              <span>{WORLD_NAMES[selectedWorld - 1]} <i /> {selectedUnlocked ? (selectedDone ? "CLEARED" : "AVAILABLE") : "LOCKED"}</span>
+              <span>{WORLD_NAMES[selectedWorld - 1]} <i /> {selectedUnlocked ? (selectedDone ? "COMPLETE" : "AVAILABLE") : "LOCKED"}</span>
             </div>
             <button
               type="button"
@@ -508,8 +508,8 @@ export function StartupAnimation({
               onClick={() => openWorldLevels(selectedWorld)}
               style={{ "--world-color": selectedUnlocked ? selectedColor : "#657087" } as React.CSSProperties}
             >
-              <span>{selectedUnlocked ? "OPEN ROUTES" : "LOCKED"}</span>
-              <small>{selectedUnlocked ? "ENTER WORLD" : "CLEAR PRIOR SECTOR"}</small>
+               <span>{selectedUnlocked ? "VIEW LEVELS" : "LOCKED"}</span>
+               <small>{selectedUnlocked ? "CHOOSE A STAGE" : "COMPLETE PRIOR WORLD"}</small>
             </button>
           </div>
 
@@ -574,17 +574,17 @@ export function StartupAnimation({
                 <span className="orblitz-select-corner orblitz-select-corner-br" />
                 {unlocked ? (
                   <>
-                    <span className="orblitz-select-index">ROUTE {String(sub).padStart(2, "0")}</span>
+                     <span className="orblitz-select-index">LEVEL {String(sub).padStart(2, "0")}</span>
                     <span className="orblitz-select-number">{selectedWorld}.{sub}</span>
-                    <span className="orblitz-select-label">{boss ? "BOSS ENCOUNTER" : `${getOrbGoal(selectedWorld, sub)} ORBS`}</span>
-                    <span className="orblitz-select-status">{completed ? "CLEARED" : boss ? "HIGH THREAT" : "READY"}</span>
+                     <span className="orblitz-select-label">{boss ? "BOSS FIGHT" : `${getOrbGoal(selectedWorld, sub)} ORBS`}</span>
+                     <span className="orblitz-select-status">{completed ? "COMPLETE" : boss ? "BOSS AHEAD" : "READY"}</span>
                     {completed && <span className="orblitz-select-status-dot" style={{ background: bc }} />}
                   </>
                 ) : (
                   <>
                     <span className="orblitz-select-locked-icon" aria-hidden="true"><IconLock /></span>
                     <span className="orblitz-select-label">LOCKED</span>
-                    <span className="orblitz-select-status">CLEARANCE REQUIRED</span>
+                     <span className="orblitz-select-status">COMPLETE EARLIER LEVELS</span>
                   </>
                 )}
               </motion.button>
@@ -745,7 +745,7 @@ export function StartupAnimation({
       {/* ── ORBLITZ TITLE — pinned at viewport center, never moves ─────── */}
       <AnimatePresence>
         {showTitle && (
-          <motion.div className="absolute z-10 text-center"
+             <motion.div className="absolute z-10 text-center orblitz-title-lockup"
             style={{ top: "50%", left: 0, right: 0 }}
             initial={{ opacity: 0, scale: 0.92, y: "-50%" }}
             animate={{ opacity: showMenu ? 1 : 0, scale: showMenu ? 1 : 0.92, y: "-50%" }}
@@ -754,7 +754,7 @@ export function StartupAnimation({
           >
             {/* One persistent title node: the reveal becomes the interactive menu title in place. */}
             <motion.h1
-              className={`font-black tracking-widest flex items-center justify-center${showMenu ? "" : " pointer-events-none"}`}
+               className={`font-black tracking-widest flex items-center justify-center orblitz-title-wordmark${showMenu ? "" : " pointer-events-none"}`}
               style={{ fontSize: "clamp(3.5rem, 11vw, 7rem)", lineHeight: 1,
                 fontFamily: "Arial Black, Impact, sans-serif", fontWeight: 900, fontStyle: "normal",
                 letterSpacing: "0.075em", transform: "none",
@@ -924,7 +924,7 @@ export function StartupAnimation({
           >
             {/* Header */}
             <div className="flex-none orblitz-selection-header">
-              <span className="orblitz-selection-kicker">{menuState === "worlds" ? "NAVIGATION / SECTOR MAP" : `SECTOR ${String(selectedWorld).padStart(2, "0")} / MISSION ROUTE`}</span>
+              <span className="orblitz-selection-kicker">{menuState === "worlds" ? "ARCADE / WORLDS" : `WORLD ${String(selectedWorld).padStart(2, "0")} / LEVELS`}</span>
               <p data-testid={`text-${menuState}-title`} className="font-black tracking-widest uppercase" style={{
                 color: menuState === "worlds" ? "#00ffff" : WORLD_COLORS[selectedWorld - 1],
                 fontSize: "clamp(0.85rem, 2.5vw, 1.1rem)",
@@ -933,7 +933,7 @@ export function StartupAnimation({
               }}>
                 {menuState === "worlds" ? "Select World" : `World ${selectedWorld}`}
               </p>
-              <span className="orblitz-selection-subtitle">{menuState === "worlds" ? "Choose your next combat sector" : "Select a mission route to deploy"}</span>
+              <span className="orblitz-selection-subtitle">{menuState === "worlds" ? "Choose a world to play" : "Choose a level to play"}</span>
             </div>
 
              {/* Responsive world carousel / mission grid */}
@@ -1115,8 +1115,8 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
       <style>{`.orb-bslider{-webkit-appearance:none;appearance:none;outline:none;cursor:pointer;border-radius:2px}.orb-bslider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:3px;background:#ffe600;box-shadow:0 0 8px rgba(255,230,0,0.95)}.orb-bslider::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:3px;background:#ffe600;box-shadow:0 0 8px rgba(255,230,0,0.95)}.orb-vslider{-webkit-appearance:none;appearance:none;outline:none;cursor:pointer;border-radius:2px}.orb-vslider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:3px;background:#00f6ff;box-shadow:0 0 8px rgba(0,246,255,0.95)}.orb-vslider::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:3px;background:#00f6ff;box-shadow:0 0 8px rgba(0,246,255,0.95)}`}</style>
        <div className="flex flex-col w-full orblitz-options-deck" style={{ gap: "clamp(8px,1.5vw,14px)" }}>
          <div className="orblitz-options-heading">
-           <span>OPTIONS // SYSTEMS</span>
-           <small>CONFIGURE YOUR COMMAND DECK</small>
+            <span>SETTINGS / PERSONALIZE</span>
+            <small>MAKE THE ARENA YOURS</small>
          </div>
         <motion.div
            className="relative flex flex-col items-center justify-center overflow-hidden w-full orblitz-options-control"

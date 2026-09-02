@@ -168,13 +168,13 @@ export function GameUI() {
   const soundShadow = isMuted ? "rgba(100,110,130,0.2)" : "rgba(0,255,255,0.45)";
 
   return (
-    <div className="fixed inset-0 pointer-events-none z-40">
+    <div className="fixed inset-0 pointer-events-none z-40 orblitz-game-hud">
 
       {/* ── TOP ROW ──────────────────────────────────────────────────────────── */}
-      <div className="absolute top-2 md:top-4 left-2 md:left-4 right-2 md:right-4 flex justify-between items-start">
+      <div className="absolute top-2 md:top-4 left-2 md:left-4 right-2 md:right-4 flex justify-between items-start orblitz-hud-top">
 
         {/* LEFT: health + active power-up banners */}
-        <div className="flex flex-col gap-2 pointer-events-auto">
+        <div className="flex flex-col gap-2 pointer-events-auto orblitz-hud-left">
 
           {/* Health bar */}
           <HealthBar />
@@ -218,11 +218,11 @@ export function GameUI() {
         </div>
 
         {/* RIGHT: score, stars, timer, mode info, controls */}
-        <div className="flex flex-col items-end gap-1.5 md:gap-2 pointer-events-auto">
+        <div className="flex flex-col items-end gap-1.5 md:gap-2 pointer-events-auto orblitz-hud-right">
 
           {/* Score */}
           <motion.div
-            className="px-3 md:px-5 py-1.5 md:py-2.5"
+            className="px-3 md:px-5 py-1.5 md:py-2.5 orblitz-score-card"
             style={pnl("#aa00ff", true)}
             animate={{ borderColor: ["#aa00ff44","#ff00ff44","#aa00ff44"] }}
             transition={{ duration: 2.5, repeat: Infinity }}
@@ -237,7 +237,7 @@ export function GameUI() {
           </motion.div>
 
           {/* Stars */}
-          <div style={{
+          <div className="orblitz-stars-card" style={{
             ...pnl("#ffd700", true),
             display: "flex",
             alignItems: "center",
@@ -273,7 +273,7 @@ export function GameUI() {
           </div>
 
           {/* Timer */}
-          <div className="px-2.5 md:px-3 py-1" style={pnl("#00ffff33".replace("33",""))}>
+          <div className="px-2.5 md:px-3 py-1 orblitz-timer-card" style={pnl("#00ffff33".replace("33",""))}>
             <TA color="#00ffff" /><SL />
             <p className="text-xs md:text-sm font-bold tracking-widest" style={{ color: "rgba(0,255,255,0.65)", letterSpacing: "0.15em" }}>
               {timerStr}
@@ -283,7 +283,7 @@ export function GameUI() {
           {/* Arcade level + boss */}
           {gameMode === "arcade" && (
             <motion.div
-              className="px-3 py-2 min-w-[90px]"
+              className="px-3 py-2 min-w-[90px] orblitz-level-card"
               style={pnl("#aa00ff")}
               initial={{ scale: 0.9 }} animate={{ scale: 1 }}
             >
@@ -327,7 +327,7 @@ export function GameUI() {
 
           {/* Chill mode badge */}
           {gameMode === "chill" && (
-            <div className="px-3 py-1.5" style={pnl("#00ffff")}>
+            <div className="px-3 py-1.5 orblitz-mode-card" style={pnl("#00ffff")}>
               <TA color="#00ffff" /><SL />
               <p className="text-[10px] font-black tracking-widest uppercase" style={{ color: "#00ffff", letterSpacing: "0.18em" }}>
                 Chill Mode
@@ -338,7 +338,7 @@ export function GameUI() {
           {/* Survival boss bar */}
           {gameMode === "survival" && isBossLevel && boss && (
             <motion.div
-              className="px-3 py-2"
+              className="px-3 py-2 orblitz-boss-card"
               style={pnl("#ff4466", true)}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -380,7 +380,7 @@ export function GameUI() {
               }}
               whileHover={{ scale: 1.06, y: -1 }}
               whileTap={{ scale: 0.93 }}
-              className="flex flex-col items-center justify-center gap-0.5 px-3 py-2"
+              className="flex flex-col items-center justify-center gap-0.5 px-3 py-2 orblitz-hud-control"
               style={{
                 ...pnl("#00ffff"),
                 cursor: "pointer",
@@ -401,7 +401,7 @@ export function GameUI() {
               onClick={toggleMute}
               whileHover={{ scale: 1.06, y: -1 }}
               whileTap={{ scale: 0.93 }}
-              className="flex flex-col items-center justify-center gap-0.5 px-3 py-2"
+              className="flex flex-col items-center justify-center gap-0.5 px-3 py-2 orblitz-hud-control"
               style={{
                 ...pnl(soundColor),
                 cursor: "pointer",
@@ -423,7 +423,7 @@ export function GameUI() {
       {/* ── ABILITY HOTBAR (bottom-left) ──────────────────────────────────────── */}
       {(hasDistort || hasDistortFieldDefense || hasTeletransfer || hasPulseShield ||
         hasMagiOrb2 || hasMagiOrb3 || hasMagiOrb4 || hasMagiOrb5 || hasMagiOrb7) && (
-        <div className="absolute bottom-4 left-4 flex gap-2 md:gap-3 pointer-events-auto">
+        <div className="absolute bottom-4 left-4 flex gap-2 md:gap-3 pointer-events-auto orblitz-ability-tray">
 
           {/* Distort (from power-up) */}
           {hasDistort && (
