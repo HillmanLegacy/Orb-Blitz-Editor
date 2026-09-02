@@ -234,14 +234,14 @@ function CameraController() {
 // phase or adaptive-quality transitions, not on every frame. This means
 // EffectComposer is rebuilt only a handful of times per session — acceptable.
 // Heavy effects (SMAA, ChromaticAberration, full Bloom) are skipped in menus.
-function PostProcessingWrapper() {
+function PostProcessingWrapper({ introActive = false }: { introActive?: boolean }) {
   const phase = useMagicOrb(s => s.phase);
   const quality = useRenderQuality();
   const preset = useGraphicsPreset();
   const profile = getGraphicsPresetProfile(preset);
   const postprocessingEnabled = usePerformanceFeature("postprocessing");
   if (!postprocessingEnabled) return null;
-  const isMenu = phase === "menu" || phase === "loading";
+  const isMenu = introActive || phase === "menu" || phase === "loading";
   return <PostProcessing isMenu={isMenu} quality={quality} profile={profile} />;
 }
 
@@ -510,8 +510,10 @@ export function GameScene({
           {/* Gameplay systems — unmounted outside gameplay loading/playing */}
           <GameplayGate />
 
-          {/* Post-processing stack */}
-          {!introBossesInFront && <PostProcessingWrapper />}
+           {/* Keep the menu-quality filter stack mounted across the intro handoff.
+               The white curtain and DOM atmosphere control visibility; the
+               compositor must not remount when title controls become interactive. */}
+           <PostProcessingWrapper introActive={introBossPhase !== null} />
         </Suspense>
       </Canvas>
     </WebGLErrorBoundary>

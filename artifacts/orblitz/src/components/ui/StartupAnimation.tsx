@@ -91,6 +91,7 @@ const PRE_FLASH_CHARGE_DURATION = 0.48;
 const TITLE_REFLECTION_BOSSES: readonly MainBossType[] = [
   "circle", "star", "triangle", "trapezoid", "cube", "arrow", "monster",
 ];
+const MENU_ATMOSPHERE_PHASES: readonly AnimPhase[] = ["backdrop", "background", "title", "waiting", "menu"];
 const BOSS_LIGHT_WHEEL = [
   ...new Set(
     Object.values(BOSS_DEFEAT_PALETTES).flatMap((palette) => [
@@ -582,8 +583,11 @@ export function StartupAnimation({
 
   // ── Derived state ─────────────────────────────────────────────────────────
   const showSplash  = animPhase === "splash";
-  const showTitle   = animPhase === "title" || animPhase === "waiting" || animPhase === "menu";
-  const showMenu    = animPhase === "menu";
+  const titleLayerVisible = animPhase === "title" || animPhase === "waiting" || animPhase === "menu";
+  const controlsReady = animPhase === "menu";
+  const menuAtmosphereReady = MENU_ATMOSPHERE_PHASES.includes(animPhase);
+  const showTitle   = titleLayerVisible;
+  const showMenu    = controlsReady;
   const isContent   = showMenu && (menuState === "worlds" || menuState === "levels");
   const panelButtons = showMenu ? getPanelButtons() : [];
   const introPhase: IntroBossPhase | null =
@@ -604,8 +608,16 @@ export function StartupAnimation({
       className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-black select-none"
       style={{
         cursor: "default",
-        backgroundColor: showSplash ? "rgba(1,6,18,0.98)" : showMenu ? "rgba(5,8,28,0.2)" : "transparent",
-        transition: "background-color 0.75s ease",
+        // This surface is the settled menu backdrop, not a menu-content
+        // visibility flag. Keeping it active from the preparation phase avoids
+        // the overlay disappearing after the white curtain and returning when
+        // the controls mount.
+        backgroundColor: showSplash
+          ? "rgba(1,6,18,0.98)"
+          : menuAtmosphereReady
+            ? "rgba(5,8,28,0.2)"
+            : "transparent",
+        transition: "background-color 0.9s cubic-bezier(0.22, 0.61, 0.36, 1)",
       }}
       initial={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -614,8 +626,8 @@ export function StartupAnimation({
       {/* ── CELESTIAL ATMOSPHERE ───────────────────────────────────────── */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{
         zIndex: 0,
-         opacity: showMenu || animPhase === "backdrop" || animPhase === "background" || animPhase === "title" || animPhase === "waiting" ? 0.72 : 0.1,
-        transition: "opacity 0.45s ease",
+        opacity: menuAtmosphereReady ? 0.72 : 0.1,
+        transition: "opacity 0.9s cubic-bezier(0.22, 0.61, 0.36, 1)",
         background: "radial-gradient(ellipse at 50% 42%, rgba(67,22,134,0.3) 0%, rgba(9,70,105,0.18) 42%, transparent 80%), linear-gradient(135deg, rgba(4,17,57,0.16), rgba(60,8,72,0.18) 52%, rgba(0,42,60,0.16))",
       }}>
         <div className="absolute inset-0" style={{
