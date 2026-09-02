@@ -43,7 +43,7 @@ function OrbBtn({ b, maxW, pressed, setPressed }: { b: BtnDef; maxW: string; pre
     <motion.button
       className="orblitz-command-button orblitz-pause-command relative flex flex-col items-center justify-center overflow-hidden flex-1"
       style={{
-        minWidth: 0, maxWidth: maxW, height: BTN_H,
+        position: "relative", minWidth: 0, maxWidth: maxW, height: BTN_H,
         borderRadius: "clamp(8px, 1.1vw, 14px)",
         border: `1px solid ${pressed ? b.color : b.color + "aa"}`,
         background: pressed

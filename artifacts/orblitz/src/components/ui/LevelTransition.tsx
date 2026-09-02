@@ -29,18 +29,21 @@ interface BtnDef { id: string; icon: React.ReactNode; label: string; color: stri
 function OrbBtn({ b, maxW, pressed, setPressed }: { b: BtnDef; maxW: string; pressed: boolean; setPressed: (v: boolean) => void }) {
   return (
     <motion.button
-      className="relative flex flex-col items-center justify-center overflow-hidden flex-1"
+      className="orblitz-command-button orblitz-pause-command relative flex flex-col items-center justify-center overflow-hidden flex-1"
       style={{
-        minWidth: 0, maxWidth: maxW, height: BTN_H,
-        borderRadius: "clamp(10px,1.6vw,14px)",
-        border: `1.5px solid ${pressed ? b.color + "cc" : b.color + "55"}`,
-        background: pressed ? `${b.color}20` : `linear-gradient(160deg,${b.color}10 0%,${b.color}06 100%)`,
+        position: "relative", minWidth: 0, maxWidth: maxW, height: BTN_H,
+        borderRadius: "clamp(8px, 1.1vw, 14px)",
+        border: `1px solid ${pressed ? b.color : b.color + "aa"}`,
+        background: pressed
+          ? `linear-gradient(145deg, ${b.color}70, ${b.color}28 64%, rgba(7,12,38,0.92))`
+          : `linear-gradient(145deg, rgba(220,252,255,0.14), ${b.color}2b 42%, rgba(7,12,38,0.9) 100%)`,
         color: b.color,
         boxShadow: pressed
-          ? `0 0 24px ${b.shadow}, 0 0 48px ${b.shadow}, inset 0 0 14px ${b.color}14`
-          : `0 0 12px ${b.shadow}, inset 0 1px 0 ${b.color}14`,
+          ? `2px 3px 0 rgba(3,7,26,0.78), 0 0 30px ${b.shadow}, inset 0 0 20px ${b.color}35`
+          : `5px 7px 0 rgba(3,7,26,0.72), 0 0 18px ${b.shadow}, inset 1px 1px 0 rgba(255,255,255,0.2), inset -1px -1px 0 rgba(0,0,0,0.42)`,
         cursor: "pointer", WebkitTapHighlightColor: "transparent",
-        transition: "background 0.14s, box-shadow 0.14s, border-color 0.14s",
+        backdropFilter: "blur(8px)",
+        transition: "background 0.14s, box-shadow 0.14s, border-color 0.14s, transform 0.14s",
       }}
       variants={{
         hidden:  { opacity: 0, y: 16, scale: 0.86 },
@@ -53,16 +56,22 @@ function OrbBtn({ b, maxW, pressed, setPressed }: { b: BtnDef; maxW: string; pre
       onPointerUp={() => setPressed(false)}
       onPointerLeave={() => setPressed(false)}
       onClick={b.action}
+      aria-label={b.label}
+      data-active={pressed}
     >
       {/* Top accent line */}
       <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{
-        height: 2, opacity: 0.55,
-        background: `linear-gradient(90deg,transparent 8%,${b.color}88 50%,transparent 92%)`,
+        height: 3, opacity: pressed ? 1 : 0.72,
+        background: `linear-gradient(90deg,${b.color}00 0%,${b.color}cc 20%,rgba(255,255,255,0.95) 50%,${b.color}22 80%,${b.color}00 100%)`,
       }} />
-      <span style={{ fontSize: ICON_SZ, lineHeight: 1, marginBottom: "clamp(2px,0.6vw,5px)", filter: `drop-shadow(0 0 5px ${b.color}88)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: "linear-gradient(132deg, rgba(255,255,255,0.11), transparent 30%, transparent 58%, rgba(0,0,0,0.22))",
+        borderRadius: "inherit",
+      }} />
+      <span style={{ fontSize: ICON_SZ, lineHeight: 1, marginBottom: "clamp(2px,0.6vw,5px)", filter: `drop-shadow(0 0 7px ${b.color}88) drop-shadow(2px 2px 0 rgba(3,7,26,0.55))`, display: "flex", alignItems: "center", justifyContent: "center" }}>
         {b.icon}
       </span>
-      <span style={{ fontSize: LABEL_SZ, fontWeight: 800, letterSpacing: "0.13em", lineHeight: 1, opacity: 0.88 }}>
+      <span style={{ fontSize: LABEL_SZ, fontWeight: 900, letterSpacing: "0.12em", lineHeight: 1, opacity: 0.96, fontFamily: "var(--font-display)" }}>
         {b.label}
       </span>
     </motion.button>
@@ -198,11 +207,14 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto pointer-events-auto select-none"
-      style={{ padding: "clamp(8px,2vh,18px) clamp(10px,4vw,32px)" }}
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto pointer-events-auto select-none orblitz-pause-screen orblitz-result-screen"
+      style={{ padding: "clamp(8px,2vh,18px) clamp(10px,4vw,32px)", backgroundColor: "rgba(5,8,28,0.34)" }}
     >
-      {/* Main menu background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-violet-900" />
+      {/* Main-menu atmosphere carried into the level-complete state. */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        opacity: 0.9,
+        background: "radial-gradient(ellipse at 50% 42%, rgba(67,22,134,0.3) 0%, rgba(9,70,105,0.18) 42%, transparent 80%), linear-gradient(135deg, rgba(4,17,57,0.16), rgba(60,8,72,0.18) 52%, rgba(0,42,60,0.16))",
+      }} />
 
       {/* Cyan grid pattern */}
       <motion.div
@@ -302,9 +314,9 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
           overflowY: "auto",
           scrollbarWidth: "thin",
           borderRadius: "clamp(16px,2.5vw,24px)",
-          background: "rgba(6,3,22,0.86)",
-          border: `1.5px solid ${isBoss ? GOLD : PURPLE}28`,
-          boxShadow: `0 0 48px ${isBoss ? GOLD : PURPLE}18, 0 0 90px rgba(34,211,238,0.07), inset 0 1px 0 ${isBoss ? GOLD : CYAN}14`,
+          background: "linear-gradient(145deg, rgba(220,252,255,0.07), rgba(7,12,38,0.86) 42%, rgba(60,8,72,0.3))",
+          border: `1px solid ${isBoss ? GOLD : CYAN}55`,
+          boxShadow: `5px 7px 0 rgba(3,7,26,0.62), 0 0 48px ${isBoss ? GOLD : PURPLE}22, 0 0 90px rgba(34,211,238,0.09), inset 1px 1px 0 rgba(255,255,255,0.16)`,
           backdropFilter: "blur(24px)",
         }}
         initial={{ opacity: 0, scale: 0.85, y: 24 }}
@@ -421,7 +433,7 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
         </AnimatePresence>
 
         {/* ── Button row ── */}
-        <motion.div className="w-full" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
+        <motion.div className="w-full orblitz-pause-deck orblitz-result-actions" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
           <OrbButtonRow buttons={buttons} />
         </motion.div>
       </motion.div>

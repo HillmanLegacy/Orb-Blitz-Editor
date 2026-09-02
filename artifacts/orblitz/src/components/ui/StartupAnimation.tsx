@@ -941,13 +941,13 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
   };
 
   const btnStyle = (color: string, shadow: string): React.CSSProperties => ({
-    height: btnH, borderRadius: "clamp(6px,1vw,10px)",
-    border: `2px solid ${color}aa`,
-    background: `linear-gradient(145deg, rgba(255,255,255,0.12), ${color}35 54%, ${color}18)`,
-    color, boxShadow: `4px 5px 0 rgba(10,20,68,0.58), 0 0 14px ${shadow}, inset 2px 2px 0 rgba(255,255,255,0.14)`,
+    height: btnH, borderRadius: "clamp(8px, 1.1vw, 14px)",
+    border: `1px solid ${color}aa`,
+    background: `linear-gradient(145deg, rgba(220,252,255,0.14), ${color}2b 42%, rgba(7,12,38,0.9) 100%)`,
+    color, boxShadow: `5px 7px 0 rgba(3,7,26,0.72), 0 0 18px ${shadow}, inset 1px 1px 0 rgba(255,255,255,0.2), inset -1px -1px 0 rgba(0,0,0,0.42)`,
     cursor: "pointer", WebkitTapHighlightColor: "transparent",
-    backdropFilter: "blur(3px)",
-    transition: "background 0.14s, box-shadow 0.14s, border-color 0.14s",
+    backdropFilter: "blur(8px)",
+    transition: "background 0.14s, box-shadow 0.14s, border-color 0.14s, transform 0.14s",
     position: "relative" as const, overflow: "hidden" as const,
   });
 
@@ -972,9 +972,13 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
   return (
     <>
       <style>{`.orb-bslider{-webkit-appearance:none;appearance:none;outline:none;cursor:pointer;border-radius:2px}.orb-bslider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:3px;background:#ffe600;box-shadow:0 0 8px rgba(255,230,0,0.95)}.orb-bslider::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:3px;background:#ffe600;box-shadow:0 0 8px rgba(255,230,0,0.95)}.orb-vslider{-webkit-appearance:none;appearance:none;outline:none;cursor:pointer;border-radius:2px}.orb-vslider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:3px;background:#00f6ff;box-shadow:0 0 8px rgba(0,246,255,0.95)}.orb-vslider::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:3px;background:#00f6ff;box-shadow:0 0 8px rgba(0,246,255,0.95)}`}</style>
-      <div className="flex flex-col w-full" style={{ gap: "clamp(8px,1.5vw,14px)" }}>
+       <div className="flex flex-col w-full orblitz-options-deck" style={{ gap: "clamp(8px,1.5vw,14px)" }}>
+         <div className="orblitz-options-heading">
+           <span>OPTIONS // SYSTEMS</span>
+           <small>CONFIGURE YOUR COMMAND DECK</small>
+         </div>
         <motion.div
-          className="relative flex flex-col items-center justify-center overflow-hidden w-full"
+           className="relative flex flex-col items-center justify-center overflow-hidden w-full orblitz-options-control"
           style={{ ...btnStyle("#9b5cff", "rgba(155,92,255,0.44)"), height: "clamp(82px,14vw,108px)", cursor: "default", padding: "clamp(8px,1.5vw,14px)" }}
           initial={{ opacity: 0, y: 16, scale: 0.86 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1025,7 +1029,7 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
         >
         {/* BRIGHTNESS slider */}
         <motion.div
-          className="relative flex flex-col items-center justify-center overflow-hidden flex-[2]"
+           className="relative flex flex-col items-center justify-center overflow-hidden flex-[2] orblitz-options-control"
           style={{ ...btnStyle("#ffe600", "rgba(255,230,0,0.4)"), minWidth: 0, cursor: "default",
             padding: "0 clamp(6px,1.5vw,14px)" }}
           variants={itemVariants}
@@ -1057,7 +1061,7 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
 
         {/* VOLUME slider */}
         <motion.div
-          className="relative flex flex-col items-center justify-center overflow-hidden flex-[2]"
+          className="relative flex flex-col items-center justify-center overflow-hidden flex-[2] orblitz-options-control"
           style={{ ...btnStyle("#00f6ff", "rgba(0,246,255,0.4)"), minWidth: 0, cursor: "default",
             padding: "0 clamp(6px,1.5vw,14px)" }}
           variants={itemVariants}
@@ -1090,7 +1094,7 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
         {/* MUTE / UNMUTE */}
         <motion.button
           type="button"
-          className="relative flex flex-col items-center justify-center overflow-hidden flex-1"
+          className="relative flex flex-col items-center justify-center overflow-hidden flex-1 orblitz-options-control"
           style={{ ...btnStyle(sc, ss), minWidth: 0, maxWidth: "clamp(52px,17vw,100px)" }}
           variants={itemVariants} whileTap={{ scale: 0.9 }}
           onClick={() => { btn("sound"); toggleMute(); }}
@@ -1108,7 +1112,7 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
         {/* BACK */}
         <motion.button
           type="button"
-          className="relative flex flex-col items-center justify-center overflow-hidden flex-1"
+          className="relative flex flex-col items-center justify-center overflow-hidden flex-1 orblitz-options-control"
           style={{ ...btnStyle("#667788", "rgba(100,110,130,0.2)"), minWidth: 0, maxWidth: "clamp(52px,17vw,100px)" }}
           variants={itemVariants} whileTap={{ scale: 0.9 }}
           onClick={() => { btn("back"); onBack(); }}
