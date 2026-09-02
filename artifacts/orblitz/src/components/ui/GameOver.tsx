@@ -236,10 +236,8 @@ export function GameOver({ onLevelSelect, onMainMenu }: GameOverProps) {
   const handleMainMenu = () => {
     sfx();
     stopMusic();
-    useOrbTransition.getState().fastSweep(() => {
-      if (onMainMenu) onMainMenu();
-      useMagicOrb.getState().setPhase("menu");
-    });
+    if (onMainMenu) onMainMenu();
+    useMagicOrb.getState().setPhase("menu");
   };
   const handleLevelSelect = () => {
     sfx();

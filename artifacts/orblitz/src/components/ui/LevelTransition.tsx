@@ -190,10 +190,8 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
   const handleMainMenu = () => {
     sfx();
     stopMusic();
-    useOrbTransition.getState().fastSweep(() => {
-      if (onMainMenu) onMainMenu();
-      useMagicOrb.getState().setPhase("menu");
-    });
+    if (onMainMenu) onMainMenu();
+    useMagicOrb.getState().setPhase("menu");
   };
 
   const buttons: BtnDef[] = [

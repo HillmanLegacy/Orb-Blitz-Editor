@@ -318,10 +318,8 @@ export function PauseMenu({ onMainMenu }: { onMainMenu?: () => void }) {
       action: () => {
         try { playExitToMenu(); } catch {}
         try { stopArcadeBgm(); } catch {}
-        useOrbTransition.getState().fastSweep(() => {
-          onMainMenu?.();
-          useMagicOrb.getState().setPhase("menu");
-        });
+        onMainMenu?.();
+        useMagicOrb.getState().setPhase("menu");
       },
     },
   ];
