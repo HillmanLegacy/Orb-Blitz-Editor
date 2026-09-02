@@ -81,68 +81,22 @@ const BOSS_LIGHT_WHEEL = [
   ),
 ];
 
-// Dense enough to act as a true scene-change curtain rather than a sparse
-// sparkle burst. The deterministic golden-angle distribution keeps the field
-// even without introducing per-render randomness.
-const ORB_EXPLOSION_PARTICLES = Array.from({ length: 720 }, (_, index) => {
-  const angle = index * 2.399963;
-  const distance = 24 + (index % 18) * 4.8 + ((index * 7) % 11) * 1.7;
-  const baseSize = 2.8 + (index % 7) * 0.95;
-  return {
-    x: Math.cos(angle) * distance,
-    y: Math.sin(angle) * distance * 0.72,
-    size: baseSize + (index % 23 === 0 ? 7 : index % 37 === 0 ? 4 : 0),
-    color: WORLD_COLORS[index % WORLD_COLORS.length],
-    delay: (index % 17) * 0.012,
-    duration: 2.35 + (index % 9) * 0.11,
-  };
-});
-
-function OrbExplosionTransition({ phase }: { phase: AnimPhase }) {
-  const visible = phase === "flash" || phase === "title";
+function BrightFlashTransition({ phase }: { phase: AnimPhase }) {
+  const visible = phase === "flash" || phase === "title" || phase === "waiting" || phase === "menu";
+  const revealing = phase === "menu";
 
   return (
     <AnimatePresence>
       {visible && (
         <motion.div
-          key="orb-explosion"
-          className="absolute inset-0 pointer-events-none overflow-hidden"
-          style={{ zIndex: 30 }}
+          key="bright-flash"
+          className="absolute inset-0 pointer-events-none"
+          style={{ zIndex: 30, background: "#ffffff" }}
           initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          animate={{ opacity: revealing ? [1, 0] : 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.9, ease: "easeOut" }}
-        >
-          {ORB_EXPLOSION_PARTICLES.map((particle, index) => (
-            <motion.span
-              key={index}
-              className="absolute rounded-full"
-              style={{
-                left: "50%",
-                top: "50%",
-                width: particle.size,
-                height: particle.size,
-                background: `radial-gradient(circle at 32% 28%, #ffffff 0 10%, ${particle.color} 38%, ${particle.color}00 78%)`,
-                boxShadow: `0 0 ${particle.size * 3}px ${particle.color}`,
-                marginLeft: -particle.size / 2,
-                marginTop: -particle.size / 2,
-              }}
-              initial={{ left: "50%", top: "50%", scale: 0.08, opacity: 0 }}
-              animate={{
-                left: ["50%", `calc(50% + ${particle.x}vw)`, `calc(50% + ${particle.x * 1.12}vw)`],
-                top: ["50%", `calc(50% + ${particle.y}vh)`, `calc(50% + ${particle.y * 1.16}vh)`],
-                scale: [0.08, 1, 0.72, 0.22],
-                opacity: [0, 1, 0.72, 0],
-              }}
-              transition={{
-                duration: particle.duration,
-                delay: particle.delay,
-                times: [0, 0.18, 0.66, 1],
-                ease: [0.12, 0.74, 0.3, 1],
-              }}
-            />
-          ))}
-        </motion.div>
+          transition={{ duration: revealing ? 1.15 : 0.22, ease: revealing ? [0.22, 0.61, 0.36, 1] : "easeOut" }}
+        />
       )}
     </AnimatePresence>
   );
@@ -624,8 +578,8 @@ export function StartupAnimation({
         </>
       )}
 
-      {/* The boss collision hands off to one full-screen orb explosion. */}
-      <OrbExplosionTransition phase={animPhase} />
+      {/* The boss collision hands off to one synchronized full-screen flash. */}
+      <BrightFlashTransition phase={animPhase} />
 
       {/* ── ORBLITZ TITLE — pinned at viewport center, never moves ─────── */}
       <AnimatePresence>
