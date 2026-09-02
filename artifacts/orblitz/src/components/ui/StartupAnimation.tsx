@@ -68,6 +68,7 @@ const CONVERGE_START = FLYING_START + 2550;
 const FLASH_START = CONVERGE_START + 650;
 const TITLE_START = FLASH_START + 820;
 const MENU_START = TITLE_START + 1650;
+const MENU_SECONDARY_REVEAL_DELAY = 0.5;
 const TITLE_REFLECTION_BOSSES: readonly MainBossType[] = [
   "circle", "star", "triangle", "trapezoid", "cube", "arrow", "monster",
 ];
@@ -561,20 +562,30 @@ export function StartupAnimation({
 
       {!showSplash && (
         <>
-          <div className="absolute left-6 top-6 z-[2] pointer-events-none" style={{
+          <motion.div
+            className="absolute left-6 top-6 z-[2] pointer-events-none"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: showMenu ? 1 : 0 }}
+            transition={{ duration: 0.4, delay: showMenu ? MENU_SECONDARY_REVEAL_DELAY : 0 }}
+            style={{
             color: "rgba(210,252,255,0.9)", fontSize: "clamp(0.48rem, 1vw, 0.64rem)",
             fontWeight: 900, letterSpacing: "0.14em", lineHeight: 1.7, fontFamily: "Arial Black, Impact, sans-serif",
           }}>
             <div>ORBLITZ ARCADE</div>
             <div style={{ color: "rgba(255,230,0,0.94)", letterSpacing: "0.1em" }}>Stack · play · repeat</div>
-          </div>
-          <div className="absolute right-6 top-6 z-[2] pointer-events-none text-right" style={{
+          </motion.div>
+          <motion.div
+            className="absolute right-6 top-6 z-[2] pointer-events-none text-right"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: showMenu ? 1 : 0 }}
+            transition={{ duration: 0.4, delay: showMenu ? MENU_SECONDARY_REVEAL_DELAY : 0 }}
+            style={{
             color: "rgba(210,252,255,0.78)", fontSize: "clamp(0.48rem, 1vw, 0.64rem)",
             fontWeight: 900, letterSpacing: "0.12em", lineHeight: 1.7, fontFamily: "Arial Black, Impact, sans-serif",
           }}>
             <div>9 WORLDS · 81 LEVELS</div>
             <div style={{ color: "rgba(255,43,214,0.94)", letterSpacing: "0.09em" }}>Ready when you are</div>
-          </div>
+          </motion.div>
         </>
       )}
 
@@ -586,10 +597,10 @@ export function StartupAnimation({
         {showTitle && (
           <motion.div className="absolute z-10 text-center"
             style={{ top: "50%", left: 0, right: 0 }}
-            initial={{ opacity: 0, scale: 0.65, y: "-50%" }}
-            animate={{ opacity: 1, scale: 1, y: "-50%" }}
+            initial={{ opacity: 0, scale: 0.92, y: "-50%" }}
+            animate={{ opacity: showMenu ? 1 : 0, scale: showMenu ? 1 : 0.92, y: "-50%" }}
             exit={{ opacity: 0, scale: 0.8, y: "-50%" }}
-            transition={{ duration: 0.9, delay: animPhase === "title" ? 0.46 : 0, ease: [0.22, 0.61, 0.36, 1] }}
+            transition={{ duration: showMenu ? 0.45 : 0.2, ease: [0.22, 0.61, 0.36, 1] }}
           >
             <motion.p
               initial={{ opacity: 0, letterSpacing: "0.5em" }}
@@ -660,7 +671,7 @@ export function StartupAnimation({
               <motion.p
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 0.58, y: 0 }}
-                transition={{ delay: 0.3 }}
+                transition={{ delay: MENU_SECONDARY_REVEAL_DELAY }}
                 style={{
                   margin: "clamp(8px, 1.5vw, 14px) 0 0", color: "#bffaff",
                   fontSize: "clamp(0.44rem, 1.1vw, 0.64rem)", fontWeight: 800,
@@ -686,7 +697,7 @@ export function StartupAnimation({
               background: "rgba(255,209,102,0.16)", boxShadow: "3px 3px 0 rgba(10,20,68,0.52), 0 0 18px rgba(255,209,102,0.14)",
             }}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            transition={{ delay: 0.15 }}
+            transition={{ delay: MENU_SECONDARY_REVEAL_DELAY }}
           >
             <span style={{ color: "#ffe600", fontSize: "0.72rem" }}>★</span>
             <span style={{ color: "#fff1bd", fontSize: "0.66rem", fontWeight: 900, letterSpacing: "0.08em", fontFamily: "Arial Black, Impact, sans-serif" }}>{shopStars} STARS</span>
@@ -707,7 +718,7 @@ export function StartupAnimation({
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.3, ease: [0.22, 0.61, 0.36, 1] }}
+            transition={{ duration: 0.3, delay: MENU_SECONDARY_REVEAL_DELAY, ease: [0.22, 0.61, 0.36, 1] }}
           >
             {menuState === "settings"
               ? <SettingsButtonRow

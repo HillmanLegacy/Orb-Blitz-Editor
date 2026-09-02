@@ -99,9 +99,10 @@ export function getMenuBossSwarmPosition(
 
 const FLYING_DURATION = 2.42;
 const CONVERGE_DURATION = 0.65;
-// The flash phase is the shared detonation window: bosses leave the center
-// while the screen-space orb explosion takes over the transition.
+// The flash phase is the shared detonation window: bosses hold at the center
+// while the white screen curtain takes over the transition.
 const FLASH_DURATION = 1.85;
+const FLASH_BOSS_HOLD = 0.62;
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
@@ -244,18 +245,12 @@ function ArcadeBossActor({
       return;
     }
 
-    const progress = easeOutCubic(elapsed / FLASH_DURATION);
-    const origin = initialized.current ? phaseOrigin.current : new THREE.Vector3(convergeX, convergeY, 0);
-    const direction = new THREE.Vector3(origin.x, origin.y, 0);
-    if (direction.lengthSq() < 0.001) direction.set(Math.cos(definition.rotation), Math.sin(definition.rotation), 0);
-    direction.normalize();
-    group.position.set(
-      lerp(origin.x, origin.x + direction.x * width * 0.22, progress),
-      lerp(origin.y, origin.y + direction.y * height * 0.22, progress),
-      0,
-    );
-    group.scale.setScalar(Math.max(0.01, lerp(1.04, 0.01, progress)));
-    group.rotation.z = THREE.MathUtils.degToRad(definition.rotation + 70 * progress);
+    // Hold every boss on the exact collision point while the white curtain
+    // rises. Only after the screen is covered do the models disappear.
+    const removalProgress = easeOutCubic((elapsed - FLASH_BOSS_HOLD) / (FLASH_DURATION - FLASH_BOSS_HOLD));
+    group.position.set(convergeX, convergeY, 0);
+    group.scale.setScalar(Math.max(0.001, lerp(1.04, 0.001, removalProgress)));
+    group.rotation.z = THREE.MathUtils.degToRad(definition.rotation);
   });
 
   const palette = BOSS_DEFEAT_PALETTES[definition.type];
