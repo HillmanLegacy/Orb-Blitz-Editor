@@ -27,6 +27,7 @@ import {
   getFireBossAmbushAuraProgress,
   getFireBossAmbushAuraScale,
   getFireBossAmbushChargeAuraScale,
+  getFireBossAmbushChargeProgress,
   getFireBossAmbushDashDestination,
   getFireBossAmbushDashProgress,
   getFireBossAmbushImpactProgress,
