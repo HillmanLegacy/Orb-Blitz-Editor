@@ -437,6 +437,221 @@
   pointer-events: none;
 }
 
+/* ─── Shop / armory command surface ───────────────────────────────────────── */
+.orblitz-shop-screen {
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 24%, rgba(24, 72, 154, 0.2), transparent 55%),
+    radial-gradient(ellipse at 78% 78%, rgba(255, 43, 214, 0.09), transparent 42%);
+}
+
+.orblitz-shop-screen::before,
+.orblitz-shop-screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.orblitz-shop-screen::before {
+  background:
+    linear-gradient(rgba(94, 217, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 43, 214, 0.035) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at 50% 44%, black, transparent 82%);
+  z-index: -1;
+}
+
+.orblitz-shop-screen::after {
+  inset: 4.5% 3.2%;
+  border: 1px solid rgba(127, 231, 255, 0.13);
+  clip-path: polygon(0 20px, 20px 0, calc(100% - 20px) 0, 100% 20px, 100% calc(100% - 20px), calc(100% - 20px) 100%, 20px 100%, 0 calc(100% - 20px));
+  box-shadow: 0 0 46px rgba(0, 214, 255, 0.05), inset 0 0 54px rgba(155, 92, 255, 0.045);
+  z-index: -1;
+}
+
+.orblitz-shop-dialog {
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    linear-gradient(145deg, rgba(13, 24, 57, 0.98), rgba(5, 6, 25, 0.985) 52%, rgba(18, 5, 34, 0.98)) !important;
+  border: 1px solid rgba(121, 232, 255, 0.28) !important;
+  border-radius: clamp(16px, 2.5vw, 24px) !important;
+  box-shadow:
+    7px 9px 0 rgba(2, 5, 22, 0.7),
+    0 0 38px rgba(0, 246, 255, 0.13),
+    0 28px 90px rgba(0, 0, 0, 0.82),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+}
+
+.orblitz-shop-dialog::before {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  border: 1px solid rgba(215, 250, 255, 0.12);
+  clip-path: polygon(0 18px, 18px 0, calc(100% - 18px) 0, 100% 18px, 100% calc(100% - 18px), calc(100% - 18px) 100%, 18px 100%, 0 calc(100% - 18px));
+  pointer-events: none;
+  z-index: 0;
+}
+
+.orblitz-shop-header {
+  background: linear-gradient(90deg, rgba(0, 246, 255, 0.08), transparent 48%, rgba(255, 43, 214, 0.07));
+  border-bottom-color: rgba(130, 228, 255, 0.16) !important;
+}
+
+.orblitz-shop-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.orblitz-shop-kicker {
+  color: rgba(192, 238, 249, 0.52);
+  font: 700 clamp(0.42rem, 0.7vw, 0.56rem) / 1 var(--font-mono);
+  letter-spacing: 0.24em;
+}
+
+.orblitz-shop-title-wrap > span:last-child {
+  font-family: var(--font-display);
+  letter-spacing: 0.2em;
+}
+
+.orblitz-shop-balance {
+  border-radius: 9px !important;
+  background: linear-gradient(145deg, rgba(255, 220, 55, 0.19), rgba(112, 62, 10, 0.14)) !important;
+  border-color: rgba(255, 221, 78, 0.52) !important;
+  box-shadow: 0 0 18px rgba(255, 194, 36, 0.15), inset 1px 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.orblitz-shop-close {
+  border-radius: 8px !important;
+  background: rgba(220, 252, 255, 0.07) !important;
+  border-color: rgba(215, 250, 255, 0.2) !important;
+  color: rgba(215, 250, 255, 0.72) !important;
+  transition: transform 0.14s ease, background 0.14s ease, color 0.14s ease;
+}
+
+.orblitz-shop-close:hover,
+.orblitz-shop-close:focus-visible {
+  color: white !important;
+  background: rgba(0, 246, 255, 0.18) !important;
+  transform: translateY(-2px);
+}
+
+.orblitz-shop-sidebar {
+  background: linear-gradient(180deg, rgba(0, 246, 255, 0.055), rgba(5, 7, 28, 0.2));
+  border-right-color: rgba(127, 231, 255, 0.14) !important;
+}
+
+.orblitz-shop-category {
+  position: relative;
+  overflow: hidden;
+  min-height: 48px;
+  border-radius: 10px !important;
+  font-family: var(--font-display);
+  transition: transform 0.14s ease, filter 0.14s ease, background 0.14s ease, border-color 0.14s ease !important;
+}
+
+.orblitz-shop-category::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0.09), transparent 42%);
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.orblitz-shop-category:hover,
+.orblitz-shop-category:focus-visible {
+  transform: translateX(3px);
+  filter: brightness(1.22);
+}
+
+.orblitz-shop-category[data-active="true"] {
+  box-shadow: 4px 5px 0 rgba(2, 5, 22, 0.52), 0 0 20px currentColor !important;
+}
+
+.orblitz-shop-list {
+  background: linear-gradient(90deg, rgba(0, 246, 255, 0.025), transparent 42%);
+}
+
+.orblitz-shop-item {
+  position: relative;
+  overflow: hidden;
+  min-height: 63px;
+  border-radius: 10px !important;
+  background: linear-gradient(110deg, rgba(220, 252, 255, 0.075), rgba(8, 13, 39, 0.7) 48%, rgba(255, 43, 214, 0.035)) !important;
+  border-color: rgba(139, 222, 246, 0.18) !important;
+  box-shadow: 4px 5px 0 rgba(2, 5, 22, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: transform 0.14s ease, filter 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease !important;
+}
+
+.orblitz-shop-item::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 1px solid rgba(215, 250, 255, 0.09);
+  clip-path: polygon(0 10px, 10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px));
+  pointer-events: none;
+}
+
+.orblitz-shop-item:hover,
+.orblitz-shop-item:focus-within {
+  transform: translateY(-2px);
+  filter: brightness(1.12);
+  border-color: rgba(156, 236, 255, 0.42) !important;
+  box-shadow: 5px 7px 0 rgba(2, 5, 22, 0.5), 0 0 20px rgba(0, 246, 255, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.orblitz-shop-item[data-owned="true"] {
+  background: linear-gradient(110deg, rgba(0, 246, 255, 0.1), rgba(8, 13, 39, 0.72)) !important;
+}
+
+.orblitz-shop-preview,
+.orblitz-shop-purchase {
+  position: relative;
+  z-index: 1;
+  min-height: 26px;
+  border-radius: 6px !important;
+  font-family: var(--font-mono);
+  transition: transform 0.14s ease, filter 0.14s ease, background 0.14s ease !important;
+}
+
+.orblitz-shop-preview:hover,
+.orblitz-shop-purchase:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.25);
+}
+
+@media (max-width: 479px) {
+  .orblitz-shop-dialog {
+    max-height: min(92dvh, 760px) !important;
+  }
+
+  .orblitz-shop-header {
+    padding-inline: 14px !important;
+  }
+
+  .orblitz-shop-kicker {
+    letter-spacing: 0.16em;
+  }
+
+  .orblitz-shop-sidebar {
+    padding: 9px 8px !important;
+  }
+
+  .orblitz-shop-category {
+    min-width: 116px;
+    min-height: 42px;
+    justify-content: center;
+  }
+
+  .orblitz-shop-list {
+    padding-inline: 10px !important;
+  }
+}
+
 @media (max-height: 500px) {
   .orblitz-pause-content {
     gap: 6px;

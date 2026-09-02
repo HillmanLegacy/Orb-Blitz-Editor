@@ -35,7 +35,8 @@ function ItemRow({
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 10 }}
-      className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl"
+      className={`orblitz-shop-item flex items-start gap-2.5 px-3 py-2.5 rounded-xl ${isHighlighted ? "is-highlighted" : ""} ${isOwned ? "is-owned" : ""}`}
+      data-owned={isOwned ? "true" : "false"}
       style={{
         background: isHighlighted
           ? `${pal.color}14`
@@ -87,7 +88,7 @@ function ItemRow({
                 onPreview();
               }}
               aria-pressed={isHighlighted}
-              className="text-[9px] font-black tracking-wider px-2 py-1 rounded-lg"
+               className="orblitz-shop-preview text-[9px] font-black tracking-wider px-2 py-1 rounded-lg"
               style={{
                 color: pal.color,
                 background: `${pal.color}14`,
@@ -105,7 +106,7 @@ function ItemRow({
               if (canAfford) onPurchase();
             }}
             disabled={!canAfford}
-            className="flex items-center gap-1 text-[10px] font-black tracking-wider px-2 py-1 rounded-lg"
+             className="orblitz-shop-purchase flex items-center gap-1 text-[10px] font-black tracking-wider px-2 py-1 rounded-lg"
             style={{
               color: canAfford ? "#ddcc00" : "#555",
               background: canAfford ? "rgba(221,204,0,0.1)" : "rgba(255,255,255,0.04)",
@@ -166,7 +167,7 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
     <AnimatePresence onExitComplete={onExitComplete}>
       {shopOpen && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center"
+          className="orblitz-shop-screen fixed inset-0 z-50 flex items-center justify-center"
           style={{ padding: "clamp(10px, 2.5vw, 20px)" }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -188,7 +189,7 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
             aria-modal="true"
             aria-labelledby="orblitz-shop-title"
             tabIndex={-1}
-            className="relative flex flex-col w-full"
+             className="orblitz-shop-dialog relative flex flex-col w-full"
             style={{
               maxWidth: "min(720px, 100%)",
               maxHeight: "min(88vh, 680px)",
@@ -212,25 +213,28 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
             </div>
 
             {/* ── Header ─────────────────────────────────────────────────── */}
-            <div
-              className="relative flex-none flex items-center justify-between px-5 pt-4 pb-3"
+             <div
+               className="orblitz-shop-header relative flex-none flex items-center justify-between px-5 pt-4 pb-3"
               style={{ borderBottom: "1px solid rgba(255,255,255,0.07)", zIndex: 1 }}
             >
-              <span
-                id="orblitz-shop-title"
-                className="font-black text-lg tracking-[0.18em] uppercase"
+               <div className="orblitz-shop-title-wrap">
+                 <span className="orblitz-shop-kicker">ARMORY // GEAR SYSTEMS</span>
+                 <span
+                 id="orblitz-shop-title"
+                 className="font-black text-lg tracking-[0.18em] uppercase"
                 style={{
                   background: "linear-gradient(90deg,#00ffff,#8844ff,#ff00ff)",
                   WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
                   filter: "drop-shadow(0 0 8px rgba(0,255,255,0.4))",
                 }}
-              >
-                SHOP
-              </span>
+                 >
+                   SHOP
+                 </span>
+               </div>
               <div className="flex items-center gap-3">
                 {/* Stars balance */}
                 <div
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
+                   className="orblitz-shop-balance flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
                   style={{ background: "rgba(221,204,0,0.1)", border: "1px solid rgba(221,204,0,0.3)" }}
                 >
                   <span style={{ color: "#ddcc00", fontSize: "1rem" }}>★</span>
@@ -242,7 +246,7 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
                   onClick={closeShop}
                   aria-label="Close shop"
                   title="Close shop"
-                  className="flex items-center justify-center rounded-lg"
+                   className="orblitz-shop-close flex items-center justify-center rounded-lg"
                   style={{
                     width: 32, height: 32,
                     background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
@@ -259,7 +263,7 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
 
               {/* Left sidebar — all 6 categories always visible */}
               <div
-                className="orblitz-modal-sidebar flex-none flex flex-col min-[480px]:flex-col max-[479px]:flex-row max-[479px]:overflow-x-auto max-[479px]:!w-full max-[479px]:!border-r-0 max-[479px]:border-b gap-1 py-3 px-2"
+                 className="orblitz-shop-sidebar orblitz-modal-sidebar flex-none flex flex-col min-[480px]:flex-col max-[479px]:flex-row max-[479px]:overflow-x-auto max-[479px]:!w-full max-[479px]:!border-r-0 max-[479px]:border-b gap-1 py-3 px-2"
                 style={{
                   width: "clamp(120px, 22%, 152px)",
                   borderRight: "1px solid rgba(255,255,255,0.06)",
@@ -273,7 +277,8 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
                       key={c}
                       whileTap={{ scale: 0.94 }}
                        onClick={() => { setCat(c); setPreviewItemId(null); }}
-                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl w-full text-left"
+                       className={`orblitz-shop-category flex items-center gap-2.5 px-3 py-2.5 rounded-xl w-full text-left ${active ? "is-active" : ""}`}
+                       data-active={active ? "true" : "false"}
                       aria-pressed={active}
                       aria-label={`Show ${pal.label.toLowerCase()}`}
                       style={{
@@ -331,7 +336,7 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
 
               {/* Right — item list (+ aura preview when on aura tab) */}
               <div
-                className="flex-1 min-w-0 overflow-y-auto px-4 py-3"
+                 className="orblitz-shop-list flex-1 min-w-0 overflow-y-auto px-4 py-3"
                 style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(0,255,255,0.15) transparent" }}
               >
                 <AnimatePresence mode="wait">
