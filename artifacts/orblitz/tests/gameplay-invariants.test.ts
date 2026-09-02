@@ -83,6 +83,7 @@ import {
   getBossDefeatPalette,
 } from "../src/components/game/BossDefeatPalette";
 import { BOSS_VISUAL_COMPONENTS } from "../src/components/game/BossVisual";
+import { getArcadeBossIntroGlow } from "../src/components/ui/ArcadeBossIntroScene";
 import { BOSS_DEFEAT_PARTICLE_COUNTS } from "../src/components/game/FireExplosionVFX";
 import {
   ENEMY_DEFEAT_DURATION,
@@ -231,6 +232,17 @@ describe("gameplay runtime invariants", () => {
       arrow: "RainbowBoss",
       tentacle: "MechaBoss",
       monster: "MonsterBoss",
+    });
+  });
+
+  it("keeps the arcade Toxic halo from washing out its authored texture", () => {
+    expect(getArcadeBossIntroGlow("trapezoid")).toEqual({
+      lightIntensity: 0.6,
+      haloOpacity: 0.04,
+    });
+    expect(getArcadeBossIntroGlow("circle")).toEqual({
+      lightIntensity: 3.2,
+      haloOpacity: 0.18,
     });
   });
 

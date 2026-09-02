@@ -136,6 +136,18 @@ function renderArcadeBoss(type: MainBossType) {
   return <BossVisual type={type} radius={1.05} healthPercent={1} />;
 }
 
+export function getArcadeBossIntroGlow(type: MainBossType): {
+  lightIntensity: number;
+  haloOpacity: number;
+} {
+  // ToxicBoss already owns its green rim light and droplet VFX. The shared
+  // arcade halo otherwise over-lights its multicolor authored texture.
+  if (type === "trapezoid") {
+    return { lightIntensity: 0.6, haloOpacity: 0.04 };
+  }
+  return { lightIntensity: 3.2, haloOpacity: 0.18 };
+}
+
 function ArcadeBossActor({
   definition,
   phase,
@@ -375,17 +387,18 @@ function ArcadeBossActor({
   });
 
   const palette = BOSS_DEFEAT_PALETTES[definition.type];
+  const introGlow = getArcadeBossIntroGlow(definition.type);
   return (
     <group ref={groupRef}>
       {renderArcadeBoss(definition.type)}
       <group>
-        <pointLight color={palette.glow} intensity={3.2} distance={7.5} decay={2} />
+        <pointLight color={palette.glow} intensity={introGlow.lightIntensity} distance={7.5} decay={2} />
         <mesh scale={0.72}>
           <sphereGeometry args={[1, 24, 18]} />
           <meshBasicMaterial
             color={palette.glow}
             transparent
-            opacity={0.18}
+            opacity={introGlow.haloOpacity}
             blending={THREE.AdditiveBlending}
             depthWrite={false}
           />
