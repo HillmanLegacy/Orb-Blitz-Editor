@@ -1,4 +1,5 @@
-import type { ComponentType } from "react";
+import type { ComponentType, Ref } from "react";
+import type * as THREE from "three";
 import { CrystalBoss } from "./CrystalBoss";
 import { DiamondBoss } from "./DiamondBoss";
 import { FireBoss } from "./FireBoss";
@@ -14,6 +15,7 @@ import { ClockwiseOrbSpin } from "./OrbPresentationSpin";
 export interface BossVisualProps {
   radius?: number;
   healthPercent?: number;
+  presentationRef?: Ref<THREE.Group>;
 }
 
 type BossVisualComponent = ComponentType<BossVisualProps>;
@@ -38,11 +40,14 @@ export function BossVisual({
   type,
   radius = 1.44,
   healthPercent = 1,
+  presentationRef,
 }: BossVisualProps & { type: MainBossType }) {
   const Renderer = BOSS_VISUAL_COMPONENTS[type];
   return (
-    <ClockwiseOrbSpin>
-      <Renderer radius={radius} healthPercent={healthPercent} />
-    </ClockwiseOrbSpin>
+    <group ref={presentationRef}>
+      <ClockwiseOrbSpin>
+        <Renderer radius={radius} healthPercent={healthPercent} />
+      </ClockwiseOrbSpin>
+    </group>
   );
 }

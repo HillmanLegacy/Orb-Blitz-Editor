@@ -2512,7 +2512,7 @@ export function Projectiles() {
             const [bx, by, bz] = gameRuntime.boss.get(boss.id)?.position ?? boss.position;
             if (Math.sqrt((px-bx)**2+(py-by)**2+((bz||0)-pz)**2) < explosionRadius + BOSS_BODY_RADIUS) {
               recordHit(proj.id);
-              const bossKilled = damageBoss(8);
+              const bossKilled = damageBoss(8, [dx, dy, dz]);
               addScore(25); playHit();
               if (bossKilled) playSparkleExplosion();
               addImpactEffect({ id: `impact-${impactIdCounter++}`, position: [bx, by, bz||0], timer: 0.55, maxTimer: 0.55, seed: Math.random(), isBossHit: true });
@@ -2598,7 +2598,7 @@ export function Projectiles() {
               motion.hitCount = Math.max(0, (motion.hitCount ?? 3) - 1);
               const _ph = projectileOrbHits.current.get(proj.id) || new Set<string>();
               _ph.add("boss"); projectileOrbHits.current.set(proj.id, _ph);
-              const _bk = damageBoss();
+              const _bk = damageBoss(undefined, [dx, dy, dz]);
               addScore(25); playHit();
               if (_bk) playSparkleExplosion();
               addImpactEffect({ id: `impact-${impactIdCounter++}`, position: getBossImpactPosition([bx, by, bz ?? 0], [_spx, _spy, _spz], [dx, dy, dz]), timer: 0.45, maxTimer: 0.45, seed: Math.random(), isBossHit: true });
@@ -2700,7 +2700,7 @@ export function Projectiles() {
           if (proj.volleyId) {
             volleyHits.current.add(proj.volleyId);
           }
-          const bossKilled = damageBoss(isOvercharged ? 5 : undefined);
+          const bossKilled = damageBoss(isOvercharged ? 5 : undefined, [dx, dy, dz]);
           recordHit(proj.id);
           addScore(25);
           playHit();

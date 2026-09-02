@@ -109,6 +109,13 @@ export interface Boss {
   fireAmbushImpact?: FireBossAmbushImpact;
 }
 
+export interface BossHitReaction {
+  id: number;
+  bossId: string;
+  direction: [number, number, number];
+  strength: number;
+}
+
 export type ProjectileType = "normal" | "scattershot" | "spiral" | "overcharged" | "homing" | "subblaster" | "rapidblaster";
 
 export interface Projectile {
@@ -199,6 +206,7 @@ export interface MagicOrbState {
   orbsRequiredForLevel: number;
   arcadeTotalOrbs: number;
   boss: Boss | null;
+  bossHitReaction: BossHitReaction | null;
   defeatedBosses: number[];
   survivalBossTimer: number;
   survivalBossPending: boolean;
@@ -302,7 +310,7 @@ export interface MagicOrbState {
   incrementOrbsDestroyed: () => void;
   
   updateBoss: (boss: Boss | null) => void;
-  damageBoss: (damage?: number) => boolean;
+  damageBoss: (damage?: number, hitDirection?: readonly [number, number, number]) => boolean;
   spawnBossOrb: (position: [number, number, number], direction: [number, number, number], pattern?: MovementPattern) => void;
   endGame: () => void;
   returnToMenu: () => void;
@@ -545,6 +553,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     orbsRequiredForLevel: 15,
     arcadeTotalOrbs: 0,
     boss: null,
+    bossHitReaction: null,
     defeatedBosses: getStoredDefeatedBosses(),
     survivalBossTimer: 0,
     survivalBossPending: false,
@@ -697,6 +706,7 @@ export const useMagicOrb = create<MagicOrbState>()(
           orbsRequiredForLevel: 15,
           arcadeTotalOrbs: 0,
           boss: null,
+          bossHitReaction: null,
           survivalBossTimer: 0,
           survivalBossPending: false,
           health: maxHP,
@@ -875,6 +885,7 @@ export const useMagicOrb = create<MagicOrbState>()(
         orbsRequiredForLevel: 15,
         arcadeTotalOrbs: 0,
         boss: null,
+        bossHitReaction: null,
         survivalBossTimer: 0,
         survivalBossPending: false,
         health: maxHP,
@@ -1233,12 +1244,18 @@ export const useMagicOrb = create<MagicOrbState>()(
     
     updateBoss: (boss) => set({ boss }),
     
-    damageBoss: (damage?: number) => {
-      const { boss, gameMode, hasChargeBeam, arcadeTotalOrbs, darkOrbs, arcadeLevel } = get();
+    damageBoss: (damage?: number, hitDirection: readonly [number, number, number] = [1, 0, 0]) => {
+      const { boss, gameMode, hasChargeBeam, arcadeTotalOrbs, darkOrbs, bossHitReaction } = get();
       if (!boss || boss.destroying) return false;
       if (boss.bossType === "star" && !boss.visible) return false;
       
       const actualDamage = damage ?? (hasChargeBeam ? 2 : 1);
+      const nextBossHitReaction: BossHitReaction = {
+        id: (bossHitReaction?.id ?? 0) + 1,
+        bossId: boss.id,
+        direction: [hitDirection[0], hitDirection[1], hitDirection[2]],
+        strength: actualDamage,
+      };
       const newHealth = boss.health - actualDamage;
       balanceTelemetry.recordBossDamage(actualDamage, boss.bossType);
       if (newHealth <= 0) {
@@ -1253,6 +1270,7 @@ export const useMagicOrb = create<MagicOrbState>()(
         
         set({ 
           boss: { ...boss, destroying: true, destroyTimer: 3.5, health: 0 },
+          bossHitReaction: nextBossHitReaction,
           arcadeTotalOrbs: gameMode === "arcade" ? arcadeTotalOrbs + 1 : arcadeTotalOrbs,
           darkOrbs: defeatedOrbs,
           bossDefeating: true,
@@ -1273,7 +1291,10 @@ export const useMagicOrb = create<MagicOrbState>()(
         );
         return true;
       } else {
-        set({ boss: { ...boss, health: newHealth } });
+        set({
+          boss: { ...boss, health: newHealth },
+          bossHitReaction: nextBossHitReaction,
+        });
         return false;
       }
     },
@@ -1375,6 +1396,7 @@ export const useMagicOrb = create<MagicOrbState>()(
         rapidOverheatActive: false,
         rapidBlasterLastShotTime: -Infinity,
         boss: null,
+        bossHitReaction: null,
         darkOrbs: [],
         projectiles: [],
         powerUps: [],

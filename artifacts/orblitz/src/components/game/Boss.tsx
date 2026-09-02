@@ -46,6 +46,13 @@ import {
   shouldTriggerFireBossAmbushHit,
   type FireBossAmbushPhase,
 } from "@/game-runtime/FireBossAmbush";
+import {
+  advanceBossHitShake,
+  createBossHitShakeState,
+  getBossHitShakeTransform,
+  isBossHitShakeActive,
+  type BossHitShakeState,
+} from "./BossHitShake";
 
 
 const MIN_PLAYER_DISTANCE = 7;
@@ -94,6 +101,10 @@ export function Boss() {
   const playerPosition = useMagicOrb(s => s.playerPosition);
 
   const meshRef           = useRef<THREE.Group>(null);
+  const bossVisualRef     = useRef<THREE.Group>(null);
+  const bossHitShakeRef   = useRef<BossHitShakeState | null>(null);
+  const bossHitIdRef      = useRef<number | null>(null);
+  const bossHitBossIdRef  = useRef<string | null>(null);
   const dodgeTimerRef     = useRef(0);
   const dodgeDirRef       = useRef<[number, number]>([0, 0]);
   const phaseTimerRef     = useRef(0);
@@ -283,6 +294,9 @@ export function Boss() {
       resetStarTeleportVFX();
       resetFireAmbush();
       if (meshRef.current) meshRef.current.visible = true;
+      bossHitShakeRef.current = null;
+      bossHitIdRef.current = null;
+      bossHitBossIdRef.current = null;
       gameRuntime.boss.reset();
       return;
     }
@@ -360,6 +374,41 @@ export function Boss() {
     
     if (phase !== "playing") return;
     if (!meshRef.current) return;
+
+    // The hit response is deliberately driven from a separate store signal.
+    // Movement writes frequently replace the Boss object, so keeping this
+    // presentation event outside that object prevents a hit from being lost.
+    if (bossHitBossIdRef.current !== boss.id) {
+      bossHitBossIdRef.current = boss.id;
+      bossHitIdRef.current = null;
+      bossHitShakeRef.current = null;
+    }
+    const bossHitReaction = useMagicOrb.getState().bossHitReaction;
+    if (
+      bossHitReaction?.bossId === boss.id &&
+      bossHitReaction.id !== bossHitIdRef.current
+    ) {
+      bossHitIdRef.current = bossHitReaction.id;
+      bossHitShakeRef.current = createBossHitShakeState(
+        bossHitReaction,
+        bossHitShakeRef.current,
+      );
+    }
+
+    if (bossVisualRef.current) {
+      if (bossHitShakeRef.current) {
+        const nextShake = advanceBossHitShake(bossHitShakeRef.current, delta);
+        bossHitShakeRef.current = isBossHitShakeActive(nextShake) ? nextShake : null;
+        const shake = getBossHitShakeTransform(nextShake);
+        bossVisualRef.current.position.set(...shake.offset);
+        bossVisualRef.current.rotation.z = shake.rotationZ;
+        bossVisualRef.current.scale.setScalar(shake.scale);
+      } else {
+        bossVisualRef.current.position.set(0, 0, 0);
+        bossVisualRef.current.rotation.z = 0;
+        bossVisualRef.current.scale.setScalar(1);
+      }
+    }
 
     if (fireBossIdRef.current !== boss.id) {
       resetFireAmbush();
@@ -1902,7 +1951,7 @@ export function Boss() {
         )}
         <group ref={meshRef} position={boss.position}>
           <Suspense fallback={null}>
-            <BossVisual type={bossType} radius={fireRadius} healthPercent={healthPercent} />
+            <BossVisual type={bossType} radius={fireRadius} healthPercent={healthPercent} presentationRef={bossVisualRef} />
           </Suspense>
           {fireAmbushPhase === "aura" && (
             <group scale={[auraScale, auraScale, auraScale]}>
@@ -1930,7 +1979,7 @@ export function Boss() {
         <StarBossTeleportVFX vfxRef={starTeleportVFXRef} scale={1.8} />
         <group ref={meshRef} position={boss.position}>
           <Suspense fallback={null}>
-            <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} />
+            <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} presentationRef={bossVisualRef} />
           </Suspense>
         </group>
       </>
@@ -1941,7 +1990,7 @@ export function Boss() {
     return (
       <group ref={meshRef} position={boss.position}>
         <Suspense fallback={null}>
-          <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} />
+          <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} presentationRef={bossVisualRef} />
         </Suspense>
       </group>
     );
@@ -1951,7 +2000,7 @@ export function Boss() {
     return (
       <group ref={meshRef} position={boss.position}>
         <Suspense fallback={null}>
-          <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} />
+          <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} presentationRef={bossVisualRef} />
         </Suspense>
       </group>
     );
@@ -1961,7 +2010,7 @@ export function Boss() {
     return (
       <group ref={meshRef} position={boss.position}>
         <Suspense fallback={null}>
-          <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} />
+          <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} presentationRef={bossVisualRef} />
         </Suspense>
       </group>
     );
@@ -1971,7 +2020,7 @@ export function Boss() {
     return (
       <group ref={meshRef} position={boss.position}>
         <Suspense fallback={null}>
-          <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} />
+          <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} presentationRef={bossVisualRef} />
         </Suspense>
       </group>
     );
@@ -1981,7 +2030,7 @@ export function Boss() {
     return (
       <group ref={meshRef} position={boss.position}>
         <Suspense fallback={null}>
-          <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} />
+          <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} presentationRef={bossVisualRef} />
         </Suspense>
       </group>
     );
@@ -1991,7 +2040,7 @@ export function Boss() {
     return (
       <group ref={meshRef} position={boss.position}>
         <Suspense fallback={null}>
-          <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} />
+          <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} presentationRef={bossVisualRef} />
         </Suspense>
       </group>
     );
@@ -2001,7 +2050,7 @@ export function Boss() {
     return (
       <group ref={meshRef} position={boss.position}>
         <Suspense fallback={null}>
-          <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} />
+          <BossVisual type={bossType} radius={1.44} healthPercent={healthPercent} presentationRef={bossVisualRef} />
         </Suspense>
       </group>
     );

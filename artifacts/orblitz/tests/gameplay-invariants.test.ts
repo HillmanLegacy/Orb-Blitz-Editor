@@ -158,6 +158,13 @@ import {
   getPlayerSkinTrailColor,
 } from "../src/components/game/PlayerSkinVisualConfig";
 import { advanceClockwiseOrbSpin } from "../src/components/game/OrbPresentationSpin";
+import {
+  BOSS_HIT_SHAKE_DURATION,
+  BOSS_HIT_SHAKE_MAX_STRENGTH,
+  advanceBossHitShake,
+  createBossHitShakeState,
+  getBossHitShakeTransform,
+} from "../src/components/game/BossHitShake";
 import { clonePlayerOrbMaterial } from "../src/components/game/PlayerOrbMaterial";
 import {
   createPlayerFireBurstPool,
@@ -452,6 +459,97 @@ describe("gameplay runtime invariants", () => {
 
     expect(spinRef.current).toBeCloseTo(PLAYER_MODEL_ROTATION_SPEED * 0.05);
     expect(object.rotation.z).toBeCloseTo(spinRef.current);
+  });
+
+  it("gives boss impacts a directional, damped presentation response", () => {
+    const state = createBossHitShakeState({
+      id: 7,
+      bossId: "boss-test",
+      direction: [3, 4, 0],
+      strength: 1,
+    });
+    const atContact = getBossHitShakeTransform(
+      advanceBossHitShake(state, 0.04),
+    );
+    const direction = [0.6, 0.8];
+    const directionalOffset =
+      atContact.offset[0] * direction[0] + atContact.offset[1] * direction[1];
+
+    expect(atContact.offset[0]).not.toBe(0);
+    expect(atContact.offset[1]).not.toBe(0);
+    expect(directionalOffset).toBeGreaterThan(0);
+    expect(atContact.rotationZ).not.toBe(0);
+    expect(atContact.scale).toBeLessThan(1);
+
+    let settledState = state;
+    for (let elapsed = 0; elapsed < BOSS_HIT_SHAKE_DURATION; elapsed += 0.04) {
+      settledState = advanceBossHitShake(settledState, 0.04);
+    }
+    const settled = getBossHitShakeTransform(settledState);
+    expect(settled.offset).toEqual([0, 0, 0]);
+    expect(settled.rotationZ).toBe(0);
+    expect(settled.scale).toBe(1);
+  });
+
+  it("caps overlapping boss hit impulses while preserving a fresh hit", () => {
+    const first = createBossHitShakeState({
+      id: 1,
+      bossId: "boss-test",
+      direction: [1, 0, 0],
+      strength: 8,
+    });
+    const overlapping = createBossHitShakeState(
+      {
+        id: 2,
+        bossId: "boss-test",
+        direction: [-1, 0, 0],
+        strength: 8,
+      },
+      advanceBossHitShake(first, 0.03),
+    );
+
+    expect(overlapping.strength).toBeLessThanOrEqual(BOSS_HIT_SHAKE_MAX_STRENGTH);
+    expect(overlapping.elapsed).toBe(0);
+    expect(overlapping.direction).toEqual([-1, 0]);
+  });
+
+  it("emits one boss hit reaction only for accepted damage", () => {
+    useMagicOrb.setState({
+      boss: {
+        id: "boss-test",
+        position: [0, 0, 0],
+        health: 10,
+        maxHealth: 10,
+        angle: 0,
+        dodging: false,
+        dodgeTimer: 0,
+        attackTimer: 1,
+        bossType: "circle",
+      },
+      bossHitReaction: null,
+    });
+
+    expect(useMagicOrb.getState().damageBoss(2, [0, 1, 0])).toBe(false);
+    const firstReaction = useMagicOrb.getState().bossHitReaction;
+    expect(firstReaction).toMatchObject({
+      id: 1,
+      bossId: "boss-test",
+      direction: [0, 1, 0],
+      strength: 2,
+    });
+
+    expect(useMagicOrb.getState().damageBoss(1, [-1, 0, 0])).toBe(false);
+    expect(useMagicOrb.getState().bossHitReaction?.id).toBe(2);
+
+    useMagicOrb.setState({
+      boss: {
+        ...useMagicOrb.getState().boss!,
+        bossType: "star",
+        visible: false,
+      },
+    });
+    expect(useMagicOrb.getState().damageBoss(1, [1, 0, 0])).toBe(false);
+    expect(useMagicOrb.getState().bossHitReaction?.id).toBe(2);
   });
 
   it("renders Toxic's authored map with the same unlit material pattern as Fire", () => {
