@@ -34,7 +34,7 @@ function IconSoundOff()  { return <svg {..._svg}><path d="M4 9 H7 L12 5 V19 L7 1
 function IconBrightness(){ return <svg {..._svg}><circle cx="12" cy="12" r="3.8" fill="currentColor" fillOpacity="0.85"/><line x1="12" y1="2" x2="12" y2="5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><line x1="12" y1="19" x2="12" y2="22" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><line x1="2" y1="12" x2="5" y2="12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><line x1="19" y1="12" x2="22" y2="12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><line x1="4.93" y1="4.93" x2="7.07" y2="7.07" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="16.93" y1="16.93" x2="19.07" y2="19.07" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="19.07" y1="4.93" x2="16.93" y2="7.07" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="7.07" y1="16.93" x2="4.93" y2="19.07" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>; }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type AnimPhase = "splash" | "idle" | "flying" | "converge" | "flash" | "background" | "orbReveal" | "title" | "waiting" | "menu" | "done";
+type AnimPhase = "splash" | "idle" | "flying" | "converge" | "flash" | "backdrop" | "background" | "title" | "waiting" | "menu" | "done";
 export type MenuState = "root" | "modes" | "settings" | "worlds" | "levels";
 
 interface StartupAnimationProps {
@@ -79,11 +79,10 @@ const FLASH_START = CONVERGE_START + CONVERGE_DURATION_MS;
 const WHITE_FLASH_DURATION = 0.14;
 const BACKGROUND_START = FLASH_START + WHITE_FLASH_DURATION * 1000 + 24;
 const MENU_BACKGROUND_REVEAL_DURATION = 1.25;
-const ORB_REVEAL_START = BACKGROUND_START + MENU_BACKGROUND_REVEAL_DURATION * 1000 + 90;
-const ORB_REVEAL_DURATION = 1750;
-const TITLE_START = ORB_REVEAL_START + ORB_REVEAL_DURATION;
-const TITLE_REVEAL_DURATION = 1200;
-const SHIMMER_SETTLE_DURATION = 1550;
+const BACKDROP_PREP_START = BACKGROUND_START - 650;
+const TITLE_START = BACKGROUND_START + MENU_BACKGROUND_REVEAL_DURATION * 1000 + 180;
+const TITLE_REVEAL_DURATION = 1450;
+const SHIMMER_SETTLE_DURATION = 1050;
 const MENU_START = TITLE_START + TITLE_REVEAL_DURATION + SHIMMER_SETTLE_DURATION;
 const MENU_TITLE_REVEAL_DELAY = 0;
 const MENU_SECONDARY_REVEAL_DELAY = MENU_TITLE_REVEAL_DELAY + 0.38;
@@ -104,7 +103,7 @@ const BOSS_LIGHT_WHEEL = [
 
 function BrightFlashTransition({ phase }: { phase: AnimPhase }) {
   const charging = phase === "converge";
-  const visible = charging || phase === "flash" || phase === "background";
+  const visible = charging || phase === "flash" || phase === "backdrop" || phase === "background";
   const revealing = phase === "background";
 
   return (
@@ -302,12 +301,12 @@ export function StartupAnimation({
     const t0 = setTimeout(() => { setAnimPhase("flying");   try { playOrbWhoosh();   } catch {} }, FLYING_START);
     const t1 = setTimeout(() => { setAnimPhase("converge"); try { playOrbConverge(); } catch {} }, CONVERGE_START);
     const t2 = setTimeout(() => { setAnimPhase("flash"); },                                        FLASH_START);
+    const tBackdrop = setTimeout(() => { setAnimPhase("backdrop"); }, BACKDROP_PREP_START);
     const tBackground = setTimeout(() => { setAnimPhase("background"); }, BACKGROUND_START);
-    const tOrbReveal = setTimeout(() => { setAnimPhase("orbReveal"); }, ORB_REVEAL_START);
     const t3 = setTimeout(() => { setAnimPhase("title");    try { playTitleReveal(); } catch {} }, TITLE_START);
     const tWaiting = setTimeout(() => { setAnimPhase("waiting"); }, TITLE_START + TITLE_REVEAL_DURATION);
     const t4 = setTimeout(() => { setAnimPhase("menu");    try { startMenuBgm(); } catch {} onMenuReady?.(); }, MENU_START);
-    return () => [t0,t1,t2,tBackground,tOrbReveal,t3,tWaiting,t4].forEach(clearTimeout);
+    return () => [t0,t1,t2,tBackdrop,tBackground,t3,tWaiting,t4].forEach(clearTimeout);
   }, [onMenuReady, playOrbWhoosh, playOrbConverge, playTitleReveal, startMenuBgm]);
 
   const handleLetterClick = useCallback((letter: string, idx: number) => {
@@ -589,7 +588,7 @@ export function StartupAnimation({
   const panelButtons = showMenu ? getPanelButtons() : [];
   const introPhase: IntroBossPhase | null =
     animPhase === "splash" || animPhase === "idle" || animPhase === "flying" || animPhase === "converge" || animPhase === "flash" ||
-    animPhase === "background" || animPhase === "orbReveal" ||
+    animPhase === "backdrop" || animPhase === "background" ||
     animPhase === "title" || animPhase === "waiting" || animPhase === "menu"
       ? (animPhase === "splash" ? "idle" : animPhase)
       : null;
@@ -615,7 +614,7 @@ export function StartupAnimation({
       {/* ── CELESTIAL ATMOSPHERE ───────────────────────────────────────── */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{
         zIndex: 0,
-         opacity: showMenu || animPhase === "background" || animPhase === "orbReveal" || animPhase === "title" || animPhase === "waiting" ? 0.72 : 0.1,
+         opacity: showMenu || animPhase === "backdrop" || animPhase === "background" || animPhase === "title" || animPhase === "waiting" ? 0.72 : 0.1,
         transition: "opacity 0.45s ease",
         background: "radial-gradient(ellipse at 50% 42%, rgba(67,22,134,0.3) 0%, rgba(9,70,105,0.18) 42%, transparent 80%), linear-gradient(135deg, rgba(4,17,57,0.16), rgba(60,8,72,0.18) 52%, rgba(0,42,60,0.16))",
       }}>
@@ -753,6 +752,7 @@ export function StartupAnimation({
                 <motion.span key={idx} className={showMenu ? "cursor-pointer" : undefined}
                   ref={(node) => { titleLetterRefs.current[idx] = node; }}
                   style={getTitleReflectionStyle(idx)}
+                  initial={{ opacity: 0, y: 16, scale: 0.82, filter: "blur(9px) drop-shadow(0 0 0 rgba(180,235,255,0))" }}
                   animate={{
                     backgroundPosition: animPhase === "title"
                       ? [
@@ -769,6 +769,8 @@ export function StartupAnimation({
                       ]
                       : "drop-shadow(0 0 7px rgba(180,235,255,0.45)) saturate(1.03)",
                     opacity: idx < devProgress ? 0.4 : 1,
+                    y: 0,
+                    scale: 1,
                   }}
                   transition={{
                     backgroundPosition: animPhase === "title"
@@ -777,7 +779,9 @@ export function StartupAnimation({
                     filter: animPhase === "title"
                       ? { duration: 2.4 + idx * 0.16, repeat: Infinity, ease: "easeInOut", delay: idx * 0.08 }
                       : { duration: SHIMMER_SETTLE_DURATION / 1000, ease: "easeOut" },
-                    opacity: { duration: 0.2 },
+                    opacity: { duration: 0.55, delay: animPhase === "title" ? idx * 0.12 : 0, ease: "easeOut" },
+                    y: { duration: 0.65, delay: animPhase === "title" ? idx * 0.12 : 0, ease: [0.22, 0.61, 0.36, 1] },
+                    scale: { duration: 0.65, delay: animPhase === "title" ? idx * 0.12 : 0, ease: [0.22, 0.61, 0.36, 1] },
                   }}
                   whileHover={showMenu ? { scale: 1.14, y: -3 } : undefined}
                   whileTap={showMenu ? { scale: 0.9 } : undefined}
@@ -972,7 +976,7 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false }: Butt
       initial="hidden"
       animate="visible"
       variants={{
-        visible: { transition: { staggerChildren: 0.055, delayChildren: 0.04 } },
+        visible: { transition: { staggerChildren: 0.11, delayChildren: 0.12 } },
         hidden:  { transition: { staggerChildren: 0.03, staggerDirection: -1 } },
       }}
     >

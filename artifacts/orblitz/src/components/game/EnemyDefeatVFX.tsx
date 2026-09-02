@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
-import { useMagicOrb, type BossType, type DarkOrb } from "@/lib/stores/useMagicOrb";
+import { useMagicOrb, type BossType } from "@/lib/stores/useMagicOrb";
 import { getGraphicsPreset, useGraphicsPreset, type GraphicsPreset } from "@/game-runtime/PerformanceToggles";
 import {
   getBossDefeatPalette,
@@ -207,19 +207,7 @@ function findFreeSlot(slots: EffectSlot[], maxActive: number): number {
   return -1;
 }
 
-export interface EnemyDefeatVFXProps {
-  /**
-   * Startup previews share the gameplay defeat buffers and palette rules but
-   * never enter the gameplay store or reward pipeline.
-   */
-  previewOrbs?: readonly DarkOrb[];
-  previewSpeed?: number;
-}
-
-export function EnemyDefeatVFX({
-  previewOrbs = [],
-  previewSpeed = 1,
-}: EnemyDefeatVFXProps = {}) {
+export function EnemyDefeatVFX() {
   const preset = useGraphicsPreset();
   const presetRef = useRef(preset);
   presetRef.current = preset;
@@ -314,12 +302,10 @@ export function EnemyDefeatVFX({
 
     const currentFrame = ++frameRef.current;
     const { darkOrbs, gameMode, arcadeLevel } = useMagicOrb.getState();
-    const previewMode = previewOrbs.length > 0;
-    const renderedOrbs = previewMode ? previewOrbs : darkOrbs;
     const profile = profileForPreset(presetRef.current || getGraphicsPreset());
     const activeOrbIds = activeOrbIdsRef.current;
     activeOrbIds.clear();
-    for (const orb of renderedOrbs) activeOrbIds.add(orb.id);
+    for (const orb of darkOrbs) activeOrbIds.add(orb.id);
     for (const id of spawnedIdsRef.current) {
       if (!activeOrbIds.has(id)) spawnedIdsRef.current.delete(id);
     }
@@ -335,7 +321,7 @@ export function EnemyDefeatVFX({
       clearSlot(i);
     }
 
-    for (const orb of renderedOrbs) {
+    for (const orb of darkOrbs) {
       const isSpawning = !orb.destroying && !spawnedIdsRef.current.has(orb.id);
       if (!orb.destroying && !isSpawning) continue;
       const bossType = resolveEnemyDefeatBossType(orb, gameMode, arcadeLevel);
@@ -347,7 +333,7 @@ export function EnemyDefeatVFX({
         if (slotIndex < 0) continue;
 
         const slot = slotsRef.current[slotIndex];
-        const physics = previewMode ? undefined : gameRuntime.enemies.byId.get(orb.id);
+        const physics = gameRuntime.enemies.byId.get(orb.id);
         const position = physics?.position ?? orb.position;
         slot.active = true;
         slot.id = orb.id;
@@ -389,12 +375,7 @@ export function EnemyDefeatVFX({
       }
 
       if (slot.animation === "spawn") {
-        slot.spawnAge += delta * (previewMode ? Math.max(0.1, previewSpeed) : 1);
-        if (previewMode) {
-          slot.x = orb.position[0];
-          slot.y = orb.position[1];
-          slot.z = orb.position[2];
-        }
+        slot.spawnAge += delta;
         if (slot.spawnAge >= ENEMY_DEFEAT_DURATION) {
           idToSlotRef.current.delete(orb.id);
           slot.active = false;
@@ -404,9 +385,7 @@ export function EnemyDefeatVFX({
           clearSlot(slotIndex);
           continue;
         }
-        const livePosition = previewMode
-          ? undefined
-          : gameRuntime.enemies.byId.get(orb.id)?.position;
+        const livePosition = gameRuntime.enemies.byId.get(orb.id)?.position;
         if (livePosition) {
           slot.x = livePosition[0];
           slot.y = livePosition[1];
