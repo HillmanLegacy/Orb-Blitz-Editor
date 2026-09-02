@@ -103,6 +103,7 @@ const CONVERGE_DURATION = 0.65;
 // while the white screen curtain takes over the transition.
 const FLASH_DURATION = 1.85;
 const FLASH_BOSS_HOLD = 0.62;
+const MENU_BACKGROUND_REVEAL_DURATION = 1.15;
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
@@ -153,17 +154,31 @@ function ArcadeBossActor({
   definition: ArcadeBossIntroDef;
   phase: IntroBossPhase;
 }) {
+  type IntroMaterialState = {
+    material: THREE.Material;
+    opacity: number;
+    transparent: boolean;
+    depthWrite: boolean;
+  };
   const groupRef = useRef<THREE.Group>(null);
   const { viewport } = useThree();
   const phaseStartedAt = useRef(typeof performance === "undefined" ? 0 : performance.now());
   const previousPhase = useRef<IntroBossPhase>(phase);
   const phaseOrigin = useRef(new THREE.Vector3());
+  const menuRevealStartedAt = useRef<number | null>(null);
+  const introMaterialStates = useRef<IntroMaterialState[]>([]);
+  const materialFadeInitialized = useRef(false);
   const initialized = useRef(false);
 
   useEffect(() => {
     const group = groupRef.current;
     if (group) phaseOrigin.current.copy(group.position);
     const now = typeof performance === "undefined" ? 0 : performance.now();
+    if (phase === "menu" && previousPhase.current !== "menu") {
+      menuRevealStartedAt.current = now;
+    } else if (phase !== "menu") {
+      menuRevealStartedAt.current = null;
+    }
     const preserveTitleClock =
       (phase === "waiting" || phase === "menu") &&
       (previousPhase.current === "title" || previousPhase.current === "waiting" || previousPhase.current === "menu");
@@ -185,6 +200,17 @@ function ArcadeBossActor({
     // title reveal share one exact anchor.
     const convergeX = 0;
     const convergeY = 0;
+
+    if (phase !== "menu" && materialFadeInitialized.current) {
+      introMaterialStates.current.forEach(({ material, opacity, transparent, depthWrite }) => {
+        material.opacity = opacity;
+        material.transparent = transparent;
+        material.depthWrite = depthWrite;
+        material.needsUpdate = true;
+      });
+      introMaterialStates.current = [];
+      materialFadeInitialized.current = false;
+    }
 
     if (phase === "idle") {
       group.position.set(offscreenX, offscreenY, 0);
@@ -230,18 +256,47 @@ function ArcadeBossActor({
 
     if (phase === "title" || phase === "waiting" || phase === "menu") {
       const layout = MENU_BOSS_LAYOUT[definition.type];
-      const titleRamp = phase === "title" ? easeOutCubic(elapsed / 0.9) : 1;
+      const menuRevealProgress =
+        phase === "menu"
+          ? easeOutCubic((now - (menuRevealStartedAt.current ?? now)) / (MENU_BACKGROUND_REVEAL_DURATION * 1000))
+          : 0;
       const motion = getMenuBossSwarmPosition(definition.type, elapsed + definition.delay * 0.8, width, height);
       group.position.set(
         motion.x,
         motion.y,
         motion.z,
       );
-      group.scale.setScalar(Math.max(0.001, motion.scale * titleRamp));
+      group.scale.setScalar(Math.max(0.001, motion.scale * menuRevealProgress));
       const t = elapsed * 0.27 + definition.delay * 0.8 + layout.phase;
       group.rotation.z = THREE.MathUtils.degToRad(definition.rotation * 0.35 + Math.sin(t * 0.58) * 7);
       group.rotation.x = Math.sin(t * 0.45) * 0.14;
       group.rotation.y = Math.cos(t * 0.38) * 0.14;
+
+      if (phase === "menu") {
+        if (!materialFadeInitialized.current) {
+          group.traverse((object) => {
+            const mesh = object as THREE.Mesh;
+            const materials = mesh.material
+              ? (Array.isArray(mesh.material) ? mesh.material : [mesh.material])
+              : [];
+            materials.forEach((material) => {
+              introMaterialStates.current.push({
+                material,
+                opacity: material.opacity,
+                transparent: material.transparent,
+                depthWrite: material.depthWrite,
+              });
+              material.transparent = true;
+              material.depthWrite = false;
+              material.needsUpdate = true;
+            });
+          });
+          materialFadeInitialized.current = true;
+        }
+        introMaterialStates.current.forEach(({ material, opacity }) => {
+          material.opacity = opacity * menuRevealProgress;
+        });
+      }
       return;
     }
 
@@ -276,31 +331,37 @@ function ArcadeBossActor({
 
 function IntroExplosionLight({ phase }: { phase: IntroBossPhase }) {
   const lightRef = useRef<THREE.PointLight>(null);
-  const explosionStartedAt = useRef(0);
+  const chargeStartedAt = useRef(0);
 
   useEffect(() => {
-    if (phase === "flash") {
-      explosionStartedAt.current = typeof performance === "undefined" ? 0 : performance.now();
+    if (phase === "converge") {
+      chargeStartedAt.current = typeof performance === "undefined" ? 0 : performance.now();
     }
-    if (phase !== "flash" && phase !== "title" && lightRef.current) {
+    if (phase !== "converge" && phase !== "flash" && phase !== "title" && lightRef.current) {
       lightRef.current.intensity = 0;
     }
   }, [phase]);
 
   useFrame(() => {
     const light = lightRef.current;
-    if (!light || (phase !== "flash" && phase !== "title")) return;
+    if (!light || (phase !== "converge" && phase !== "flash" && phase !== "title")) return;
 
     const now = typeof performance === "undefined" ? 0 : performance.now();
-    const elapsed = Math.max(0, (now - explosionStartedAt.current) / 1000);
-    const progress = clamp01(elapsed / FLASH_DURATION);
-    const attack = easeOutCubic(progress / 0.18);
-    const decay = 1 - easeOutCubic((progress - 0.18) / 0.82);
-    const pulse = progress < 0.18 ? attack : Math.max(0, decay);
-
+    const elapsed = Math.max(0, (now - chargeStartedAt.current) / 1000);
     light.position.set(0, 0, 3.2);
-    light.distance = 7 + progress * 12;
-    light.intensity = pulse * 9;
+
+    if (phase === "converge") {
+      const charge = easeInOut(elapsed / CONVERGE_DURATION);
+      light.distance = 5 + charge * 13;
+      light.intensity = 1.5 + charge * 14;
+      return;
+    }
+
+    const flashElapsed = Math.max(0, elapsed - CONVERGE_DURATION);
+    const flashProgress = clamp01(flashElapsed / FLASH_DURATION);
+    const flare = 1 - easeOutCubic(flashProgress);
+    light.distance = 18 + flare * 10;
+    light.intensity = 16 + flare * 12;
   });
 
   return (

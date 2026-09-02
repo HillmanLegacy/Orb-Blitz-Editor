@@ -68,7 +68,9 @@ const CONVERGE_START = FLYING_START + 2550;
 const FLASH_START = CONVERGE_START + 650;
 const TITLE_START = FLASH_START + 820;
 const MENU_START = TITLE_START + 1650;
-const MENU_SECONDARY_REVEAL_DELAY = 0.5;
+const MENU_BACKGROUND_REVEAL_DURATION = 1.15;
+const MENU_TITLE_REVEAL_DELAY = MENU_BACKGROUND_REVEAL_DURATION;
+const MENU_SECONDARY_REVEAL_DELAY = MENU_TITLE_REVEAL_DELAY + 0.5;
 const TITLE_REFLECTION_BOSSES: readonly MainBossType[] = [
   "circle", "star", "triangle", "trapezoid", "cube", "arrow", "monster",
 ];
@@ -83,7 +85,8 @@ const BOSS_LIGHT_WHEEL = [
 ];
 
 function BrightFlashTransition({ phase }: { phase: AnimPhase }) {
-  const visible = phase === "flash" || phase === "title" || phase === "waiting" || phase === "menu";
+  const charging = phase === "converge";
+  const visible = charging || phase === "flash" || phase === "title" || phase === "waiting" || phase === "menu";
   const revealing = phase === "menu";
 
   return (
@@ -94,9 +97,18 @@ function BrightFlashTransition({ phase }: { phase: AnimPhase }) {
           className="absolute inset-0 pointer-events-none"
           style={{ zIndex: 30, background: "#ffffff" }}
           initial={{ opacity: 0 }}
-          animate={{ opacity: revealing ? [1, 0] : 1 }}
+          animate={{
+            opacity: revealing
+              ? [1, 0]
+              : charging
+                ? [0, 0.04, 0.12, 0.3, 0.58]
+                : 1,
+          }}
           exit={{ opacity: 0 }}
-          transition={{ duration: revealing ? 1.15 : 0.22, ease: revealing ? [0.22, 0.61, 0.36, 1] : "easeOut" }}
+          transition={{
+            duration: revealing ? MENU_BACKGROUND_REVEAL_DURATION : charging ? 0.65 : 0.22,
+            ease: revealing ? [0.22, 0.61, 0.36, 1] : "easeOut",
+          }}
         />
       )}
     </AnimatePresence>
@@ -600,7 +612,7 @@ export function StartupAnimation({
             initial={{ opacity: 0, scale: 0.92, y: "-50%" }}
             animate={{ opacity: showMenu ? 1 : 0, scale: showMenu ? 1 : 0.92, y: "-50%" }}
             exit={{ opacity: 0, scale: 0.8, y: "-50%" }}
-            transition={{ duration: showMenu ? 0.45 : 0.2, ease: [0.22, 0.61, 0.36, 1] }}
+            transition={{ duration: showMenu ? 0.45 : 0.2, delay: showMenu ? MENU_TITLE_REVEAL_DELAY : 0, ease: [0.22, 0.61, 0.36, 1] }}
           >
             <motion.p
               initial={{ opacity: 0, letterSpacing: "0.5em" }}
