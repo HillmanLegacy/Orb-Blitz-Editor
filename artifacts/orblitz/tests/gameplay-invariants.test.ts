@@ -33,6 +33,20 @@ import {
   isOutsideEnemyDespawnBounds,
 } from "../src/game-runtime/EnemySpawnConfig";
 import {
+  FIRE_BOSS_AMBUSH_CHARGE_DURATION,
+  FIRE_BOSS_AMBUSH_HEALTH_THRESHOLD,
+  FIRE_BOSS_AMBUSH_MAX_USES,
+  FIRE_BOSS_AMBUSH_PLAYER_CLEARANCE,
+  canStartFireBossAmbush,
+  createFireBossAmbushImpact,
+  getFireBossAmbushChargeProgress,
+  getFireBossAmbushChargeSpeedMultiplier,
+  getFireBossAmbushDashDestination,
+  getFireBossAmbushDashProgress,
+  getFireBossAmbushImpactProgress,
+  getFireBossAmbushTarget,
+} from "../src/game-runtime/FireBossAmbush";
+import {
   POWER_UP_DESTROY_DURATION,
   PowerUpRuntime,
 } from "../src/game-runtime/PowerUpRuntime";
@@ -207,6 +221,60 @@ describe("gameplay runtime invariants", () => {
     expect(getBackwardFlameAuraRotation([0, 1, 0])).toBeCloseTo(Math.PI);
     expect(getBackwardFlameAuraRotation([1, 0, 0])).toBeCloseTo(Math.PI / 2);
     expect(getBackwardFlameAuraRotation([0, -1, 0])).toBeCloseTo(0);
+  });
+
+  it("gates the Fire Backdraft Ambush to low health and one use", () => {
+    expect(FIRE_BOSS_AMBUSH_HEALTH_THRESHOLD).toBe(25);
+    expect(FIRE_BOSS_AMBUSH_MAX_USES).toBe(1);
+    expect(canStartFireBossAmbush(26, 0, "idle", 0)).toBe(false);
+    expect(canStartFireBossAmbush(25, 0, "idle", 0.01)).toBe(false);
+    expect(canStartFireBossAmbush(25, 0, "charging", 0)).toBe(false);
+    expect(canStartFireBossAmbush(25, 0, "idle", 0)).toBe(true);
+    expect(canStartFireBossAmbush(1, 1, "idle", 0)).toBe(false);
+  });
+
+  it("chooses Fire Ambush launch points on live visible edges or corners", () => {
+    const view = { centerX: 2, centerY: -1, halfWidth: 12, halfHeight: 8 };
+    const cornerValues = [0.2, 0.1, 0.1];
+    let cornerIndex = 0;
+    const corner = getFireBossAmbushTarget(view, () => cornerValues[cornerIndex++]);
+    expect(corner[0]).toBeCloseTo(2 + 10.2);
+    expect(corner[1]).toBeCloseTo(-1 + 6.2);
+
+    const edgeValues = [0.5, 0.9, 0.1, 0.5];
+    let edgeIndex = 0;
+    const edge = getFireBossAmbushTarget(view, () => edgeValues[edgeIndex++]);
+    expect(edge[0]).toBeCloseTo(2 - 10.2);
+    expect(edge[1]).toBeCloseTo(-1);
+    expect(Math.abs(edge[0] - view.centerX)).toBeLessThan(view.halfWidth);
+    expect(Math.abs(edge[1] - view.centerY)).toBeLessThan(view.halfHeight);
+  });
+
+  it("ramps the Fire Ambush charge from slow to fast", () => {
+    const start = getFireBossAmbushChargeProgress(0);
+    const middle = getFireBossAmbushChargeProgress(FIRE_BOSS_AMBUSH_CHARGE_DURATION / 2);
+    const end = getFireBossAmbushChargeProgress(FIRE_BOSS_AMBUSH_CHARGE_DURATION);
+    expect(start).toBe(0);
+    expect(middle).toBeCloseTo(0.25);
+    expect(end).toBe(1);
+    expect(getFireBossAmbushChargeSpeedMultiplier(start))
+      .toBeLessThan(getFireBossAmbushChargeSpeedMultiplier(middle));
+    expect(getFireBossAmbushChargeSpeedMultiplier(middle))
+      .toBeLessThan(getFireBossAmbushChargeSpeedMultiplier(end));
+  });
+
+  it("continues the Fire Ambush dash past the player without marking a defeat", () => {
+    const view = { centerX: 0, centerY: 0, halfWidth: 12, halfHeight: 8 };
+    const destination = getFireBossAmbushDashDestination([-10, 0], [0, 0], view);
+    expect(destination[0]).toBeGreaterThan(0);
+    expect(getFireBossAmbushDashProgress(0)).toBe(0);
+    expect(getFireBossAmbushDashProgress(10)).toBe(1);
+
+    const impact = createFireBossAmbushImpact(7, [0, 0, 0]);
+    expect(impact.defeatsBoss).toBe(false);
+    expect(impact.position).toEqual([0, 0, 0]);
+    expect(getFireBossAmbushImpactProgress(impact.timer)).toBe(0);
+    expect(FIRE_BOSS_AMBUSH_PLAYER_CLEARANCE).toBeGreaterThan(0);
   });
 
   it("defines a complete defeat palette for every authored main boss", () => {

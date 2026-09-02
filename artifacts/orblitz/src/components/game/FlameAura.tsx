@@ -42,12 +42,15 @@ function randomEmber(scale: number): Ember {
 
 interface FlameAuraProps {
   scale?: number;
+  speedMultiplier?: number;
 }
 
-export function FlameAura({ scale = 0.75 }: FlameAuraProps) {
+export function FlameAura({ scale = 0.75, speedMultiplier = 1 }: FlameAuraProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
+  const speedMultiplierRef = useRef(speedMultiplier);
   const dummy   = useMemo(() => new THREE.Object3D(), []);
   const col     = useMemo(() => new THREE.Color(), []);
+  speedMultiplierRef.current = Math.max(0.1, speedMultiplier);
 
   const embers = useRef<Ember[]>(
     Array.from({ length: FLAME_COUNT }, () => {
@@ -69,11 +72,12 @@ export function FlameAura({ scale = 0.75 }: FlameAuraProps) {
         Object.assign(e, fresh);
         e.life = e.maxLife; // full life on respawn
       } else {
-        e.pos.addScaledVector(e.vel, delta);
+        const motionScale = speedMultiplierRef.current;
+        e.pos.addScaledVector(e.vel, delta * motionScale);
         // Turbulence
-        e.vel.x += Math.sin(t * 4 + e.seed) * 0.28 * delta;
-        e.vel.y -= delta * 0.15; // gentle decel
-        e.vel.z += Math.cos(t * 3.5 + e.seed) * 0.28 * delta;
+        e.vel.x += Math.sin(t * 4 + e.seed) * 0.28 * delta * motionScale;
+        e.vel.y -= delta * 0.15 * motionScale; // gentle decel
+        e.vel.z += Math.cos(t * 3.5 + e.seed) * 0.28 * delta * motionScale;
       }
 
       const lifeRatio = Math.max(0, e.life / e.maxLife);

@@ -22,6 +22,7 @@ import {
   type WeaponLevelUpResult,
 } from "@/game-runtime/WeaponProgression";
 import type { TrophyUnlock } from "@/game-runtime/TrophyProgression";
+import type { FireBossAmbushImpact } from "@/game-runtime/FireBossAmbush";
 
 export type GamePhase = "menu" | "loading" | "playing" | "paused" | "gameOver" | "levelComplete" | "modeSelect" | "arcadeComplete";
 export type LoadingType = "entering" | "exiting" | "exiting_to_menu" | "nextLevel" | null;
@@ -104,6 +105,8 @@ export interface Boss {
   targetPosition?: [number, number, number];
   moveTimer?: number;
   bounceVelocity?: [number, number];
+  /** Presentation-only Fire ambush impact; never enters the real defeat flow. */
+  fireAmbushImpact?: FireBossAmbushImpact;
 }
 
 export type ProjectileType = "normal" | "scattershot" | "spiral" | "overcharged" | "homing" | "subblaster" | "rapidblaster";

@@ -8,6 +8,27 @@ import { FireExplosionVFX } from "./FireExplosionVFX";
 import { BOSS_DEFEAT_DURATION, BOSS_DEFEAT_SIZE_SCALE } from "./BossDefeatPalette";
 import { StarBossTeleportVFX, StarTeleportVFXState } from "./StarBossTeleportVFX";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
+import { FlameAura } from "./FlameAura";
+import { getBackwardFlameAuraRotation } from "./Projectiles";
+import { getPerspectiveViewAtPlane } from "@/game-runtime/EnemySpawnConfig";
+import {
+  canStartFireBossAmbush,
+  createFireBossAmbushImpact,
+  FIRE_BOSS_AMBUSH_CHARGE_DURATION,
+  FIRE_BOSS_AMBUSH_DASH_DURATION,
+  FIRE_BOSS_AMBUSH_INITIAL_DELAY,
+  FIRE_BOSS_AMBUSH_MAX_USES,
+  FIRE_BOSS_AMBUSH_REPOSITION_DURATION,
+  FIRE_BOSS_AMBUSH_REPOSITION_SPEED,
+  FIRE_BOSS_AMBUSH_RECOVERY_DURATION,
+  getFireBossAmbushChargeProgress,
+  getFireBossAmbushChargeSpeedMultiplier,
+  getFireBossAmbushDashDestination,
+  getFireBossAmbushDashProgress,
+  getFireBossAmbushImpactProgress,
+  getFireBossAmbushTarget,
+  type FireBossAmbushPhase,
+} from "@/game-runtime/FireBossAmbush";
 
 
 const MIN_PLAYER_DISTANCE = 7;
@@ -92,6 +113,16 @@ export function Boss() {
     };
   }, []);
 
+  const resetFireAmbush = () => {
+    fireBossIdRef.current = null;
+    fireAmbushPhaseRef.current = "idle";
+    fireAmbushTimerRef.current = FIRE_BOSS_AMBUSH_INITIAL_DELAY;
+    fireAmbushUsesRef.current = 0;
+    fireAmbushImpactRef.current = null;
+    fireAmbushImpactTriggeredRef.current = false;
+    fireAmbushPlayerProgressRef.current = 0;
+  };
+
   // ── FireBoss (circle) strike-and-retreat state machine ──────────────────────
   const fireMovePhaseRef = useRef<'entering' | 'waiting' | 'exiting'>('entering');
   const fireTargetRef    = useRef<[number, number]>([0, 0]);
@@ -99,6 +130,18 @@ export function Boss() {
   const fireWaitTimerRef = useRef(3.0);
   const fireInitRef      = useRef(false);
   const fireShotTimerRef = useRef(0); // countdown until next shot while moving
+  const fireBossIdRef    = useRef<string | null>(null);
+  const fireAmbushPhaseRef = useRef<FireBossAmbushPhase>("idle");
+  const fireAmbushTimerRef = useRef(FIRE_BOSS_AMBUSH_INITIAL_DELAY);
+  const fireAmbushUsesRef = useRef(0);
+  const fireAmbushLaunchPointRef = useRef<[number, number]>([0, 0]);
+  const fireAmbushDashStartRef = useRef<[number, number]>([0, 0]);
+  const fireAmbushDashDestinationRef = useRef<[number, number]>([0, 0]);
+  const fireAmbushPlayerTargetRef = useRef<[number, number]>([0, 0]);
+  const fireAmbushPlayerProgressRef = useRef(0);
+  const fireAmbushImpactTriggeredRef = useRef(false);
+  const fireAmbushImpactIdRef = useRef(0);
+  const fireAmbushImpactRef = useRef<ReturnType<typeof createFireBossAmbushImpact> | null>(null);
 
   // ── StarBoss teleport state machine ─────────────────────────────────────────
   const starTeleportPhaseRef    = useRef<'idle' | 'departing' | 'transiting' | 'arriving'>('idle');
@@ -217,6 +260,7 @@ export function Boss() {
     gameRuntime.pipeline.enter("boss");
     if (!boss) {
       resetStarTeleportVFX();
+      resetFireAmbush();
       if (meshRef.current) meshRef.current.visible = true;
       gameRuntime.boss.reset();
       return;
@@ -266,6 +310,7 @@ export function Boss() {
         fireMovePhaseRef.current    = 'entering';
         fireInitRef.current         = false;
         fireShotTimerRef.current    = 0;
+        resetFireAmbush();
         triPatternRef.current       = 0;
         triPatternTimerRef.current  = 0;
         triSubAngleRef.current      = 0;
@@ -293,6 +338,18 @@ export function Boss() {
     
     if (phase !== "playing") return;
     if (!meshRef.current) return;
+
+    if (fireBossIdRef.current !== boss.id) {
+      resetFireAmbush();
+      fireBossIdRef.current = boss.id;
+    }
+
+    if (fireAmbushImpactRef.current) {
+      const nextTimer = fireAmbushImpactRef.current.timer - delta;
+      fireAmbushImpactRef.current = nextTimer > 0
+        ? { ...fireAmbushImpactRef.current, timer: nextTimer }
+        : null;
+    }
 
     // Seed bossPosRef from Zustand on the first frame after each spawn.
     // After that it is kept in sync imperatively every frame, making the
@@ -858,8 +915,140 @@ export function Boss() {
         const ENTER_SPEED = 5.0;
         const EXIT_SPEED  = 6.5;
 
-        // ── Phase state machine ──────────────────────────────────────────────
-        switch (fireMovePhaseRef.current) {
+        const viewCamera = state.camera as THREE.PerspectiveCamera;
+        const fireView = getPerspectiveViewAtPlane({
+          cameraX: viewCamera.position.x,
+          cameraY: viewCamera.position.y,
+          cameraZ: viewCamera.position.z,
+          planeZ: 0,
+          verticalFovDegrees: viewCamera.fov,
+          aspect: viewCamera.aspect,
+        });
+
+        // ── Rare low-health Backdraft Ambush ─────────────────────────────────
+        // The ambush owns the Fire boss transform for its short lifetime. It
+        // remains a live boss in BossRuntime, so swept collision never sees a
+        // stale position while the visual crosses the arena.
+        if (fireAmbushPhaseRef.current === "idle") {
+          fireAmbushTimerRef.current -= delta;
+          if (canStartFireBossAmbush(
+            boss.health,
+            fireAmbushUsesRef.current,
+            fireAmbushPhaseRef.current,
+            fireAmbushTimerRef.current,
+          )) {
+            fireAmbushLaunchPointRef.current = getFireBossAmbushTarget(
+              fireView,
+              Math.random,
+              [playerX, playerY],
+            );
+            fireAmbushPhaseRef.current = "repositioning";
+            fireAmbushTimerRef.current = FIRE_BOSS_AMBUSH_REPOSITION_DURATION;
+            fireAmbushUsesRef.current = Math.min(
+              FIRE_BOSS_AMBUSH_MAX_USES,
+              fireAmbushUsesRef.current + 1,
+            );
+            fireAmbushImpactTriggeredRef.current = false;
+          }
+        }
+
+        let ambushHandled = fireAmbushPhaseRef.current !== "idle";
+        if (ambushHandled) {
+          const ambushPhase = fireAmbushPhaseRef.current;
+
+          if (ambushPhase === "repositioning") {
+            const [tx, ty] = fireAmbushLaunchPointRef.current;
+            const dx = tx - curX;
+            const dy = ty - curY;
+            const distance = Math.hypot(dx, dy);
+            fireAmbushTimerRef.current -= delta;
+            if (distance < 0.35 || fireAmbushTimerRef.current <= 0) {
+              bx = tx;
+              by = ty;
+              fireAmbushPhaseRef.current = "charging";
+              fireAmbushTimerRef.current = FIRE_BOSS_AMBUSH_CHARGE_DURATION;
+            } else {
+              const step = Math.min(1, delta * FIRE_BOSS_AMBUSH_REPOSITION_SPEED / Math.max(0.001, distance));
+              bx = curX + dx * step;
+              by = curY + dy * step;
+            }
+          } else if (ambushPhase === "charging") {
+            const [tx, ty] = fireAmbushLaunchPointRef.current;
+            bx = tx;
+            by = ty;
+            fireAmbushTimerRef.current -= delta;
+            if (fireAmbushTimerRef.current <= 0) {
+              const target: [number, number] = [playerX, playerY];
+              const destination = getFireBossAmbushDashDestination(
+                [tx, ty],
+                target,
+                fireView,
+              );
+              const totalDistance = Math.hypot(
+                destination[0] - tx,
+                destination[1] - ty,
+              );
+              const targetDistance = Math.hypot(playerX - tx, playerY - ty);
+              fireAmbushDashStartRef.current = [tx, ty];
+              fireAmbushPlayerTargetRef.current = target;
+              fireAmbushDashDestinationRef.current = destination;
+              fireAmbushPlayerProgressRef.current = Math.max(
+                0,
+                Math.min(1, targetDistance / Math.max(0.001, totalDistance)),
+              );
+              fireAmbushPhaseRef.current = "dashing";
+              fireAmbushTimerRef.current = FIRE_BOSS_AMBUSH_DASH_DURATION;
+              fireAmbushImpactTriggeredRef.current = false;
+            }
+          } else if (ambushPhase === "dashing") {
+            const [sx, sy] = fireAmbushDashStartRef.current;
+            const [dx, dy] = fireAmbushDashDestinationRef.current;
+            const previousProgress = getFireBossAmbushDashProgress(
+              FIRE_BOSS_AMBUSH_DASH_DURATION - fireAmbushTimerRef.current,
+            );
+            fireAmbushTimerRef.current -= delta;
+            const dashProgress = getFireBossAmbushDashProgress(
+              FIRE_BOSS_AMBUSH_DASH_DURATION - fireAmbushTimerRef.current,
+            );
+
+            if (
+              !fireAmbushImpactTriggeredRef.current &&
+              dashProgress >= fireAmbushPlayerProgressRef.current
+            ) {
+              fireAmbushImpactTriggeredRef.current = true;
+              fireAmbushImpactIdRef.current += 1;
+              fireAmbushImpactRef.current = createFireBossAmbushImpact(
+                fireAmbushImpactIdRef.current,
+                [...fireAmbushPlayerTargetRef.current, 0],
+              );
+            }
+
+            const safeProgress = Math.max(previousProgress, dashProgress);
+            bx = sx + (dx - sx) * safeProgress;
+            by = sy + (dy - sy) * safeProgress;
+            if (fireAmbushTimerRef.current <= 0) {
+              fireAmbushPhaseRef.current = "recovery";
+              fireAmbushTimerRef.current = FIRE_BOSS_AMBUSH_RECOVERY_DURATION;
+            }
+          } else if (ambushPhase === "recovery") {
+            bx = curX;
+            by = curY;
+            fireAmbushTimerRef.current -= delta;
+            if (fireAmbushTimerRef.current <= 0) {
+              fireAmbushPhaseRef.current = "idle";
+              // Re-enter the authored Fire strike-and-retreat loop from a
+              // fresh edge target after the ambush has left the screen.
+              pickNewCycle();
+              fireMovePhaseRef.current = "exiting";
+            }
+          } else {
+            ambushHandled = false;
+          }
+        }
+
+        if (!ambushHandled) {
+          // ── Phase state machine ────────────────────────────────────────────
+          switch (fireMovePhaseRef.current) {
 
           case 'entering': {
             const tx   = fireTargetRef.current[0];
@@ -926,6 +1115,7 @@ export function Boss() {
             }
             break;
           }
+          }
         }
 
         // Commit position imperatively.
@@ -939,6 +1129,7 @@ export function Boss() {
           useMagicOrb.getState().updateBoss({
             ...boss,
             position: [bx, by, 0],
+            fireAmbushImpact: fireAmbushImpactRef.current ?? undefined,
           });
         }
         break;
@@ -1586,12 +1777,57 @@ export function Boss() {
   if (bossType === "circle") {
     // radius = 2 × player base scale (0.72 × 2 = 1.44)
     const fireRadius = 1.44;
+    const fireAmbushPhase = fireAmbushPhaseRef.current;
+    const chargeProgress = fireAmbushPhase === "charging"
+      ? getFireBossAmbushChargeProgress(
+        FIRE_BOSS_AMBUSH_CHARGE_DURATION - fireAmbushTimerRef.current,
+      )
+      : 0;
+    const chargeScale = 1 + getFireBossAmbushChargeSpeedMultiplier(chargeProgress) * 0.7;
+    const [dashStartX, dashStartY] = fireAmbushDashStartRef.current;
+    const [dashEndX, dashEndY] = fireAmbushDashDestinationRef.current;
+    const dashLength = Math.hypot(dashEndX - dashStartX, dashEndY - dashStartY);
+    const dashDirection: [number, number, number] = dashLength > 0.001
+      ? [(dashEndX - dashStartX) / dashLength, (dashEndY - dashStartY) / dashLength, 0]
+      : [0, 1, 0];
+    const fireAmbushImpact = boss.fireAmbushImpact;
+
     return (
-      <group ref={meshRef} position={boss.position}>
-        <Suspense fallback={null}>
-          <BossVisual type={bossType} radius={fireRadius} healthPercent={healthPercent} />
-        </Suspense>
-      </group>
+      <>
+        {fireAmbushImpact && (
+          <group
+            key={`fire-ambush-impact-${fireAmbushImpact.id}`}
+            position={fireAmbushImpact.position}
+          >
+            <FireExplosionVFX
+              progress={getFireBossAmbushImpactProgress(fireAmbushImpact.timer)}
+              bossType="circle"
+              scale={2.15}
+            />
+          </group>
+        )}
+        <group ref={meshRef} position={boss.position}>
+          <Suspense fallback={null}>
+            <BossVisual type={bossType} radius={fireRadius} healthPercent={healthPercent} />
+          </Suspense>
+          {(fireAmbushPhase === "repositioning" || fireAmbushPhase === "charging") && (
+            <group scale={chargeScale}>
+              <FlameAura
+                scale={fireRadius * 1.25}
+                speedMultiplier={getFireBossAmbushChargeSpeedMultiplier(chargeProgress)}
+              />
+            </group>
+          )}
+          {fireAmbushPhase === "dashing" && (
+            <group
+              rotation={[0, 0, getBackwardFlameAuraRotation(dashDirection)]}
+              scale={[1, 1.45, 1]}
+            >
+              <FlameAura scale={fireRadius * 1.7} speedMultiplier={1.35} />
+            </group>
+          )}
+        </group>
+      </>
     );
   }
   
