@@ -128,8 +128,8 @@ export function createToxicBossMaterial(
     material.map.needsUpdate = true;
   }
 
-  // Keep the authored base-color map neutral. Toxic green belongs to the
-  // overlay/rim effects, not to a full-surface replacement tint.
+  // Keep the authored base-color map neutral. Toxic green belongs only to
+  // localized droplet/damage effects, not to a full-surface replacement tint.
   material.color.set("#ffffff");
   material.emissive.set("#ffffff");
   material.emissiveIntensity = 0.06;
@@ -254,8 +254,6 @@ export function ToxicOrbVisual({
     <group>
       {/* Neutral front fill keeps the authored texture readable. */}
       {showLight && <pointLight color="#ffffff" intensity={0.9} distance={10} decay={2} position={[0, 0, 3]} />}
-      {/* Green stays a restrained toxic rim rather than a body-wide tint. */}
-      {showLight && <pointLight color="#44ff22" intensity={1.0} distance={10} decay={2} position={[0, 0, -3]} />}
       {/* Base model */}
       <group ref={groupRef} />
       {/* Falling droplet instances */}
