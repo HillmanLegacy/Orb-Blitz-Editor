@@ -14,6 +14,7 @@ import { MiniDiamondOrb } from "./MiniDiamondOrb";
 import { MiniRainbowOrb } from "./MiniRainbowOrb";
 import { MiniMechaOrb } from "./MiniMechaOrb";
 import { MiniMonsterOrb } from "./MiniMonsterOrb";
+import { ToxicBoss } from "./ToxicBoss";
 import { StandardEnemyParticles } from "./StandardEnemyParticles";
 import { addExplosionImpulse } from "./Background";
 import { gameRuntime } from "@/game-runtime/GameRuntime";
@@ -86,7 +87,7 @@ function BossOrbMesh({ orb }: { orb: DarkOrb }) {
   if (bossType === "tentacle") return <group ref={groupRef} position={orb.position!}><pointLight color="#33aaff" intensity={1.8} distance={5} decay={2} /><MiniMechaOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
   if (bossType === "monster")  return <group ref={groupRef} position={orb.position!}><MiniMonsterOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
   // trapezoid / bird / default
-  return <group ref={groupRef} position={orb.position!}><MiniToxicOrb />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
+  return <group ref={groupRef} position={orb.position!}><ToxicBoss radius={1} />{(orb.hurtTimer||0)>0&&<FireHurtFlash hurtTimer={orb.hurtTimer||0}/>}</group>;
 }
 // ── Unified dark orb mesh — fully imperative, zero re-renders per frame ───────
 function UnifiedDarkOrbMesh({ orb }: { orb: DarkOrb }) {

@@ -7,11 +7,14 @@ import { useRef, useEffect, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
-import { PLAYER_SKIN_MODEL_PATHS } from "./PlayerSkinVisualConfig";
+import {
+  getPlayerSkinVisualYaw,
+  PLAYER_SKIN_MODEL_PATHS,
+} from "./PlayerSkinVisualConfig";
 
 // ── Falling droplet instances ──────────────────────────────────────────────────
 
-const DRIP_COUNT = 28;
+export const TOXIC_DRIP_COUNT = 28;
 
 interface Drop {
   sx: number; sz: number; // surface XZ attachment point
@@ -39,12 +42,12 @@ function makeDrop(radius: number): Drop {
   };
 }
 
-function ToxicDroplets({ radius }: { radius: number }) {
+function ToxicDroplets({ radius, count = TOXIC_DRIP_COUNT }: { radius: number; count?: number }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy   = useMemo(() => new THREE.Object3D(), []);
   const colRef  = useRef(new THREE.Color());
   const drops   = useRef<Drop[]>(
-    Array.from({ length: DRIP_COUNT }, () => makeDrop(radius))
+    Array.from({ length: count }, () => makeDrop(radius))
   );
 
   useFrame((_, delta) => {
@@ -86,7 +89,7 @@ function ToxicDroplets({ radius }: { radius: number }) {
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, DRIP_COUNT]}>
+    <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
       <sphereGeometry args={[1, 8, 8]} />
       <meshBasicMaterial
         transparent
@@ -102,6 +105,15 @@ function ToxicDroplets({ radius }: { radius: number }) {
 export interface ToxicBossProps {
   radius?:        number;
   healthPercent?: number;
+  ownsModelRotation?: boolean;
+}
+
+export interface ToxicOrbVisualProps extends ToxicBossProps {
+  particleCount?: number;
+  showParticles?: boolean;
+  showLight?: boolean;
+  animatePresentationYaw?: boolean;
+  internalRotationSpeed?: number;
 }
 
 export function createToxicBossMaterial(
@@ -132,7 +144,15 @@ export function createToxicBossMaterial(
   return material;
 }
 
-export function ToxicBoss({ radius = 1.44, healthPercent = 1 }: ToxicBossProps) {
+export function ToxicOrbVisual({
+  radius = 1.44,
+  healthPercent = 1,
+  particleCount = TOXIC_DRIP_COUNT,
+  showParticles = true,
+  showLight = true,
+  animatePresentationYaw = false,
+  internalRotationSpeed = 0,
+}: ToxicOrbVisualProps) {
   const groupRef      = useRef<THREE.Group>(null);
   const materialsRef  = useRef<THREE.MeshStandardMaterial[]>([]);
   const hurtTimerRef  = useRef(0);
@@ -200,9 +220,15 @@ export function ToxicBoss({ radius = 1.44, healthPercent = 1 }: ToxicBossProps) 
     prevHealthRef.current = healthPercent;
     hurtTimerRef.current  = Math.max(0, hurtTimerRef.current - delta);
 
-    // Very slow rot (liquid blobs don't spin fast)
+    // Boss bodies use a slow continuous turn. Projectile/player instances can
+    // instead opt into their established bounded presentation yaw or let their
+    // stable parent own rotation.
     if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 0.15;
+      if (animatePresentationYaw) {
+        groupRef.current.rotation.y = getPlayerSkinVisualYaw("toxic", state.clock.getElapsedTime());
+      } else if (internalRotationSpeed !== 0) {
+        groupRef.current.rotation.y += delta * internalRotationSpeed;
+      }
     }
 
     const t    = state.clock.getElapsedTime();
@@ -227,13 +253,27 @@ export function ToxicBoss({ radius = 1.44, healthPercent = 1 }: ToxicBossProps) 
   return (
     <group>
       {/* Neutral front fill keeps the authored texture readable. */}
-      <pointLight color="#ffffff" intensity={0.9} distance={10} decay={2} position={[0, 0, 3]} />
+      {showLight && <pointLight color="#ffffff" intensity={0.9} distance={10} decay={2} position={[0, 0, 3]} />}
       {/* Green stays a restrained toxic rim rather than a body-wide tint. */}
-      <pointLight color="#44ff22" intensity={1.0} distance={10} decay={2} position={[0, 0, -3]} />
+      {showLight && <pointLight color="#44ff22" intensity={1.0} distance={10} decay={2} position={[0, 0, -3]} />}
       {/* Base model */}
       <group ref={groupRef} />
       {/* Falling droplet instances */}
-      <ToxicDroplets radius={radius} />
+      {showParticles && <ToxicDroplets radius={radius} count={particleCount} />}
     </group>
+  );
+}
+
+export function ToxicBoss({
+  radius = 1.44,
+  healthPercent = 1,
+  ownsModelRotation = false,
+}: ToxicBossProps) {
+  return (
+    <ToxicOrbVisual
+      radius={radius}
+      healthPercent={healthPercent}
+      internalRotationSpeed={ownsModelRotation ? 0 : 0.15}
+    />
   );
 }

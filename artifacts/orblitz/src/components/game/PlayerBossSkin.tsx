@@ -7,7 +7,7 @@ import { MiniMonsterOrb } from "./MiniMonsterOrb";
 import { MiniPlasmaOrb } from "./MiniPlasmaOrb";
 import { MiniRainbowOrb } from "./MiniRainbowOrb";
 import { MiniStarOrb } from "./MiniStarOrb";
-import { MiniToxicOrb } from "./MiniToxicOrb";
+import { ToxicBoss } from "./ToxicBoss";
 
 interface PlayerBossSkinProps {
   skin: Exclude<OrbSkin, "default">;
@@ -41,7 +41,7 @@ export function PlayerBossSkin({
     case "crystal":
       return <MiniCrystalOrb radius={radius} showLight={false} animatePresentationYaw={!ownsModelRotation} />;
     case "toxic":
-      return <MiniToxicOrb radius={radius} showParticles={showEffects} showLight={false} animatePresentationYaw={!ownsModelRotation} />;
+      return <ToxicBoss radius={radius} healthPercent={healthPercent} ownsModelRotation={ownsModelRotation} />;
     case "plasma":
       return <MiniPlasmaOrb radius={radius} showParticles={showEffects} showLight={false} animatePresentationYaw={!ownsModelRotation} />;
     case "diamond":

@@ -112,7 +112,12 @@ import {
 } from "../src/components/game/PowerUpEvaporationVFX";
 import {
   createToxicBossMaterial,
+  TOXIC_DRIP_COUNT,
+  ToxicBoss,
+  ToxicOrbVisual,
 } from "../src/components/game/ToxicBoss";
+import { MiniToxicOrb } from "../src/components/game/MiniToxicOrb";
+import { PlayerBossSkin } from "../src/components/game/PlayerBossSkin";
 import {
   PLAYER_MODEL_ROTATION_SPEED,
   PLAYER_SKIN_MODEL_PATHS,
@@ -276,6 +281,30 @@ describe("gameplay runtime invariants", () => {
     material.dispose();
     source.dispose();
     texture.dispose();
+  });
+
+  it("routes Toxic boss orbs and the equipped Toxic skin through one full visual", () => {
+    const miniVisual = MiniToxicOrb({
+      radius: 1,
+      particleCount: TOXIC_DRIP_COUNT,
+      showParticles: true,
+      showLight: true,
+      animatePresentationYaw: false,
+    }) as any;
+    expect(miniVisual.type).toBe(ToxicOrbVisual);
+    expect(miniVisual.props.particleCount).toBe(TOXIC_DRIP_COUNT);
+    expect(miniVisual.props.showParticles).toBe(true);
+    expect(miniVisual.props.showLight).toBe(true);
+
+    const playerVisual = PlayerBossSkin({
+      skin: "toxic",
+      radius: 1,
+      healthPercent: 1,
+      showEffects: false,
+      ownsModelRotation: true,
+    }) as any;
+    expect(playerVisual.type).toBe(ToxicBoss);
+    expect(playerVisual.props.ownsModelRotation).toBe(true);
   });
 
   it("preserves the 1.9 defeat duration and authored particle budget", () => {
