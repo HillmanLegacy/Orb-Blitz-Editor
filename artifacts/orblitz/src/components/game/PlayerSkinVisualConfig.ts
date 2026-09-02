@@ -13,8 +13,12 @@ export const PLAYER_SKIN_MODEL_PATHS: Record<OrbSkin, string> = {
   monster: "/models/boss_orb_9_shadow_texture.glb",
 };
 
-/** Radians per second for the player-only visible-model turntable. */
-export const PLAYER_MODEL_ROTATION_SPEED = 0.85;
+/**
+ * Radians per second for the player-only visible-model turntable.
+ * The negative sign produces clockwise motion from the camera/player view
+ * because the player is viewed from the positive-Z side of the scene.
+ */
+export const PLAYER_MODEL_ROTATION_SPEED = -0.28;
 
 // Projectile renderers retain their authored, bounded presentation yaw. Player
 // models intentionally do not use this: their shared parent owns one continuous

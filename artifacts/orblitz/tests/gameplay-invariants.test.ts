@@ -110,6 +110,7 @@ import {
   POWER_UP_EVAPORATION_MAX_REMNANTS,
 } from "../src/components/game/PowerUpEvaporationVFX";
 import {
+  PLAYER_MODEL_ROTATION_SPEED,
   PLAYER_SKIN_MODEL_PATHS,
   getPlayerSkinModelPath,
   getPlayerSkinTrailPalette,
@@ -228,6 +229,11 @@ describe("gameplay runtime invariants", () => {
       tentacle: "MechaBoss",
       monster: "MonsterBoss",
     });
+  });
+
+  it("keeps the player model spin slow and clockwise from the player view", () => {
+    expect(PLAYER_MODEL_ROTATION_SPEED).toBeLessThan(0);
+    expect(Math.abs(PLAYER_MODEL_ROTATION_SPEED)).toBeLessThan(0.5);
   });
 
   it("preserves the 1.9 defeat duration and authored particle budget", () => {

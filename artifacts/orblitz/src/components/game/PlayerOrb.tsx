@@ -786,10 +786,9 @@ export function PlayerOrb() {
   // apply weapon/morph transforms here: those belong to the visible model.
   const groupRef = useRef<THREE.Group>(null);
   const visualModelRef = useRef<THREE.Group>(null);
-  const presentationYawRef = useRef(0);
-  const presentationYawQuatRef = useRef(new THREE.Quaternion());
+  const presentationSpinRef = useRef(0);
+  const presentationSpinQuatRef = useRef(new THREE.Quaternion());
   const presentationWobbleQuatRef = useRef(new THREE.Quaternion());
-  const presentationYAxisRef = useRef(new THREE.Vector3(0, 1, 0));
   const presentationZAxisRef = useRef(new THREE.Vector3(0, 0, 1));
   const particleRefs = useRef<THREE.Mesh[]>([]);
   const rayRefs = useRef<THREE.Mesh[]>([]);
@@ -1021,21 +1020,22 @@ export function PlayerOrb() {
       // from the world-space VFX anchor above.
       visualModelRef.current.position.set(totalRecoilX, floatY + totalRecoilY, 0);
       visualModelRef.current.scale.set(sqX, sqY, 1);
-      // Player presentation is a single continuous turntable. Keep an
-      // unwrapped phase and compose yaw/wobble as quaternions so no Euler
-      // angle wrap or competing child rotation can flip the GLTF texture.
+      // Player presentation is a single continuous clockwise roll from the
+      // player's view. Keep an unwrapped phase and compose spin/wobble as
+      // quaternions so no Euler angle wrap or competing child rotation can
+      // flip the GLTF texture.
       const presentationDelta = Math.min(Math.max(delta, 0), 0.05);
-      presentationYawRef.current += presentationDelta * PLAYER_MODEL_ROTATION_SPEED;
-      presentationYawQuatRef.current.setFromAxisAngle(
-        presentationYAxisRef.current,
-        presentationYawRef.current,
+      presentationSpinRef.current += presentationDelta * PLAYER_MODEL_ROTATION_SPEED;
+      presentationSpinQuatRef.current.setFromAxisAngle(
+        presentationZAxisRef.current,
+        presentationSpinRef.current,
       );
       presentationWobbleQuatRef.current.setFromAxisAngle(
         presentationZAxisRef.current,
         gentleWobble,
       );
       visualModelRef.current.quaternion
-        .copy(presentationYawQuatRef.current)
+        .copy(presentationSpinQuatRef.current)
         .multiply(presentationWobbleQuatRef.current);
     }
     
