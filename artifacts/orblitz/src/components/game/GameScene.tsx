@@ -460,6 +460,8 @@ export function GameScene({
   const [webglAvailable] = useState(canCreateWebGLContext);
   const backgroundEnabled = usePerformanceFeature("background");
   const foregroundIntroBosses = introBossPhase === "title" || introBossPhase === "waiting";
+  const worldBossPreview = introBossPhase === "menu" && introBossPresentation === "worlds";
+  const introBossesInFront = foregroundIntroBosses || worldBossPreview;
 
   if (!webglAvailable) return <WebGLUnavailable />;
 
@@ -483,8 +485,8 @@ export function GameScene({
           width: "100%",
           height: "100%",
           touchAction: "none",
-          zIndex: foregroundIntroBosses ? 120 : undefined,
-          pointerEvents: foregroundIntroBosses ? "none" : "auto",
+           zIndex: worldBossPreview ? 180 : foregroundIntroBosses ? 120 : undefined,
+           pointerEvents: introBossesInFront ? "none" : "auto",
         }}
       >
         <Suspense fallback={null}>
@@ -492,7 +494,7 @@ export function GameScene({
           <PerformanceToggleInvalidator />
           <AdaptiveRenderQuality />
           <GameRuntimeLifecycle />
-          <RendererSetup transparent={foregroundIntroBosses} />
+           <RendererSetup transparent={introBossesInFront} />
           <CameraController />
           {introBossPhase && (
             <ArcadeBossIntroScene
@@ -503,13 +505,13 @@ export function GameScene({
           )}
 
           {/* Lightweight background — gameplay GPU systems mount below only when needed */}
-          {backgroundEnabled && <Background visible={!foregroundIntroBosses} />}
+          {backgroundEnabled && <Background visible={!introBossesInFront} />}
 
           {/* Gameplay systems — unmounted outside gameplay loading/playing */}
           <GameplayGate />
 
           {/* Post-processing stack */}
-          {!foregroundIntroBosses && <PostProcessingWrapper />}
+          {!introBossesInFront && <PostProcessingWrapper />}
         </Suspense>
       </Canvas>
     </WebGLErrorBoundary>

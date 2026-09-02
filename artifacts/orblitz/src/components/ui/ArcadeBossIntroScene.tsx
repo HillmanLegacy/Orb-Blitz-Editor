@@ -124,6 +124,18 @@ function lerp(from: number, to: number, progress: number): number {
   return from + (to - from) * progress;
 }
 
+function getWorldCardAnchor(world: number): { x: number; y: number } | null {
+  if (typeof document === "undefined" || typeof window === "undefined") return null;
+  const card = document.querySelector<HTMLElement>(`[data-testid="button-world-${world}"]`);
+  if (!card) return null;
+  const rect = card.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+  };
+}
+
 function renderArcadeBoss(type: MainBossType) {
   const radius = 1.05;
   switch (type) {
@@ -166,7 +178,7 @@ function ArcadeBossActor({
     depthWrite: boolean;
   };
   const groupRef = useRef<THREE.Group>(null);
-  const { viewport } = useThree();
+  const { viewport, camera } = useThree();
   const phaseStartedAt = useRef(typeof performance === "undefined" ? 0 : performance.now());
   const previousPhase = useRef<IntroBossPhase | null>(null);
   const phaseOrigin = useRef(new THREE.Vector3());
@@ -268,19 +280,30 @@ function ArcadeBossActor({
       const rosterProgress = easeOutCubic(
         (now - (menuRevealStartedAt.current ?? now)) / 950,
       );
-      // Keep the live models aligned with the three DOM card slots. Only the
-      // selected world is centered; its neighbors sit at the same spacing as
-      // the responsive carousel columns and remain behind the card windows.
+       // Keep the live models aligned with the actual DOM card centers. Reading
+       // the transformed button bounds makes the shared WebGL layer stay locked
+       // to the carousel through responsive layout and Framer Motion transitions.
       const selectedIndex = Math.max(0, Math.min(8, selectedWorld - 1));
       const relativeIndex = ((rosterIndex - selectedIndex + 9 + 4) % 9) - 4;
       const isSelected = relativeIndex === 0;
       const rosterTime = elapsed * 0.72 + definition.delay * 2.2;
-      const slotX = relativeIndex * width * 0.27;
+       const world = ((selectedWorld - 1 + relativeIndex + 9) % 9) + 1;
+       const actorZ = (isSelected ? 5.05 : 4.55) + Math.sin(rosterTime * 0.61) * 0.18;
+       const perspectiveScale = (camera.position.z - actorZ) / camera.position.z;
+       const cardAnchor = getWorldCardAnchor(world);
+       const fallbackX = relativeIndex * width * 0.27 * perspectiveScale;
+       const fallbackY = 0;
+       const anchorX = cardAnchor
+         ? (cardAnchor.x - window.innerWidth / 2) / window.innerWidth * width * perspectiveScale
+         : fallbackX;
+       const anchorY = cardAnchor
+         ? (window.innerHeight / 2 - cardAnchor.y) / window.innerHeight * height * perspectiveScale
+         : fallbackY;
 
       group.position.set(
-        slotX + Math.sin(rosterTime) * width * (isSelected ? 0.006 : 0.004),
-        Math.cos(rosterTime * 0.83) * height * (isSelected ? 0.008 : 0.006),
-        (isSelected ? 5.05 : 4.55) + Math.sin(rosterTime * 0.61) * 0.18,
+         anchorX + Math.sin(rosterTime) * width * (isSelected ? 0.004 : 0.003),
+         anchorY + Math.cos(rosterTime * 0.83) * height * (isSelected ? 0.005 : 0.004),
+         actorZ,
       );
       group.scale.setScalar(Math.max(0.001, (isSelected ? 0.92 : 0.54) * rosterProgress));
       group.renderOrder = isSelected ? 8 : 7;
