@@ -280,6 +280,129 @@
   height: auto !important;
 }
 
+/* Pause uses the same command-deck material as the main menu, while keeping
+   controls in a compact, viewport-safe stack over the live combat scene. */
+.orblitz-pause-screen {
+  isolation: isolate;
+  backdrop-filter: blur(2px);
+}
+
+.orblitz-pause-orbit::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: min(78vw, 920px);
+  height: min(48vw, 520px);
+  border: 1px solid rgba(111, 222, 255, 0.14);
+  border-radius: 50%;
+  translate: -50% -50%;
+  rotate: -8deg;
+  box-shadow: 0 0 42px rgba(0, 246, 255, 0.05), inset 0 0 38px rgba(255, 43, 214, 0.035);
+}
+
+.orblitz-pause-orbit::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: calc(50% + min(40vh, 260px));
+  translate: -50% 0;
+  color: rgba(167, 221, 235, 0.46);
+  font: 700 clamp(0.42rem, 0.62vw, 0.56rem) / 1 var(--font-mono);
+  letter-spacing: 0.27em;
+  white-space: nowrap;
+}
+
+.orblitz-pause-content {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 246, 255, 0.22) transparent;
+}
+
+.orblitz-pause-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.orblitz-pause-content::-webkit-scrollbar-thumb {
+  background: rgba(0, 246, 255, 0.24);
+  border-radius: 4px;
+}
+
+.orblitz-pause-kicker,
+.orblitz-pause-status,
+.orblitz-pause-deck-label {
+  margin: 0;
+  color: rgba(167, 221, 235, 0.52);
+  font: 800 clamp(0.42rem, 0.7vw, 0.56rem) / 1 var(--font-mono);
+  letter-spacing: 0.28em;
+  text-align: center;
+}
+
+.orblitz-pause-kicker {
+  margin-bottom: clamp(8px, 1.4vh, 14px);
+  color: rgba(200, 244, 255, 0.7);
+}
+
+.orblitz-pause-status {
+  margin-top: clamp(8px, 1.2vh, 12px);
+  color: rgba(255, 230, 0, 0.56);
+  letter-spacing: 0.2em;
+}
+
+.orblitz-pause-deck {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 1.4vh, 14px);
+  width: 100%;
+  padding: clamp(14px, 2.6vh, 24px) clamp(8px, 1.4vw, 16px) clamp(10px, 2vh, 18px);
+  isolation: isolate;
+}
+
+.orblitz-pause-deck::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(111, 222, 255, 0.12);
+  border-radius: clamp(16px, 2.5vw, 24px);
+  background: linear-gradient(145deg, rgba(220, 252, 255, 0.045), rgba(7, 12, 38, 0.2) 48%, rgba(255, 43, 214, 0.035));
+  box-shadow: 5px 7px 0 rgba(3, 7, 26, 0.42), 0 0 34px rgba(0, 246, 255, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.orblitz-pause-deck-label {
+  margin-top: -1px;
+  color: rgba(167, 221, 235, 0.42);
+  letter-spacing: 0.24em;
+}
+
+.orblitz-pause-command::after {
+  content: "COMMAND DECK  //  PAUSED";
+  position: absolute;
+  inset: 7px;
+  border: 1px solid rgba(215, 250, 255, 0.12);
+  clip-path: polygon(0 0, 14px 0, 14px 1px, calc(100% - 14px) 1px, calc(100% - 14px) 0, 100% 0, 100% 14px, calc(100% - 1px) 14px, calc(100% - 1px) calc(100% - 14px), 100% calc(100% - 14px), 100% 100%, calc(100% - 14px) 100%, calc(100% - 14px) calc(100% - 1px), 14px calc(100% - 1px), 14px 100%, 0 100%, 0 calc(100% - 14px), 1px calc(100% - 14px), 1px 14px, 0 14px);
+  opacity: 0.56;
+  pointer-events: none;
+}
+
+@media (max-height: 500px) {
+  .orblitz-pause-content {
+    gap: 6px;
+  }
+
+  .orblitz-pause-deck {
+    gap: 6px;
+    padding-block: 10px 8px;
+  }
+
+  .orblitz-pause-orbit::before,
+  .orblitz-pause-orbit::after {
+    display: none;
+  }
+}
+
 @media (max-width: 700px), (max-height: 560px) and (orientation: landscape) {
   .orblitz-button-stage[data-layout="root"]::before,
   .orblitz-button-stage[data-layout="modes"]::before {

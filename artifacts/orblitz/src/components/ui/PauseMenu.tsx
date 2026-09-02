@@ -41,18 +41,21 @@ interface BtnDef { id: string; icon: React.ReactNode; label: string; color: stri
 function OrbBtn({ b, maxW, pressed, setPressed }: { b: BtnDef; maxW: string; pressed: boolean; setPressed: (v: boolean) => void }) {
   return (
     <motion.button
-      className="relative flex flex-col items-center justify-center overflow-hidden flex-1"
+      className="orblitz-command-button orblitz-pause-command relative flex flex-col items-center justify-center overflow-hidden flex-1"
       style={{
         minWidth: 0, maxWidth: maxW, height: BTN_H,
-        borderRadius: "clamp(10px,1.6vw,14px)",
-        border: `1.5px solid ${pressed ? b.color + "cc" : b.color + "55"}`,
-        background: pressed ? `${b.color}20` : `linear-gradient(160deg,${b.color}10 0%,${b.color}06 100%)`,
+        borderRadius: "clamp(8px, 1.1vw, 14px)",
+        border: `1px solid ${pressed ? b.color : b.color + "aa"}`,
+        background: pressed
+          ? `linear-gradient(145deg, ${b.color}70, ${b.color}28 64%, rgba(7,12,38,0.92))`
+          : `linear-gradient(145deg, rgba(220,252,255,0.14), ${b.color}2b 42%, rgba(7,12,38,0.9) 100%)`,
         color: b.color,
         boxShadow: pressed
-          ? `0 0 24px ${b.shadow}, 0 0 48px ${b.shadow}, inset 0 0 14px ${b.color}14`
-          : `0 0 12px ${b.shadow}, inset 0 1px 0 ${b.color}14`,
+          ? `2px 3px 0 rgba(3,7,26,0.78), 0 0 30px ${b.shadow}, inset 0 0 20px ${b.color}35`
+          : `5px 7px 0 rgba(3,7,26,0.72), 0 0 18px ${b.shadow}, inset 1px 1px 0 rgba(255,255,255,0.2), inset -1px -1px 0 rgba(0,0,0,0.42)`,
         cursor: "pointer", WebkitTapHighlightColor: "transparent",
-        transition: "background 0.14s, box-shadow 0.14s, border-color 0.14s",
+        backdropFilter: "blur(8px)",
+        transition: "background 0.14s, box-shadow 0.14s, border-color 0.14s, transform 0.14s",
       }}
       variants={{
         hidden:  { opacity: 0, y: 14, scale: 0.88 },
@@ -65,13 +68,24 @@ function OrbBtn({ b, maxW, pressed, setPressed }: { b: BtnDef; maxW: string; pre
       onPointerUp={() => setPressed(false)}
       onPointerLeave={() => setPressed(false)}
       onClick={b.action}
+      aria-label={b.label}
+      data-active={pressed}
     >
-      <TopLine color={b.color} />
+      <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{
+        height: 3,
+        background: `linear-gradient(90deg,${b.color}00 0%,${b.color}cc 20%,rgba(255,255,255,0.95) 50%,${b.color}22 80%,${b.color}00 100%)`,
+        opacity: pressed ? 1 : 0.72,
+        transition: "opacity 0.14s",
+      }} />
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: "linear-gradient(132deg, rgba(255,255,255,0.11), transparent 30%, transparent 58%, rgba(0,0,0,0.22))",
+        borderRadius: "inherit",
+      }} />
       <Scanlines />
-      <span style={{ fontSize: ICON_SZ, lineHeight: 1, marginBottom: "clamp(2px,0.6vw,5px)", filter: `drop-shadow(0 0 5px ${b.color}88)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <span style={{ fontSize: ICON_SZ, lineHeight: 1, marginBottom: "clamp(2px,0.6vw,5px)", filter: `drop-shadow(0 0 7px ${b.color}88) drop-shadow(2px 2px 0 rgba(3,7,26,0.55))`, display: "flex", alignItems: "center", justifyContent: "center" }}>
         {b.icon}
       </span>
-      <span style={{ fontSize: LABEL_SZ, fontWeight: 800, letterSpacing: "0.13em", lineHeight: 1, opacity: 0.88 }}>
+      <span style={{ fontSize: LABEL_SZ, fontWeight: 900, letterSpacing: "0.12em", lineHeight: 1, opacity: 0.96, fontFamily: "var(--font-display)" }}>
         {b.label}
       </span>
     </motion.button>
@@ -313,37 +327,47 @@ export function PauseMenu({ onMainMenu }: { onMainMenu?: () => void }) {
   return (
     <>
       <motion.div
-        className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-black pointer-events-auto select-none"
-        style={{ padding: "clamp(12px,3vh,28px) clamp(12px,4vw,32px)" }}
+        className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-black pointer-events-auto select-none orblitz-pause-screen"
+        style={{ padding: "clamp(12px,3vh,28px) clamp(12px,4vw,32px)", backgroundColor: "rgba(5,8,28,0.34)" }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.2 }}
       >
-        {/* Radial glow */}
+        {/* Main-menu atmosphere carried into the combat hold state. */}
         <div className="absolute inset-0 pointer-events-none" style={{
-          background: "radial-gradient(ellipse 70% 50% at 50% 50%, rgba(0,255,255,0.06) 0%, rgba(170,0,255,0.05) 50%, transparent 75%)",
+          opacity: 0.9,
+          background: "radial-gradient(ellipse at 50% 42%, rgba(67,22,134,0.3) 0%, rgba(9,70,105,0.18) 42%, transparent 80%), linear-gradient(135deg, rgba(4,17,57,0.16), rgba(60,8,72,0.18) 52%, rgba(0,42,60,0.16))",
         }} />
-
-        {/* Scanlines */}
         <div className="absolute inset-0 pointer-events-none" style={{
-          backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,255,255,0.008) 3px,rgba(0,255,255,0.008) 4px)",
+          backgroundImage: "linear-gradient(rgba(0,246,255,0.22) 1px, transparent 1px), linear-gradient(90deg, rgba(255,43,214,0.17) 1px, transparent 1px)",
+          backgroundSize: "clamp(26px, 3.7vw, 54px) clamp(26px, 3.7vw, 54px)",
+          maskImage: "radial-gradient(ellipse at 50% 48%, black 0%, transparent 76%)",
+          WebkitMaskImage: "radial-gradient(ellipse at 50% 48%, black 0%, transparent 76%)",
+          opacity: 0.16,
         }} />
+        <div className="absolute inset-0 pointer-events-none orblitz-pause-orbit" />
+        <div className="absolute left-[14%] top-[24%] h-2 w-2 rounded-sm pointer-events-none" style={{ background: "#ffe600", boxShadow: "0 0 24px 7px rgba(255,230,0,0.38)" }} />
+        <div className="absolute right-[18%] bottom-[28%] h-1.5 w-1.5 rounded-sm pointer-events-none" style={{ background: "#ff2bd6", boxShadow: "0 0 20px 6px rgba(255,43,214,0.38)" }} />
 
         <motion.div
-          className="relative z-10 w-full flex flex-col items-center gap-3"
-          style={{ maxWidth: "clamp(300px,90vw,440px)" }}
+          className="relative z-10 w-full flex flex-col items-center gap-3 orblitz-pause-content"
+          style={{ maxWidth: "clamp(300px,90vw,520px)", maxHeight: "calc(100dvh - 24px)", overflowY: "auto", padding: "clamp(8px,2vh,18px) 0" }}
           initial={{ scale: 0.9, opacity: 0, y: 16 }}
           animate={{ scale: 1,   opacity: 1, y: 0  }}
           transition={{ duration: 0.3, ease: [0.22, 0.61, 0.36, 1] }}
         >
           {/* Title */}
           <div className="text-center">
+            <p className="orblitz-pause-kicker">ORBLITZ // COMMAND DECK</p>
             <motion.h1
               className="font-black tracking-widest text-transparent bg-clip-text"
               style={{
-                fontSize: "clamp(2rem,8vw,3.2rem)", lineHeight: 1,
-                backgroundImage: "linear-gradient(135deg,#00ffff 0%,#aa00ff 45%,#ff00ff 75%,#ffff00 100%)",
+                fontSize: "clamp(2.4rem,8vw,4.2rem)", lineHeight: 0.95,
+                fontFamily: "Arial Black, Impact, sans-serif",
+                letterSpacing: "0.075em",
+                WebkitTextStroke: "1px rgba(210,252,255,0.22)",
+                backgroundImage: "linear-gradient(135deg,#e8fcff 0%,#00f6ff 27%,#aa00ff 58%,#ff2bd6 82%,#ffe600 100%)",
               }}
               animate={{ filter: [
                 "drop-shadow(0 0 14px rgba(0,255,255,0.45)) drop-shadow(0 0 28px rgba(255,0,255,0.2))",
@@ -356,16 +380,19 @@ export function PauseMenu({ onMainMenu }: { onMainMenu?: () => void }) {
             </motion.h1>
 
             <div className="mt-2 mx-auto" style={{
-              height: 1, width: "clamp(80px,30%,160px)",
-              background: "linear-gradient(90deg,transparent,#00ffff 35%,#ff00ff 65%,transparent)",
-              opacity: 0.5,
+              height: "clamp(4px,0.7vw,7px)", width: "clamp(140px,36vw,250px)",
+              borderRadius: 3,
+              background: "linear-gradient(90deg,transparent 0%,#00f6ff 18%,#ff2bd6 36%,#ffe600 54%,#7cff00 72%,#9b5cff 88%,transparent 100%)",
+              boxShadow: "0 4px 0 rgba(10,20,68,0.45), 0 0 16px rgba(0,246,255,0.5)",
+              opacity: 0.7,
             }} />
+            <p className="orblitz-pause-status">COMBAT HOLD // SYSTEMS ONLINE</p>
           </div>
 
           {/* Score pill */}
           <motion.div
             className="flex items-center gap-2 rounded-full px-4 py-1.5"
-            style={{ background: "rgba(0,0,0,0.45)", border: "1px solid rgba(0,255,255,0.12)" }}
+            style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.1), rgba(7,12,38,0.72))", border: "1px solid rgba(0,246,255,0.3)", boxShadow: "4px 5px 0 rgba(5,10,34,0.45), 0 0 18px rgba(0,246,255,0.12), inset 0 1px 0 rgba(255,255,255,0.18)", backdropFilter: "blur(8px)" }}
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
           >
             <span style={{ fontSize: "clamp(0.48rem,1.1vw,0.6rem)", color: "rgba(255,255,255,0.32)", letterSpacing: "0.2em", fontWeight: 700 }}>SCORE</span>
@@ -375,14 +402,12 @@ export function PauseMenu({ onMainMenu }: { onMainMenu?: () => void }) {
             </span>
           </motion.div>
 
-          {/* Primary row: RESUME · SHOP · STATUS */}
-          <div className="w-full">
+          <div className="w-full orblitz-pause-deck">
+            {/* Primary row: RESUME · SHOP · STATUS */}
             <OrbButtonRow buttons={topRow} delayStart={0.05} />
-          </div>
-
-          {/* Secondary row: SOUND · QUIT */}
-          <div className="w-full">
+            {/* Secondary row: SOUND · QUIT */}
             <OrbButtonRow buttons={bottomRow} delayStart={0.18} />
+            <p className="orblitz-pause-deck-label">COMMAND DECK // PAUSED</p>
           </div>
         </motion.div>
       </motion.div>
