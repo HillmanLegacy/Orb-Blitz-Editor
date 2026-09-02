@@ -459,7 +459,10 @@ export function GameScene({
 }) {
   const [webglAvailable] = useState(canCreateWebGLContext);
   const backgroundEnabled = usePerformanceFeature("background");
-  const foregroundIntroBosses = introBossPhase === "title" || introBossPhase === "waiting";
+  const foregroundIntroBosses =
+    introBossPhase === "orbReveal" ||
+    introBossPhase === "title" ||
+    introBossPhase === "waiting";
   const worldBossPreview = introBossPhase === "menu" && introBossPresentation === "worlds";
   const introBossesInFront = foregroundIntroBosses || worldBossPreview;
 
@@ -505,7 +508,7 @@ export function GameScene({
           )}
 
           {/* Lightweight background — gameplay GPU systems mount below only when needed */}
-          {backgroundEnabled && <Background visible={!introBossesInFront} />}
+          {backgroundEnabled && <Background visible={!worldBossPreview} />}
 
           {/* Gameplay systems — unmounted outside gameplay loading/playing */}
           <GameplayGate />

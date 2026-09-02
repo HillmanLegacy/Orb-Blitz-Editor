@@ -31,3 +31,4 @@
 - [Orblitz startup canvas](orblitz-startup-canvas.md) — Startup boss previews must share the main WebGL renderer; nested R3F canvases can exceed browser context limits.
 - [Orblitz title refraction](orblitz-title-refraction.md) — Keep title glass lighting synchronized with shared boss motion; use distance/depth falloff inside letters, not duplicate aura overlays.
 - [Orblitz world preview layering](orblitz-world-preview-layering.md) — World-select boss previews use the shared canvas above the carousel and align to live DOM card centers.
+- [Orblitz intro defeat previews](orblitz-intro-defeat-previews.md) — Presentational startup orbs can reuse EnemyDefeatVFX buffers via preview inputs without touching gameplay state.

@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { CrystalBoss } from "@/components/game/CrystalBoss";
@@ -11,8 +11,11 @@ import { RainbowBoss } from "@/components/game/RainbowBoss";
 import { StarBoss } from "@/components/game/StarBoss";
 import { ToxicBoss } from "@/components/game/ToxicBoss";
 import { BOSS_DEFEAT_PALETTES, MAIN_BOSS_TYPES, type MainBossType } from "@/components/game/BossDefeatPalette";
+import { EnemyDefeatVFX } from "@/components/game/EnemyDefeatVFX";
+import { ENEMY_DEFEAT_DURATION, getEnemySpawnReverseProgress } from "@/components/game/EnemyDefeatConfig";
+import type { DarkOrb } from "@/lib/stores/useMagicOrb";
 
-export type IntroBossPhase = "idle" | "flying" | "converge" | "flash" | "title" | "waiting" | "menu";
+export type IntroBossPhase = "idle" | "flying" | "converge" | "flash" | "background" | "orbReveal" | "title" | "waiting" | "menu";
 export type IntroBossPresentation = "menu" | "worlds" | "levels";
 
 export interface ArcadeBossIntroDef {
@@ -109,6 +112,7 @@ const FULL_SCREEN_RING_SCALE = 0.43;
 const FLASH_DURATION = 1.85;
 const FLASH_BOSS_HOLD = 0.62;
 const MENU_BACKGROUND_REVEAL_DURATION = 1.15;
+const INTRO_SPAWN_SPEED = ENEMY_DEFEAT_DURATION / 1.75;
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
@@ -285,6 +289,29 @@ function ArcadeBossActor({
       return;
     }
 
+    if (phase === "background") {
+      group.position.set(convergeX, convergeY, 0);
+      group.scale.setScalar(0.001);
+      return;
+    }
+
+    if (phase === "orbReveal") {
+      const spawnProgress = getEnemySpawnReverseProgress(elapsed * INTRO_SPAWN_SPEED);
+      const motion = getMenuBossSwarmPosition(
+        definition.type,
+        definition.delay * 0.8,
+        width,
+        height,
+      );
+      const visibleProgress = easeOutCubic(1 - spawnProgress);
+      group.position.set(motion.x, motion.y, motion.z);
+      group.scale.setScalar(Math.max(0.001, motion.scale * visibleProgress));
+      group.rotation.z = THREE.MathUtils.degToRad(definition.rotation * 0.35);
+      group.rotation.x = 0;
+      group.rotation.y = 0;
+      return;
+    }
+
     if (phase === "menu" && presentation === "worlds") {
       const rosterIndex = ARCADE_BOSS_INTRO_DEFS.findIndex((entry) => entry.type === definition.type);
       const rosterProgress = easeOutCubic(
@@ -351,10 +378,7 @@ function ArcadeBossActor({
 
     if (phase === "title" || phase === "waiting" || phase === "menu") {
       const layout = MENU_BOSS_LAYOUT[definition.type];
-      const menuRevealProgress =
-        phase === "menu"
-          ? easeOutCubic((now - (menuRevealStartedAt.current ?? now)) / (MENU_BACKGROUND_REVEAL_DURATION * 1000))
-          : 0;
+      const menuRevealProgress = 1;
       const motion = getMenuBossSwarmPosition(definition.type, elapsed + definition.delay * 0.8, width, height);
       group.position.set(
         motion.x,
@@ -479,12 +503,36 @@ function ArcadeBossScene({
   presentation: IntroBossPresentation;
   selectedWorld: number;
 }) {
+  const { viewport } = useThree();
   const worldDefinitions = presentation === "worlds"
     ? [-1, 0, 1].map((offset) => {
         const index = ((selectedWorld - 1 + offset + 9) % 9 + 9) % 9;
         return ARCADE_BOSS_INTRO_DEFS[index];
       })
     : ARCADE_BOSS_INTRO_DEFS;
+  const reverseDefeatOrbs = useMemo<DarkOrb[]>(
+    () => ARCADE_BOSS_INTRO_DEFS.map((definition, index) => {
+      const motion = getMenuBossSwarmPosition(
+        definition.type,
+        definition.delay * 0.8,
+        viewport.width,
+        viewport.height,
+      );
+      return {
+        id: `intro-reverse-defeat-${definition.type}`,
+        position: [motion.x, motion.y, motion.z],
+        speed: 0,
+        size: 0.55,
+        seed: index * 17 + 3,
+        shape: "sphere",
+        pattern: "direct",
+        patternPhase: index * 0.7,
+        isBossOrb: true,
+        bossType: definition.type,
+      };
+    }),
+    [viewport.width, viewport.height],
+  );
 
   return (
     <>
@@ -501,6 +549,12 @@ function ArcadeBossScene({
           />
         ))}
       </Suspense>
+      {phase === "orbReveal" && (
+        <EnemyDefeatVFX
+          previewOrbs={reverseDefeatOrbs}
+          previewSpeed={INTRO_SPAWN_SPEED}
+        />
+      )}
     </>
   );
 }
