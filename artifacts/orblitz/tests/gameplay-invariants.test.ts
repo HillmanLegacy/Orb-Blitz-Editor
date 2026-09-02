@@ -256,7 +256,7 @@ describe("gameplay runtime invariants", () => {
     expect(Math.abs(PLAYER_MODEL_ROTATION_SPEED)).toBeLessThan(0.5);
   });
 
-  it("preserves Toxic's authored map without applying a full-model green tint", () => {
+  it("renders Toxic's authored map with the same unlit material pattern as Fire", () => {
     const texture = new THREE.Texture();
     const source = new THREE.MeshStandardMaterial({
       map: texture,
@@ -269,14 +269,12 @@ describe("gameplay runtime invariants", () => {
 
     const material = createToxicBossMaterial(source);
 
+    expect(material).toBeInstanceOf(THREE.MeshBasicMaterial);
     expect(material.map).toBe(texture);
     expect(material.color.getHexString()).toBe("ffffff");
-    expect(material.emissive.getHexString()).toBe("ffffff");
-    expect(material.emissiveIntensity).toBeCloseTo(0.06);
-    expect(material.roughness).toBeCloseTo(0.45);
-    expect(material.metalness).toBeCloseTo(0.2);
     expect(material.transparent).toBe(false);
     expect(material.opacity).toBe(1);
+    expect(material.depthWrite).toBe(true);
 
     material.dispose();
     source.dispose();

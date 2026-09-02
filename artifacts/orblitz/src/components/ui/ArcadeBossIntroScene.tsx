@@ -140,8 +140,8 @@ export function getArcadeBossIntroGlow(type: MainBossType): {
   lightIntensity: number;
   haloOpacity: number;
 } {
-  // ToxicBoss already owns its green rim light and droplet VFX. The shared
-  // arcade halo otherwise over-lights its multicolor authored texture.
+  // ToxicBoss displays its authored texture directly. Keep the shared arcade
+  // halo restrained so it does not wash out the multicolor texture.
   if (type === "trapezoid") {
     return { lightIntensity: 0.6, haloOpacity: 0.04 };
   }

@@ -118,29 +118,25 @@ export interface ToxicOrbVisualProps extends ToxicBossProps {
 export function createToxicBossMaterial(
   sourceMaterial: THREE.Material,
   fallbackTexture?: THREE.Texture | null,
-): THREE.MeshStandardMaterial {
-  const material = sourceMaterial.clone() as THREE.MeshStandardMaterial;
-  if (!material.map && fallbackTexture) material.map = fallbackTexture;
+): THREE.MeshBasicMaterial {
+  const source = sourceMaterial as THREE.MeshBasicMaterial;
+  const map = source.map ?? fallbackTexture ?? undefined;
 
-  if (material.map) {
-    material.map.colorSpace = THREE.SRGBColorSpace;
-    material.map.needsUpdate = true;
+  if (map) {
+    map.colorSpace = THREE.SRGBColorSpace;
+    map.needsUpdate = true;
   }
 
-  // Keep the authored base-color map neutral. Toxic green belongs only to
-  // localized droplet/damage effects, not to a full-surface replacement tint.
-  material.color.set("#ffffff");
-  material.emissive.set("#ffffff");
-  material.emissiveIntensity = 0.06;
-  material.roughness = 0.45;
-  material.metalness = 0.2;
-  material.transparent = false;
-  material.opacity = 1;
-  material.depthTest = true;
-  material.depthWrite = true;
-  material.blending = THREE.NormalBlending;
-  material.needsUpdate = true;
-  return material;
+  // Match FireBoss: display the authored map directly instead of letting
+  // arcade-mode lighting multiply the texture into a dim PBR surface.
+  return new THREE.MeshBasicMaterial({
+    map,
+    color: new THREE.Color("#ffffff"),
+    transparent: source.transparent,
+    opacity: source.opacity,
+    alphaTest: source.alphaTest,
+    side: source.side,
+  });
 }
 
 export function ToxicOrbVisual({
@@ -152,7 +148,7 @@ export function ToxicOrbVisual({
   internalRotationSpeed = 0,
 }: ToxicOrbVisualProps) {
   const groupRef      = useRef<THREE.Group>(null);
-  const materialsRef  = useRef<THREE.MeshStandardMaterial[]>([]);
+  const materialsRef  = useRef<THREE.MeshBasicMaterial[]>([]);
   const hurtTimerRef  = useRef(0);
   const prevHealthRef = useRef(healthPercent);
 
@@ -163,16 +159,22 @@ export function ToxicOrbVisual({
   useEffect(() => {
     if (!groupRef.current) return;
 
-    // Extract baseColor texture — GLB baked with metallic=1/roughness=1 kills diffuse.
+    // Extract the authored map so every cloned material uses the same texture,
+    // even if the asset later gains multiple material groups.
     let orbTexture: THREE.Texture | null = null;
     modelScene.traverse((child) => {
       if (orbTexture) return;
       if ((child as THREE.Mesh).isMesh) {
-        const m = (child as THREE.Mesh).material;
-        const mats = Array.isArray(m) ? m : [m];
+        const mesh = child as THREE.Mesh;
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         for (const mat of mats) {
-          const tex = (mat as any).map;
-          if (tex) { orbTexture = tex; orbTexture!.needsUpdate = true; break; }
+          const tex = (mat as any).map ?? (mat as any).emissiveMap ?? (mat as any).aoMap;
+          if (tex) {
+            const texture = tex as THREE.Texture;
+            orbTexture = texture;
+            texture.needsUpdate = true;
+            break;
+          }
         }
       }
     });
@@ -235,15 +237,13 @@ export function ToxicOrbVisual({
 
     materialsRef.current.forEach((m) => {
       if (frac > 0) {
-        m.emissive.setRGB(1, 0.1, 0.05);
-        m.emissiveIntensity = frac * osc * 2.5;
+        const flash = frac * osc;
+        m.color.setRGB(1, 0.1 + flash * 0.2, 0.05 + flash * 0.2);
       } else if (healthPercent < 0.3) {
         const anger = Math.abs(Math.sin(t * 14));
-        m.emissive.setRGB(0.15 + anger * 0.1, 0.85, 0.02);
-        m.emissiveIntensity = 0.12 + anger * 0.18;
+        m.color.setRGB(0.2 + anger * 0.1, 0.8 + anger * 0.2, 0.02);
       } else {
-        m.emissive.set("#ffffff");
-        m.emissiveIntensity = 0.06 + Math.sin(t * 1.5) * 0.015;
+        m.color.set("#ffffff");
       }
     });
   });
