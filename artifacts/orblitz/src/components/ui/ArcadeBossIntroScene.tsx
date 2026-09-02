@@ -168,10 +168,10 @@ function ArcadeBossActor({
   const groupRef = useRef<THREE.Group>(null);
   const { viewport } = useThree();
   const phaseStartedAt = useRef(typeof performance === "undefined" ? 0 : performance.now());
-  const previousPhase = useRef<IntroBossPhase>(phase);
+  const previousPhase = useRef<IntroBossPhase | null>(null);
   const phaseOrigin = useRef(new THREE.Vector3());
   const menuRevealStartedAt = useRef<number | null>(null);
-  const previousPresentation = useRef<IntroBossPresentation>(presentation);
+  const previousPresentation = useRef<IntroBossPresentation | null>(null);
   const introMaterialStates = useRef<IntroMaterialState[]>([]);
   const materialFadeInitialized = useRef(false);
   const initialized = useRef(false);
@@ -265,22 +265,25 @@ function ArcadeBossActor({
 
     if (phase === "menu" && presentation === "worlds") {
       const rosterIndex = ARCADE_BOSS_INTRO_DEFS.findIndex((entry) => entry.type === definition.type);
-      const rosterColumn = rosterIndex % 3;
-      const rosterRow = Math.floor(rosterIndex / 3);
       const rosterProgress = easeOutCubic(
         (now - (menuRevealStartedAt.current ?? now)) / 950,
       );
-      const rosterX = (rosterColumn - 1) * width * 0.27;
-      const rosterY = (1 - rosterRow) * height * 0.18;
-      const isSelected = rosterIndex === selectedWorld - 1;
+      // Keep the live models aligned with the three DOM card slots. Only the
+      // selected world is centered; its neighbors sit at the same spacing as
+      // the responsive carousel columns and remain behind the card windows.
+      const selectedIndex = Math.max(0, Math.min(8, selectedWorld - 1));
+      const relativeIndex = ((rosterIndex - selectedIndex + 9 + 4) % 9) - 4;
+      const isSelected = relativeIndex === 0;
       const rosterTime = elapsed * 0.72 + definition.delay * 2.2;
+      const slotX = relativeIndex * width * 0.27;
 
       group.position.set(
-        (isSelected ? 0 : rosterX) + Math.sin(rosterTime) * width * 0.008,
-        (isSelected ? 0 : rosterY) + Math.cos(rosterTime * 0.83) * height * 0.009,
+        slotX + Math.sin(rosterTime) * width * (isSelected ? 0.006 : 0.004),
+        Math.cos(rosterTime * 0.83) * height * (isSelected ? 0.008 : 0.006),
         (isSelected ? 5.05 : 4.55) + Math.sin(rosterTime * 0.61) * 0.18,
       );
-      group.scale.setScalar(Math.max(0.001, (isSelected ? 0.62 : 0.38) * rosterProgress));
+      group.scale.setScalar(Math.max(0.001, (isSelected ? 0.92 : 0.54) * rosterProgress));
+      group.renderOrder = isSelected ? 8 : 7;
       group.rotation.z = THREE.MathUtils.degToRad(
         definition.rotation * 0.28 + Math.sin(rosterTime * 0.62) * 5,
       );
@@ -443,12 +446,19 @@ function ArcadeBossScene({
   presentation: IntroBossPresentation;
   selectedWorld: number;
 }) {
+  const worldDefinitions = presentation === "worlds"
+    ? [-1, 0, 1].map((offset) => {
+        const index = ((selectedWorld - 1 + offset + 9) % 9 + 9) % 9;
+        return ARCADE_BOSS_INTRO_DEFS[index];
+      })
+    : ARCADE_BOSS_INTRO_DEFS;
+
   return (
     <>
       <IntroExplosionLight phase={phase} />
       <ambientLight intensity={1.35} />
       <Suspense fallback={null}>
-        {ARCADE_BOSS_INTRO_DEFS.map((definition) => (
+        {worldDefinitions.map((definition) => (
           <ArcadeBossActor
             key={definition.type}
             definition={definition}

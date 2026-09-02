@@ -1149,7 +1149,7 @@
   border-radius: clamp(12px, 1.4vw, 20px);
   background:
     radial-gradient(circle at 50% 43%, color-mix(in srgb, var(--world-color) 22%, transparent), transparent 39%),
-    linear-gradient(145deg, rgba(225, 253, 255, 0.14), color-mix(in srgb, var(--world-color) 18%, transparent) 43%, rgba(4, 8, 29, 0.95) 100%);
+    linear-gradient(145deg, rgba(225, 253, 255, 0.14), color-mix(in srgb, var(--world-color) 18%, transparent) 43%, rgba(4, 8, 29, 0.72) 100%);
   color: var(--world-color);
   box-shadow: 5px 7px 0 rgba(3, 7, 26, 0.66), 0 0 25px var(--world-shadow), inset 1px 1px 0 rgba(255,255,255,0.18), inset -1px -1px 0 rgba(0,0,0,0.46);
   font-family: var(--font-display);
@@ -1269,18 +1269,7 @@
   flex: 1;
   place-items: center;
   padding: 6px 0;
-}
-
-.orblitz-world-glyph {
-  display: block;
-  width: min(82%, 205px);
-  max-height: 100%;
-  overflow: visible;
-  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--world-color) 60%, transparent)) drop-shadow(0 9px 0 rgba(3, 7, 26, 0.38));
-}
-
-.orblitz-world-card.is-current .orblitz-world-glyph {
-  animation: orblitz-world-glyph-drift 5s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .orblitz-world-card-lock {
@@ -1557,11 +1546,6 @@
   opacity: 0.38;
 }
 
-@keyframes orblitz-world-glyph-drift {
-  0%, 100% { transform: translateY(0) rotate(-1deg); }
-  50% { transform: translateY(-5px) rotate(1deg); }
-}
-
 @media (max-width: 700px), (max-height: 560px) and (orientation: landscape) {
   .orblitz-world-carousel {
     gap: 7px;
@@ -1672,10 +1656,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .orblitz-world-card.is-current .orblitz-world-glyph {
-    animation: none;
-  }
-
   .orblitz-world-card,
   .orblitz-carousel-arrow,
   .orblitz-world-deploy,

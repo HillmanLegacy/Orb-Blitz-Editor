@@ -56,26 +56,6 @@ const WORLD_NAMES = [
 ] as const;
 const WORLD_BOSS_TYPES = ARCADE_BOSS_INTRO_DEFS.map((definition) => definition.type);
 
-function WorldBossGlyph({ type, color }: { type: MainBossType; color: string }) {
-  const common = { fill: `${color}22`, stroke: color, strokeWidth: 1.35, vectorEffect: "non-scaling-stroke" as const };
-  return (
-    <svg className={`orblitz-world-glyph orblitz-world-glyph-${type}`} viewBox="0 0 100 100" aria-hidden="true">
-      <circle cx="50" cy="50" r="40" fill="none" stroke={color} strokeOpacity="0.16" strokeWidth="1" strokeDasharray="2 5" />
-      <circle cx="50" cy="50" r="31" fill="none" stroke={color} strokeOpacity="0.28" strokeWidth="0.8" />
-      {type === "circle" && <circle cx="50" cy="50" r="22" {...common} />}
-      {type === "star" && <path d="m50 17 8.5 22.5L83 42l-19 14.5L70 81 50 67.5 30 81l6-24.5L17 42l24.5-2.5Z" {...common} />}
-      {type === "triangle" && <path d="m50 17 31 61H19Z" {...common} />}
-      {type === "trapezoid" && <path d="m31 21h38l14 58H17Z" {...common} />}
-      {type === "cube" && <path d="m50 17 28 16v34L50 83 22 67V33Z M50 17v34m28-18L50 51 22 33m28 18v32" {...common} fill={`${color}18`} />}
-      {type === "cloud" && <path d="M23 62c0-9 7-15 16-15 3-11 12-17 22-14 8 2 12 8 13 15 9 0 15 6 15 14 0 10-7 16-18 16H40c-10 0-17-6-17-16Z" {...common} />}
-      {type === "arrow" && <path d="M17 50 67 18v20h16L61 82V61H38v18Z" {...common} />}
-      {type === "tentacle" && <path d="M32 77c-7-13-5-23 3-31 8-8 8-17 2-23m18 54c-3-14 0-23 9-30 8-7 10-14 7-22m-3 52c10-7 13-15 11-24" {...common} fill="none" strokeLinecap="round" />}
-      {type === "monster" && <path d="M25 71V44c0-13 10-23 25-23s25 10 25 23v27l-10-6-15 10-15-10Z M38 48h1m22 0h1" {...common} />}
-      <circle cx="50" cy="50" r="4" fill={color} opacity="0.9" />
-    </svg>
-  );
-}
-
 // ─── Level helpers (from original LevelSelect) ────────────────────────────────
 const getStoredProgress = (): number => {
   try {
@@ -484,8 +464,8 @@ export function StartupAnimation({
                     <span className="orblitz-world-card-corner orblitz-world-card-corner-br" />
                     <span className="orblitz-world-card-index">SECTOR {String(world).padStart(2, "0")}</span>
                     <span className="orblitz-world-card-signal">{done ? "CLEARANCE // VERIFIED" : unlocked ? "SIGNAL // STABLE" : "SIGNAL // LOST"}</span>
-                    <span className="orblitz-world-card-art">
-                      {unlocked ? <WorldBossGlyph type={type} color={wc} /> : <span className="orblitz-world-card-lock"><IconLock /></span>}
+                    <span className="orblitz-world-card-art" aria-hidden="true">
+                      {!unlocked && <span className="orblitz-world-card-lock"><IconLock /></span>}
                     </span>
                     <span className="orblitz-world-card-copy">
                       <strong>{WORLD_NAMES[world - 1]}</strong>
