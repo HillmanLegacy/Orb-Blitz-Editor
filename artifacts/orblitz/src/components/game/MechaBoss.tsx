@@ -12,6 +12,10 @@ import { useRef, useEffect } from "react";
 import { useFrame }          from "@react-three/fiber";
 import { useGLTF }           from "@react-three/drei";
 import * as THREE            from "three";
+import {
+  createBossOrbTextureMaterial,
+  findBossOrbTexture,
+} from "./BossOrbTextureMaterial";
 
 // ── Helper ────────────────────────────────────────────────────────────────────
 const fract = (x: number) => x - Math.floor(x);
@@ -84,19 +88,7 @@ export function MechaBoss({ radius = 1.44, healthPercent = 1 }: MechaBossProps) 
   useEffect(() => {
     if (!groupRef.current) return;
 
-    // Extract baked texture from the GLB (same pattern as DiamondBoss / PlasmaBoss)
-    let orbTexture: THREE.Texture | null = null;
-    modelScene.traverse((child) => {
-      if (orbTexture) return;
-      if ((child as THREE.Mesh).isMesh) {
-        const m    = (child as THREE.Mesh).material;
-        const mats = Array.isArray(m) ? m : [m];
-        for (const mat of mats) {
-          const tex = (mat as any).map;
-          if (tex) { orbTexture = tex; orbTexture!.needsUpdate = true; break; }
-        }
-      }
-    });
+    const orbTexture = findBossOrbTexture(modelScene);
 
     const cloned = modelScene.clone(true);
     materialsRef.current = [];
@@ -115,11 +107,8 @@ export function MechaBoss({ radius = 1.44, healthPercent = 1 }: MechaBossProps) 
     cloned.traverse((child: THREE.Object3D) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
-        if (orbTexture) orbTexture.colorSpace = THREE.SRGBColorSpace;
-        const mat = new THREE.MeshBasicMaterial({
-          map:   orbTexture ?? undefined,
-          color: new THREE.Color("#ffffff"),
-        });
+        const sourceMaterial = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+        const mat = createBossOrbTextureMaterial(sourceMaterial, orbTexture);
         mesh.material = mat;
         materialsRef.current.push(mat);
       }

@@ -11,6 +11,10 @@ import { useRef, useEffect, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
+import {
+  createBossOrbTextureMaterial,
+  findBossOrbTexture,
+} from "./BossOrbTextureMaterial";
 
 // ── Prismatic shimmer shell shader ────────────────────────────────────────────
 // Simulates light diffracting through a crystalline surface:
@@ -247,7 +251,7 @@ export interface DiamondBossProps {
 
 export function DiamondBoss({ radius = 1.44, healthPercent = 1 }: DiamondBossProps) {
   const groupRef     = useRef<THREE.Group>(null);
-  const materialsRef = useRef<THREE.MeshStandardMaterial[]>([]);
+  const materialsRef = useRef<THREE.MeshBasicMaterial[]>([]);
   const hurtTimerRef  = useRef(0);
   const prevHealthRef = useRef(healthPercent);
 
@@ -256,18 +260,7 @@ export function DiamondBoss({ radius = 1.44, healthPercent = 1 }: DiamondBossPro
   useEffect(() => {
     if (!groupRef.current) return;
 
-    let orbTexture: THREE.Texture | null = null;
-    modelScene.traverse((child) => {
-      if (orbTexture) return;
-      if ((child as THREE.Mesh).isMesh) {
-        const m    = (child as THREE.Mesh).material;
-        const mats = Array.isArray(m) ? m : [m];
-        for (const mat of mats) {
-          const tex = (mat as any).map;
-          if (tex) { orbTexture = tex; orbTexture!.needsUpdate = true; break; }
-        }
-      }
-    });
+    const orbTexture = findBossOrbTexture(modelScene);
 
     const cloned = modelScene.clone(true);
     materialsRef.current = [];
@@ -285,14 +278,8 @@ export function DiamondBoss({ radius = 1.44, healthPercent = 1 }: DiamondBossPro
     cloned.traverse((child: THREE.Object3D) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
-        if (orbTexture) orbTexture.colorSpace = THREE.SRGBColorSpace;
-        const mat  = new THREE.MeshStandardMaterial({
-          map:               orbTexture ?? undefined,
-          emissive:          new THREE.Color("#aaddff"),
-          emissiveIntensity: 0.25,
-          roughness:         0.45,
-          metalness:         0.20,
-        });
+        const sourceMaterial = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+        const mat = createBossOrbTextureMaterial(sourceMaterial, orbTexture);
         mesh.material = mat;
         materialsRef.current.push(mat);
       }
@@ -323,18 +310,14 @@ export function DiamondBoss({ radius = 1.44, healthPercent = 1 }: DiamondBossPro
 
     materialsRef.current.forEach((m) => {
       if (frac > 0) {
-        m.emissive.setRGB(1, 0.1, 0.05);
-        m.emissiveIntensity = frac * osc * 2.5;
+        const flash = frac * osc;
+        m.color.setRGB(1, 0.1 + flash * 0.2, 0.05 + flash * 0.2);
       } else if (healthPercent < 0.3) {
-        // Angry: shift emissive to red-pink
         const anger = Math.abs(Math.sin(t * 14));
-        m.emissive.setRGB(1.0, 0.3 + anger * 0.2, 0.5);
-        m.emissiveIntensity = 0.4 + anger * 0.5;
+        // Angry: shift the texture tint to red-pink
+        m.color.setRGB(1.0, 0.3 + anger * 0.2, 0.5);
       } else {
-        // Gentle cyan-white shimmer pulse
-        const pulse = Math.sin(t * 1.8) * 0.5 + 0.5;
-        m.emissive.setHSL(0.55 + pulse * 0.08, 0.8, 0.72);
-        m.emissiveIntensity = 0.20 + pulse * 0.12;
+        m.color.set("#ffffff");
       }
     });
   });

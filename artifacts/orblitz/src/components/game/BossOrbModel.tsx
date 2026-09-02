@@ -3,6 +3,10 @@ import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { getPlayerSkinVisualYaw } from "./PlayerSkinVisualConfig";
+import {
+  createBossOrbTextureMaterial,
+  findBossOrbTexture,
+} from "./BossOrbTextureMaterial";
 
 interface BossOrbModelProps {
   scale?: number;
@@ -24,24 +28,7 @@ export function BossOrbModel({ scale = 2.5, healthPercent = 1, animatePresentati
 
     // Extract the authored map so every cloned material uses the exact shop
     // texture, even if the asset later gains multiple material groups.
-    let orbTexture: THREE.Texture | null = null;
-    textureScene.traverse((child) => {
-      if (orbTexture) return;
-      if ((child as THREE.Mesh).isMesh) {
-        const mesh = child as THREE.Mesh;
-        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-        for (const m of mats) {
-          const tex = (m as any).map ?? (m as any).emissiveMap ?? (m as any).emissiveMap ?? (m as any).aoMap;
-          if (tex) {
-            orbTexture = tex;
-            // Force GPU re-upload — required when re-using a texture from one
-            // GLTF scene in a freshly-created material on a different scene.
-            (tex as THREE.Texture).needsUpdate = true;
-            break;
-          }
-        }
-      }
-    });
+    const orbTexture = findBossOrbTexture(textureScene);
 
     const cloned = textureScene.clone(true);
     materialsRef.current = [];
@@ -62,22 +49,9 @@ export function BossOrbModel({ scale = 2.5, healthPercent = 1, animatePresentati
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         const sourceMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-        const clonedMaterials = sourceMaterials.map((sourceMaterial) => {
-          const source = sourceMaterial as THREE.MeshBasicMaterial;
-          const map = source.map ?? orbTexture ?? undefined;
-          if (map) {
-            map.colorSpace = THREE.SRGBColorSpace;
-            map.needsUpdate = true;
-          }
-          return new THREE.MeshBasicMaterial({
-            map,
-            color: new THREE.Color("#ffffff"),
-            transparent: source.transparent,
-            opacity: source.opacity,
-            alphaTest: source.alphaTest,
-            side: source.side,
-          });
-        });
+        const clonedMaterials = sourceMaterials.map((sourceMaterial) =>
+          createBossOrbTextureMaterial(sourceMaterial, orbTexture),
+        );
         mesh.material = clonedMaterials.length === 1 ? clonedMaterials[0] : clonedMaterials;
         materialsRef.current.push(...clonedMaterials);
       }

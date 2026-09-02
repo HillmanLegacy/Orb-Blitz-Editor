@@ -10,6 +10,10 @@ import { useRef, useEffect, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
+import {
+  createBossOrbTextureMaterial,
+  findBossOrbTexture,
+} from "./BossOrbTextureMaterial";
 
 // ── Rainbow aura shell shader ──────────────────────────────────────────────────
 // Flowing spectral bands mapped onto the sphere surface, animated so the
@@ -259,7 +263,7 @@ export interface RainbowBossProps {
 
 export function RainbowBoss({ radius = 1.44, healthPercent = 1 }: RainbowBossProps) {
   const groupRef     = useRef<THREE.Group>(null);
-  const materialsRef = useRef<THREE.MeshStandardMaterial[]>([]);
+  const materialsRef = useRef<THREE.MeshBasicMaterial[]>([]);
   const hurtTimerRef  = useRef(0);
   const prevHealthRef = useRef(healthPercent);
 
@@ -268,21 +272,7 @@ export function RainbowBoss({ radius = 1.44, healthPercent = 1 }: RainbowBossPro
   useEffect(() => {
     if (!groupRef.current) return;
 
-    let orbTexture: THREE.Texture | null = null;
-    modelScene.traverse((child) => {
-      if (orbTexture) return;
-      if ((child as THREE.Mesh).isMesh) {
-        const m    = (child as THREE.Mesh).material;
-        const mats = Array.isArray(m) ? m : [m];
-        for (const mat of mats) {
-          const tex = (mat as any).map;
-          if (tex) { orbTexture = tex; orbTexture!.needsUpdate = true; break; }
-        }
-      }
-    });
-
-    const texture = orbTexture as THREE.Texture | null;
-    if (texture) texture.colorSpace = THREE.SRGBColorSpace;
+    const orbTexture = findBossOrbTexture(modelScene);
 
     const cloned = modelScene.clone(true);
     materialsRef.current = [];
@@ -300,13 +290,8 @@ export function RainbowBoss({ radius = 1.44, healthPercent = 1 }: RainbowBossPro
     cloned.traverse((child: THREE.Object3D) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
-        const mat  = new THREE.MeshStandardMaterial({
-          map:               orbTexture ?? undefined,
-          emissive:          new THREE.Color("#ffffff"),
-          emissiveIntensity: 0.15,
-          roughness:         0.45,
-          metalness:         0.20,
-        });
+        const sourceMaterial = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+        const mat = createBossOrbTextureMaterial(sourceMaterial, orbTexture);
         mesh.material = mat;
         materialsRef.current.push(mat);
       }
@@ -337,16 +322,15 @@ export function RainbowBoss({ radius = 1.44, healthPercent = 1 }: RainbowBossPro
 
     materialsRef.current.forEach((m) => {
       if (frac > 0) {
-        m.emissive.setRGB(1, 0.1, 0.05);
-        m.emissiveIntensity = frac * osc * 2.5;
+        const flash = frac * osc;
+        m.color.setRGB(1, 0.1 + flash * 0.2, 0.05 + flash * 0.2);
       } else if (healthPercent < 0.3) {
         const anger = Math.abs(Math.sin(t * 14));
-        m.emissive.setHSL(fract(t * 0.5), 1.0, 0.5);
-        m.emissiveIntensity = 0.4 + anger * 0.5;
+        m.color.setHSL(fract(t * 0.5), 1.0, 0.45 + anger * 0.1);
       } else {
-        // Slowly cycle the emissive hue with the rainbow
-        m.emissive.setHSL(fract(t * 0.12), 0.9, 0.6);
-        m.emissiveIntensity = 0.12 + Math.sin(t * 1.5) * 0.04;
+        // Slowly cycle the texture tint with the rainbow
+        const pulse = Math.sin(t * 1.5) * 0.5 + 0.5;
+        m.color.setHSL(fract(t * 0.12), 0.9, 0.55 + pulse * 0.15);
       }
     });
   });

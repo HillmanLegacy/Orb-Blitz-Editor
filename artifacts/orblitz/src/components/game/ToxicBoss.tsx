@@ -11,6 +11,10 @@ import {
   getPlayerSkinVisualYaw,
   PLAYER_SKIN_MODEL_PATHS,
 } from "./PlayerSkinVisualConfig";
+import {
+  createBossOrbTextureMaterial,
+  findBossOrbTexture,
+} from "./BossOrbTextureMaterial";
 
 // ── Falling droplet instances ──────────────────────────────────────────────────
 
@@ -119,24 +123,7 @@ export function createToxicBossMaterial(
   sourceMaterial: THREE.Material,
   fallbackTexture?: THREE.Texture | null,
 ): THREE.MeshBasicMaterial {
-  const source = sourceMaterial as THREE.MeshBasicMaterial;
-  const map = source.map ?? fallbackTexture ?? undefined;
-
-  if (map) {
-    map.colorSpace = THREE.SRGBColorSpace;
-    map.needsUpdate = true;
-  }
-
-  // Match FireBoss: display the authored map directly instead of letting
-  // arcade-mode lighting multiply the texture into a dim PBR surface.
-  return new THREE.MeshBasicMaterial({
-    map,
-    color: new THREE.Color("#ffffff"),
-    transparent: source.transparent,
-    opacity: source.opacity,
-    alphaTest: source.alphaTest,
-    side: source.side,
-  });
+  return createBossOrbTextureMaterial(sourceMaterial, fallbackTexture);
 }
 
 export function ToxicOrbVisual({
@@ -161,23 +148,7 @@ export function ToxicOrbVisual({
 
     // Extract the authored map so every cloned material uses the same texture,
     // even if the asset later gains multiple material groups.
-    let orbTexture: THREE.Texture | null = null;
-    modelScene.traverse((child) => {
-      if (orbTexture) return;
-      if ((child as THREE.Mesh).isMesh) {
-        const mesh = child as THREE.Mesh;
-        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-        for (const mat of mats) {
-          const tex = (mat as any).map ?? (mat as any).emissiveMap ?? (mat as any).aoMap;
-          if (tex) {
-            const texture = tex as THREE.Texture;
-            orbTexture = texture;
-            texture.needsUpdate = true;
-            break;
-          }
-        }
-      }
-    });
+    const orbTexture = findBossOrbTexture(modelScene);
 
     const cloned = modelScene.clone(true);
     materialsRef.current = [];

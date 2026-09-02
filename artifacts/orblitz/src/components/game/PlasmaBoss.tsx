@@ -10,6 +10,10 @@ import { useRef, useEffect, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
+import {
+  createBossOrbTextureMaterial,
+  findBossOrbTexture,
+} from "./BossOrbTextureMaterial";
 
 // ── Electric arc shell shader ──────────────────────────────────────────────────
 // Layered sinusoidal arcs over noise-warped UV space give the appearance of
@@ -239,7 +243,7 @@ export interface PlasmaBossProps {
 
 export function PlasmaBoss({ radius = 1.44, healthPercent = 1 }: PlasmaBossProps) {
   const groupRef     = useRef<THREE.Group>(null);
-  const materialsRef = useRef<THREE.MeshStandardMaterial[]>([]);
+  const materialsRef = useRef<THREE.MeshBasicMaterial[]>([]);
   const hurtTimerRef  = useRef(0);
   const prevHealthRef = useRef(healthPercent);
 
@@ -248,19 +252,7 @@ export function PlasmaBoss({ radius = 1.44, healthPercent = 1 }: PlasmaBossProps
   useEffect(() => {
     if (!groupRef.current) return;
 
-    // Extract baked texture from the GLB
-    let orbTexture: THREE.Texture | null = null;
-    modelScene.traverse((child) => {
-      if (orbTexture) return;
-      if ((child as THREE.Mesh).isMesh) {
-        const m    = (child as THREE.Mesh).material;
-        const mats = Array.isArray(m) ? m : [m];
-        for (const mat of mats) {
-          const tex = (mat as any).map;
-          if (tex) { orbTexture = tex; orbTexture!.needsUpdate = true; break; }
-        }
-      }
-    });
+    const orbTexture = findBossOrbTexture(modelScene);
 
     const cloned = modelScene.clone(true);
     materialsRef.current = [];
@@ -278,14 +270,8 @@ export function PlasmaBoss({ radius = 1.44, healthPercent = 1 }: PlasmaBossProps
     cloned.traverse((child: THREE.Object3D) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
-        if (orbTexture) orbTexture.colorSpace = THREE.SRGBColorSpace;
-        const mat  = new THREE.MeshStandardMaterial({
-          map:               orbTexture ?? undefined,
-          emissive:          new THREE.Color("#2244cc"),
-          emissiveIntensity: 0.35,
-          roughness:         0.45,
-          metalness:         0.20,
-        });
+        const sourceMaterial = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+        const mat = createBossOrbTextureMaterial(sourceMaterial, orbTexture);
         mesh.material = mat;
         materialsRef.current.push(mat);
       }
@@ -316,15 +302,13 @@ export function PlasmaBoss({ radius = 1.44, healthPercent = 1 }: PlasmaBossProps
 
     materialsRef.current.forEach((m) => {
       if (frac > 0) {
-        m.emissive.setRGB(1, 0.1, 0.05);
-        m.emissiveIntensity = frac * osc * 2.5;
+        const flash = frac * osc;
+        m.color.setRGB(1, 0.1 + flash * 0.2, 0.05 + flash * 0.2);
       } else if (healthPercent < 0.3) {
         const anger = Math.abs(Math.sin(t * 16));
-        m.emissive.setRGB(0.4 + anger * 0.2, 0.2, 1.0);
-        m.emissiveIntensity = 0.5 + anger * 0.6;
+        m.color.setRGB(0.35 + anger * 0.2, 0.2, 1.0);
       } else {
-        m.emissive.set("#2244cc");
-        m.emissiveIntensity = 0.35 + Math.sin(t * 2.1) * 0.08;
+        m.color.set("#ffffff");
       }
     });
   });
