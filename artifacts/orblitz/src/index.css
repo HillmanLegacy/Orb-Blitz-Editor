@@ -120,22 +120,6 @@
   isolation: isolate;
 }
 
-.orblitz-button-stage[data-layout="root"]::before,
-.orblitz-button-stage[data-layout="modes"]::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: min(74vw, 980px);
-  height: min(43vw, 500px);
-  border: 1px solid rgba(111, 222, 255, 0.15);
-  border-radius: 50%;
-  translate: -50% -50%;
-  rotate: -8deg;
-  box-shadow: 0 0 42px rgba(0, 246, 255, 0.05), inset 0 0 38px rgba(255, 43, 214, 0.035);
-  pointer-events: none;
-}
-
 .orblitz-button-stage[data-layout="root"]::after,
 .orblitz-button-stage[data-layout="modes"]::after {
   content: "";
@@ -657,11 +641,6 @@
 }
 
 @media (max-width: 700px), (max-height: 560px) and (orientation: landscape) {
-  .orblitz-button-stage[data-layout="root"]::before,
-  .orblitz-button-stage[data-layout="modes"]::before {
-    width: 88vw;
-    height: 42vw;
-  }
   .orblitz-command-button {
     width: clamp(118px, 19vw, 158px);
     padding-inline: 8px;
@@ -687,8 +666,6 @@
 }
 
 @media (max-height: 430px) and (orientation: landscape) {
-  .orblitz-button-stage[data-layout="root"]::before,
-  .orblitz-button-stage[data-layout="modes"]::before,
   .orblitz-button-stage[data-layout="root"]::after,
   .orblitz-button-stage[data-layout="modes"]::after {
     display: none;

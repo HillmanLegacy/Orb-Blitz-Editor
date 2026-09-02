@@ -605,87 +605,14 @@ export function StartupAnimation({
 
   return (
     <motion.div
-      className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-black select-none"
+      className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden select-none"
       style={{
         cursor: "default",
-        // This surface is the settled menu backdrop, not a menu-content
-        // visibility flag. Keeping it active from the preparation phase avoids
-        // the overlay disappearing after the white curtain and returning when
-        // the controls mount.
-        backgroundColor: showSplash
-          ? "rgba(1,6,18,0.98)"
-          : menuAtmosphereReady
-            ? "rgba(5,8,28,0.2)"
-            : "transparent",
-        transition: "background-color 0.9s cubic-bezier(0.22, 0.61, 0.36, 1)",
       }}
       initial={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.45, ease: "easeOut" }}
     >
-      {/* ── CELESTIAL ATMOSPHERE ───────────────────────────────────────── */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{
-        zIndex: 0,
-        opacity: menuAtmosphereReady ? 0.72 : 0.1,
-        transition: "opacity 0.9s cubic-bezier(0.22, 0.61, 0.36, 1)",
-        background: "radial-gradient(ellipse at 50% 42%, rgba(67,22,134,0.3) 0%, rgba(9,70,105,0.18) 42%, transparent 80%), linear-gradient(135deg, rgba(4,17,57,0.16), rgba(60,8,72,0.18) 52%, rgba(0,42,60,0.16))",
-      }}>
-        <div className="absolute inset-0" style={{
-          opacity: 0.16,
-          backgroundImage: "linear-gradient(rgba(0,246,255,0.35) 1px, transparent 1px), linear-gradient(90deg, rgba(255,43,214,0.28) 1px, transparent 1px)",
-          backgroundSize: "clamp(26px, 3.7vw, 54px) clamp(26px, 3.7vw, 54px)",
-          maskImage: "radial-gradient(ellipse at 50% 48%, black 0%, transparent 76%)",
-          WebkitMaskImage: "radial-gradient(ellipse at 50% 48%, black 0%, transparent 76%)",
-        }} />
-        <motion.div
-          className="absolute rounded-full"
-          style={{
-            width: "min(65vw, 720px)", height: "min(42vw, 460px)",
-            left: "7%", top: "8%",
-            background: "radial-gradient(ellipse, rgba(0,246,255,0.24), rgba(0,246,255,0.05) 48%, transparent 72%)",
-            filter: "blur(12px)",
-          }}
-          animate={{ x: ["-4%", "8%", "-4%"], y: ["2%", "-5%", "2%"], scale: [1, 1.08, 1] }}
-          transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute rounded-full"
-          style={{
-            width: "min(54vw, 620px)", height: "min(45vw, 500px)",
-            right: "-8%", bottom: "3%",
-            background: "radial-gradient(ellipse, rgba(255,43,214,0.24), rgba(255,43,214,0.05) 52%, transparent 74%)",
-            filter: "blur(14px)",
-          }}
-          animate={{ x: ["3%", "-7%", "3%"], y: ["-4%", "5%", "-4%"], scale: [1.05, 0.94, 1.05] }}
-          transition={{ duration: 17, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute rounded-full"
-          style={{
-            width: "min(34vw, 390px)", height: "min(34vw, 390px)",
-            left: "50%", top: "45%", transform: "translate(-50%, -50%)",
-            background: "radial-gradient(circle, rgba(255,230,0,0.14), rgba(155,92,255,0.1) 48%, transparent 72%)",
-            filter: "blur(4px)",
-          }}
-          animate={{ scale: [0.9, 1.08, 0.9], opacity: [0.7, 1, 0.7] }}
-          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute"
-          style={{
-            width: "min(74vw, 760px)", height: "min(36vw, 360px)",
-            left: "50%", top: "43%", marginLeft: "min(-37vw, -380px)", marginTop: "min(-18vw, -180px)",
-            border: "1px solid rgba(0,246,255,0.32)", borderRadius: "50%",
-            transform: "rotate(-12deg)",
-            boxShadow: "0 0 80px rgba(0,246,255,0.16), inset 0 0 72px rgba(255,43,214,0.12)",
-          }}
-          animate={{ rotate: [0, 5, 0], scale: [1, 1.025, 1] }}
-          transition={{ rotate: { duration: 18, repeat: Infinity, ease: "easeInOut" }, scale: { duration: 7, repeat: Infinity, ease: "easeInOut" } }}
-        />
-        <div className="absolute left-[14%] top-[24%] h-2 w-2 rounded-sm" style={{ background: "#ffe600", boxShadow: "0 0 24px 7px rgba(255,230,0,0.38)" }} />
-        <div className="absolute right-[18%] bottom-[28%] h-1.5 w-1.5 rounded-sm" style={{ background: "#ff2bd6", boxShadow: "0 0 20px 6px rgba(255,43,214,0.38)" }} />
-      </div>
-
       {/* ── STANDARD GAME SPLASH ─────────────────────────────────────────── */}
       <AnimatePresence>
         {showSplash && (
