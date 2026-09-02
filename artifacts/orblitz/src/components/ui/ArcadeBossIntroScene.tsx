@@ -103,6 +103,7 @@ const CONVERGE_DURATION = 1.05;
 const RING_START_ANGLE = -Math.PI / 2;
 const RING_SPIN_SPEED = Math.PI * 0.92;
 const CONVERGE_SPIN_SPEED = Math.PI * 1.42;
+const FULL_SCREEN_RING_SCALE = 0.43;
 // The flash phase is the shared detonation window: bosses hold at the center
 // while the white screen curtain takes over the transition.
 const FLASH_DURATION = 1.85;
@@ -244,7 +245,9 @@ function ArcadeBossActor({
       const ringIndex = ARCADE_BOSS_INTRO_DEFS.findIndex((entry) => entry.type === definition.type);
       const ringAngle = RING_START_ANGLE + ringIndex * (Math.PI * 2 / ARCADE_BOSS_INTRO_DEFS.length)
         + Math.min(elapsed, FLYING_DURATION) * RING_SPIN_SPEED;
-      const ringRadius = lerp(Math.min(width, height) * 0.34, Math.min(width, height) * 0.16, easeOutCubic(progress));
+      // Use the larger viewport dimension so the formation reads as one
+      // full-screen circle instead of a small central halo.
+      const ringRadius = Math.max(width, height) * FULL_SCREEN_RING_SCALE;
       const ringX = Math.cos(ringAngle) * ringRadius;
       const ringY = Math.sin(ringAngle) * ringRadius;
       const entryProgress = easeOutCubic(elapsed / (FLYING_DURATION * 0.82));
@@ -269,7 +272,7 @@ function ArcadeBossActor({
         + ringIndex * (Math.PI * 2 / ARCADE_BOSS_INTRO_DEFS.length)
         + FLYING_DURATION * RING_SPIN_SPEED
         + elapsed * CONVERGE_SPIN_SPEED;
-      const radius = (1 - progress) * Math.min(width, height) * 0.16;
+      const radius = (1 - progress) * Math.max(width, height) * FULL_SCREEN_RING_SCALE;
       group.position.set(
         convergeX + Math.cos(spiral) * radius,
         convergeY + Math.sin(spiral) * radius,
