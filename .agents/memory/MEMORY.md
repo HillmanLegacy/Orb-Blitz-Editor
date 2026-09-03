@@ -32,4 +32,5 @@
 - [Orblitz immediate audio settings](orblitz-immediate-audio-settings.md) — Mute and volume changes must update every active output immediately while preserving safe music scheduling.
 - [Orblitz startup canvas](orblitz-startup-canvas.md) — Startup boss previews must share the main WebGL renderer; nested R3F canvases can exceed browser context limits.
 - [Orblitz title refraction](orblitz-title-refraction.md) — Keep title glass lighting synchronized with shared boss motion; use distance/depth falloff inside letters, not duplicate aura overlays.
+- [Orblitz menu CSS cascade](orblitz-menu-css-cascade.md) — Legacy menu selectors can override new geometry late; isolate active hooks and keep one final authoritative contract.
 - [Orblitz world preview layering](orblitz-world-preview-layering.md) — World-select boss previews use the shared canvas above the carousel and align to live DOM card centers.

@@ -71,27 +71,12 @@ const getOrbGoal = (world: number, sub: number): number => {
 // ─── Dev-mode easter egg ──────────────────────────────────────────────────────
 const DEV_SEQUENCE = ["O","R","B","L","I","T","Z"] as const;
 const TITLE_LETTERS = ["O","R","B","L","I","T","Z"];
-const SPLASH_DURATION = 2400;
-const FLYING_START = SPLASH_DURATION;
-const CONVERGE_START = FLYING_START + 2550;
-const CONVERGE_DURATION_MS = 1050;
-const FLASH_START = CONVERGE_START + CONVERGE_DURATION_MS;
-const WHITE_FLASH_DURATION = 0.14;
-const BACKGROUND_START = FLASH_START + WHITE_FLASH_DURATION * 1000 + 24;
-const MENU_BACKGROUND_REVEAL_DURATION = 1.25;
-const BACKDROP_PREP_START = BACKGROUND_START - 650;
-const TITLE_START = BACKGROUND_START + MENU_BACKGROUND_REVEAL_DURATION * 1000 + 180;
-const TITLE_REVEAL_DURATION = 1450;
-const SHIMMER_SETTLE_DURATION = 1050;
-const MENU_START = TITLE_START + TITLE_REVEAL_DURATION + SHIMMER_SETTLE_DURATION;
 const MENU_TITLE_REVEAL_DELAY = 0;
 const MENU_SECONDARY_REVEAL_DELAY = MENU_TITLE_REVEAL_DELAY + 0.38;
 const MENU_NAVIGATION_DELAY = 0.18;
-const PRE_FLASH_CHARGE_DURATION = 0.48;
 const TITLE_REFLECTION_BOSSES: readonly MainBossType[] = [
   "circle", "star", "triangle", "trapezoid", "cube", "arrow", "monster",
 ];
-const MENU_ATMOSPHERE_PHASES: readonly AnimPhase[] = ["backdrop", "background", "title", "waiting", "menu"];
 const BOSS_LIGHT_WHEEL = [
   ...new Set(
     Object.values(BOSS_DEFEAT_PALETTES).flatMap((palette) => [
@@ -101,38 +86,6 @@ const BOSS_LIGHT_WHEEL = [
     ]),
   ),
 ];
-
-function BrightFlashTransition({ phase }: { phase: AnimPhase }) {
-  const charging = phase === "converge";
-  const visible = charging || phase === "flash" || phase === "backdrop" || phase === "background";
-  const revealing = phase === "background";
-
-  return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          key="bright-flash"
-          className="absolute inset-0 pointer-events-none"
-          style={{ zIndex: 30, background: "#ffffff" }}
-          initial={{ opacity: 0 }}
-          animate={{
-            opacity: revealing
-              ? [1, 0]
-              : charging
-                ? [0, 0.035, 0.11, 0.34, 0.84]
-                : 1,
-          }}
-          exit={{ opacity: 0 }}
-          transition={{
-            delay: charging ? CONVERGE_DURATION_MS / 1000 - PRE_FLASH_CHARGE_DURATION : 0,
-            duration: revealing ? MENU_BACKGROUND_REVEAL_DURATION : charging ? PRE_FLASH_CHARGE_DURATION : WHITE_FLASH_DURATION,
-            ease: revealing ? [0.22, 0.61, 0.36, 1] : "easeOut",
-          }}
-        />
-      )}
-    </AnimatePresence>
-  );
-}
 
 function getTitleReflectionStyle(index: number): React.CSSProperties {
   const palette = BOSS_DEFEAT_PALETTES[TITLE_REFLECTION_BOSSES[index % TITLE_REFLECTION_BOSSES.length]];
@@ -269,13 +222,12 @@ interface BtnDef {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function StartupAnimation({
-  skipIntro = false,
   initialState = "root",
   onMenuReady,
   onIntroPhaseChange,
 }: StartupAnimationProps) {
-  const [animPhase, setAnimPhase] = useState<AnimPhase>(skipIntro ? "menu" : "splash");
-  const [menuState, setMenuState] = useState<MenuState>(skipIntro ? initialState : "root");
+  const [animPhase] = useState<AnimPhase>("menu");
+  const [menuState, setMenuState] = useState<MenuState>(initialState);
   const [selectedWorld, setSelectedWorld] = useState(1);
   const [devProgress, setDevProgress] = useState(0);
   const [devFlash, setDevFlash]       = useState(false);
@@ -284,7 +236,7 @@ export function StartupAnimation({
   const worldPointerStartX = useRef<number | null>(null);
   const worldSwipeRef = useRef(false);
 
-  const { playOrbWhoosh, playOrbConverge, playTitleReveal, playLevelSelect, isMuted, toggleMute, volume, setVolume, brightness, setBrightness, startMenuBgm, stopMenuBgm } = useAudio();
+  const { playLevelSelect, isMuted, toggleMute, volume, setVolume, brightness, setBrightness, startMenuBgm, stopMenuBgm } = useAudio();
   const { openShop, openInventory, openTrophies, activateDevMode, coins: shopStars, devMode } = useShop();
   const { setGameMode, startLoading } = useMagicOrb();
   const graphicsPreset = useGraphicsPreset();
@@ -296,19 +248,12 @@ export function StartupAnimation({
     setHighestLevel(getStoredProgress());
   }, [menuState]);
 
-  // Intro sequence
+  // Menu is immediately interactive. Keep the callback contract so App can
+  // continue driving the shared GameScene without a second renderer or gate.
   useEffect(() => {
-    if (skipIntro) { onMenuReady?.(); try { startMenuBgm(); } catch {} return; }
-    const t0 = setTimeout(() => { setAnimPhase("flying");   try { playOrbWhoosh();   } catch {} }, FLYING_START);
-    const t1 = setTimeout(() => { setAnimPhase("converge"); try { playOrbConverge(); } catch {} }, CONVERGE_START);
-    const t2 = setTimeout(() => { setAnimPhase("flash"); },                                        FLASH_START);
-    const tBackdrop = setTimeout(() => { setAnimPhase("backdrop"); }, BACKDROP_PREP_START);
-    const tBackground = setTimeout(() => { setAnimPhase("background"); }, BACKGROUND_START);
-    const t3 = setTimeout(() => { setAnimPhase("title");    try { playTitleReveal(); } catch {} }, TITLE_START);
-    const tWaiting = setTimeout(() => { setAnimPhase("waiting"); }, TITLE_START + TITLE_REVEAL_DURATION);
-    const t4 = setTimeout(() => { setAnimPhase("menu");    try { startMenuBgm(); } catch {} onMenuReady?.(); }, MENU_START);
-    return () => [t0,t1,t2,tBackdrop,tBackground,t3,tWaiting,t4].forEach(clearTimeout);
-  }, [onMenuReady, playOrbWhoosh, playOrbConverge, playTitleReveal, startMenuBgm]);
+    onMenuReady?.();
+    try { startMenuBgm(); } catch {}
+  }, [onMenuReady, startMenuBgm]);
 
   const handleLetterClick = useCallback((letter: string, idx: number) => {
     const expected = DEV_SEQUENCE[devProgress];
@@ -370,17 +315,17 @@ export function StartupAnimation({
 
     switch (menuState) {
        case "root": return [
-         { id:"play",      icon:<IconPlay />,     label:"PLAY",     color:"#8fffe0", shadow:"rgba(143,255,224,0.34)", action: () => { btn("play");      setMenuState("modes");    } },
-         { id:"shop",      icon:<IconShop />,     label:"SHOP",     color:"#ff8e72", shadow:"rgba(255,142,114,0.3)", action: () => { btn("shop");      openShop();               } },
-         { id:"inventory", icon:<IconGear />,     label:"GEAR",     color:"#bba1ff", shadow:"rgba(187,161,255,0.3)", action: () => { btn("inventory"); openInventory();          } },
-         { id:"trophies",  icon:<IconTrophy />,   label:"RECORDS",  color:"#e9dd85", shadow:"rgba(233,221,133,0.24)", action: () => { btn("trophies"); openTrophies(); } },
-         { id:"settings",  icon:<IconSettings />, label:"SETTINGS", color:"#9bdcff", shadow:"rgba(155,220,255,0.26)", action: () => { btn("settings");  setMenuState("settings"); } },
+         { id:"play",      icon:<IconPlay />,     label:"PLAY",     color:"#c7f23d", shadow:"rgba(199,242,61,0.34)", action: () => { btn("play");      setMenuState("modes");    } },
+         { id:"shop",      icon:<IconShop />,     label:"SHOP",     color:"#ff6f43", shadow:"rgba(255,111,67,0.3)", action: () => { btn("shop");      openShop();               } },
+         { id:"inventory", icon:<IconGear />,     label:"GEAR",     color:"#6eaaa0", shadow:"rgba(110,170,160,0.3)", action: () => { btn("inventory"); openInventory();          } },
+         { id:"trophies",  icon:<IconTrophy />,   label:"RECORDS",  color:"#e9e3cf", shadow:"rgba(233,227,207,0.24)", action: () => { btn("trophies"); openTrophies(); } },
+         { id:"settings",  icon:<IconSettings />, label:"SETTINGS", color:"#a9ad96", shadow:"rgba(169,173,150,0.26)", action: () => { btn("settings");  setMenuState("settings"); } },
       ];
       case "modes": return [
-         { id:"arcade",    icon:<IconArcade />,   label:"ARCADE",   color:"#ff2bd6", shadow:"rgba(255,43,214,0.44)", action: () => { btn("arcade"); setMenuState("worlds"); }  },
-         { id:"chill",     icon:<IconChill />,    label:"CHILL",    color:"#9b5cff", shadow:"rgba(155,92,255,0.44)", action: () => handleStartMode("chill")     },
-         { id:"survival",  icon:<IconSurvive />,  label:"SURVIVAL", color:"#00f6ff", shadow:"rgba(0,246,255,0.4)",  action: () => handleStartMode("survival")  },
-         { id:"gauntlet",  icon:<IconGauntlet />, label:"GAUNTLET", color:"#ffe600", shadow:"rgba(255,230,0,0.38)",  action: () => handleStartMode("gauntlet")  },
+         { id:"arcade",    icon:<IconArcade />,   label:"ARCADE",   color:"#ff6f43", shadow:"rgba(255,111,67,0.44)", action: () => { btn("arcade"); setMenuState("worlds"); }  },
+         { id:"chill",     icon:<IconChill />,    label:"CHILL",    color:"#6eaaa0", shadow:"rgba(110,170,160,0.44)", action: () => handleStartMode("chill")     },
+         { id:"survival",  icon:<IconSurvive />,  label:"SURVIVAL", color:"#c7f23d", shadow:"rgba(199,242,61,0.4)",  action: () => handleStartMode("survival")  },
+         { id:"gauntlet",  icon:<IconGauntlet />, label:"GAUNTLET", color:"#e9e3cf", shadow:"rgba(233,227,207,0.38)",  action: () => handleStartMode("gauntlet")  },
         back("BACK", () => { btn("back"); setMenuState("root"); }),
       ];
       case "settings": return [
@@ -582,12 +527,8 @@ export function StartupAnimation({
   };
 
   // ── Derived state ─────────────────────────────────────────────────────────
-  const showSplash  = animPhase === "splash";
-  const titleLayerVisible = animPhase === "title" || animPhase === "waiting" || animPhase === "menu";
-  const controlsReady = animPhase === "menu";
-  const menuAtmosphereReady = MENU_ATMOSPHERE_PHASES.includes(animPhase);
-  const showTitle   = titleLayerVisible;
-  const showMenu    = controlsReady;
+  const showTitle   = true;
+  const showMenu    = true;
   const isContent   = showMenu && (menuState === "worlds" || menuState === "levels");
   const panelButtons = showMenu ? getPanelButtons() : [];
   const introPhase: IntroBossPhase | null =
@@ -613,63 +554,26 @@ export function StartupAnimation({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.45, ease: "easeOut" }}
     >
-      {/* ── STANDARD GAME SPLASH ─────────────────────────────────────────── */}
-      <AnimatePresence>
-        {showSplash && (
-          <motion.div
-            className="relative z-10 flex flex-col items-center text-center"
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.04 }}
-            transition={{ duration: 0.65, ease: "easeOut" }}
-          >
-            <p style={{
-              margin: "0 0 18px", color: "rgba(200,244,255,0.72)",
-              fontSize: "clamp(0.48rem, 1.1vw, 0.7rem)", fontWeight: 900,
-              letterSpacing: "0.34em", fontFamily: "Arial Black, Impact, sans-serif",
-            }}>
-              ORBLITZTEAM PRESENTS
-            </p>
-            <h1 style={{
-              margin: 0, color: "#e8fcff", fontSize: "clamp(3.4rem, 11vw, 7rem)",
-              lineHeight: 0.9, fontWeight: 900, letterSpacing: "0.075em",
-              fontFamily: "Arial Black, Impact, sans-serif",
-              textShadow: "0 0 16px rgba(0,246,255,0.72), 5px 5px 0 rgba(10,20,68,0.8)",
-            }}>
-              ORBLITZ
-            </h1>
-            <div style={{
-              display: "flex", alignItems: "center", gap: 14, marginTop: 28,
-              color: "rgba(226,249,255,0.78)", fontSize: "clamp(0.46rem, 1vw, 0.62rem)",
-              fontWeight: 900, letterSpacing: "0.16em", fontFamily: "Arial Black, Impact, sans-serif",
-            }}>
-              <div style={{
-                width: 36, height: 42, display: "flex", flexDirection: "column",
-                alignItems: "center", justifyContent: "center",
-                border: "2px solid rgba(226,249,255,0.8)", color: "#fff",
-                lineHeight: 1, letterSpacing: 0,
-              }}>
-                <strong style={{ fontSize: 22 }}>E</strong>
-                <span style={{ fontSize: 7, marginTop: 3 }}>EVERYONE</span>
-              </div>
-              <div style={{ textAlign: "left", lineHeight: 1.8 }}>
-                <div>DEVELOPED &amp; PUBLISHED BY ORBLITZTEAM</div>
-                <div style={{ color: "#ffe600" }}>© 2026 ORBLITZTEAM</div>
-                <div style={{ color: "rgba(200,244,255,0.56)" }}>ALL RIGHTS RESERVED</div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <header className="orblitz-menu-masthead" aria-label="Orblitz arena status">
+        <div className="orblitz-menu-brand">
+          <span className="orblitz-menu-brand-mark" aria-hidden="true">O</span>
+          <span><strong>ORBLITZ</strong><small>ARENA NETWORK / 01</small></span>
+        </div>
+        <div className="orblitz-menu-live" data-testid="status-menu-live" aria-live="polite">
+          <span className="orblitz-live-dot" aria-hidden="true" />
+          SYSTEMS LIVE
+        </div>
+      </header>
 
-      {/* The boss collision hands off to one synchronized full-screen flash. */}
-      <BrightFlashTransition phase={animPhase} />
+      <div className="orblitz-menu-corner-readout" aria-hidden="true">
+        <span>SECTOR 09</span><span>THREAT INDEX // RISING</span>
+      </div>
 
       {/* ── ORBLITZ TITLE — pinned at viewport center, never moves ─────── */}
       <AnimatePresence>
         {showTitle && (
              <motion.div
-            className="absolute z-10 text-center orblitz-title-lockup"
+            className="absolute z-10 text-center orblitz-title-lockup orblitz-aaa-title-lockup"
             data-menu-title={showMenu ? "active" : "intro"}
             style={{ top: showMenu ? "clamp(58px, 9vh, 104px)" : "50%", left: 0, right: 0 }}
             initial={{ opacity: 0, scale: 0.92, y: "-50%" }}
@@ -679,7 +583,7 @@ export function StartupAnimation({
           >
             {/* One persistent title node: the reveal becomes the interactive menu title in place. */}
             <motion.h1
-               className={`font-black tracking-widest flex items-center justify-center orblitz-title-wordmark${showMenu ? "" : " pointer-events-none"}`}
+               className={`font-black tracking-widest flex items-center justify-center orblitz-title-wordmark orblitz-aaa-title-wordmark${showMenu ? "" : " pointer-events-none"}`}
               aria-label="Orblitz"
               style={{ fontSize: "clamp(3.5rem, 11vw, 7rem)", lineHeight: 1,
                 fontFamily: "Arial Black, Impact, sans-serif", fontWeight: 900, fontStyle: "normal",
@@ -717,10 +621,10 @@ export function StartupAnimation({
                   transition={{
                     backgroundPosition: animPhase === "title"
                       ? { duration: 2.4 + idx * 0.16, repeat: Infinity, ease: "easeInOut", delay: idx * 0.08 }
-                      : { duration: SHIMMER_SETTLE_DURATION / 1000, ease: "easeOut" },
+                      : { duration: 0.35, ease: "easeOut" },
                     filter: animPhase === "title"
                       ? { duration: 2.4 + idx * 0.16, repeat: Infinity, ease: "easeInOut", delay: idx * 0.08 }
-                      : { duration: SHIMMER_SETTLE_DURATION / 1000, ease: "easeOut" },
+                      : { duration: 0.35, ease: "easeOut" },
                     opacity: { duration: 0.55, delay: animPhase === "title" ? idx * 0.12 : 0, ease: "easeOut" },
                     y: { duration: 0.65, delay: animPhase === "title" ? idx * 0.12 : 0, ease: [0.22, 0.61, 0.36, 1] },
                     scale: { duration: 0.65, delay: animPhase === "title" ? idx * 0.12 : 0, ease: [0.22, 0.61, 0.36, 1] },
@@ -743,6 +647,9 @@ export function StartupAnimation({
               animate={{ scaleX: 1, opacity: 0.65 }}
               transition={{ duration: 0.9, delay: animPhase === "title" ? 0.68 : 0.25, ease: "easeOut" }}
             />
+            <div className="orblitz-title-strap" data-testid="text-menu-strap">
+              BREAK THE ORBIT <span>//</span> REWRITE THE SCORE
+            </div>
 
           </motion.div>
         )}
@@ -817,7 +724,7 @@ export function StartupAnimation({
         {showMenu && !isContent && (
           <motion.div
             key={menuState}
-            className="absolute inset-0 z-20 orblitz-command-layer orblitz-menu-actions"
+            className="absolute inset-0 z-20 orblitz-command-layer orblitz-menu-actions orblitz-aaa-menu-actions"
             data-menu-state={menuState}
             style={{
               pointerEvents: menuState === "settings" ? "auto" : "none",
@@ -850,6 +757,12 @@ export function StartupAnimation({
           </motion.div>
         )}
       </AnimatePresence>
+
+      <footer className="orblitz-menu-footer" aria-label="Menu controls">
+        <span>PLAYER LINK STABLE</span>
+        <span className="orblitz-menu-footer-key">SELECT <b>ENTER</b><i /> BACK <b>ESC</b></span>
+        <span>BUILD 1.0.9 / ORBLITZTEAM</span>
+      </footer>
 
       {/* ── FULL-SCREEN WORLDS / LEVELS POPUP ───────────────────────────── */}
       <AnimatePresence mode="wait">
@@ -915,7 +828,7 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false }: Butt
 
   return (
     <motion.div
-      className={compact ? "orblitz-compact-stage flex flex-row items-stretch justify-center" : `orblitz-button-stage orblitz-layout-${layout}`}
+      className={compact ? "orblitz-compact-stage flex flex-row items-stretch justify-center" : `orblitz-button-stage orblitz-aaa-button-stage orblitz-layout-${layout}`}
       data-layout={layout}
       style={compact ? { gap: "clamp(5px,1.4vw,12px)" } : undefined}
       initial="hidden"

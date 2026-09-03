@@ -2540,6 +2540,7 @@ canvas {
 
 .orblitz-button-stage[data-layout="root"],
 .orblitz-button-stage[data-layout="modes"] {
+  position: absolute !important;
   inset: auto !important;
   left: 50% !important;
   top: calc(50% + clamp(118px, 18vh, 166px)) !important;
@@ -3708,6 +3709,747 @@ canvas {
   }
 }
 
+/* ── Active menu art direction: ORBITAL HAZARD / editorial arcade ─────────────
+   This menu is intentionally not a continuation of the old cyan glass deck.
+   The live WebGL roster remains behind it; this layer is a hard-edged, ink,
+   paper and safety-lime poster system with restrained motion. */
+:root {
+  --menu-ink: #0a100d;
+  --menu-ink-soft: #111b16;
+  --menu-paper: #e9e3cf;
+  --menu-paper-dim: #a9ad96;
+  --menu-lime: #c7f23d;
+  --menu-orange: #ff6f43;
+  --menu-teal: #6eaaa0;
+  --menu-rule: rgba(233, 227, 207, 0.22);
+  --menu-mono: var(--font-mono);
+}
+
+@keyframes orblitz-menu-scan {
+  from { transform: translateY(-16%); opacity: .05; }
+  to { transform: translateY(116%); opacity: .28; }
+}
+
+@keyframes orblitz-menu-pulse {
+  0%, 100% { opacity: .55; transform: scale(.84); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes orblitz-menu-ticker {
+  from { transform: translateX(0); }
+  to { transform: translateX(-18%); }
+}
+
+.orblitz-startup-shell {
+  isolation: isolate;
+  color: var(--menu-paper) !important;
+  background:
+    linear-gradient(90deg, rgba(7, 14, 10, .84), rgba(7, 14, 10, .48) 47%, rgba(8, 14, 11, .82)),
+    radial-gradient(ellipse at 50% 45%, rgba(199, 242, 61, .08), transparent 36%),
+    rgba(8, 13, 10, .68) !important;
+  font-family: var(--font-display) !important;
+}
+
+.orblitz-startup-shell::before {
+  z-index: 0 !important;
+  inset: 0 !important;
+  background:
+    linear-gradient(90deg, transparent 0 6%, rgba(199, 242, 61, .1) 6.1%, transparent 6.2%),
+    linear-gradient(180deg, rgba(10, 16, 12, .7), transparent 29%, rgba(10, 16, 12, .7)),
+    repeating-linear-gradient(0deg, rgba(233, 227, 207, .045) 0 1px, transparent 1px 5px) !important;
+  mix-blend-mode: normal;
+}
+
+.orblitz-startup-shell::after {
+  z-index: 1 !important;
+  inset: 0 !important;
+  opacity: .72 !important;
+  background:
+    linear-gradient(90deg, transparent calc(50% - 1px), rgba(233, 227, 207, .08) 50%, transparent calc(50% + 1px)),
+    linear-gradient(180deg, transparent 0 72%, rgba(255, 111, 67, .11) 72.1%, transparent 72.3%),
+    repeating-linear-gradient(90deg, transparent 0 79px, rgba(233, 227, 207, .035) 80px, transparent 81px) !important;
+  mask-image: none !important;
+}
+
+.orblitz-startup-shell > * {
+  position: relative;
+  z-index: 2;
+}
+
+.orblitz-menu-masthead {
+  position: absolute !important;
+  inset: clamp(18px, 4vh, 42px) clamp(20px, 4vw, 58px) auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  pointer-events: none;
+  font-family: var(--menu-mono);
+  text-transform: uppercase;
+  letter-spacing: .16em;
+}
+
+.orblitz-menu-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: var(--menu-paper);
+  font-size: clamp(.54rem, .78vw, .68rem);
+  line-height: 1;
+}
+
+.orblitz-menu-brand strong {
+  display: block;
+  color: var(--menu-lime);
+  font-family: var(--font-display);
+  font-size: clamp(.9rem, 1.35vw, 1.14rem);
+  letter-spacing: .2em;
+}
+
+.orblitz-menu-brand small {
+  display: block;
+  margin-top: 5px;
+  color: var(--menu-paper-dim);
+  font-size: .48rem;
+  letter-spacing: .18em;
+}
+
+.orblitz-menu-brand-mark {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid var(--menu-lime);
+  color: var(--menu-lime);
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 900;
+  transform: rotate(45deg);
+}
+
+.orblitz-menu-brand-mark::first-letter {
+  transform: rotate(-45deg);
+}
+
+.orblitz-menu-live {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--menu-paper-dim);
+  font-size: clamp(.46rem, .67vw, .6rem);
+  white-space: nowrap;
+}
+
+.orblitz-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--menu-lime);
+  box-shadow: 0 0 0 4px rgba(199, 242, 61, .11);
+  animation: orblitz-menu-pulse 1.8s ease-in-out infinite;
+}
+
+.orblitz-menu-corner-readout {
+  position: absolute !important;
+  left: clamp(20px, 4vw, 58px);
+  bottom: clamp(82px, 12vh, 132px);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: var(--menu-paper-dim);
+  font: 700 clamp(.43rem, .62vw, .56rem)/1 var(--menu-mono);
+  letter-spacing: .18em;
+  pointer-events: none;
+}
+
+.orblitz-menu-corner-readout span:first-child {
+  color: var(--menu-orange);
+}
+
+.orblitz-title-lockup {
+  top: clamp(88px, 16vh, 160px) !important;
+  left: clamp(20px, 8vw, 124px) !important;
+  right: auto !important;
+  width: min(58vw, 720px);
+  text-align: left !important;
+  filter: none !important;
+}
+
+.orblitz-title-wordmark {
+  justify-content: flex-start !important;
+  color: var(--menu-paper) !important;
+  font-family: var(--font-display) !important;
+  font-size: clamp(4.3rem, 12.5vw, 10.2rem) !important;
+  font-weight: 900 !important;
+  letter-spacing: .045em !important;
+  line-height: .78 !important;
+  text-shadow: 7px 8px 0 rgba(5, 9, 7, .72), 0 0 34px rgba(199, 242, 61, .14) !important;
+  -webkit-text-stroke: 1px rgba(233, 227, 207, .3) !important;
+}
+
+.orblitz-title-wordmark span {
+  background-image: none !important;
+  color: var(--menu-paper) !important;
+  -webkit-text-fill-color: var(--menu-paper) !important;
+  filter: none !important;
+}
+
+.orblitz-title-wordmark span:nth-child(2),
+.orblitz-title-wordmark span:nth-child(6) {
+  color: var(--menu-lime) !important;
+  -webkit-text-fill-color: var(--menu-lime) !important;
+}
+
+.orblitz-title-lockup .mt-3 {
+  width: min(420px, 42vw) !important;
+  height: 8px !important;
+  margin: 22px 0 0 !important;
+  border-radius: 0 !important;
+  background: linear-gradient(90deg, var(--menu-lime) 0 22%, var(--menu-orange) 22% 42%, var(--menu-paper) 42% 43%, transparent 43%) !important;
+  box-shadow: 6px 5px 0 rgba(5, 9, 7, .7) !important;
+}
+
+.orblitz-title-strap {
+  margin-top: 14px;
+  color: var(--menu-paper-dim);
+  font: 700 clamp(.48rem, .74vw, .66rem)/1.2 var(--menu-mono);
+  letter-spacing: .22em;
+  text-align: left;
+}
+
+.orblitz-title-strap span {
+  margin: 0 8px;
+  color: var(--menu-orange);
+}
+
+.orblitz-star-bank {
+  top: clamp(94px, 15vh, 150px) !important;
+  right: clamp(20px, 4vw, 58px) !important;
+  min-width: 0 !important;
+  width: clamp(160px, 17vw, 214px);
+  padding: 13px 15px !important;
+  border: 1px solid rgba(199, 242, 61, .7) !important;
+  border-radius: 0 !important;
+  background: var(--menu-ink-soft) !important;
+  box-shadow: 6px 6px 0 rgba(5, 9, 7, .62), inset 4px 0 0 var(--menu-lime) !important;
+  backdrop-filter: none !important;
+}
+
+.orblitz-star-bank > div:first-child {
+  display: none;
+}
+
+.orblitz-star-bank [style*="border-radius"] {
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.orblitz-star-bank svg {
+  color: var(--menu-lime) !important;
+}
+
+.orblitz-button-stage[data-layout="root"],
+.orblitz-button-stage[data-layout="modes"] {
+  inset: auto !important;
+  left: auto !important;
+  right: clamp(20px, 7vw, 108px) !important;
+  top: clamp(270px, 40vh, 410px) !important;
+  width: min(370px, 35vw) !important;
+  height: auto !important;
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 9px !important;
+  transform: none !important;
+}
+
+.orblitz-menu-actions[data-menu-state="root"],
+.orblitz-menu-actions[data-menu-state="modes"] {
+  display: block !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+}
+
+.orblitz-button-stage[data-layout="root"]::before,
+.orblitz-button-stage[data-layout="modes"]::before,
+.orblitz-button-stage[data-layout="root"]::after,
+.orblitz-button-stage[data-layout="modes"]::after {
+  display: none !important;
+}
+
+.orblitz-button-stage[data-layout="root"] .orblitz-command-button,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-button {
+  position: relative !important;
+  inset: auto !important;
+  left: auto !important;
+  top: auto !important;
+  translate: none !important;
+  width: auto !important;
+  height: 72px !important;
+  padding: 11px 12px !important;
+  align-items: flex-start !important;
+  justify-content: flex-end !important;
+  gap: 6px !important;
+  border: 1px solid var(--menu-rule) !important;
+  border-radius: 0 !important;
+  background: rgba(10, 16, 13, .84) !important;
+  box-shadow: 4px 4px 0 rgba(5, 9, 7, .7) !important;
+  color: var(--menu-paper) !important;
+  backdrop-filter: none !important;
+}
+
+.orblitz-button-stage[data-layout="root"] .orblitz-command-button::before,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-button::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: auto 0 0 !important;
+  height: 4px !important;
+  border-radius: 0 !important;
+  background: currentColor !important;
+  opacity: .75 !important;
+}
+
+.orblitz-button-stage[data-layout="root"] .orblitz-command-button::after,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-button::after {
+  inset: 6px !important;
+  border: 1px solid rgba(233, 227, 207, .11) !important;
+  border-radius: 0 !important;
+  clip-path: none !important;
+}
+
+.orblitz-button-stage[data-layout="root"] .orblitz-command-play,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-arcade {
+  grid-column: 1 / -1;
+  height: 104px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-color: var(--menu-lime) !important;
+  background:
+    linear-gradient(110deg, rgba(199, 242, 61, .2), rgba(10, 16, 13, .92) 64%),
+    var(--menu-ink-soft) !important;
+  color: var(--menu-lime) !important;
+  box-shadow: 7px 7px 0 rgba(5, 9, 7, .76), inset 0 0 0 1px rgba(199, 242, 61, .16) !important;
+}
+
+.orblitz-button-stage[data-layout="root"] .orblitz-command-play .orblitz-command-icon,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-arcade .orblitz-command-icon {
+  width: 42px;
+  height: 42px;
+  padding: 8px;
+  border: 1px solid currentColor;
+  border-radius: 0;
+  background: transparent;
+}
+
+.orblitz-command-icon {
+  width: 23px !important;
+  height: 23px !important;
+  color: currentColor !important;
+  filter: none !important;
+}
+
+.orblitz-command-copy {
+  gap: 3px;
+  align-items: flex-start;
+}
+
+.orblitz-command-label {
+  color: currentColor !important;
+  font-family: var(--font-display) !important;
+  font-size: .72rem !important;
+  letter-spacing: .15em !important;
+}
+
+.orblitz-command-button:hover,
+.orblitz-command-button:focus-visible {
+  transform: translate(-3px, -3px) !important;
+  filter: none !important;
+  border-color: var(--menu-lime) !important;
+  background: rgba(30, 42, 26, .94) !important;
+  box-shadow: 7px 7px 0 rgba(5, 9, 7, .72), inset 0 0 0 1px rgba(199, 242, 61, .18) !important;
+}
+
+.orblitz-command-button:active,
+.orblitz-command-button[data-active="true"] {
+  transform: translate(2px, 2px) !important;
+  box-shadow: 2px 2px 0 rgba(5, 9, 7, .72) !important;
+}
+
+.orblitz-menu-footer {
+  position: absolute !important;
+  left: clamp(20px, 4vw, 58px);
+  right: clamp(20px, 4vw, 58px);
+  bottom: clamp(18px, 4vh, 38px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  color: var(--menu-paper-dim);
+  font: 700 clamp(.41rem, .58vw, .52rem)/1 var(--menu-mono);
+  letter-spacing: .14em;
+  pointer-events: none;
+}
+
+.orblitz-menu-footer-key b {
+  display: inline-block;
+  margin: 0 4px;
+  padding: 4px 5px;
+  border: 1px solid rgba(233, 227, 207, .36);
+  color: var(--menu-paper);
+  font-size: .46rem;
+}
+
+.orblitz-menu-footer-key i {
+  display: inline-block;
+  width: 1px;
+  height: 12px;
+  margin: 0 9px -3px;
+  background: var(--menu-orange);
+}
+
+.orblitz-selection-screen {
+  color: var(--menu-paper) !important;
+  background:
+    linear-gradient(90deg, rgba(8, 13, 10, .98), rgba(14, 24, 17, .97)),
+    var(--menu-ink) !important;
+  backdrop-filter: none !important;
+}
+
+.orblitz-selection-screen::before {
+  border: 1px solid rgba(199, 242, 61, .25) !important;
+  border-radius: 0 !important;
+  box-shadow: 9px 9px 0 rgba(5, 9, 7, .6), inset 0 0 0 1px rgba(233, 227, 207, .04) !important;
+}
+
+.orblitz-selection-screen::after {
+  opacity: .28 !important;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 5px, rgba(233, 227, 207, .035) 6px),
+    repeating-linear-gradient(90deg, transparent 0 74px, rgba(199, 242, 61, .045) 75px) !important;
+  mask-image: none !important;
+}
+
+.orblitz-selection-header {
+  align-items: flex-start !important;
+  padding: clamp(28px, 6vh, 64px) clamp(24px, 7vw, 110px) 14px !important;
+  text-align: left !important;
+}
+
+.orblitz-selection-header::before,
+.orblitz-selection-header::after {
+  display: none !important;
+}
+
+.orblitz-selection-kicker {
+  color: var(--menu-orange) !important;
+  letter-spacing: .2em !important;
+}
+
+.orblitz-selection-header p {
+  color: var(--menu-paper) !important;
+  text-shadow: none !important;
+  letter-spacing: .06em !important;
+}
+
+.orblitz-selection-subtitle {
+  color: var(--menu-paper-dim) !important;
+}
+
+.orblitz-select-card,
+.orblitz-world-card {
+  border-radius: 0 !important;
+  background: rgba(15, 25, 18, .9) !important;
+  box-shadow: 5px 5px 0 rgba(5, 9, 7, .62) !important;
+}
+
+.orblitz-select-card::before,
+.orblitz-world-card::before {
+  border-radius: 0 !important;
+  border-color: rgba(233, 227, 207, .14) !important;
+}
+
+.orblitz-select-card:hover,
+.orblitz-select-card:focus-visible,
+.orblitz-world-card:hover,
+.orblitz-world-card:focus-visible {
+  filter: none !important;
+  border-color: var(--menu-lime) !important;
+  transform: translate(-3px, -3px);
+}
+
+.orblitz-selection-footer {
+  border-top-color: rgba(233, 227, 207, .16) !important;
+  padding-block: 10px !important;
+}
+
+.orblitz-compact-stage .orblitz-command-button {
+  height: 52px !important;
+  border-radius: 0 !important;
+  background: var(--menu-ink-soft) !important;
+  color: var(--menu-paper) !important;
+}
+
+@media (max-width: 800px) {
+  .orblitz-title-lockup {
+    top: clamp(76px, 13vh, 118px) !important;
+    left: 20px !important;
+    width: calc(100vw - 40px);
+  }
+
+  .orblitz-title-wordmark {
+    font-size: clamp(3.7rem, 17vw, 7.5rem) !important;
+  }
+
+  .orblitz-star-bank {
+    top: 20px !important;
+    right: 20px !important;
+    transform: scale(.82) !important;
+    transform-origin: top right;
+  }
+
+  .orblitz-button-stage[data-layout="root"],
+  .orblitz-button-stage[data-layout="modes"] {
+    left: 20px !important;
+    right: 20px !important;
+    top: auto !important;
+    bottom: clamp(70px, 12vh, 108px) !important;
+    width: auto !important;
+  }
+
+  .orblitz-menu-corner-readout {
+    display: none;
+  }
+
+  .orblitz-menu-footer > span:first-child,
+  .orblitz-menu-footer > span:last-child {
+    display: none;
+  }
+
+  .orblitz-menu-footer {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) and (orientation: portrait) {
+  .orblitz-menu-masthead {
+    top: 16px;
+    left: 18px;
+    right: 18px;
+  }
+
+  .orblitz-menu-brand small {
+    display: none;
+  }
+
+  .orblitz-title-lockup {
+    top: 104px !important;
+  }
+
+  .orblitz-title-wordmark {
+    font-size: clamp(3.5rem, 19vw, 5.8rem) !important;
+  }
+
+  .orblitz-title-lockup .mt-3 {
+    width: min(280px, 68vw) !important;
+    margin-top: 16px !important;
+  }
+
+  .orblitz-title-strap {
+    max-width: 260px;
+    line-height: 1.55;
+  }
+
+  .orblitz-button-stage[data-layout="root"],
+  .orblitz-button-stage[data-layout="modes"] {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 7px !important;
+    bottom: 62px !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"] .orblitz-command-button,
+  .orblitz-button-stage[data-layout="modes"] .orblitz-command-button {
+    height: 60px !important;
+    padding: 8px !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"] .orblitz-command-play,
+  .orblitz-button-stage[data-layout="modes"] .orblitz-command-arcade {
+    height: 72px !important;
+  }
+
+  .orblitz-command-label {
+    font-size: .58rem !important;
+  }
+
+  .orblitz-menu-footer {
+    bottom: 18px;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .orblitz-title-lockup {
+    top: 72px !important;
+    left: 7vw !important;
+  }
+
+  .orblitz-title-wordmark {
+    font-size: clamp(3.4rem, 14vh, 5.8rem) !important;
+  }
+
+  .orblitz-title-strap {
+    margin-top: 9px;
+  }
+
+  .orblitz-button-stage[data-layout="root"],
+  .orblitz-button-stage[data-layout="modes"] {
+    top: 92px !important;
+    right: 7vw !important;
+    width: min(330px, 37vw) !important;
+    gap: 6px !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"] .orblitz-command-button,
+  .orblitz-button-stage[data-layout="modes"] .orblitz-command-button {
+    height: 52px !important;
+    padding: 7px 9px !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"] .orblitz-command-play,
+  .orblitz-button-stage[data-layout="modes"] .orblitz-command-arcade {
+    height: 72px !important;
+  }
+
+  .orblitz-star-bank {
+    top: 18px !important;
+    right: 7vw !important;
+    transform: translateX(0) scale(.72) !important;
+    transform-origin: top right;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orblitz-live-dot {
+    animation: none !important;
+    opacity: 1;
+  }
+
+  .orblitz-startup-shell *,
+  .orblitz-startup-shell *::before,
+  .orblitz-startup-shell *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+/* Final menu geometry contract. The compatibility styles above support older
+   menu states; this block owns the direct-start menu composition. */
+.orblitz-title-lockup[data-menu-title="active"] {
+  top: 50% !important;
+  left: clamp(28px, 6vw, 96px) !important;
+  right: auto !important;
+  width: min(47vw, 650px) !important;
+  transform: translateY(-50%) !important;
+}
+
+.orblitz-title-lockup[data-menu-title="active"] .orblitz-title-wordmark {
+  font-size: clamp(3.8rem, 7.8vw, 7.8rem) !important;
+  line-height: .84 !important;
+}
+
+.orblitz-menu-actions[data-menu-state="root"],
+.orblitz-menu-actions[data-menu-state="modes"] {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+}
+
+.orblitz-button-stage[data-layout="root"],
+.orblitz-button-stage[data-layout="modes"] {
+  position: absolute !important;
+  top: 50% !important;
+  right: clamp(24px, 7vw, 108px) !important;
+  left: auto !important;
+  width: min(370px, 35vw) !important;
+  transform: translateY(-50%) !important;
+}
+
+.orblitz-webgl-fallback {
+  z-index: 0 !important;
+  place-items: end start !important;
+  padding: 0 0 clamp(96px, 13vh, 132px) clamp(20px, 4vw, 58px) !important;
+  background: transparent !important;
+  color: var(--menu-paper-dim) !important;
+  pointer-events: none !important;
+  text-align: left !important;
+}
+
+.orblitz-webgl-fallback > div {
+  max-width: min(310px, 34vw) !important;
+  padding: 9px 12px !important;
+  border-left: 3px solid var(--menu-orange);
+  background: rgba(10, 16, 13, .72);
+  box-shadow: 4px 4px 0 rgba(5, 9, 7, .42);
+}
+
+.orblitz-webgl-fallback p:first-child {
+  margin: 0 0 5px !important;
+  color: var(--menu-orange);
+  font: 800 .52rem/1 var(--menu-mono);
+  letter-spacing: .15em;
+}
+
+.orblitz-webgl-fallback p:last-child {
+  margin: 0 !important;
+  color: var(--menu-paper-dim) !important;
+  font: 600 .48rem/1.45 var(--menu-mono);
+  letter-spacing: .04em;
+}
+
+@media (max-width: 800px) {
+  .orblitz-title-lockup[data-menu-title="active"] {
+    top: clamp(84px, 13vh, 118px) !important;
+    left: 20px !important;
+    width: calc(100vw - 40px) !important;
+    transform: none !important;
+  }
+
+  .orblitz-title-lockup[data-menu-title="active"] .orblitz-title-wordmark {
+    font-size: clamp(3.35rem, 17vw, 6.5rem) !important;
+  }
+
+  .orblitz-webgl-fallback {
+    padding-left: 20px !important;
+    padding-bottom: 116px !important;
+  }
+
+  .orblitz-webgl-fallback > div {
+    max-width: min(280px, 58vw) !important;
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .orblitz-title-lockup[data-menu-title="active"] {
+    top: 58px !important;
+    left: 7vw !important;
+    transform: none !important;
+  }
+
+  .orblitz-title-lockup[data-menu-title="active"] .orblitz-title-wordmark {
+    font-size: clamp(2.6rem, 9vw, 4.8rem) !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"],
+  .orblitz-button-stage[data-layout="modes"] {
+    top: 50% !important;
+    right: 7vw !important;
+    width: min(330px, 37vw) !important;
+    transform: translateY(-50%) !important;
+  }
+}
+
 /* ── Orblitz signature presentation ─────────────────────────────────────────
    A single visual system for the menu, selection screens, result moments,
    modal surfaces, and live HUD. The game scene remains the source of motion;
@@ -4805,5 +5547,479 @@ input:focus-visible,
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Final menu contract: this follows legacy compatibility overrides so the
+   active menu remains visually authoritative without touching game HUD rules. */
+.orblitz-startup-shell {
+  color: var(--menu-paper) !important;
+  background:
+    linear-gradient(90deg, rgba(7, 14, 10, .84), rgba(7, 14, 10, .48) 47%, rgba(8, 14, 11, .82)),
+    rgba(8, 13, 10, .68) !important;
+}
+
+.orblitz-startup-shell::before {
+  background:
+    linear-gradient(180deg, rgba(10, 16, 12, .7), transparent 29%, rgba(10, 16, 12, .7)),
+    repeating-linear-gradient(0deg, rgba(233, 227, 207, .045) 0 1px, transparent 1px 5px) !important;
+}
+
+.orblitz-startup-shell::after {
+  opacity: .72 !important;
+  background:
+    linear-gradient(90deg, transparent calc(50% - 1px), rgba(233, 227, 207, .08) 50%, transparent calc(50% + 1px)),
+    repeating-linear-gradient(90deg, transparent 0 79px, rgba(233, 227, 207, .035) 80px, transparent 81px) !important;
+  mask-image: none !important;
+}
+
+.orblitz-title-lockup[data-menu-title="active"] {
+  top: clamp(88px, 16vh, 160px) !important;
+  left: clamp(20px, 8vw, 124px) !important;
+  right: auto !important;
+  width: min(58vw, 720px) !important;
+  text-align: left !important;
+  filter: none !important;
+}
+
+.orblitz-title-lockup[data-menu-title="active"] .orblitz-title-wordmark {
+  justify-content: flex-start !important;
+  color: var(--menu-paper) !important;
+  background-image: none !important;
+  font-size: clamp(4.3rem, 12.5vw, 10.2rem) !important;
+  letter-spacing: .045em !important;
+  line-height: .78 !important;
+  text-shadow: 7px 8px 0 rgba(5, 9, 7, .72), 0 0 34px rgba(199, 242, 61, .14) !important;
+}
+
+.orblitz-title-lockup[data-menu-title="active"] .orblitz-title-wordmark span {
+  color: var(--menu-paper) !important;
+  background-image: none !important;
+  -webkit-text-fill-color: var(--menu-paper) !important;
+  filter: none !important;
+}
+
+.orblitz-title-lockup[data-menu-title="active"] .orblitz-title-wordmark span:nth-child(2),
+.orblitz-title-lockup[data-menu-title="active"] .orblitz-title-wordmark span:nth-child(6) {
+  color: var(--menu-lime) !important;
+  -webkit-text-fill-color: var(--menu-lime) !important;
+}
+
+.orblitz-title-lockup[data-menu-title="active"] .mt-3 {
+  width: min(420px, 42vw) !important;
+  height: 8px !important;
+  margin: 22px 0 0 !important;
+  border-radius: 0 !important;
+  background: linear-gradient(90deg, var(--menu-lime) 0 22%, var(--menu-orange) 22% 42%, var(--menu-paper) 42% 43%, transparent 43%) !important;
+  box-shadow: 6px 5px 0 rgba(5, 9, 7, .7) !important;
+}
+
+.orblitz-button-stage[data-layout="root"],
+.orblitz-button-stage[data-layout="modes"] {
+  inset: auto !important;
+  left: auto !important;
+  right: clamp(20px, 7vw, 108px) !important;
+  top: clamp(270px, 40vh, 410px) !important;
+  bottom: auto !important;
+  width: min(370px, 35vw) !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 9px !important;
+  padding: 0 !important;
+  transform: none !important;
+}
+
+.orblitz-button-stage[data-layout="root"] .orblitz-command-button,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-button {
+  height: 72px !important;
+  padding: 11px 12px !important;
+  border: 1px solid var(--menu-rule) !important;
+  border-radius: 0 !important;
+  background: rgba(10, 16, 13, .84) !important;
+  box-shadow: 4px 4px 0 rgba(5, 9, 7, .7) !important;
+  color: var(--menu-paper) !important;
+  backdrop-filter: none !important;
+}
+
+.orblitz-button-stage[data-layout="root"] .orblitz-command-button::before,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-button::before {
+  inset: auto 0 0 !important;
+  height: 4px !important;
+  border-radius: 0 !important;
+  background: currentColor !important;
+  opacity: .75 !important;
+}
+
+.orblitz-button-stage[data-layout="root"] .orblitz-command-button::after,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-button::after {
+  inset: 6px !important;
+  border: 1px solid rgba(233, 227, 207, .11) !important;
+  border-radius: 0 !important;
+  clip-path: none !important;
+}
+
+.orblitz-button-stage[data-layout="root"] .orblitz-command-play,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-arcade {
+  grid-column: 1 / -1 !important;
+  height: 104px !important;
+  border-color: var(--menu-lime) !important;
+  background: linear-gradient(110deg, rgba(199, 242, 61, .2), rgba(10, 16, 13, .92) 64%), var(--menu-ink-soft) !important;
+  color: var(--menu-lime) !important;
+  box-shadow: 7px 7px 0 rgba(5, 9, 7, .76), inset 0 0 0 1px rgba(199, 242, 61, .16) !important;
+}
+
+.orblitz-button-stage[data-layout="root"] .orblitz-command-button:hover,
+.orblitz-button-stage[data-layout="root"] .orblitz-command-button:focus-visible,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-button:hover,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-button:focus-visible {
+  transform: translate(-3px, -3px) !important;
+  filter: none !important;
+  border-color: var(--menu-lime) !important;
+  background: rgba(30, 42, 26, .94) !important;
+  box-shadow: 7px 7px 0 rgba(5, 9, 7, .72), inset 0 0 0 1px rgba(199, 242, 61, .18) !important;
+}
+
+.orblitz-button-stage[data-layout="root"] .orblitz-command-button:active,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-button:active,
+.orblitz-button-stage[data-layout="root"] .orblitz-command-button[data-active="true"],
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-button[data-active="true"] {
+  transform: translate(2px, 2px) !important;
+  box-shadow: 2px 2px 0 rgba(5, 9, 7, .72) !important;
+}
+
+.orblitz-selection-screen {
+  color: var(--menu-paper) !important;
+  background: linear-gradient(90deg, rgba(8, 13, 10, .98), rgba(14, 24, 17, .97)) !important;
+  backdrop-filter: none !important;
+}
+
+.orblitz-selection-screen::before {
+  border: 1px solid rgba(199, 242, 61, .25) !important;
+  border-radius: 0 !important;
+  box-shadow: 9px 9px 0 rgba(5, 9, 7, .6) !important;
+}
+
+.orblitz-selection-screen::after {
+  opacity: .28 !important;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 5px, rgba(233, 227, 207, .035) 6px),
+    repeating-linear-gradient(90deg, transparent 0 74px, rgba(199, 242, 61, .045) 75px) !important;
+  mask-image: none !important;
+}
+
+.orblitz-selection-header {
+  align-items: flex-start !important;
+  padding-inline: clamp(24px, 7vw, 110px) !important;
+  text-align: left !important;
+}
+
+.orblitz-selection-header > p {
+  color: var(--menu-paper) !important;
+  text-shadow: none !important;
+}
+
+.orblitz-selection-subtitle {
+  color: var(--menu-paper-dim) !important;
+}
+
+.orblitz-world-card,
+.orblitz-select-card {
+  border-radius: 0 !important;
+  background: rgba(15, 25, 18, .9) !important;
+  box-shadow: 5px 5px 0 rgba(5, 9, 7, .62) !important;
+}
+
+.orblitz-world-card:hover,
+.orblitz-world-card:focus-visible,
+.orblitz-select-card:hover,
+.orblitz-select-card:focus-visible {
+  border-color: var(--menu-lime) !important;
+  box-shadow: 7px 7px 0 rgba(5, 9, 7, .72) !important;
+  filter: none !important;
+}
+
+.orblitz-selection-footer {
+  border-color: rgba(233, 227, 207, .16) !important;
+  background: rgba(8, 13, 10, .72) !important;
+}
+
+.orblitz-compact-stage .orblitz-command-button {
+  border-radius: 0 !important;
+  background: var(--menu-ink-soft) !important;
+}
+
+.orblitz-menu-actions[data-menu-state="settings"] {
+  background: transparent !important;
+}
+
+.orblitz-menu-actions[data-menu-state="settings"] .orblitz-options-deck {
+  width: min(560px, calc(100vw - 40px)) !important;
+  border: 1px solid rgba(199, 242, 61, .34) !important;
+  border-radius: 0 !important;
+  background: rgba(10, 16, 13, .92) !important;
+  box-shadow: 7px 7px 0 rgba(5, 9, 7, .76) !important;
+  backdrop-filter: none !important;
+}
+
+.orblitz-menu-actions[data-menu-state="settings"] .orblitz-options-control {
+  border: 1px solid var(--menu-rule) !important;
+  border-radius: 0 !important;
+  background: rgba(15, 25, 18, .92) !important;
+  box-shadow: 4px 4px 0 rgba(5, 9, 7, .48) !important;
+  backdrop-filter: none !important;
+}
+
+.orblitz-startup-shell button:focus-visible,
+.orblitz-startup-shell input:focus-visible,
+.orblitz-startup-shell [tabindex]:focus-visible {
+  outline: 2px solid var(--menu-lime) !important;
+  outline-offset: 4px;
+}
+
+@media (max-width: 800px) {
+  .orblitz-title-lockup[data-menu-title="active"] {
+    top: clamp(76px, 13vh, 118px) !important;
+    left: 20px !important;
+    width: calc(100vw - 40px) !important;
+  }
+
+  .orblitz-title-lockup[data-menu-title="active"] .orblitz-title-wordmark {
+    font-size: clamp(3.7rem, 17vw, 7.5rem) !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"],
+  .orblitz-button-stage[data-layout="modes"] {
+    position: absolute !important;
+    left: 20px !important;
+    right: 20px !important;
+    top: auto !important;
+    bottom: clamp(70px, 12vh, 108px) !important;
+    width: auto !important;
+    padding: 0 !important;
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+@media (max-width: 480px) and (orientation: portrait) {
+  .orblitz-title-lockup[data-menu-title="active"] {
+    top: 104px !important;
+  }
+
+  .orblitz-title-lockup[data-menu-title="active"] .orblitz-title-wordmark {
+    font-size: clamp(3.5rem, 19vw, 5.8rem) !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"] .orblitz-command-button,
+  .orblitz-button-stage[data-layout="modes"] .orblitz-command-button {
+    height: 60px !important;
+    padding: 8px !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"] .orblitz-command-play,
+  .orblitz-button-stage[data-layout="modes"] .orblitz-command-arcade {
+    height: 72px !important;
+  }
+}
+
+/* Keep the menu tray anchored to the viewport, independent of the legacy
+   flex alignment rules used by the compatibility shell. */
+.orblitz-menu-actions[data-menu-state="root"],
+.orblitz-menu-actions[data-menu-state="modes"] {
+  display: block !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+}
+
+.orblitz-button-stage[data-layout="root"],
+.orblitz-button-stage[data-layout="modes"] {
+  position: absolute !important;
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .orblitz-title-lockup[data-menu-title="active"] {
+    top: 72px !important;
+    left: 7vw !important;
+  }
+
+  .orblitz-title-lockup[data-menu-title="active"] .orblitz-title-wordmark {
+    font-size: clamp(3.4rem, 14vh, 5.8rem) !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"],
+  .orblitz-button-stage[data-layout="modes"] {
+    position: absolute !important;
+    top: 92px !important;
+    right: 7vw !important;
+    bottom: auto !important;
+    width: min(330px, 37vw) !important;
+    gap: 6px !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"] .orblitz-command-button,
+  .orblitz-button-stage[data-layout="modes"] .orblitz-command-button {
+    height: 52px !important;
+    padding: 7px 9px !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"] .orblitz-command-play,
+  .orblitz-button-stage[data-layout="modes"] .orblitz-command-arcade {
+    height: 72px !important;
+  }
+}
+
+/* Dedicated hooks keep the direct-start composition independent from legacy
+   title/tray positioning selectors retained by the nested menu screens. */
+.orblitz-aaa-title-lockup {
+  position: fixed !important;
+  top: 50% !important;
+  left: clamp(28px, 6vw, 96px) !important;
+  right: auto !important;
+  width: min(47vw, 650px) !important;
+  transform: translateY(-50%) !important;
+}
+
+.orblitz-aaa-title-wordmark {
+  justify-content: flex-start !important;
+  font-size: clamp(3.8rem, 7.8vw, 7.8rem) !important;
+  line-height: .84 !important;
+}
+
+.orblitz-aaa-menu-actions {
+  position: fixed !important;
+  inset: 0 !important;
+  display: block !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+}
+
+.orblitz-aaa-button-stage {
+  position: fixed !important;
+  top: 50% !important;
+  right: clamp(24px, 7vw, 108px) !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: min(370px, 35vw) !important;
+  transform: translateY(-50%) !important;
+}
+
+@media (max-width: 800px) {
+  .orblitz-aaa-title-lockup {
+    top: clamp(84px, 13vh, 118px) !important;
+    left: 20px !important;
+    width: calc(100vw - 40px) !important;
+    transform: none !important;
+  }
+
+  .orblitz-aaa-title-wordmark {
+    font-size: clamp(3.35rem, 17vw, 6.5rem) !important;
+  }
+
+  .orblitz-aaa-button-stage {
+    top: auto !important;
+    right: 20px !important;
+    bottom: clamp(70px, 12vh, 108px) !important;
+    left: 20px !important;
+    width: auto !important;
+    transform: none !important;
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .orblitz-aaa-title-lockup {
+    top: 58px !important;
+    left: 7vw !important;
+    transform: none !important;
+  }
+
+  .orblitz-aaa-title-wordmark {
+    font-size: clamp(2.6rem, 9vw, 4.8rem) !important;
+  }
+
+  .orblitz-aaa-button-stage {
+    top: 50% !important;
+    right: 7vw !important;
+    bottom: auto !important;
+    left: auto !important;
+    width: min(330px, 37vw) !important;
+    transform: translateY(-50%) !important;
+  }
+}
+
+/* Active menu geometry must remain last so legacy compatibility selectors
+   cannot pull the hero and action tray back into the same column. */
+.orblitz-title-lockup[data-menu-title="active"] {
+  top: 50% !important;
+  left: clamp(28px, 6vw, 96px) !important;
+  right: auto !important;
+  width: min(47vw, 650px) !important;
+  transform: translateY(-50%) !important;
+}
+
+.orblitz-title-lockup[data-menu-title="active"] .orblitz-title-wordmark {
+  font-size: clamp(3.8rem, 7.8vw, 7.8rem) !important;
+  line-height: .84 !important;
+}
+
+.orblitz-menu-actions[data-menu-state="root"],
+.orblitz-menu-actions[data-menu-state="modes"] {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+}
+
+.orblitz-button-stage[data-layout="root"],
+.orblitz-button-stage[data-layout="modes"] {
+  position: absolute !important;
+  top: 50% !important;
+  right: clamp(24px, 7vw, 108px) !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: min(370px, 35vw) !important;
+  transform: translateY(-50%) !important;
+}
+
+@media (max-width: 800px) {
+  .orblitz-title-lockup[data-menu-title="active"] {
+    top: clamp(84px, 13vh, 118px) !important;
+    left: 20px !important;
+    width: calc(100vw - 40px) !important;
+    transform: none !important;
+  }
+
+  .orblitz-title-lockup[data-menu-title="active"] .orblitz-title-wordmark {
+    font-size: clamp(3.35rem, 17vw, 6.5rem) !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"],
+  .orblitz-button-stage[data-layout="modes"] {
+    top: auto !important;
+    right: 20px !important;
+    bottom: clamp(70px, 12vh, 108px) !important;
+    left: 20px !important;
+    width: auto !important;
+    transform: none !important;
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .orblitz-title-lockup[data-menu-title="active"] {
+    top: 58px !important;
+    left: 7vw !important;
+    transform: none !important;
+  }
+
+  .orblitz-title-lockup[data-menu-title="active"] .orblitz-title-wordmark {
+    font-size: clamp(2.6rem, 9vw, 4.8rem) !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"],
+  .orblitz-button-stage[data-layout="modes"] {
+    top: 50% !important;
+    right: 7vw !important;
+    bottom: auto !important;
+    left: auto !important;
+    width: min(330px, 37vw) !important;
+    transform: translateY(-50%) !important;
   }
 }

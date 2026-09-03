@@ -53,7 +53,9 @@ function App() {
     pauseMenuVisible: s.pauseMenuVisible,
   })));
 
-  const [skipIntro, setSkipIntro] = useState(false);
+  // The active product is the menu. The old cinematic splash was a
+  // time-gated dead end and is intentionally no longer part of startup.
+  const [skipIntro, setSkipIntro] = useState(true);
   const [introBossPhase, setIntroBossPhase] = useState<IntroBossPhase | null>(null);
   const [introBossPresentation, setIntroBossPresentation] = useState<IntroBossPresentation>("menu");
   const [introSelectedWorld, setIntroSelectedWorld] = useState(1);

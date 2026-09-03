@@ -401,6 +401,7 @@ function GameRuntimeLifecycle() {
 function WebGLUnavailable() {
   return (
     <div
+      className="orblitz-webgl-fallback"
       role="alert"
       style={{
         position: "fixed",
