@@ -6407,6 +6407,114 @@ input:focus-visible,
   }
 }
 
+/* Root secondary actions use the same fire-letter language as PLAY, without
+   retaining the old colored tile containers. The transparent buttons remain
+   in the grid so their existing click targets and navigation are unchanged. */
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-shop,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-inventory,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-trophies,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-settings {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  overflow: visible !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-shop::before,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-shop::after,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-inventory::before,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-inventory::after,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-trophies::before,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-trophies::after,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-settings::before,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-settings::after {
+  display: none !important;
+  content: none !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-shop:hover,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-shop:focus-visible,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-inventory:hover,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-inventory:focus-visible,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-trophies:hover,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-trophies:focus-visible,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-settings:hover,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-settings:focus-visible {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-copy {
+  align-items: center !important;
+  gap: 0 !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-label {
+  display: inline-block;
+  padding: 0 .04em;
+  font-family: var(--font-display), "Arial Black", sans-serif !important;
+  font-size: clamp(1.05rem, 2.4vw, 1.8rem) !important;
+  font-weight: 900 !important;
+  line-height: .9 !important;
+  letter-spacing: .08em !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  -webkit-text-stroke: 3px rgba(255, 190, 78, .84);
+  background-image: url("/fire-orb-texture.svg") !important;
+  background-repeat: no-repeat !important;
+  background-size: 420% 220% !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  text-shadow:
+    0 2px 0 rgba(11, 12, 33, .72),
+    0 0 10px rgba(240, 128, 28, .42);
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-command-shop
+  .orblitz-command-label {
+  background-position: 0% 56% !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-command-inventory
+  .orblitz-command-label {
+  background-position: 34% 44% !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-command-trophies
+  .orblitz-command-label {
+  background-position: 67% 56% !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-command-settings
+  .orblitz-command-label {
+  background-position: 100% 44% !important;
+}
+
 /* Sleek glossy PLAY wordmark: preserve the arcade colors without the
    rounded bubble treatment, and double the visible label size. */
 .orblitz-rainbow-arcade-shell .orblitz-play-bubble-label {
