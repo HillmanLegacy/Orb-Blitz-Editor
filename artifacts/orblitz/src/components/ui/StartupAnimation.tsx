@@ -820,9 +820,9 @@ export function StartupAnimation({
               pointerEvents: menuState === "settings" ? "auto" : "none",
               padding: menuState === "settings" ? "0 clamp(10px, 3.5vw, 44px)" : 0,
               ...(menuState === "settings" ? {
-                top: "calc(50% + clamp(28px, 6vh, 56px))",
-                bottom: "clamp(14px, 2vh, 20px)",
-                maxHeight: "calc(50dvh - clamp(28px, 6vh, 56px) - clamp(14px, 2vh, 20px))",
+                top: "calc(50% + clamp(0px, 3vh, 24px))",
+                bottom: "clamp(20px, 3vh, 28px)",
+                maxHeight: "calc(50dvh - clamp(0px, 3vh, 24px) - clamp(20px, 3vh, 28px))",
                 overflowY: "auto" as const,
                 overscrollBehavior: "contain" as const,
                 paddingBottom: "clamp(8px, 2vh, 16px)",

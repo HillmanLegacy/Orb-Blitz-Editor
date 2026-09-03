@@ -14,3 +14,9 @@ Wide browser windows can still be short enough to overflow center-positioned com
 **Why:** Width-based responsive breakpoints do not catch split-screen or short-height desktop windows, where the primary menu button can push the lower action row below the browser edge.
 
 **How to apply:** For wide short viewports, anchor the command deck from a bottom-safe `100dvh` position and reduce primary and secondary button heights as one layout unit.
+
+For the embedded main-menu Settings deck, changing only the parent's `max-height` or `bottom` reserve does not visibly reposition the controls; the inline top anchor must move and the deck must be compacted as a unit.
+
+**Why:** The absolute command layer stretches between its top and bottom bounds while the visible options deck remains flow-positioned at the layer's top edge, so boundary-only changes can leave the deck visually unchanged.
+
+**How to apply:** Adjust the Settings command-layer top and bottom together, then use scoped desktop-height overrides for the options deck and its control rows when the available height is tight.

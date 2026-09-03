@@ -3332,6 +3332,20 @@ canvas {
 }
 
 @media (min-width: 701px) and (max-height: 720px) {
+  .orblitz-startup-shell .orblitz-command-layer[data-menu-state="settings"] .orblitz-options-deck {
+    gap: 10px !important;
+    padding: 12px !important;
+  }
+
+  .orblitz-startup-shell .orblitz-command-layer[data-menu-state="settings"] .orblitz-options-deck > .orblitz-options-control:first-child {
+    height: 82px !important;
+    padding-block: 8px !important;
+  }
+
+  .orblitz-startup-shell .orblitz-command-layer[data-menu-state="settings"] .orblitz-options-deck > div > .orblitz-options-control {
+    height: 76px !important;
+  }
+
   .orblitz-result-card {
     max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 20px) !important;
     gap: clamp(4px, 1vh, 7px) !important;
