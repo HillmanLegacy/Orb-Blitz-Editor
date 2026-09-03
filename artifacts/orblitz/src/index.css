@@ -6458,26 +6458,32 @@ input:focus-visible,
 .orblitz-rainbow-arcade-shell .orblitz-play-bubble-label span {
   background-image: url("/fire-orb-texture.svg") !important;
   background-repeat: no-repeat !important;
-  background-size: 180% 180% !important;
-  background-position: 50% 50% !important;
+  background-size: 420% 220% !important;
   background-clip: text !important;
   -webkit-background-clip: text !important;
   color: transparent !important;
   -webkit-text-fill-color: transparent !important;
-  -webkit-text-stroke: 5px rgba(244, 250, 255, .88);
+  -webkit-text-stroke: 3px rgba(255, 236, 190, .82);
   text-shadow:
     0 2px 0 rgba(11, 12, 33, .72),
     0 0 10px rgba(240, 248, 255, .34);
-  animation: orblitz-play-fire-flow 2.4s ease-in-out infinite alternate;
+  animation: none !important;
 }
 
-@keyframes orblitz-play-fire-flow {
-  from {
-    background-position: 42% 46%;
-  }
-  to {
-    background-position: 58% 54%;
-  }
+.orblitz-rainbow-arcade-shell .orblitz-play-bubble-label span:nth-child(1) {
+  background-position: 0% 56% !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-play-bubble-label span:nth-child(2) {
+  background-position: 34% 44% !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-play-bubble-label span:nth-child(3) {
+  background-position: 67% 56% !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-play-bubble-label span:nth-child(4) {
+  background-position: 100% 44% !important;
 }
 
 .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-title-lockup .mt-3 {
