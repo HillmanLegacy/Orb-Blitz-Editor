@@ -702,7 +702,7 @@ export function StartupAnimation({
       </AnimatePresence>
 
       {/* ── MENU ACTIONS (root / modes) — title owns the center ─────────── */}
-      <AnimatePresence mode="sync">
+      <AnimatePresence mode="wait">
         {showMenu && !isContent && (
           <motion.div
             key={menuState}
