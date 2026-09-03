@@ -6407,6 +6407,79 @@ input:focus-visible,
   }
 }
 
+/* Sleek glossy PLAY wordmark: preserve the arcade colors without the
+   rounded bubble treatment, and double the visible label size. */
+.orblitz-rainbow-arcade-shell .orblitz-play-bubble-label {
+  font-family: var(--font-display), "Arial Black", sans-serif;
+  font-weight: 900;
+  letter-spacing: .08em;
+  transform: translateX(-50%) scale(.6) !important;
+  filter:
+    drop-shadow(0 4px 0 rgba(11, 12, 33, .68))
+    drop-shadow(0 0 10px rgba(255, 255, 255, .34));
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-play-bubble-label span {
+  padding: 0 .04em;
+  border: 0;
+  border-radius: 0;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  -webkit-text-stroke: 1px rgba(255, 255, 255, .76);
+  box-shadow: none;
+  transform: none !important;
+  background-clip: text;
+  -webkit-background-clip: text;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-play-bubble-label span:nth-child(1) {
+  background: linear-gradient(180deg, #fffef0 0%, #fff5a4 16%, #ffd95b 36%, #e9a332 68%, #fff1a2 100%);
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-play-bubble-label span:nth-child(2) {
+  background: linear-gradient(180deg, #ffffff 0%, #b8f5ff 18%, #5fd3ff 38%, #4a99ef 68%, #c6f7ff 100%);
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-play-bubble-label span:nth-child(3) {
+  background: linear-gradient(180deg, #ffffff 0%, #c8ffdf 18%, #6fe5a5 38%, #52be8c 68%, #d4ffbd 100%);
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-play-bubble-label span:nth-child(4) {
+  background: linear-gradient(180deg, #ffffff 0%, #ffc2d7 18%, #ff4f81 38%, #d62f68 68%, #ffc8da 100%);
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-play:hover .orblitz-play-bubble-label,
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-play:focus-visible .orblitz-play-bubble-label {
+  transform: translateX(-50%) translateY(-5px) scale(.624) !important;
+}
+
+/* Fire-orb texture treatment for the enlarged PLAY wordmark. The image is
+   clipped to the glyphs, so no rectangular text background is rendered. */
+.orblitz-rainbow-arcade-shell .orblitz-play-bubble-label span {
+  background-image: url("/fire-orb-texture.svg") !important;
+  background-repeat: no-repeat !important;
+  background-size: 180% 180% !important;
+  background-position: 50% 50% !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  -webkit-text-stroke: 5px rgba(244, 250, 255, .88);
+  text-shadow:
+    0 2px 0 rgba(11, 12, 33, .72),
+    0 0 10px rgba(240, 248, 255, .34);
+  animation: orblitz-play-fire-flow 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes orblitz-play-fire-flow {
+  from {
+    background-position: 42% 46%;
+  }
+  to {
+    background-position: 58% 54%;
+  }
+}
+
 .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-title-lockup .mt-3 {
   display: none !important;
 }

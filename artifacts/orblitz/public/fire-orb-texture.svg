@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" preserveAspectRatio="none">
+  <defs>
+    <radialGradient id="fireCore" cx="54%" cy="48%" r="76%">
+      <stop offset="0" stop-color="#fffef0"/>
+      <stop offset=".2" stop-color="#ffed14"/>
+      <stop offset=".47" stop-color="#ff7000"/>
+      <stop offset=".74" stop-color="#e02e00"/>
+      <stop offset="1" stop-color="#8c0502"/>
+    </radialGradient>
+    <linearGradient id="fireFlow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8c0502"/>
+      <stop offset=".22" stop-color="#e02e00"/>
+      <stop offset=".46" stop-color="#ff7000"/>
+      <stop offset=".67" stop-color="#ffed14"/>
+      <stop offset=".84" stop-color="#ff7000"/>
+      <stop offset="1" stop-color="#8c0502"/>
+    </linearGradient>
+    <filter id="fireWarp" x="-20%" y="-35%" width="140%" height="170%">
+      <feTurbulence type="fractalNoise" baseFrequency=".025 .09" numOctaves="4" seed="19" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="34" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="fireGlow" x="-20%" y="-40%" width="140%" height="180%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+  </defs>
+  <rect width="320" height="160" fill="#8c0502"/>
+  <ellipse cx="166" cy="82" rx="152" ry="88" fill="#ff4b00" opacity=".42" filter="url(#fireGlow)"/>
+  <rect x="-24" y="-18" width="368" height="196" fill="url(#fireCore)" filter="url(#fireWarp)"/>
+  <path d="M-12 126 C42 76 72 144 122 86 S218 24 332 72 L332 180 L-12 180Z"
+        fill="url(#fireFlow)" opacity=".7" filter="url(#fireWarp)"/>
+  <path d="M-12 48 C44 92 80 22 132 68 S228 126 332 42 L332 -12 L-12 -12Z"
+        fill="#ffed14" opacity=".22" filter="url(#fireWarp)"/>
+</svg>
