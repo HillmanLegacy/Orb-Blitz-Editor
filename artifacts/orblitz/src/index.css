@@ -6420,6 +6420,7 @@ input:focus-visible,
   font-weight: 900;
   line-height: .9;
   letter-spacing: .08em;
+  font-synthesis: none;
   filter:
     drop-shadow(0 4px 0 rgba(11, 12, 33, .68))
     drop-shadow(0 0 10px rgba(255, 255, 255, .34));
@@ -6429,6 +6430,8 @@ input:focus-visible,
 .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-shop-letter-label span {
   display: inline-block;
   padding: 0 .04em;
+  border: 0;
+  border-radius: 0;
   color: transparent !important;
   -webkit-text-fill-color: transparent !important;
   -webkit-text-stroke: 3px rgba(255, 190, 78, .84);
@@ -6437,6 +6440,8 @@ input:focus-visible,
   background-size: 420% 220%;
   background-clip: text;
   -webkit-background-clip: text;
+  box-shadow: none;
+  transform: none !important;
   text-shadow:
     0 2px 0 rgba(11, 12, 33, .72),
     0 0 10px rgba(240, 248, 255, .34);
@@ -6598,16 +6603,21 @@ input:focus-visible,
    rounded bubble treatment, and double the visible label size. */
 .orblitz-rainbow-arcade-shell .orblitz-play-bubble-label,
 .orblitz-rainbow-arcade-shell .orblitz-shop-letter-label {
-  font-family: var(--font-display), "Arial Black", sans-serif;
-  font-weight: 900;
-  letter-spacing: .08em;
-  transform: translateX(-50%) scale(.6) !important;
+  font-family: var(--font-display), "Arial Black", sans-serif !important;
+  font-weight: 900 !important;
+  letter-spacing: .08em !important;
+  font-synthesis: none;
   filter:
     drop-shadow(0 4px 0 rgba(11, 12, 33, .68))
     drop-shadow(0 0 10px rgba(255, 255, 255, .34));
 }
 
-.orblitz-rainbow-arcade-shell .orblitz-play-bubble-label span {
+.orblitz-rainbow-arcade-shell .orblitz-play-bubble-label {
+  transform: translateX(-50%) scale(.6) !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-play-bubble-label span,
+.orblitz-rainbow-arcade-shell .orblitz-shop-letter-label span {
   padding: 0 .04em;
   border: 0;
   border-radius: 0;
@@ -6618,6 +6628,8 @@ input:focus-visible,
   transform: none !important;
   background-clip: text;
   -webkit-background-clip: text;
+  box-shadow: none;
+  transform: none !important;
 }
 
 .orblitz-rainbow-arcade-shell .orblitz-play-bubble-label span:nth-child(1) {
@@ -6789,4 +6801,40 @@ input:focus-visible,
   .orblitz-rainbow-arcade-shell .orblitz-play-bubble-label span {
     border-width: 2px;
   }
+}
+
+/* Keep SHOP on PLAY's final translucent glyph treatment while preserving
+   the World 2 texture and its four independent sampling positions. */
+.orblitz-rainbow-arcade-shell .orblitz-shop-letter-label {
+  opacity: .82;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-shop-letter-label span {
+  background-image: url("/world2-star-texture.svg") !important;
+  background-repeat: no-repeat !important;
+  background-size: 420% 220% !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  -webkit-text-stroke: 3px rgba(255, 190, 78, .84);
+  text-shadow:
+    0 2px 0 rgba(11, 12, 33, .72),
+    0 0 10px rgba(240, 248, 255, .34);
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-shop-letter-label span:nth-child(1) {
+  background-position: 0% 56% !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-shop-letter-label span:nth-child(2) {
+  background-position: 34% 44% !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-shop-letter-label span:nth-child(3) {
+  background-position: 67% 56% !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-shop-letter-label span:nth-child(4) {
+  background-position: 100% 44% !important;
 }

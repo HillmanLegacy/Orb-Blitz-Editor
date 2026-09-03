@@ -39,7 +39,6 @@
     </filter>
   </defs>
 
-  <rect width="1200" height="360" fill="#24132d"/>
   <ellipse cx="145" cy="160" rx="220" ry="190" fill="url(#orbGlow)" filter="url(#softGlow)"/>
   <ellipse cx="450" cy="185" rx="230" ry="175" fill="url(#orbGlow)" opacity=".8" filter="url(#softGlow)"/>
   <ellipse cx="785" cy="145" rx="220" ry="200" fill="url(#orbGlow)" opacity=".86" filter="url(#softGlow)"/>
