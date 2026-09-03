@@ -507,7 +507,7 @@ function ArcadeBossScene({
         const index = ((selectedWorld - 1 + offset + 9) % 9 + 9) % 9;
         return ARCADE_BOSS_INTRO_DEFS[index];
       })
-    : ARCADE_BOSS_INTRO_DEFS;
+    : presentation === "menu" ? [] : ARCADE_BOSS_INTRO_DEFS;
   return (
     <>
       <IntroExplosionLight phase={phase} />

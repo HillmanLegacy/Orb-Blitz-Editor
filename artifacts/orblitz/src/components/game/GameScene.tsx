@@ -37,12 +37,13 @@ export function preloadGameplayScene(): Promise<void> {
 
 // ── Renderer configuration ────────────────────────────────────────────────────
 function RendererSetup({ transparent = false }: { transparent?: boolean }) {
-  const { gl } = useThree();
+  const { gl, scene } = useThree();
   useEffect(() => {
     gl.toneMapping      = THREE.NoToneMapping;
     gl.outputColorSpace = THREE.SRGBColorSpace;
     gl.setClearColor(0x000000, transparent ? 0 : 1);
-  }, [gl, transparent]);
+    if (transparent) scene.background = null;
+  }, [gl, scene, transparent]);
   return null;
 }
 
@@ -507,7 +508,7 @@ export function GameScene({
           )}
 
           {/* Lightweight background — gameplay GPU systems mount below only when needed */}
-          {backgroundEnabled && <Background visible={!worldBossPreview && !rootMenuPreview} />}
+          {backgroundEnabled && !rootMenuPreview && <Background visible={!worldBossPreview} />}
 
           {/* Gameplay systems — unmounted outside gameplay loading/playing */}
           <GameplayGate />
