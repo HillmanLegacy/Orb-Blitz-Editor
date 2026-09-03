@@ -6407,6 +6407,30 @@ input:focus-visible,
   }
 }
 
+/* Keep the root balance counter in the title composition. The compatibility
+   shell makes direct children relative, which otherwise turns this counter
+   into a centered flex item and hides the intended spacing relationship. */
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-star-bank {
+  position: fixed !important;
+  top: clamp(250px, 29vh, 300px) !important;
+  right: auto !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  transform-origin: center top !important;
+}
+
+@media (max-width: 700px) {
+  .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-star-bank {
+    top: clamp(182px, 22vh, 206px) !important;
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-star-bank {
+    top: clamp(112px, 29vh, 130px) !important;
+  }
+}
+
 @media (max-height: 520px) and (orientation: landscape) {
   .orblitz-rainbow-arcade-shell .orblitz-aaa-title-lockup {
     top: 34px !important;
