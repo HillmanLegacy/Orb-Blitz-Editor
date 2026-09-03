@@ -858,27 +858,35 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false }: Butt
             data-orblitz-modal-opener={b.id === "shop" || b.id === "inventory" ? b.id : undefined}
           >
             {/* Material edge */}
-            <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{
+            {b.id !== "play" && <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{
               height: 3,
               background: `linear-gradient(90deg,${b.color}00 0%,${b.color}cc 20%,rgba(255,255,255,0.95) 50%,${b.color}22 80%,${b.color}00 100%)`,
               opacity: isPress ? 1 : 0.72, transition: "opacity 0.14s",
-            }} />
+            }} />}
             {/* Glass pass */}
-            <div className="absolute inset-0 pointer-events-none" style={{
+            {b.id !== "play" && <div className="absolute inset-0 pointer-events-none" style={{
               background: "linear-gradient(132deg, rgba(255,255,255,0.11), transparent 30%, transparent 58%, rgba(0,0,0,0.22))",
               borderRadius: "inherit",
-            }} />
-            <span className="orblitz-command-icon" style={{
-              fontSize: iconSz, lineHeight: 1,
-              filter: `drop-shadow(0 0 7px ${b.color}88) drop-shadow(2px 2px 0 rgba(3,7,26,0.55))`,
-            }}>{b.icon}</span>
-            {!b.hideLabel && <span className="orblitz-command-copy">
-              <span className="orblitz-command-label" style={{
-                fontSize: labelSz, fontWeight: 900,
-                letterSpacing: "0.12em", lineHeight: 1, opacity: 0.96,
-                fontFamily: "var(--font-display)",
-              }}>{b.label}</span>
-            </span>}
+            }} />}
+            {b.id === "play" ? (
+              <span className="orblitz-play-bubble-label" aria-hidden="true">
+                {b.label.split("").map((letter, index) => <span key={`${letter}-${index}`}>{letter}</span>)}
+              </span>
+            ) : (
+              <>
+                <span className="orblitz-command-icon" style={{
+                  fontSize: iconSz, lineHeight: 1,
+                  filter: `drop-shadow(0 0 7px ${b.color}88) drop-shadow(2px 2px 0 rgba(3,7,26,0.55))`,
+                }}>{b.icon}</span>
+                {!b.hideLabel && <span className="orblitz-command-copy">
+                  <span className="orblitz-command-label" style={{
+                    fontSize: labelSz, fontWeight: 900,
+                    letterSpacing: "0.12em", lineHeight: 1, opacity: 0.96,
+                    fontFamily: "var(--font-display)",
+                  }}>{b.label}</span>
+                </span>}
+              </>
+            )}
           </motion.button>
         );
       })}
