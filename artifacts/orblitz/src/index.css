@@ -6411,6 +6411,46 @@ input:focus-visible,
   display: none !important;
 }
 
+/* Hover should lift the arcade tiles without washing their colors into the
+   legacy dark hover tint. Keep each tile's normal gradient unchanged. */
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-button:hover,
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-button:focus-visible {
+  filter: none !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-play:hover,
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-play:focus-visible {
+  background: transparent !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-shop:hover,
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-shop:focus-visible,
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-arcade:hover,
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-arcade:focus-visible {
+  background: linear-gradient(135deg, #ffd95b, #ffb45d) !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-inventory:hover,
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-inventory:focus-visible,
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-survival:hover,
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-survival:focus-visible {
+  background: linear-gradient(135deg, #5fd3ff, #73a8ff) !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-trophies:hover,
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-trophies:focus-visible,
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-chill:hover,
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-chill:focus-visible {
+  background: linear-gradient(135deg, #6fe5a5, #b6ed83) !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-settings:hover,
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-settings:focus-visible,
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-gauntlet:hover,
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-gauntlet:focus-visible {
+  background: linear-gradient(135deg, #b28cff, #e09aff) !important;
+}
+
 /* Keep the root balance counter in the title composition. The compatibility
    shell makes direct children relative, which otherwise turns this counter
    into a centered flex item and hides the intended spacing relationship. */
