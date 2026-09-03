@@ -6060,6 +6060,11 @@ input:focus-visible,
   -webkit-text-stroke: 2px rgba(255, 255, 255, .12) !important;
 }
 
+.orblitz-rainbow-arcade-shell .orblitz-aaa-title-lockup[data-menu-title="active"] .orblitz-aaa-title-wordmark {
+  width: 100% !important;
+  justify-content: center !important;
+}
+
 .orblitz-rainbow-arcade-shell .orblitz-aaa-title-lockup .mt-3 {
   margin-left: auto !important;
   margin-right: auto !important;
