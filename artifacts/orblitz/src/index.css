@@ -4450,6 +4450,62 @@ canvas {
   }
 }
 
+/* Final title-screen placement: keep the logo and tile stack centered like a
+   classic falling-block arcade menu, regardless of older compatibility rules. */
+.orblitz-rainbow-arcade-shell .orblitz-aaa-title-lockup {
+  position: fixed !important;
+  top: clamp(54px, 9vh, 100px) !important;
+  left: 50% !important;
+  right: auto !important;
+  width: min(900px, calc(100vw - 30px)) !important;
+  transform: translateX(-50%) !important;
+  text-align: center !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage {
+  position: fixed !important;
+  top: 53% !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: 50% !important;
+  width: min(570px, calc(100vw - 34px)) !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+@media (max-width: 700px) {
+  .orblitz-rainbow-arcade-shell .orblitz-aaa-title-lockup {
+    top: 86px !important;
+    left: 50% !important;
+    width: calc(100vw - 24px) !important;
+    transform: translateX(-50%) !important;
+  }
+
+  .orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage {
+    top: auto !important;
+    right: 18px !important;
+    bottom: 72px !important;
+    left: 18px !important;
+    width: auto !important;
+    transform: none !important;
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .orblitz-rainbow-arcade-shell .orblitz-aaa-title-lockup {
+    top: 34px !important;
+  }
+
+  .orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage {
+    top: 59% !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: 50% !important;
+    width: min(500px, calc(100vw - 28px)) !important;
+    transform: translate(-50%, -50%) !important;
+  }
+}
+
+/* End of the active rainbow arcade title-screen contract. */
 /* ── Orblitz signature presentation ─────────────────────────────────────────
    A single visual system for the menu, selection screens, result moments,
    modal surfaces, and live HUD. The game scene remains the source of motion;
@@ -6004,6 +6060,8 @@ input:focus-visible,
 
 .orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark span {
   background-image: none !important;
+  background-clip: initial !important;
+  -webkit-background-clip: initial !important;
   -webkit-text-fill-color: currentColor !important;
   filter: none !important;
 }
@@ -6011,26 +6069,32 @@ input:focus-visible,
 .orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark span:nth-child(1),
 .orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark span:nth-child(7) {
   color: #ff4f81 !important;
+  -webkit-text-fill-color: #ff4f81 !important;
 }
 
 .orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark span:nth-child(2) {
   color: #ffd95b !important;
+  -webkit-text-fill-color: #ffd95b !important;
 }
 
 .orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark span:nth-child(3) {
   color: #5fd3ff !important;
+  -webkit-text-fill-color: #5fd3ff !important;
 }
 
 .orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark span:nth-child(4) {
   color: #6fe5a5 !important;
+  -webkit-text-fill-color: #6fe5a5 !important;
 }
 
 .orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark span:nth-child(5) {
   color: #ff8b5a !important;
+  -webkit-text-fill-color: #ff8b5a !important;
 }
 
 .orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark span:nth-child(6) {
   color: #b28cff !important;
+  -webkit-text-fill-color: #b28cff !important;
 }
 
 .orblitz-rainbow-arcade-shell .orblitz-title-strap {
@@ -6242,85 +6306,5 @@ input:focus-visible,
   .orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-play,
   .orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-arcade {
     height: 54px !important;
-  }
-}
-
-/* Active menu geometry must remain last so legacy compatibility selectors
-   cannot pull the hero and action tray back into the same column. */
-.orblitz-title-lockup[data-menu-title="active"] {
-  top: 50% !important;
-  left: clamp(28px, 6vw, 96px) !important;
-  right: auto !important;
-  width: min(47vw, 650px) !important;
-  transform: translateY(-50%) !important;
-}
-
-.orblitz-title-lockup[data-menu-title="active"] .orblitz-title-wordmark {
-  font-size: clamp(3.8rem, 7.8vw, 7.8rem) !important;
-  line-height: .84 !important;
-}
-
-.orblitz-menu-actions[data-menu-state="root"],
-.orblitz-menu-actions[data-menu-state="modes"] {
-  position: absolute !important;
-  inset: 0 !important;
-  display: block !important;
-  padding: 0 !important;
-  pointer-events: none !important;
-}
-
-.orblitz-button-stage[data-layout="root"],
-.orblitz-button-stage[data-layout="modes"] {
-  position: absolute !important;
-  top: 50% !important;
-  right: clamp(24px, 7vw, 108px) !important;
-  bottom: auto !important;
-  left: auto !important;
-  width: min(370px, 35vw) !important;
-  transform: translateY(-50%) !important;
-}
-
-@media (max-width: 800px) {
-  .orblitz-title-lockup[data-menu-title="active"] {
-    top: clamp(84px, 13vh, 118px) !important;
-    left: 20px !important;
-    width: calc(100vw - 40px) !important;
-    transform: none !important;
-  }
-
-  .orblitz-title-lockup[data-menu-title="active"] .orblitz-title-wordmark {
-    font-size: clamp(3.35rem, 17vw, 6.5rem) !important;
-  }
-
-  .orblitz-button-stage[data-layout="root"],
-  .orblitz-button-stage[data-layout="modes"] {
-    top: auto !important;
-    right: 20px !important;
-    bottom: clamp(70px, 12vh, 108px) !important;
-    left: 20px !important;
-    width: auto !important;
-    transform: none !important;
-  }
-}
-
-@media (max-height: 520px) and (orientation: landscape) {
-  .orblitz-title-lockup[data-menu-title="active"] {
-    top: 58px !important;
-    left: 7vw !important;
-    transform: none !important;
-  }
-
-  .orblitz-title-lockup[data-menu-title="active"] .orblitz-title-wordmark {
-    font-size: clamp(2.6rem, 9vw, 4.8rem) !important;
-  }
-
-  .orblitz-button-stage[data-layout="root"],
-  .orblitz-button-stage[data-layout="modes"] {
-    top: 50% !important;
-    right: 7vw !important;
-    bottom: auto !important;
-    left: auto !important;
-    width: min(330px, 37vw) !important;
-    transform: translateY(-50%) !important;
   }
 }
