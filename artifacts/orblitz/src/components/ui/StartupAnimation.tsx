@@ -873,8 +873,8 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false }: Butt
               <span className="orblitz-play-bubble-label" aria-hidden="true">
                 {b.label.split("").map((letter, index) => <span key={`${letter}-${index}`}>{letter}</span>)}
               </span>
-            ) : b.id === "shop" ? (
-              <span className="orblitz-shop-letter-label" aria-hidden="true">
+            ) : ["shop", "inventory", "trophies", "settings"].includes(b.id) ? (
+              <span className={`orblitz-root-letter-label orblitz-${b.id}-letter-label`} aria-hidden="true">
                 {b.label.split("").map((letter, index) => <span key={`${letter}-${index}`}>{letter}</span>)}
               </span>
             ) : (
