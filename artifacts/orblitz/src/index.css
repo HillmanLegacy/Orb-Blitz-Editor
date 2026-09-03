@@ -7104,3 +7104,73 @@ input:focus-visible,
 .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-command-settings:focus-visible .orblitz-root-letter-label {
   transform: translate(-50%, calc(-50% - 21px)) scale(.624) !important;
 }
+
+/* Give each transparent root-menu action the primary palette of its
+   corresponding showcase orb. */
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-command-play
+  .orblitz-play-bubble-label span {
+  -webkit-text-stroke-color: rgba(255, 122, 24, .96) !important;
+  text-shadow:
+    0 2px 0 rgba(84, 9, 4, .78),
+    0 0 10px rgba(255, 92, 18, .5);
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-command-shop
+  .orblitz-root-letter-label span {
+  background-image: url("/world2-star-texture.svg") !important;
+  -webkit-text-stroke-color: rgba(255, 205, 66, .96) !important;
+  text-shadow:
+    0 2px 0 rgba(80, 35, 7, .78),
+    0 0 10px rgba(255, 191, 38, .52);
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-command-inventory
+  .orblitz-root-letter-label span {
+  background-image: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #c9f7ff 22%,
+    #72dff2 44%,
+    #70dfbd 68%,
+    #8c7bff 100%
+  ) !important;
+  background-size: 100% 100% !important;
+  -webkit-text-stroke-color: rgba(117, 224, 244, .96) !important;
+  text-shadow:
+    0 2px 0 rgba(18, 60, 83, .78),
+    0 0 10px rgba(99, 224, 244, .54);
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-command-trophies
+  .orblitz-root-letter-label span {
+  background-image: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #e8fbff 24%,
+    #a9e6ff 48%,
+    #75bdf4 72%,
+    #a795ff 100%
+  ) !important;
+  background-size: 100% 100% !important;
+  -webkit-text-stroke-color: rgba(190, 236, 255, .98) !important;
+  text-shadow:
+    0 2px 0 rgba(34, 58, 100, .78),
+    0 0 10px rgba(139, 213, 255, .58);
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-command-settings
+  .orblitz-root-letter-label span {
+  background-image: linear-gradient(
+    180deg,
+    #e8edff 0%,
+    #a9c5ff 22%,
+    #5a91ff 46%,
+    #6552df 72%,
+    #bd78ff 100%
+  ) !important;
+  background-size: 100% 100% !important;
+  -webkit-text-stroke-color: rgba(137, 171, 255, .98) !important;
+  text-shadow:
+    0 2px 0 rgba(17, 14, 77, .82),
+    0 0 10px rgba(91, 119, 255, .6);
+}
