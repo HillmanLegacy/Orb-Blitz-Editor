@@ -6463,7 +6463,7 @@ input:focus-visible,
   -webkit-background-clip: text !important;
   color: transparent !important;
   -webkit-text-fill-color: transparent !important;
-  -webkit-text-stroke: 3px rgba(255, 236, 190, .82);
+  -webkit-text-stroke: 3px rgba(255, 190, 78, .84);
   text-shadow:
     0 2px 0 rgba(11, 12, 33, .72),
     0 0 10px rgba(240, 248, 255, .34);
