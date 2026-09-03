@@ -6041,21 +6041,28 @@ input:focus-visible,
 }
 
 .orblitz-rainbow-arcade-shell .orblitz-aaa-title-lockup {
+  position: fixed !important;
   top: clamp(54px, 9vh, 100px) !important;
-  left: 50% !important;
-  right: auto !important;
-  width: min(900px, calc(100vw - 30px)) !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100vw !important;
   text-align: center !important;
-  transform: translateX(-50%) !important;
+  transform: none !important;
 }
 
 .orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark {
+  width: 100% !important;
   justify-content: center !important;
   font-size: clamp(3.7rem, 11vw, 8.6rem) !important;
   letter-spacing: .04em !important;
   line-height: .86 !important;
   text-shadow: 0 9px 0 rgba(11, 12, 33, .72), 0 18px 32px rgba(7, 8, 25, .34) !important;
   -webkit-text-stroke: 2px rgba(255, 255, 255, .12) !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-title-lockup .mt-3 {
+  margin-left: auto !important;
+  margin-right: auto !important;
 }
 
 .orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark span {
@@ -6233,7 +6240,10 @@ input:focus-visible,
 @media (max-width: 700px) {
   .orblitz-rainbow-arcade-shell .orblitz-aaa-title-lockup {
     top: 86px !important;
-    width: calc(100vw - 24px) !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100vw !important;
+    transform: none !important;
   }
 
   .orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark {
@@ -6277,6 +6287,11 @@ input:focus-visible,
 @media (max-height: 520px) and (orientation: landscape) {
   .orblitz-rainbow-arcade-shell .orblitz-aaa-title-lockup {
     top: 34px !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100vw !important;
+    transform: none !important;
+    text-align: center !important;
   }
 
   .orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark {
