@@ -3,6 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { BossVisual } from "@/components/game/BossVisual";
 import { MiniFireOrb } from "@/components/game/MiniFireOrb";
+import { MiniStarOrb } from "@/components/game/MiniStarOrb";
 import { BOSS_DEFEAT_PALETTES, MAIN_BOSS_TYPES, type MainBossType } from "@/components/game/BossDefeatPalette";
 
 export type IntroBossPhase = "idle" | "flying" | "converge" | "flash" | "backdrop" | "background" | "title" | "waiting" | "menu";
@@ -171,6 +172,44 @@ function World1MenuEnemy() {
   return (
     <group ref={groupRef} position={[0, -0.1, modelZ]} scale={0.38} renderOrder={25}>
       <MiniFireOrb radius={1} particleCount={28} showParticles showLight />
+    </group>
+  );
+}
+
+/** A fixed World 2 enemy showcase for the root menu Shop target. */
+function World2MenuEnemy() {
+  const groupRef = useRef<THREE.Group>(null);
+  const raycaster = useMemo(() => new THREE.Raycaster(), []);
+  const ndc = useMemo(() => new THREE.Vector2(), []);
+  const { camera, size } = useThree();
+  const modelZ = 7.25;
+
+  useFrame(() => {
+    const group = groupRef.current;
+    if (!group || typeof document === "undefined" || size.width <= 0 || size.height <= 0) return;
+
+    const shopButton = document.querySelector<HTMLElement>('[data-testid="button-menu-shop"]');
+    if (!shopButton) return;
+    const bounds = shopButton.getBoundingClientRect();
+    if (bounds.width <= 0 || bounds.height <= 0) return;
+
+    // Match the World 1 showcase: the live button center is the model anchor,
+    // preserving the text-to-orb relationship as the circular menu responds.
+    ndc.set(
+      (bounds.left + bounds.width / 2) / size.width * 2 - 1,
+      1 - (bounds.top + bounds.height / 2) / size.height * 2,
+    );
+    raycaster.setFromCamera(ndc, camera);
+    const directionZ = raycaster.ray.direction.z;
+    if (Math.abs(directionZ) < 0.0001) return;
+    const distance = (modelZ - raycaster.ray.origin.z) / directionZ;
+    group.position.copy(raycaster.ray.origin).addScaledVector(raycaster.ray.direction, distance);
+    group.position.z = modelZ;
+  });
+
+  return (
+    <group ref={groupRef} position={[0, -0.1, modelZ]} scale={0.38} renderOrder={25}>
+      <MiniStarOrb radius={1} particleCount={20} showParticles showLight />
     </group>
   );
 }
@@ -512,7 +551,12 @@ function ArcadeBossScene({
     <>
       <IntroExplosionLight phase={phase} />
       <ambientLight intensity={1.35} />
-      {phase === "menu" && presentation === "menu" && <World1MenuEnemy />}
+      {phase === "menu" && presentation === "menu" && (
+        <>
+          <World1MenuEnemy />
+          <World2MenuEnemy />
+        </>
+      )}
       <Suspense fallback={null}>
         {worldDefinitions.map((definition) => (
           <ArcadeBossActor
