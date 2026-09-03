@@ -6965,8 +6965,8 @@ input:focus-visible,
    wheel instead of the legacy two-column grid. */
 .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage {
   --orbit-button-width: clamp(112px, 14vw, 170px);
-  --orbit-radius: clamp(112px, 14vw, 162px);
-  top: 59% !important;
+  --orbit-radius: clamp(112.3px, 14.042vw, 162.5px);
+  top: calc(59% + 40px) !important;
   right: auto !important;
   bottom: auto !important;
   left: 50% !important;
@@ -7015,13 +7015,13 @@ input:focus-visible,
 .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
   .orblitz-command-button:nth-child(4) {
   transform: translate(-50%, -50%)
-    translate(calc(var(--orbit-radius) * -.588), calc(var(--orbit-radius) * .809)) !important;
+    translate(calc(var(--orbit-radius) * -.78), calc(var(--orbit-radius) * .625)) !important;
 }
 
 .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
   .orblitz-command-button:nth-child(5) {
   transform: translate(-50%, -50%)
-    translate(calc(var(--orbit-radius) * .588), calc(var(--orbit-radius) * .809)) !important;
+    translate(calc(var(--orbit-radius) * .78), calc(var(--orbit-radius) * .625)) !important;
 }
 
 .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
@@ -7062,7 +7062,7 @@ input:focus-visible,
 .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
   .orblitz-command-trophies:focus-visible {
   transform: translate(-50%, -50%)
-    translate(calc(var(--orbit-radius) * -.588), calc(var(--orbit-radius) * .809))
+    translate(calc(var(--orbit-radius) * -.78), calc(var(--orbit-radius) * .625))
     translateY(-4px) !important;
 }
 
@@ -7071,16 +7071,16 @@ input:focus-visible,
 .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
   .orblitz-command-settings:focus-visible {
   transform: translate(-50%, -50%)
-    translate(calc(var(--orbit-radius) * .588), calc(var(--orbit-radius) * .809))
+    translate(calc(var(--orbit-radius) * .78), calc(var(--orbit-radius) * .625))
     translateY(-4px) !important;
 }
 
 @media (max-height: 520px) and (orientation: landscape) {
   .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage {
-    top: 60% !important;
+    top: calc(60% + 40px) !important;
     width: min(560px, calc(100vw - 20px)) !important;
     height: 270px !important;
     --orbit-button-width: clamp(96px, 14vw, 142px);
-    --orbit-radius: clamp(94px, 14vw, 136px);
+    --orbit-radius: clamp(94.3px, 14.042vw, 136.4px);
   }
 }

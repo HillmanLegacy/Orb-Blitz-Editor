@@ -318,8 +318,8 @@ export function StartupAnimation({
          { id:"play",      icon:<IconPlay />,     label:"PLAY",     color:"#c7f23d", shadow:"rgba(199,242,61,0.34)", action: () => { btn("play");      setMenuState("modes");    } },
          { id:"shop",      icon:<IconShop />,     label:"SHOP",     color:"#ff6f43", shadow:"rgba(255,111,67,0.3)", action: () => { btn("shop");      openShop();               } },
          { id:"inventory", icon:<IconGear />,     label:"GEAR",     color:"#6eaaa0", shadow:"rgba(110,170,160,0.3)", action: () => { btn("inventory"); openInventory();          } },
-         { id:"trophies",  icon:<IconTrophy />,   label:"RECORDS",  color:"#e9e3cf", shadow:"rgba(233,227,207,0.24)", action: () => { btn("trophies"); openTrophies(); } },
-         { id:"settings",  icon:<IconSettings />, label:"SETTINGS", color:"#a9ad96", shadow:"rgba(169,173,150,0.26)", action: () => { btn("settings");  setMenuState("settings"); } },
+         { id:"trophies",  icon:<IconTrophy />,   label:"TROPHYS",  color:"#e9e3cf", shadow:"rgba(233,227,207,0.24)", action: () => { btn("trophies"); openTrophies(); } },
+         { id:"settings",  icon:<IconSettings />, label:"OPTIONS",  color:"#a9ad96", shadow:"rgba(169,173,150,0.26)", action: () => { btn("settings");  setMenuState("settings"); } },
       ];
       case "modes": return [
          { id:"arcade",    icon:<IconArcade />,   label:"ARCADE",   color:"#ff6f43", shadow:"rgba(255,111,67,0.44)", action: () => { btn("arcade"); setMenuState("worlds"); }  },
