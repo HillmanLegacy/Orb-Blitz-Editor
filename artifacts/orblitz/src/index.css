@@ -6446,6 +6446,17 @@ input:focus-visible,
 }
 
 .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-shop > div,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-inventory > div,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-trophies > div,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-settings > div {
+  display: none !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
   .orblitz-command-shop:hover,
 .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
   .orblitz-command-shop:focus-visible,
