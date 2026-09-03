@@ -5944,6 +5944,307 @@ input:focus-visible,
   }
 }
 
+/* ── Rainbow arcade menu ──────────────────────────────────────────────────────
+   This is the active title-screen system: bright arcade color, soft stage
+   lighting, centered hierarchy, and blocky menu tiles. It intentionally
+   removes the console/command-deck reading from the startup surface. */
+.orblitz-rainbow-arcade-shell {
+  color: #fff7ed !important;
+  background:
+    radial-gradient(circle at 50% 22%, rgba(178, 140, 255, .24), transparent 30%),
+    radial-gradient(circle at 13% 74%, rgba(255, 79, 129, .2), transparent 27%),
+    radial-gradient(circle at 87% 72%, rgba(74, 168, 255, .18), transparent 28%),
+    linear-gradient(135deg, #211b3d 0%, #11152d 54%, #2a1839 100%) !important;
+  font-family: var(--font-display) !important;
+}
+
+.orblitz-rainbow-arcade-shell::before {
+  background:
+    radial-gradient(circle at 18% 26%, rgba(255, 217, 91, .75) 0 1px, transparent 2px),
+    radial-gradient(circle at 78% 22%, rgba(95, 211, 255, .75) 0 1px, transparent 2px),
+    radial-gradient(circle at 84% 78%, rgba(111, 229, 165, .7) 0 1px, transparent 2px),
+    radial-gradient(circle at 26% 84%, rgba(255, 139, 90, .7) 0 1px, transparent 2px) !important;
+  background-size: 170px 170px, 230px 230px, 210px 210px, 260px 260px !important;
+  opacity: .5 !important;
+  mask-image: none !important;
+}
+
+.orblitz-rainbow-arcade-shell::after {
+  background:
+    radial-gradient(ellipse at 50% 46%, transparent 0 27%, rgba(17, 21, 45, .18) 62%, rgba(10, 10, 28, .56) 100%),
+    linear-gradient(115deg, transparent 0 30%, rgba(255, 255, 255, .05) 45%, transparent 60%) !important;
+  opacity: 1 !important;
+  mask-image: none !important;
+  mix-blend-mode: normal !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-menu-masthead,
+.orblitz-rainbow-arcade-shell .orblitz-menu-corner-readout,
+.orblitz-rainbow-arcade-shell .orblitz-menu-footer {
+  display: none !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-title-lockup {
+  top: clamp(54px, 9vh, 100px) !important;
+  left: 50% !important;
+  right: auto !important;
+  width: min(900px, calc(100vw - 30px)) !important;
+  text-align: center !important;
+  transform: translateX(-50%) !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark {
+  justify-content: center !important;
+  font-size: clamp(3.7rem, 11vw, 8.6rem) !important;
+  letter-spacing: .04em !important;
+  line-height: .86 !important;
+  text-shadow: 0 9px 0 rgba(11, 12, 33, .72), 0 18px 32px rgba(7, 8, 25, .34) !important;
+  -webkit-text-stroke: 2px rgba(255, 255, 255, .12) !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark span {
+  background-image: none !important;
+  -webkit-text-fill-color: currentColor !important;
+  filter: none !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark span:nth-child(1),
+.orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark span:nth-child(7) {
+  color: #ff4f81 !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark span:nth-child(2) {
+  color: #ffd95b !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark span:nth-child(3) {
+  color: #5fd3ff !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark span:nth-child(4) {
+  color: #6fe5a5 !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark span:nth-child(5) {
+  color: #ff8b5a !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark span:nth-child(6) {
+  color: #b28cff !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-title-strap {
+  margin-top: 17px !important;
+  color: rgba(255, 247, 237, .82) !important;
+  font-size: clamp(.52rem, .85vw, .7rem) !important;
+  letter-spacing: .25em !important;
+  text-align: center !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-title-strap span {
+  color: #ffd95b !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-star-bank {
+  top: clamp(24px, 5vh, 46px) !important;
+  right: clamp(18px, 4vw, 58px) !important;
+  padding: 10px 14px !important;
+  border: 2px solid rgba(255, 217, 91, .86) !important;
+  border-radius: 14px !important;
+  background: rgba(29, 24, 60, .9) !important;
+  box-shadow: 5px 5px 0 rgba(10, 10, 28, .6), 0 0 24px rgba(255, 217, 91, .14) !important;
+  backdrop-filter: none !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-star-bank svg {
+  color: #ffd95b !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-menu-actions {
+  position: fixed !important;
+  inset: 0 !important;
+  display: block !important;
+  pointer-events: none !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage {
+  position: fixed !important;
+  top: 53% !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: 50% !important;
+  width: min(570px, calc(100vw - 34px)) !important;
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  padding: 0 !important;
+  transform: translate(-50%, -50%) !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-button {
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  height: 64px !important;
+  min-height: 0 !important;
+  padding: 10px 12px !important;
+  border: 0 !important;
+  border-radius: 14px !important;
+  color: #17152d !important;
+  box-shadow: 0 7px 0 rgba(11, 12, 33, .62), 0 12px 22px rgba(6, 7, 26, .2) !important;
+  backdrop-filter: none !important;
+  overflow: hidden !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-play,
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-arcade {
+  grid-column: 1 / -1 !important;
+  height: 86px !important;
+  color: #21152f !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-play {
+  background: linear-gradient(135deg, #ff4f81, #ff8b5a) !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-shop,
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-arcade {
+  background: linear-gradient(135deg, #ffd95b, #ffb45d) !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-inventory,
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-survival {
+  background: linear-gradient(135deg, #5fd3ff, #73a8ff) !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-trophies,
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-chill {
+  background: linear-gradient(135deg, #6fe5a5, #b6ed83) !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-settings,
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-gauntlet {
+  background: linear-gradient(135deg, #b28cff, #e09aff) !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-button::before {
+  height: 5px !important;
+  background: rgba(255, 255, 255, .72) !important;
+  opacity: .72 !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-button::after {
+  inset: 6px !important;
+  border: 2px solid rgba(255, 255, 255, .34) !important;
+  border-radius: 9px !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-button:hover,
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-button:focus-visible {
+  transform: translateY(-4px) !important;
+  border-color: transparent !important;
+  box-shadow: 0 11px 0 rgba(11, 12, 33, .62), 0 18px 26px rgba(6, 7, 26, .24) !important;
+  filter: saturate(1.1) brightness(1.05) !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-button:active,
+.orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-button[data-active="true"] {
+  transform: translateY(4px) !important;
+  box-shadow: 0 2px 0 rgba(11, 12, 33, .62) !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-command-icon {
+  color: inherit !important;
+  filter: none !important;
+}
+
+.orblitz-rainbow-arcade-shell .orblitz-command-copy,
+.orblitz-rainbow-arcade-shell .orblitz-command-label {
+  color: inherit !important;
+}
+
+@media (max-width: 700px) {
+  .orblitz-rainbow-arcade-shell .orblitz-aaa-title-lockup {
+    top: 86px !important;
+    width: calc(100vw - 24px) !important;
+  }
+
+  .orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark {
+    font-size: clamp(3.25rem, 16.5vw, 6rem) !important;
+  }
+
+  .orblitz-rainbow-arcade-shell .orblitz-title-strap {
+    margin-top: 13px !important;
+    font-size: .48rem !important;
+    letter-spacing: .18em !important;
+  }
+
+  .orblitz-rainbow-arcade-shell .orblitz-star-bank {
+    top: 18px !important;
+    right: 16px !important;
+    transform: scale(.86) !important;
+    transform-origin: top right !important;
+  }
+
+  .orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage {
+    top: auto !important;
+    right: 18px !important;
+    bottom: 72px !important;
+    left: 18px !important;
+    width: auto !important;
+    transform: none !important;
+    gap: 8px !important;
+  }
+
+  .orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-button {
+    height: 58px !important;
+    border-radius: 12px !important;
+  }
+
+  .orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-play,
+  .orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-arcade {
+    height: 72px !important;
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .orblitz-rainbow-arcade-shell .orblitz-aaa-title-lockup {
+    top: 34px !important;
+  }
+
+  .orblitz-rainbow-arcade-shell .orblitz-aaa-title-wordmark {
+    font-size: clamp(2.7rem, 10vw, 5.1rem) !important;
+  }
+
+  .orblitz-rainbow-arcade-shell .orblitz-title-strap {
+    margin-top: 7px !important;
+    font-size: .46rem !important;
+  }
+
+  .orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage {
+    top: 59% !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: 50% !important;
+    width: min(500px, calc(100vw - 28px)) !important;
+    transform: translate(-50%, -50%) !important;
+    gap: 6px !important;
+  }
+
+  .orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-button {
+    height: 43px !important;
+    padding: 6px 9px !important;
+  }
+
+  .orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-play,
+  .orblitz-rainbow-arcade-shell .orblitz-aaa-button-stage .orblitz-command-arcade {
+    height: 54px !important;
+  }
+}
+
 /* Active menu geometry must remain last so legacy compatibility selectors
    cannot pull the hero and action tray back into the same column. */
 .orblitz-title-lockup[data-menu-title="active"] {

@@ -546,7 +546,7 @@ export function StartupAnimation({
 
   return (
     <motion.div
-      className="orblitz-startup-shell fixed inset-0 z-[100] flex items-center justify-center overflow-hidden select-none"
+      className="orblitz-startup-shell orblitz-rainbow-arcade-shell fixed inset-0 z-[100] flex items-center justify-center overflow-hidden select-none"
       style={{
         cursor: "default",
       }}
@@ -554,22 +554,7 @@ export function StartupAnimation({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.45, ease: "easeOut" }}
     >
-      <header className="orblitz-menu-masthead" aria-label="Orblitz arena status">
-        <div className="orblitz-menu-brand">
-          <span className="orblitz-menu-brand-mark" aria-hidden="true">O</span>
-          <span><strong>ORBLITZ</strong><small>ARENA NETWORK / 01</small></span>
-        </div>
-        <div className="orblitz-menu-live" data-testid="status-menu-live" aria-live="polite">
-          <span className="orblitz-live-dot" aria-hidden="true" />
-          SYSTEMS LIVE
-        </div>
-      </header>
-
-      <div className="orblitz-menu-corner-readout" aria-hidden="true">
-        <span>SECTOR 09</span><span>THREAT INDEX // RISING</span>
-      </div>
-
-      {/* ── ORBLITZ TITLE — pinned at viewport center, never moves ─────── */}
+      {/* ── ORBLITZ TITLE — centered like a classic arcade title screen ─── */}
       <AnimatePresence>
         {showTitle && (
              <motion.div
@@ -648,7 +633,7 @@ export function StartupAnimation({
               transition={{ duration: 0.9, delay: animPhase === "title" ? 0.68 : 0.25, ease: "easeOut" }}
             />
             <div className="orblitz-title-strap" data-testid="text-menu-strap">
-              BREAK THE ORBIT <span>//</span> REWRITE THE SCORE
+              DROP IN <span>//</span> CHASE THE HIGH SCORE
             </div>
 
           </motion.div>
@@ -757,12 +742,6 @@ export function StartupAnimation({
           </motion.div>
         )}
       </AnimatePresence>
-
-      <footer className="orblitz-menu-footer" aria-label="Menu controls">
-        <span>PLAYER LINK STABLE</span>
-        <span className="orblitz-menu-footer-key">SELECT <b>ENTER</b><i /> BACK <b>ESC</b></span>
-        <span>BUILD 1.0.9 / ORBLITZTEAM</span>
-      </footer>
 
       {/* ── FULL-SCREEN WORLDS / LEVELS POPUP ───────────────────────────── */}
       <AnimatePresence mode="wait">
