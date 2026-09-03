@@ -821,8 +821,8 @@ export function StartupAnimation({
               padding: menuState === "settings" ? "0 clamp(10px, 3.5vw, 44px)" : 0,
               ...(menuState === "settings" ? {
                 top: "calc(50% + clamp(48px, 8vh, 72px))",
-                bottom: "auto",
-                maxHeight: "calc(50dvh - clamp(16px, 8vh, 72px))",
+                bottom: "clamp(10px, 1.5vh, 16px)",
+                maxHeight: "calc(50dvh - clamp(16px, 8vh, 72px) - clamp(10px, 1.5vh, 16px))",
                 overflowY: "auto" as const,
                 overscrollBehavior: "contain" as const,
                 paddingBottom: "clamp(8px, 2vh, 16px)",
