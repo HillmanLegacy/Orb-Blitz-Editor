@@ -2,7 +2,9 @@ import { Suspense, useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { BossVisual } from "@/components/game/BossVisual";
+import { MiniCrystalOrb } from "@/components/game/MiniCrystalOrb";
 import { MiniFireOrb } from "@/components/game/MiniFireOrb";
+import { MiniPlasmaOrb } from "@/components/game/MiniPlasmaOrb";
 import { MiniStarOrb } from "@/components/game/MiniStarOrb";
 import { BOSS_DEFEAT_PALETTES, MAIN_BOSS_TYPES, type MainBossType } from "@/components/game/BossDefeatPalette";
 
@@ -210,6 +212,82 @@ function World2MenuEnemy() {
   return (
     <group ref={groupRef} position={[0, -0.1, modelZ]} scale={0.38} renderOrder={25}>
       <MiniStarOrb radius={1} particleCount={20} showParticles showLight />
+    </group>
+  );
+}
+
+/** A fixed World 3 enemy showcase for the root menu Trophies target. */
+function World3MenuEnemy() {
+  const groupRef = useRef<THREE.Group>(null);
+  const raycaster = useMemo(() => new THREE.Raycaster(), []);
+  const ndc = useMemo(() => new THREE.Vector2(), []);
+  const { camera, size } = useThree();
+  const modelZ = 7.25;
+
+  useFrame(() => {
+    const group = groupRef.current;
+    if (!group || typeof document === "undefined" || size.width <= 0 || size.height <= 0) return;
+
+    const trophiesButton = document.querySelector<HTMLElement>('[data-testid="button-menu-trophies"]');
+    if (!trophiesButton) return;
+    const bounds = trophiesButton.getBoundingClientRect();
+    if (bounds.width <= 0 || bounds.height <= 0) return;
+
+    // Anchor the orb to the live Trophies text/button center so it keeps the
+    // same relative relationship through the responsive circular menu.
+    ndc.set(
+      (bounds.left + bounds.width / 2) / size.width * 2 - 1,
+      1 - (bounds.top + bounds.height / 2) / size.height * 2,
+    );
+    raycaster.setFromCamera(ndc, camera);
+    const directionZ = raycaster.ray.direction.z;
+    if (Math.abs(directionZ) < 0.0001) return;
+    const distance = (modelZ - raycaster.ray.origin.z) / directionZ;
+    group.position.copy(raycaster.ray.origin).addScaledVector(raycaster.ray.direction, distance);
+    group.position.z = modelZ;
+  });
+
+  return (
+    <group ref={groupRef} position={[0, -0.1, modelZ]} scale={0.38} renderOrder={25}>
+      <MiniCrystalOrb radius={1} showLight />
+    </group>
+  );
+}
+
+/** A fixed World 5 enemy showcase for the root menu Options target. */
+function World5MenuEnemy() {
+  const groupRef = useRef<THREE.Group>(null);
+  const raycaster = useMemo(() => new THREE.Raycaster(), []);
+  const ndc = useMemo(() => new THREE.Vector2(), []);
+  const { camera, size } = useThree();
+  const modelZ = 7.25;
+
+  useFrame(() => {
+    const group = groupRef.current;
+    if (!group || typeof document === "undefined" || size.width <= 0 || size.height <= 0) return;
+
+    const optionsButton = document.querySelector<HTMLElement>('[data-testid="button-menu-settings"]');
+    if (!optionsButton) return;
+    const bounds = optionsButton.getBoundingClientRect();
+    if (bounds.width <= 0 || bounds.height <= 0) return;
+
+    // Keep the World 5 model tied to the live Options text/button center,
+    // mirroring the Play preview's responsive relative positioning.
+    ndc.set(
+      (bounds.left + bounds.width / 2) / size.width * 2 - 1,
+      1 - (bounds.top + bounds.height / 2) / size.height * 2,
+    );
+    raycaster.setFromCamera(ndc, camera);
+    const directionZ = raycaster.ray.direction.z;
+    if (Math.abs(directionZ) < 0.0001) return;
+    const distance = (modelZ - raycaster.ray.origin.z) / directionZ;
+    group.position.copy(raycaster.ray.origin).addScaledVector(raycaster.ray.direction, distance);
+    group.position.z = modelZ;
+  });
+
+  return (
+    <group ref={groupRef} position={[0, -0.1, modelZ]} scale={0.38} renderOrder={25}>
+      <MiniPlasmaOrb radius={1} showLight />
     </group>
   );
 }
@@ -555,6 +633,8 @@ function ArcadeBossScene({
         <>
           <World1MenuEnemy />
           <World2MenuEnemy />
+          <World3MenuEnemy />
+          <World5MenuEnemy />
         </>
       )}
       <Suspense fallback={null}>
