@@ -3419,3 +3419,428 @@ canvas {
     margin-block: 0 auto;
   }
 }
+
+/* ── Orblitz command deck v2 ────────────────────────────────────────────────
+   The intro scene supplies the spectacle; this layer supplies the hierarchy.
+   The title stays the beacon, while a restrained console rail and a single
+   bottom deck make the next action obvious without covering the boss scene. */
+.orblitz-startup-shell {
+  isolation: isolate;
+  background: rgba(5, 7, 24, 0.08);
+}
+
+.orblitz-startup-shell::before,
+.orblitz-startup-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.orblitz-startup-shell::before {
+  z-index: 0;
+  background:
+    radial-gradient(ellipse at 50% 45%, transparent 22%, rgba(5, 7, 24, 0.12) 68%, rgba(3, 5, 19, 0.62) 100%),
+    linear-gradient(90deg, rgba(3, 7, 26, 0.26), transparent 24%, transparent 76%, rgba(3, 7, 26, 0.26));
+}
+
+.orblitz-startup-shell::after {
+  z-index: 1;
+  opacity: 0.34;
+  background-image:
+    linear-gradient(rgba(185, 233, 244, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(185, 233, 244, 0.04) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse at 50% 42%, black 0%, transparent 72%);
+}
+
+.orblitz-title-lockup {
+  top: 39% !important;
+  z-index: 12 !important;
+}
+
+.orblitz-title-wordmark {
+  font-family: var(--font-display) !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.11em !important;
+  text-shadow: 0 12px 34px rgba(5, 7, 24, 0.78), 0 0 24px rgba(143, 255, 224, 0.25) !important;
+}
+
+.orblitz-title-lockup .mt-3 {
+  height: 5px !important;
+  width: clamp(174px, 27vw, 300px) !important;
+  opacity: 0.82 !important;
+  box-shadow: 0 3px 0 rgba(5, 7, 24, 0.56), 0 0 20px rgba(0, 246, 255, 0.32) !important;
+}
+
+.orblitz-command-rail {
+  position: absolute;
+  top: clamp(18px, 4.5vh, 42px);
+  left: max(18px, env(safe-area-inset-left));
+  z-index: 4;
+  display: flex;
+  width: min(304px, calc(100vw - 220px));
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px 11px;
+  border-left: 2px solid var(--arcade-mint);
+  background: linear-gradient(105deg, rgba(9, 15, 38, 0.76), rgba(16, 13, 32, 0.22));
+  box-shadow: 8px 10px 24px rgba(3, 5, 20, 0.18), inset 1px 0 0 rgba(255,255,255,0.08);
+  backdrop-filter: blur(12px) saturate(1.08);
+  color: rgba(224, 249, 255, 0.74);
+  font: 700 0.55rem/1 var(--font-mono);
+  letter-spacing: 0.15em;
+  pointer-events: none;
+}
+
+.orblitz-command-rail-top,
+.orblitz-command-rail-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.orblitz-command-rail-top {
+  color: rgba(221, 250, 255, 0.9);
+  font-weight: 800;
+}
+
+.orblitz-command-rail-code {
+  color: rgba(167, 221, 235, 0.42);
+  font-size: 0.48rem;
+}
+
+.orblitz-command-rail-bottom {
+  color: rgba(167, 221, 235, 0.5);
+  font-size: 0.45rem;
+  letter-spacing: 0.11em;
+}
+
+.orblitz-command-rail-mark {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border: 1px solid var(--arcade-mint);
+  background: var(--arcade-mint);
+  box-shadow: 0 0 12px rgba(143, 255, 224, 0.76);
+  transform: rotate(45deg);
+}
+
+.orblitz-status-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin: 0 6px 1px 0;
+  border-radius: 50%;
+  background: var(--arcade-mint);
+  box-shadow: 0 0 9px rgba(143, 255, 224, 0.8);
+}
+
+.orblitz-button-stage[data-layout="root"],
+.orblitz-button-stage[data-layout="modes"] {
+  inset: auto !important;
+  left: 50% !important;
+  top: min(calc(50% + clamp(126px, 18vh, 174px)), calc(100dvh - 174px)) !important;
+  width: min(960px, calc(100vw - 64px)) !important;
+  height: auto !important;
+  min-height: 0;
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  transform: translateX(-50%) !important;
+  isolation: isolate;
+  pointer-events: none;
+}
+
+.orblitz-button-stage[data-layout="root"]::before,
+.orblitz-button-stage[data-layout="modes"]::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -16px -18px -14px;
+  border: 1px solid rgba(184, 234, 245, 0.15);
+  border-radius: 22px;
+  background:
+    linear-gradient(145deg, rgba(218, 251, 255, 0.08), rgba(7, 12, 38, 0.56) 45%, rgba(37, 14, 55, 0.32)),
+    linear-gradient(90deg, transparent, rgba(143, 255, 224, 0.04), transparent);
+  box-shadow: 0 26px 54px rgba(3, 5, 20, 0.34), inset 0 1px 0 rgba(255,255,255,0.1);
+  backdrop-filter: blur(14px) saturate(1.06);
+  pointer-events: none;
+}
+
+.orblitz-button-stage[data-layout="root"]::after,
+.orblitz-button-stage[data-layout="modes"]::after {
+  content: "SELECT  /  CONFIRM";
+  position: absolute;
+  right: 2px;
+  bottom: -27px;
+  color: rgba(167, 221, 235, 0.45);
+  font: 700 0.46rem/1 var(--font-mono);
+  letter-spacing: 0.23em;
+  pointer-events: none;
+}
+
+.orblitz-button-stage[data-layout="root"] .orblitz-command-button,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-button {
+  position: relative !important;
+  inset: auto !important;
+  left: auto !important;
+  top: auto !important;
+  translate: none !important;
+  width: auto !important;
+  height: clamp(68px, 8vw, 84px) !important;
+  min-height: 0;
+  padding: 12px 15px !important;
+  flex-direction: row !important;
+  justify-content: flex-start !important;
+  gap: 12px;
+  border: 1px solid color-mix(in srgb, currentColor 42%, rgba(217, 249, 255, 0.16)) !important;
+  border-radius: 14px !important;
+  background: linear-gradient(135deg, rgba(220, 252, 255, 0.12), color-mix(in srgb, currentColor 13%, rgba(13, 18, 44, 0.88)) 52%, rgba(7, 10, 29, 0.88)) !important;
+  box-shadow: 0 10px 18px rgba(3, 5, 20, 0.36), inset 0 1px 0 rgba(255,255,255,0.14) !important;
+  color: var(--arcade-copy) !important;
+  pointer-events: auto;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease !important;
+}
+
+.orblitz-button-stage[data-layout="root"] .orblitz-command-button::before,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-button::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+.orblitz-button-stage[data-layout="root"] .orblitz-command-play,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-arcade {
+  grid-column: 1 / -1;
+  height: clamp(78px, 10vw, 104px) !important;
+  justify-content: center !important;
+  gap: 15px;
+  border-color: rgba(143, 255, 224, 0.7) !important;
+  background:
+    linear-gradient(105deg, rgba(143, 255, 224, 0.24), rgba(42, 27, 75, 0.86) 54%, rgba(255, 142, 114, 0.2)),
+    repeating-linear-gradient(90deg, transparent 0 38px, rgba(255,255,255,0.025) 39px 40px) !important;
+  box-shadow: 0 16px 30px rgba(3, 5, 20, 0.42), 0 0 28px rgba(143, 255, 224, 0.16), inset 0 1px 0 rgba(255,255,255,0.25) !important;
+  color: var(--arcade-mint) !important;
+}
+
+.orblitz-button-stage[data-layout="root"] .orblitz-command-play .orblitz-command-icon,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-arcade .orblitz-command-icon {
+  width: clamp(32px, 4vw, 48px);
+  height: clamp(32px, 4vw, 48px);
+  padding: 7px;
+  border: 1px solid currentColor;
+  border-radius: 11px;
+  background: rgba(143, 255, 224, 0.1);
+}
+
+.orblitz-command-icon {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+}
+
+.orblitz-command-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+}
+
+.orblitz-command-kicker {
+  overflow: hidden;
+  max-width: 100%;
+  color: rgba(206, 239, 245, 0.5);
+  font: 700 0.44rem/1 var(--font-mono);
+  letter-spacing: 0.13em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.orblitz-command-label {
+  color: currentColor;
+}
+
+.orblitz-command-detail {
+  overflow: hidden;
+  max-width: 100%;
+  color: rgba(226, 242, 246, 0.5);
+  font: 700 0.43rem/1 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.orblitz-command-button:hover,
+.orblitz-command-button:focus-visible {
+  filter: brightness(1.16) saturate(1.14);
+}
+
+.orblitz-button-stage .orblitz-command-button:hover,
+.orblitz-button-stage .orblitz-command-button:focus-visible {
+  transform: translateY(-3px) !important;
+  border-color: currentColor !important;
+  box-shadow: 0 15px 26px rgba(3, 5, 20, 0.44), 0 0 22px color-mix(in srgb, currentColor 26%, transparent), inset 0 1px 0 rgba(255,255,255,0.2) !important;
+}
+
+.orblitz-button-stage .orblitz-command-button:active,
+.orblitz-button-stage .orblitz-command-button[data-active="true"] {
+  transform: translateY(1px) scale(0.985) !important;
+  filter: brightness(1.24) saturate(1.22);
+}
+
+.orblitz-button-stage .orblitz-command-button:focus-visible {
+  outline: 2px solid rgba(230, 253, 255, 0.96);
+  outline-offset: 4px;
+}
+
+.orblitz-button-stage .orblitz-command-button[data-active="true"]::after {
+  border-color: currentColor !important;
+  opacity: 0.78 !important;
+}
+
+@media (max-width: 700px) {
+  .orblitz-command-rail {
+    top: max(12px, env(safe-area-inset-top));
+    left: max(12px, env(safe-area-inset-left));
+    width: min(238px, calc(100vw - 150px));
+    padding: 9px 10px 8px;
+    gap: 6px;
+    font-size: 0.47rem;
+  }
+
+  .orblitz-command-rail-bottom {
+    font-size: 0.39rem;
+  }
+
+  .orblitz-command-rail-code {
+    font-size: 0.4rem;
+  }
+
+  .orblitz-title-lockup {
+    top: 31% !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"],
+  .orblitz-button-stage[data-layout="modes"] {
+    top: min(calc(50% + clamp(112px, 17vh, 150px)), calc(100dvh - 202px)) !important;
+    width: min(560px, calc(100vw - 28px)) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .orblitz-button-stage[data-layout="root"]::before,
+  .orblitz-button-stage[data-layout="modes"]::before {
+    inset: -10px -8px -11px;
+    border-radius: 18px;
+  }
+
+  .orblitz-button-stage[data-layout="root"] .orblitz-command-button,
+  .orblitz-button-stage[data-layout="modes"] .orblitz-command-button {
+    height: 58px !important;
+    padding: 8px 10px !important;
+    gap: 8px;
+    border-radius: 12px !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"] .orblitz-command-play,
+  .orblitz-button-stage[data-layout="modes"] .orblitz-command-arcade {
+    height: 70px !important;
+    gap: 10px;
+  }
+
+  .orblitz-command-icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .orblitz-command-detail {
+    font-size: 0.36rem;
+    letter-spacing: 0.04em;
+  }
+
+  .orblitz-command-kicker {
+    font-size: 0.37rem;
+  }
+
+  .orblitz-button-stage .orblitz-command-label {
+    font-size: 0.56rem !important;
+  }
+}
+
+@media (max-width: 700px) and (orientation: portrait) and (max-height: 680px) {
+  .orblitz-title-lockup {
+    top: 26% !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"],
+  .orblitz-button-stage[data-layout="modes"] {
+    top: calc(50% + 82px) !important;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .orblitz-command-rail {
+    top: max(8px, env(safe-area-inset-top));
+    padding-block: 7px;
+    gap: 5px;
+  }
+
+  .orblitz-title-lockup {
+    top: 25% !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"],
+  .orblitz-button-stage[data-layout="modes"] {
+    top: calc(50% + 28px) !important;
+    width: min(860px, calc(100vw - 40px)) !important;
+    gap: 6px;
+  }
+
+  .orblitz-button-stage[data-layout="root"] .orblitz-command-button,
+  .orblitz-button-stage[data-layout="modes"] .orblitz-command-button {
+    height: 42px !important;
+    padding-block: 5px !important;
+    border-radius: 10px !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"] .orblitz-command-play,
+  .orblitz-button-stage[data-layout="modes"] .orblitz-command-arcade {
+    height: 50px !important;
+  }
+
+  .orblitz-command-copy {
+    gap: 2px;
+  }
+
+  .orblitz-command-detail {
+    display: none;
+  }
+
+  .orblitz-command-kicker {
+    display: none;
+  }
+
+  .orblitz-button-stage .orblitz-command-label {
+    font-size: 0.5rem !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orblitz-startup-shell::before,
+  .orblitz-startup-shell::after,
+  .orblitz-command-rail,
+  .orblitz-command-button {
+    transition-duration: 0.01ms !important;
+  }
+}
