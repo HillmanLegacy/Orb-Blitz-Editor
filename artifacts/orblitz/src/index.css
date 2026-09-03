@@ -6407,6 +6407,63 @@ input:focus-visible,
   }
 }
 
+/* SHOP is the secondary-action counterpart to PLAY: the same oversized,
+   glossy arcade lettering, with each glyph sampling a different part of the
+   World 2 star-enemy texture. */
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-shop-letter-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0px, .18vw, 2px);
+  font-family: var(--font-display), "Arial Black", sans-serif;
+  font-size: clamp(1.05rem, 2.4vw, 1.8rem);
+  font-weight: 900;
+  line-height: .9;
+  letter-spacing: .08em;
+  filter:
+    drop-shadow(0 4px 0 rgba(11, 12, 33, .68))
+    drop-shadow(0 0 10px rgba(255, 255, 255, .34));
+  pointer-events: none;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-shop-letter-label span {
+  display: inline-block;
+  padding: 0 .04em;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  -webkit-text-stroke: 3px rgba(255, 190, 78, .84);
+  background-image: url("/world2-star-texture.svg");
+  background-repeat: no-repeat;
+  background-size: 420% 220%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  text-shadow:
+    0 2px 0 rgba(11, 12, 33, .72),
+    0 0 10px rgba(240, 248, 255, .34);
+  animation: none !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-shop-letter-label span:nth-child(1) {
+  background-position: 0% 56%;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-shop-letter-label span:nth-child(2) {
+  background-position: 34% 44%;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-shop-letter-label span:nth-child(3) {
+  background-position: 67% 56%;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-shop-letter-label span:nth-child(4) {
+  background-position: 100% 44%;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-command-shop:hover .orblitz-shop-letter-label,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-command-shop:focus-visible .orblitz-shop-letter-label {
+  transform: translateY(-5px) scale(1.04);
+}
+
 /* Root secondary actions use the same fire-letter language as PLAY, without
    retaining the old colored tile containers. The transparent buttons remain
    in the grid so their existing click targets and navigation are unchanged. */
@@ -6539,7 +6596,8 @@ input:focus-visible,
 
 /* Sleek glossy PLAY wordmark: preserve the arcade colors without the
    rounded bubble treatment, and double the visible label size. */
-.orblitz-rainbow-arcade-shell .orblitz-play-bubble-label {
+.orblitz-rainbow-arcade-shell .orblitz-play-bubble-label,
+.orblitz-rainbow-arcade-shell .orblitz-shop-letter-label {
   font-family: var(--font-display), "Arial Black", sans-serif;
   font-weight: 900;
   letter-spacing: .08em;
