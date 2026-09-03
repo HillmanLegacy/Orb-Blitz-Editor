@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useMemo } from "react";
 import { useShop } from "@/lib/stores/useShop";
+import { useModalAccessibility } from "@/components/ui/useModalAccessibility";
 import {
   getTrophyDefinition,
   TROPHY_CATALOGUE,
@@ -34,12 +35,17 @@ export function TrophyCollection({ onExitComplete }: { onExitComplete?: () => vo
     () => selectedTitle ? getTrophyDefinition(selectedTitle) : null,
     [selectedTitle],
   );
+  const dialogRef = useModalAccessibility<HTMLDivElement>(
+    trophiesOpen,
+    closeTrophies,
+    '[data-testid="button-menu-trophies"]',
+  );
 
   return (
     <AnimatePresence onExitComplete={onExitComplete}>
       {trophiesOpen && (
         <motion.div
-          className="fixed inset-0 z-[60] flex items-center justify-center"
+          className="fixed inset-0 z-[60] flex items-center justify-center orblitz-trophy-screen"
           style={{ padding: "clamp(10px, 2.5vw, 20px)" }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -57,11 +63,13 @@ export function TrophyCollection({ onExitComplete }: { onExitComplete?: () => vo
             role="dialog"
             aria-modal="true"
             aria-labelledby="orblitz-trophy-title"
-            className="relative flex flex-col w-full overflow-hidden"
+            ref={dialogRef}
+            tabIndex={-1}
+            className="relative flex flex-col w-full overflow-hidden orblitz-trophy-dialog"
             style={{
               maxWidth: "min(760px, 100%)",
-              height: "min(calc(100vh - 20px), 720px)",
-              maxHeight: "calc(100vh - 20px)",
+              height: "min(calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 20px), 720px)",
+              maxHeight: "calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 20px)",
               background: "rgba(4,4,18,0.98)",
               border: "1px solid rgba(251,191,36,0.24)",
               borderRadius: "clamp(16px, 2.5vw, 24px)",

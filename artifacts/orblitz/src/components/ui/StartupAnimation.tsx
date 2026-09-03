@@ -668,16 +668,19 @@ export function StartupAnimation({
       {/* ── ORBLITZ TITLE — pinned at viewport center, never moves ─────── */}
       <AnimatePresence>
         {showTitle && (
-             <motion.div className="absolute z-10 text-center orblitz-title-lockup"
-            style={{ top: "50%", left: 0, right: 0 }}
+             <motion.div
+            className="absolute z-10 text-center orblitz-title-lockup"
+            data-menu-title={showMenu ? "active" : "intro"}
+            style={{ top: showMenu ? "clamp(58px, 9vh, 104px)" : "50%", left: 0, right: 0 }}
             initial={{ opacity: 0, scale: 0.92, y: "-50%" }}
-             animate={{ opacity: showTitle ? 1 : 0, scale: showTitle ? 1 : 0.92, y: "-50%" }}
+             animate={{ opacity: showTitle ? 1 : 0, scale: showTitle ? 1 : 0.92, y: showMenu ? 0 : "-50%" }}
             exit={{ opacity: 0, scale: 0.8, y: "-50%" }}
             transition={{ duration: showMenu ? 0.45 : 0.2, delay: showMenu ? MENU_TITLE_REVEAL_DELAY : 0, ease: [0.22, 0.61, 0.36, 1] }}
           >
             {/* One persistent title node: the reveal becomes the interactive menu title in place. */}
             <motion.h1
                className={`font-black tracking-widest flex items-center justify-center orblitz-title-wordmark${showMenu ? "" : " pointer-events-none"}`}
+              aria-label="Orblitz"
               style={{ fontSize: "clamp(3.5rem, 11vw, 7rem)", lineHeight: 1,
                 fontFamily: "Arial Black, Impact, sans-serif", fontWeight: 900, fontStyle: "normal",
                 letterSpacing: "0.075em", transform: "none",
@@ -749,7 +752,7 @@ export function StartupAnimation({
       <AnimatePresence>
         {showMenu && (
           <motion.div
-            className="absolute z-30 pointer-events-none"
+            className="absolute z-30 pointer-events-none orblitz-star-bank"
             aria-label={`${shopStars} stars`}
             style={{
               top: "clamp(16px, 4vh, 38px)",
@@ -814,7 +817,7 @@ export function StartupAnimation({
         {showMenu && !isContent && (
           <motion.div
             key={menuState}
-            className="absolute inset-0 z-20 orblitz-command-layer"
+            className="absolute inset-0 z-20 orblitz-command-layer orblitz-menu-actions"
             data-menu-state={menuState}
             style={{
               pointerEvents: menuState === "settings" ? "auto" : "none",
@@ -854,6 +857,8 @@ export function StartupAnimation({
           <motion.div
             key={menuState}
             className={`fixed inset-0 z-[150] flex flex-col orblitz-selection-screen ${menuState === "worlds" ? "orblitz-world-select" : ""}`}
+            role="main"
+            aria-label={menuState === "worlds" ? "World select" : "Level select"}
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.96 }}

@@ -263,7 +263,7 @@ export function GameOver({ onLevelSelect, onMainMenu }: GameOverProps) {
   const titleText = gameMode === "gauntlet" ? "GAUNTLET OVER" : "GAME OVER";
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto bg-black pointer-events-auto select-none"
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto bg-black pointer-events-auto select-none orblitz-result-screen orblitz-game-over-screen"
       style={{ padding: "clamp(8px,2vh,18px) clamp(10px,4vw,32px)" }}>
 
       {/* Background radial glow */}
@@ -278,7 +278,7 @@ export function GameOver({ onLevelSelect, onMainMenu }: GameOverProps) {
 
       {/* Glass card */}
       <motion.div
-        className="relative z-10 w-full flex flex-col items-center"
+        className="relative z-10 w-full flex flex-col items-center orblitz-result-card"
         style={{ maxWidth: "clamp(320px,92vw,520px)", maxHeight: "calc(100dvh - 16px)", gap: "clamp(4px,1.15vh,9px)", overflowY: "auto", scrollbarWidth: "thin" }}
         initial={{ opacity: 0, scale: 0.88, y: 24 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}

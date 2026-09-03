@@ -50,6 +50,15 @@ export function ArcadeComplete() {
   return (
     <motion.div
       className="orblitz-arcade-complete fixed inset-0 z-50 flex items-center justify-center overflow-y-auto cursor-pointer select-none"
+      role="button"
+      tabIndex={0}
+      aria-label="Return to menu"
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          handleTap();
+        }
+      }}
       onClick={handleTap}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
