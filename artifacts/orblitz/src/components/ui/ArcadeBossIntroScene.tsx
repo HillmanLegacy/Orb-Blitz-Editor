@@ -125,6 +125,15 @@ function lerp(from: number, to: number, progress: number): number {
   return from + (to - from) * progress;
 }
 
+function applyMenuEnemyFloat(group: THREE.Group, elapsed: number, phase: number): void {
+  const t = elapsed * 0.72 + phase;
+  group.position.x += Math.sin(t * 0.92) * 0.065;
+  group.position.y += Math.cos(t * 0.76 + 0.7) * 0.05;
+  group.rotation.z = Math.sin(t * 0.58 + phase) * 0.028;
+  group.rotation.x = Math.sin(t * 0.43 + phase * 1.3) * 0.022;
+  group.rotation.y = Math.cos(t * 0.37 + phase * 0.8) * 0.026;
+}
+
 function getWorldCardAnchor(world: number): { x: number; y: number } | null {
   if (typeof document === "undefined" || typeof window === "undefined") return null;
   const card = document.querySelector<HTMLElement>(`[data-testid="button-world-${world}"]`);
@@ -149,7 +158,7 @@ function World1MenuEnemy() {
   const { camera, size } = useThree();
   const modelZ = 7.25;
 
-  useFrame(() => {
+  useFrame((state) => {
     const group = groupRef.current;
     if (!group || typeof document === "undefined" || size.width <= 0 || size.height <= 0) return;
 
@@ -170,6 +179,7 @@ function World1MenuEnemy() {
     const distance = (modelZ - raycaster.ray.origin.z) / directionZ;
     group.position.copy(raycaster.ray.origin).addScaledVector(raycaster.ray.direction, distance);
     group.position.z = modelZ;
+    applyMenuEnemyFloat(group, state.clock.getElapsedTime(), 0);
   });
 
   return (
@@ -187,7 +197,7 @@ function World2MenuEnemy() {
   const { camera, size } = useThree();
   const modelZ = 7.25;
 
-  useFrame(() => {
+  useFrame((state) => {
     const group = groupRef.current;
     if (!group || typeof document === "undefined" || size.width <= 0 || size.height <= 0) return;
 
@@ -208,6 +218,7 @@ function World2MenuEnemy() {
     const distance = (modelZ - raycaster.ray.origin.z) / directionZ;
     group.position.copy(raycaster.ray.origin).addScaledVector(raycaster.ray.direction, distance);
     group.position.z = modelZ;
+    applyMenuEnemyFloat(group, state.clock.getElapsedTime(), 1.4);
   });
 
   return (
@@ -225,7 +236,7 @@ function World3MenuEnemy() {
   const { camera, size } = useThree();
   const modelZ = 7.25;
 
-  useFrame(() => {
+  useFrame((state) => {
     const group = groupRef.current;
     if (!group || typeof document === "undefined" || size.width <= 0 || size.height <= 0) return;
 
@@ -246,6 +257,7 @@ function World3MenuEnemy() {
     const distance = (modelZ - raycaster.ray.origin.z) / directionZ;
     group.position.copy(raycaster.ray.origin).addScaledVector(raycaster.ray.direction, distance);
     group.position.z = modelZ;
+    applyMenuEnemyFloat(group, state.clock.getElapsedTime(), 2.8);
   });
 
   return (
@@ -263,7 +275,7 @@ function World5MenuEnemy() {
   const { camera, size } = useThree();
   const modelZ = 7.25;
 
-  useFrame(() => {
+  useFrame((state) => {
     const group = groupRef.current;
     if (!group || typeof document === "undefined" || size.width <= 0 || size.height <= 0) return;
 
@@ -284,6 +296,7 @@ function World5MenuEnemy() {
     const distance = (modelZ - raycaster.ray.origin.z) / directionZ;
     group.position.copy(raycaster.ray.origin).addScaledVector(raycaster.ray.direction, distance);
     group.position.z = modelZ;
+    applyMenuEnemyFloat(group, state.clock.getElapsedTime(), 4.2);
   });
 
   return (
@@ -301,7 +314,7 @@ function World6MenuEnemy() {
   const { camera, size } = useThree();
   const modelZ = 7.25;
 
-  useFrame(() => {
+  useFrame((state) => {
     const group = groupRef.current;
     if (!group || typeof document === "undefined" || size.width <= 0 || size.height <= 0) return;
 
@@ -322,6 +335,7 @@ function World6MenuEnemy() {
     const distance = (modelZ - raycaster.ray.origin.z) / directionZ;
     group.position.copy(raycaster.ray.origin).addScaledVector(raycaster.ray.direction, distance);
     group.position.z = modelZ;
+    applyMenuEnemyFloat(group, state.clock.getElapsedTime(), 5.6);
   });
 
   return (
