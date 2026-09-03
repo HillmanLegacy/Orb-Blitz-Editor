@@ -7084,3 +7084,23 @@ input:focus-visible,
     --orbit-radius: clamp(94.3px, 14.042vw, 136.4px);
   }
 }
+
+/* Match PLAY's text-to-orb relationship: PLAY is positioned above the
+   button/orb center instead of being vertically centered in its button. */
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-root-letter-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, calc(-50% - 16px)) scale(.6) !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-command-shop:hover .orblitz-root-letter-label,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-command-shop:focus-visible .orblitz-root-letter-label,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-command-inventory:hover .orblitz-root-letter-label,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-command-inventory:focus-visible .orblitz-root-letter-label,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-command-trophies:hover .orblitz-root-letter-label,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-command-trophies:focus-visible .orblitz-root-letter-label,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-command-settings:hover .orblitz-root-letter-label,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-command-settings:focus-visible .orblitz-root-letter-label {
+  transform: translate(-50%, calc(-50% - 21px)) scale(.624) !important;
+}
