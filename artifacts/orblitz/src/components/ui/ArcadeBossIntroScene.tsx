@@ -3,6 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { BossVisual } from "@/components/game/BossVisual";
 import { MiniCrystalOrb } from "@/components/game/MiniCrystalOrb";
+import { MiniDiamondOrb } from "@/components/game/MiniDiamondOrb";
 import { MiniFireOrb } from "@/components/game/MiniFireOrb";
 import { MiniPlasmaOrb } from "@/components/game/MiniPlasmaOrb";
 import { MiniStarOrb } from "@/components/game/MiniStarOrb";
@@ -216,7 +217,7 @@ function World2MenuEnemy() {
   );
 }
 
-/** A fixed World 3 enemy showcase for the root menu Trophies target. */
+/** A fixed World 3 enemy showcase for the root menu Gear target. */
 function World3MenuEnemy() {
   const groupRef = useRef<THREE.Group>(null);
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
@@ -228,12 +229,12 @@ function World3MenuEnemy() {
     const group = groupRef.current;
     if (!group || typeof document === "undefined" || size.width <= 0 || size.height <= 0) return;
 
-    const trophiesButton = document.querySelector<HTMLElement>('[data-testid="button-menu-trophies"]');
-    if (!trophiesButton) return;
-    const bounds = trophiesButton.getBoundingClientRect();
+    const gearButton = document.querySelector<HTMLElement>('[data-testid="button-menu-inventory"]');
+    if (!gearButton) return;
+    const bounds = gearButton.getBoundingClientRect();
     if (bounds.width <= 0 || bounds.height <= 0) return;
 
-    // Anchor the orb to the live Trophies text/button center so it keeps the
+    // Anchor the orb to the live Gear text/button center so it keeps the
     // same relative relationship through the responsive circular menu.
     ndc.set(
       (bounds.left + bounds.width / 2) / size.width * 2 - 1,
@@ -288,6 +289,44 @@ function World5MenuEnemy() {
   return (
     <group ref={groupRef} position={[0, -0.1, modelZ]} scale={0.38} renderOrder={25}>
       <MiniPlasmaOrb radius={1} showLight />
+    </group>
+  );
+}
+
+/** A fixed World 6 enemy showcase for the root menu Trophies target. */
+function World6MenuEnemy() {
+  const groupRef = useRef<THREE.Group>(null);
+  const raycaster = useMemo(() => new THREE.Raycaster(), []);
+  const ndc = useMemo(() => new THREE.Vector2(), []);
+  const { camera, size } = useThree();
+  const modelZ = 7.25;
+
+  useFrame(() => {
+    const group = groupRef.current;
+    if (!group || typeof document === "undefined" || size.width <= 0 || size.height <= 0) return;
+
+    const trophiesButton = document.querySelector<HTMLElement>('[data-testid="button-menu-trophies"]');
+    if (!trophiesButton) return;
+    const bounds = trophiesButton.getBoundingClientRect();
+    if (bounds.width <= 0 || bounds.height <= 0) return;
+
+    // Keep the World 6 model tied to the live Trophies text/button center,
+    // mirroring the Play preview's responsive relative positioning.
+    ndc.set(
+      (bounds.left + bounds.width / 2) / size.width * 2 - 1,
+      1 - (bounds.top + bounds.height / 2) / size.height * 2,
+    );
+    raycaster.setFromCamera(ndc, camera);
+    const directionZ = raycaster.ray.direction.z;
+    if (Math.abs(directionZ) < 0.0001) return;
+    const distance = (modelZ - raycaster.ray.origin.z) / directionZ;
+    group.position.copy(raycaster.ray.origin).addScaledVector(raycaster.ray.direction, distance);
+    group.position.z = modelZ;
+  });
+
+  return (
+    <group ref={groupRef} position={[0, -0.1, modelZ]} scale={0.38} renderOrder={25}>
+      <MiniDiamondOrb radius={1} particleCount={16} showParticles showLight />
     </group>
   );
 }
@@ -635,6 +674,7 @@ function ArcadeBossScene({
           <World2MenuEnemy />
           <World3MenuEnemy />
           <World5MenuEnemy />
+          <World6MenuEnemy />
         </>
       )}
       <Suspense fallback={null}>
