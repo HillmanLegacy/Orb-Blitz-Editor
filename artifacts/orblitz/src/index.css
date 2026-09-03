@@ -6034,6 +6034,25 @@ input:focus-visible,
   opacity: 0 !important;
 }
 
+/* The direct-start menu keeps the fire-orb showcase visible through the
+   action tray. Older button-stage rules create a dark isolated glow layer
+   behind the buttons, so remove that compositor layer for root only. */
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage::before,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage::after {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  filter: none !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage::before,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage::after {
+  display: none !important;
+  content: none !important;
+}
+
 .orblitz-rainbow-arcade-shell::before {
   background:
     radial-gradient(circle at 18% 26%, rgba(255, 217, 91, .75) 0 1px, transparent 2px),
