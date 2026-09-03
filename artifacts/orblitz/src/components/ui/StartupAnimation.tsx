@@ -265,7 +265,6 @@ function useTitleRefraction(
 interface BtnDef {
   id: string; icon: React.ReactNode; label: string;
   color: string; shadow: string; action: () => void; hideLabel?: boolean;
-  kicker?: string; detail?: string;
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -287,7 +286,7 @@ export function StartupAnimation({
 
   const { playOrbWhoosh, playOrbConverge, playTitleReveal, playLevelSelect, isMuted, toggleMute, volume, setVolume, brightness, setBrightness, startMenuBgm, stopMenuBgm } = useAudio();
   const { openShop, openInventory, openTrophies, activateDevMode, coins: shopStars, devMode } = useShop();
-  const { setGameMode, startLoading, highScore } = useMagicOrb();
+  const { setGameMode, startLoading } = useMagicOrb();
   const graphicsPreset = useGraphicsPreset();
   const titleLetterRefs = useRef<Array<HTMLSpanElement | null>>([]);
   useTitleRefraction(titleLetterRefs, animPhase);
@@ -371,17 +370,17 @@ export function StartupAnimation({
 
     switch (menuState) {
        case "root": return [
-         { id:"play",      icon:<IconPlay />,     label:"PLAY",     kicker:"START RUN", detail:"CHOOSE A MODE", color:"#8fffe0", shadow:"rgba(143,255,224,0.34)", action: () => { btn("play");      setMenuState("modes");    } },
-         { id:"shop",      icon:<IconShop />,     label:"SHOP",     kicker:"ARMORY", detail:"UPGRADE YOUR KIT", color:"#ff8e72", shadow:"rgba(255,142,114,0.3)", action: () => { btn("shop");      openShop();               } },
-         { id:"inventory", icon:<IconGear />,     label:"GEAR",     kicker:"LOADOUT", detail:"TUNE YOUR GEAR", color:"#bba1ff", shadow:"rgba(187,161,255,0.3)", action: () => { btn("inventory"); openInventory();          } },
-         { id:"trophies",  icon:<IconTrophy />,   label:"RECORDS",  kicker:"ARCHIVE", detail:"CHASE THE BOARD", color:"#e9dd85", shadow:"rgba(233,221,133,0.24)", action: () => { btn("trophies"); openTrophies(); } },
-         { id:"settings",  icon:<IconSettings />, label:"SETTINGS", kicker:"SYSTEM", detail:"AUDIO / DISPLAY", color:"#9bdcff", shadow:"rgba(155,220,255,0.26)", action: () => { btn("settings");  setMenuState("settings"); } },
+         { id:"play",      icon:<IconPlay />,     label:"PLAY",     color:"#8fffe0", shadow:"rgba(143,255,224,0.34)", action: () => { btn("play");      setMenuState("modes");    } },
+         { id:"shop",      icon:<IconShop />,     label:"SHOP",     color:"#ff8e72", shadow:"rgba(255,142,114,0.3)", action: () => { btn("shop");      openShop();               } },
+         { id:"inventory", icon:<IconGear />,     label:"GEAR",     color:"#bba1ff", shadow:"rgba(187,161,255,0.3)", action: () => { btn("inventory"); openInventory();          } },
+         { id:"trophies",  icon:<IconTrophy />,   label:"RECORDS",  color:"#e9dd85", shadow:"rgba(233,221,133,0.24)", action: () => { btn("trophies"); openTrophies(); } },
+         { id:"settings",  icon:<IconSettings />, label:"SETTINGS", color:"#9bdcff", shadow:"rgba(155,220,255,0.26)", action: () => { btn("settings");  setMenuState("settings"); } },
       ];
       case "modes": return [
-         { id:"arcade",    icon:<IconArcade />,   label:"ARCADE",   kicker:"CAMPAIGN", detail:"WORLDS / RECORD CHASE", color:"#ff2bd6", shadow:"rgba(255,43,214,0.44)", action: () => { btn("arcade"); setMenuState("worlds"); }  },
-         { id:"chill",     icon:<IconChill />,    label:"CHILL",    kicker:"LOW PRESSURE", detail:"FLOAT & FIND FLOW", color:"#9b5cff", shadow:"rgba(155,92,255,0.44)", action: () => handleStartMode("chill")     },
-         { id:"survival",  icon:<IconSurvive />,  label:"SURVIVAL", kicker:"ENDURANCE", detail:"HOW LONG CAN YOU HOLD?", color:"#00f6ff", shadow:"rgba(0,246,255,0.4)",  action: () => handleStartMode("survival")  },
-         { id:"gauntlet",  icon:<IconGauntlet />, label:"GAUNTLET", kicker:"HARDLINE", detail:"NO ROOM FOR ERROR", color:"#ffe600", shadow:"rgba(255,230,0,0.38)",  action: () => handleStartMode("gauntlet")  },
+         { id:"arcade",    icon:<IconArcade />,   label:"ARCADE",   color:"#ff2bd6", shadow:"rgba(255,43,214,0.44)", action: () => { btn("arcade"); setMenuState("worlds"); }  },
+         { id:"chill",     icon:<IconChill />,    label:"CHILL",    color:"#9b5cff", shadow:"rgba(155,92,255,0.44)", action: () => handleStartMode("chill")     },
+         { id:"survival",  icon:<IconSurvive />,  label:"SURVIVAL", color:"#00f6ff", shadow:"rgba(0,246,255,0.4)",  action: () => handleStartMode("survival")  },
+         { id:"gauntlet",  icon:<IconGauntlet />, label:"GAUNTLET", color:"#ffe600", shadow:"rgba(255,230,0,0.38)",  action: () => handleStartMode("gauntlet")  },
         back("BACK", () => { btn("back"); setMenuState("root"); }),
       ];
       case "settings": return [
@@ -810,7 +809,7 @@ export function StartupAnimation({
         )}
       </AnimatePresence>
 
-      {/* ── COMMAND DECK (root / modes) — title owns the center ─────────── */}
+      {/* ── MENU ACTIONS (root / modes) — title owns the center ─────────── */}
       <AnimatePresence mode="sync">
         {showMenu && !isContent && (
           <motion.div
@@ -835,24 +834,6 @@ export function StartupAnimation({
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2, delay: MENU_NAVIGATION_DELAY, ease: [0.22, 0.61, 0.36, 1] }}
           >
-             {(menuState === "root" || menuState === "modes") && (
-               <motion.div
-                 className="orblitz-command-rail"
-                 initial={{ opacity: 0, y: 8 }}
-                 animate={{ opacity: 1, y: 0 }}
-                 transition={{ delay: MENU_NAVIGATION_DELAY + 0.04, duration: 0.28 }}
-               >
-                 <div className="orblitz-command-rail-top">
-                   <span className="orblitz-command-rail-mark" aria-hidden="true" />
-                   <span>{menuState === "root" ? "COMMAND DECK" : "MODE SELECT"}</span>
-                   <span className="orblitz-command-rail-code">ORBLITZ // {menuState === "root" ? "01" : "02"}</span>
-                 </div>
-                 <div className="orblitz-command-rail-bottom">
-                   <span><i className="orblitz-status-dot" /> SYSTEMS ONLINE</span>
-                   <span>{highScore > 0 ? `BEST RUN ${highScore.toLocaleString()}` : "NO RUN LOGGED"}</span>
-                 </div>
-               </motion.div>
-             )}
             {menuState === "settings"
               ? <SettingsButtonRow
                   isMuted={isMuted} toggleMute={toggleMute}
@@ -999,13 +980,11 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false }: Butt
               filter: `drop-shadow(0 0 7px ${b.color}88) drop-shadow(2px 2px 0 rgba(3,7,26,0.55))`,
             }}>{b.icon}</span>
             {!b.hideLabel && <span className="orblitz-command-copy">
-              {b.kicker && <span className="orblitz-command-kicker">{b.kicker}</span>}
               <span className="orblitz-command-label" style={{
                 fontSize: labelSz, fontWeight: 900,
                 letterSpacing: "0.12em", lineHeight: 1, opacity: 0.96,
                 fontFamily: "var(--font-display)",
               }}>{b.label}</span>
-              {b.detail && <span className="orblitz-command-detail">{b.detail}</span>}
             </span>}
           </motion.button>
         );
