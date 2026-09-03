@@ -547,6 +547,7 @@ export function StartupAnimation({
   return (
     <motion.div
       className="orblitz-startup-shell orblitz-rainbow-arcade-shell fixed inset-0 z-[100] flex items-center justify-center overflow-hidden select-none"
+      data-menu-state={menuState}
       style={{
         cursor: "default",
       }}

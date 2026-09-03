@@ -462,6 +462,7 @@ export function GameScene({
   const backgroundEnabled = usePerformanceFeature("background");
   const foregroundIntroBosses = introBossPhase === "title" || introBossPhase === "waiting";
   const worldBossPreview = introBossPhase === "menu" && introBossPresentation === "worlds";
+  const rootMenuPreview = introBossPhase === "menu" && introBossPresentation === "menu";
   const introBossesInFront = foregroundIntroBosses || worldBossPreview;
 
   if (!webglAvailable) return <WebGLUnavailable />;
@@ -495,7 +496,7 @@ export function GameScene({
           <PerformanceToggleInvalidator />
           <AdaptiveRenderQuality />
           <GameRuntimeLifecycle />
-           <RendererSetup transparent={introBossesInFront} />
+            <RendererSetup transparent={introBossesInFront || rootMenuPreview} />
           <CameraController />
           {introBossPhase && (
             <ArcadeBossIntroScene
@@ -506,7 +507,7 @@ export function GameScene({
           )}
 
           {/* Lightweight background — gameplay GPU systems mount below only when needed */}
-          {backgroundEnabled && <Background visible={!worldBossPreview} />}
+          {backgroundEnabled && <Background visible={!worldBossPreview && !rootMenuPreview} />}
 
           {/* Gameplay systems — unmounted outside gameplay loading/playing */}
           <GameplayGate />

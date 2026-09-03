@@ -6014,6 +6014,26 @@ input:focus-visible,
   font-family: var(--font-display) !important;
 }
 
+/* The root menu's WebGL showcase lives behind this HTML shell. Keep the
+   backdrop on the app layer so the transparent Play target can reveal it. */
+.orblitz-app-shell {
+  background:
+    radial-gradient(circle at 50% 22%, rgba(178, 140, 255, .24), transparent 30%),
+    radial-gradient(circle at 13% 74%, rgba(255, 79, 129, .2), transparent 27%),
+    radial-gradient(circle at 87% 72%, rgba(74, 168, 255, .18), transparent 28%),
+    linear-gradient(135deg, #211b3d 0%, #11152d 54%, #2a1839 100%);
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] {
+  background: transparent !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"]::before,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"]::after {
+  background: transparent !important;
+  opacity: 0 !important;
+}
+
 .orblitz-rainbow-arcade-shell::before {
   background:
     radial-gradient(circle at 18% 26%, rgba(255, 217, 91, .75) 0 1px, transparent 2px),
