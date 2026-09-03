@@ -632,10 +632,6 @@ export function StartupAnimation({
               animate={{ scaleX: 1, opacity: 0.65 }}
               transition={{ duration: 0.9, delay: animPhase === "title" ? 0.68 : 0.25, ease: "easeOut" }}
             />
-            <div className="orblitz-title-strap" data-testid="text-menu-strap">
-              DROP IN <span>//</span> CHASE THE HIGH SCORE
-            </div>
-
           </motion.div>
         )}
       </AnimatePresence>
