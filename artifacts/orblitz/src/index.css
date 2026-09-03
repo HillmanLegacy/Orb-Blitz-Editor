@@ -6960,3 +6960,127 @@ input:focus-visible,
     font-size: clamp(1.15rem, 6vw, 1.8rem) !important;
   }
 }
+
+/* Root menu orbit: five transparent buttons arranged as one centered arcade
+   wheel instead of the legacy two-column grid. */
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage {
+  --orbit-button-width: clamp(112px, 14vw, 170px);
+  --orbit-radius: clamp(112px, 14vw, 162px);
+  top: 59% !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: 50% !important;
+  width: min(560px, calc(100vw - 20px)) !important;
+  height: clamp(300px, 42vh, 430px) !important;
+  display: block !important;
+  transform: translate(-50%, -50%) !important;
+  pointer-events: auto !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-button {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: var(--orbit-button-width) !important;
+  height: 64px !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  pointer-events: auto !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-button:nth-child(1) {
+  transform: translate(-50%, -50%)
+    translate(0, calc(var(--orbit-radius) * -1)) !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-button:nth-child(2) {
+  transform: translate(-50%, -50%)
+    translate(calc(var(--orbit-radius) * -.951), calc(var(--orbit-radius) * -.309)) !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-button:nth-child(3) {
+  transform: translate(-50%, -50%)
+    translate(calc(var(--orbit-radius) * .951), calc(var(--orbit-radius) * -.309)) !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-button:nth-child(4) {
+  transform: translate(-50%, -50%)
+    translate(calc(var(--orbit-radius) * -.588), calc(var(--orbit-radius) * .809)) !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-button:nth-child(5) {
+  transform: translate(-50%, -50%)
+    translate(calc(var(--orbit-radius) * .588), calc(var(--orbit-radius) * .809)) !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-button:hover,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-button:focus-visible {
+  box-shadow: none !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-play:hover,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-play:focus-visible {
+  transform: translate(-50%, -50%)
+    translate(0, calc(var(--orbit-radius) * -1)) translateY(-4px) !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-shop:hover,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-shop:focus-visible {
+  transform: translate(-50%, -50%)
+    translate(calc(var(--orbit-radius) * -.951), calc(var(--orbit-radius) * -.309))
+    translateY(-4px) !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-inventory:hover,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-inventory:focus-visible {
+  transform: translate(-50%, -50%)
+    translate(calc(var(--orbit-radius) * .951), calc(var(--orbit-radius) * -.309))
+    translateY(-4px) !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-trophies:hover,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-trophies:focus-visible {
+  transform: translate(-50%, -50%)
+    translate(calc(var(--orbit-radius) * -.588), calc(var(--orbit-radius) * .809))
+    translateY(-4px) !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-settings:hover,
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-settings:focus-visible {
+  transform: translate(-50%, -50%)
+    translate(calc(var(--orbit-radius) * .588), calc(var(--orbit-radius) * .809))
+    translateY(-4px) !important;
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage {
+    top: 60% !important;
+    width: min(560px, calc(100vw - 20px)) !important;
+    height: 270px !important;
+    --orbit-button-width: clamp(96px, 14vw, 142px);
+    --orbit-radius: clamp(94px, 14vw, 136px);
+  }
+}
