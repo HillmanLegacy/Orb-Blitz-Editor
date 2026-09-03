@@ -3707,3 +3707,574 @@ canvas {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── Orblitz signature presentation ─────────────────────────────────────────
+   A single visual system for the menu, selection screens, result moments,
+   modal surfaces, and live HUD. The game scene remains the source of motion;
+   this layer gives every UI surface the same "charged glass / orbit ring"
+   language without adding copy or changing game state. */
+:root {
+  --orb-void: #080713;
+  --orb-void-deep: #04040d;
+  --orb-glass: rgba(18, 15, 38, 0.86);
+  --orb-glass-soft: rgba(29, 24, 58, 0.72);
+  --orb-hairline: rgba(232, 239, 255, 0.14);
+  --orb-copy: #f0effa;
+  --orb-muted: #aaa8c2;
+  --orb-cyan: #8fffe0;
+  --orb-violet: #b99cff;
+  --orb-coral: #ff8e72;
+  --orb-gold: #f6dc76;
+}
+
+@keyframes orblitz-surface-breathe {
+  0%, 100% { opacity: .72; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.045); }
+}
+
+@keyframes orblitz-orbit-dash {
+  to { stroke-dashoffset: -120; }
+}
+
+@keyframes orblitz-sheen {
+  0% { transform: translateX(-125%) skewX(-18deg); opacity: 0; }
+  20%, 72% { opacity: .46; }
+  100% { transform: translateX(160%) skewX(-18deg); opacity: 0; }
+}
+
+.orblitz-startup-shell,
+.orblitz-selection-screen,
+.orblitz-level-complete-screen,
+.orblitz-result-screen,
+.orblitz-arcade-complete,
+.orblitz-main-menu-screen,
+.orblitz-settings-screen,
+.orblitz-shop-screen,
+.orblitz-loadout-screen {
+  color: var(--orb-copy);
+  font-family: var(--font-body, Inter, system-ui, sans-serif);
+  background:
+    radial-gradient(ellipse at 50% 18%, rgba(104, 78, 184, .24), transparent 40%),
+    radial-gradient(ellipse at 12% 80%, rgba(0, 210, 190, .10), transparent 34%),
+    radial-gradient(ellipse at 92% 72%, rgba(255, 93, 125, .10), transparent 32%),
+    var(--orb-void) !important;
+}
+
+.orblitz-settings-screen > .fixed.inset-0,
+.orblitz-level-complete-screen > .absolute.inset-0,
+.orblitz-arcade-complete > .absolute.inset-0 {
+  background:
+    radial-gradient(ellipse at 50% 18%, rgba(104, 78, 184, .24), transparent 40%),
+    radial-gradient(ellipse at 12% 80%, rgba(0, 210, 190, .10), transparent 34%),
+    radial-gradient(ellipse at 92% 72%, rgba(255, 93, 125, .10), transparent 32%),
+    var(--orb-void) !important;
+}
+
+.orblitz-startup-shell::before,
+.orblitz-selection-screen::before,
+.orblitz-level-complete-screen::before,
+.orblitz-result-screen::before,
+.orblitz-arcade-complete::before,
+.orblitz-main-menu-screen::before,
+.orblitz-settings-screen::before,
+.orblitz-shop-screen::before,
+.orblitz-loadout-screen::before {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  z-index: 0;
+  pointer-events: none;
+  border: 1px solid rgba(214, 211, 255, .10);
+  border-radius: clamp(20px, 3vw, 34px);
+  background:
+    linear-gradient(115deg, rgba(255,255,255,.035), transparent 24%, transparent 70%, rgba(143,255,224,.025)),
+    repeating-linear-gradient(90deg, transparent 0 72px, rgba(255,255,255,.018) 73px, transparent 74px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.045), 0 28px 100px rgba(0,0,0,.28);
+}
+
+.orblitz-startup-shell::after,
+.orblitz-selection-screen::after,
+.orblitz-level-complete-screen::after,
+.orblitz-result-screen::after,
+.orblitz-arcade-complete::after,
+.orblitz-main-menu-screen::after,
+.orblitz-settings-screen::after,
+.orblitz-shop-screen::after,
+.orblitz-loadout-screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: .32;
+  background:
+    radial-gradient(circle at 18% 24%, rgba(143,255,224,.16) 0 1px, transparent 2px),
+    radial-gradient(circle at 78% 34%, rgba(185,156,255,.14) 0 1px, transparent 2px),
+    radial-gradient(circle at 64% 82%, rgba(255,142,114,.12) 0 1px, transparent 2px);
+  background-size: 168px 168px, 214px 214px, 244px 244px;
+  mask-image: radial-gradient(ellipse at center, black 20%, transparent 82%);
+}
+
+/* The title remains the hero; these controls read as a game menu, not a
+   command interface. */
+.orblitz-title-lockup {
+  filter: drop-shadow(0 18px 30px rgba(0,0,0,.38));
+}
+
+.orblitz-title-wordmark {
+  color: #f4f1ff !important;
+  background-image: linear-gradient(105deg, #f6f2ff 0%, var(--orb-cyan) 31%, #c1a5ff 65%, #ffad95 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.orblitz-button-stage[data-layout="root"],
+.orblitz-button-stage[data-layout="modes"] {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  width: min(720px, calc(100vw - 40px)) !important;
+  gap: clamp(8px, 1.2vw, 14px) !important;
+}
+
+.orblitz-button-stage[data-layout="root"] .orblitz-command-button,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-button {
+  min-width: 0;
+  height: clamp(62px, 8vw, 82px) !important;
+  border: 1px solid rgba(226, 222, 255, .18) !important;
+  border-radius: 18px !important;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.13), rgba(255,255,255,.025) 38%, rgba(9,8,24,.86) 100%) !important;
+  box-shadow:
+    0 12px 22px rgba(2, 2, 10, .34),
+    inset 0 1px 0 rgba(255,255,255,.14),
+    inset 0 -1px 0 rgba(0,0,0,.35) !important;
+  color: var(--orb-copy) !important;
+  isolation: isolate;
+}
+
+.orblitz-button-stage[data-layout="root"] .orblitz-command-button::before,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-button::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(circle at 50% 0%, currentColor, transparent 58%);
+  opacity: .12;
+  transition: opacity .2s ease;
+}
+
+.orblitz-button-stage[data-layout="root"] .orblitz-command-button::after,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-button::after {
+  inset: 7px !important;
+  border: 1px solid rgba(255,255,255,.07) !important;
+  border-radius: 12px !important;
+  clip-path: none !important;
+}
+
+.orblitz-button-stage[data-layout="root"] .orblitz-command-button:hover,
+.orblitz-button-stage[data-layout="root"] .orblitz-command-button:focus-visible,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-button:hover,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-button:focus-visible {
+  transform: translateY(-4px) !important;
+  border-color: currentColor !important;
+  box-shadow: 0 18px 32px rgba(0,0,0,.42), 0 0 28px currentColor !important;
+}
+
+.orblitz-button-stage[data-layout="root"] .orblitz-command-button:hover::before,
+.orblitz-button-stage[data-layout="root"] .orblitz-command-button:focus-visible::before,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-button:hover::before,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-button:focus-visible::before {
+  opacity: .28;
+}
+
+.orblitz-button-stage[data-layout="root"] .orblitz-command-play,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-arcade {
+  grid-column: 1 / -1;
+  height: clamp(78px, 10vw, 104px) !important;
+  border-color: rgba(143,255,224,.50) !important;
+  background:
+    radial-gradient(circle at 8% 50%, rgba(143,255,224,.28), transparent 28%),
+    linear-gradient(105deg, rgba(143,255,224,.20), rgba(185,156,255,.11) 48%, rgba(255,142,114,.13)) !important;
+  color: var(--orb-cyan) !important;
+  box-shadow: 0 18px 38px rgba(0,0,0,.42), 0 0 32px rgba(143,255,224,.14), inset 0 1px 0 rgba(255,255,255,.23) !important;
+}
+
+.orblitz-button-stage[data-layout="root"] .orblitz-command-play .orblitz-command-icon,
+.orblitz-button-stage[data-layout="modes"] .orblitz-command-arcade .orblitz-command-icon {
+  transform: scale(1.12);
+}
+
+.orblitz-command-icon {
+  transition: transform .2s ease, filter .2s ease;
+}
+
+.orblitz-command-button:hover .orblitz-command-icon,
+.orblitz-command-button:focus-visible .orblitz-command-icon {
+  transform: scale(1.12) rotate(-5deg);
+  filter: drop-shadow(0 0 12px currentColor) !important;
+}
+
+.orblitz-command-label {
+  color: currentColor !important;
+  text-shadow: 0 2px 8px rgba(0,0,0,.38);
+}
+
+.orblitz-command-back {
+  border-color: rgba(232,239,255,.15) !important;
+  background: rgba(255,255,255,.045) !important;
+  color: var(--orb-muted) !important;
+}
+
+/* Selection screens use an orbit-card rhythm and keep the interactive area
+   readable over the shared boss/world canvas. */
+.orblitz-selection-screen {
+  isolation: isolate;
+}
+
+.orblitz-selection-screen > * {
+  position: relative;
+  z-index: 1;
+}
+
+.orblitz-selection-header {
+  text-align: center;
+}
+
+.orblitz-selection-header > p {
+  color: var(--orb-copy) !important;
+  font-family: var(--font-display, Inter, sans-serif) !important;
+  font-size: clamp(1.7rem, 4vw, 2.9rem) !important;
+  letter-spacing: .04em !important;
+  text-transform: none !important;
+}
+
+.orblitz-selection-subtitle {
+  color: var(--orb-muted) !important;
+}
+
+.orblitz-world-card,
+.orblitz-level-card {
+  border-radius: 24px !important;
+  border-color: rgba(232,239,255,.16) !important;
+  box-shadow: 0 14px 28px rgba(0,0,0,.26), inset 0 1px 0 rgba(255,255,255,.10) !important;
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease !important;
+}
+
+.orblitz-world-card:hover,
+.orblitz-world-card:focus-visible,
+.orblitz-level-card:hover,
+.orblitz-level-card:focus-visible {
+  transform: translateY(-5px) scale(1.015);
+  border-color: currentColor !important;
+  box-shadow: 0 20px 34px rgba(0,0,0,.38), 0 0 24px currentColor !important;
+}
+
+.orblitz-selection-footer {
+  border-color: rgba(232,239,255,.10) !important;
+}
+
+/* Settings + modal surfaces share a soft inner light and clear hierarchy. */
+.orblitz-options-deck,
+.orblitz-settings-screen [class*="bg-black/40"],
+.orblitz-shop-dialog,
+.orblitz-loadout-dialog,
+.orblitz-gear-inspection,
+.orblitz-pause-content,
+.orblitz-result-card,
+.orblitz-arcade-complete > div.relative,
+.orblitz-level-complete-screen > div.relative {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.075), transparent 32%),
+    linear-gradient(160deg, rgba(24,20,51,.95), rgba(9,8,23,.94)) !important;
+  border-color: rgba(232,239,255,.16) !important;
+  box-shadow: 0 28px 80px rgba(0,0,0,.50), inset 0 1px 0 rgba(255,255,255,.08) !important;
+}
+
+.orblitz-options-control,
+.orblitz-shop-item,
+.orblitz-shop-category,
+.orblitz-loadout-slots > button,
+.orblitz-gear-stat,
+.orblitz-gear-mechanics,
+.orblitz-gear-progression,
+.orblitz-pause-command {
+  border-color: rgba(232,239,255,.12) !important;
+  background: rgba(255,255,255,.045) !important;
+}
+
+.orblitz-options-control:hover,
+.orblitz-options-control:focus-visible,
+.orblitz-shop-item:hover,
+.orblitz-shop-category:hover,
+.orblitz-loadout-slots > button:hover,
+.orblitz-pause-command:hover {
+  border-color: currentColor !important;
+  box-shadow: 0 0 24px currentColor !important;
+}
+
+.orblitz-settings-screen h1,
+.orblitz-settings-screen h2,
+.orblitz-settings-screen h3,
+.orblitz-shop-title,
+.orblitz-loadout-title,
+.orblitz-loadout-panel-title,
+.orblitz-gear-detail-title {
+  color: var(--orb-copy) !important;
+  font-family: var(--font-display, Inter, sans-serif) !important;
+  letter-spacing: .08em;
+}
+
+.orblitz-shop-header,
+.orblitz-loadout-header,
+.orblitz-loadout-panel-head {
+  border-color: rgba(232,239,255,.10) !important;
+  background: linear-gradient(90deg, rgba(143,255,224,.06), transparent 50%, rgba(185,156,255,.06));
+}
+
+.orblitz-shop-sidebar,
+.orblitz-loadout-slots {
+  border-color: rgba(232,239,255,.10) !important;
+  background: rgba(4,4,13,.22);
+}
+
+.orblitz-shop-balance,
+.orblitz-gear-action,
+.orblitz-gear-inspect {
+  border-radius: 12px !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 8px 18px rgba(0,0,0,.20);
+}
+
+/* Results: give the moment a clean arena frame instead of a generic dialog. */
+.orblitz-result-screen,
+.orblitz-arcade-complete,
+.orblitz-level-complete-screen {
+  isolation: isolate;
+}
+
+.orblitz-result-card,
+.orblitz-arcade-complete > div.relative,
+.orblitz-level-complete-screen > div.relative {
+  position: relative;
+  overflow: hidden;
+  border-radius: clamp(22px, 3vw, 32px) !important;
+}
+
+.orblitz-result-card::before,
+.orblitz-arcade-complete > div.relative::before,
+.orblitz-level-complete-screen > div.relative::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(105deg, rgba(143,255,224,.09), transparent 27%, transparent 70%, rgba(255,142,114,.08));
+  opacity: .85;
+}
+
+.orblitz-result-grid,
+.orblitz-result-scanlines {
+  opacity: .18 !important;
+}
+
+/* HUD: compact instrument cluster with the same charged-glass material. */
+.orblitz-game-hud {
+  font-family: var(--font-body, Inter, system-ui, sans-serif);
+  color: var(--orb-copy);
+}
+
+.orblitz-hud-top {
+  padding-top: max(10px, env(safe-area-inset-top)) !important;
+  padding-left: max(10px, env(safe-area-inset-left)) !important;
+  padding-right: max(10px, env(safe-area-inset-right)) !important;
+}
+
+.orblitz-score-card,
+.orblitz-stars-card,
+.orblitz-timer-card,
+.orblitz-level-card,
+.orblitz-mode-card,
+.orblitz-boss-card,
+.orblitz-hud-control,
+.orblitz-healthbar-shell {
+  border: 1px solid rgba(232,239,255,.16) !important;
+  border-radius: 16px !important;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.10), rgba(255,255,255,.025) 42%, rgba(8,7,20,.82)) !important;
+  box-shadow: 0 10px 24px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.10) !important;
+  backdrop-filter: blur(14px) saturate(1.2);
+}
+
+.orblitz-score-card,
+.orblitz-stars-card {
+  min-height: 58px;
+}
+
+.orblitz-healthbar-shell {
+  padding: 8px 10px !important;
+  overflow: visible !important;
+}
+
+.orblitz-healthbar-shell::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  pointer-events: none;
+  border: 1px solid rgba(143,255,224,.11);
+}
+
+.orblitz-hud-control {
+  min-width: 58px !important;
+  min-height: 58px;
+}
+
+.orblitz-hud-alert-mark {
+  display: inline-block;
+  width: .48em;
+  height: .48em;
+  margin-right: .35em;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 9px currentColor;
+  vertical-align: .08em;
+  animation: orblitz-surface-breathe 1.1s ease-in-out infinite;
+}
+
+.orblitz-ability-tray {
+  max-width: calc(100vw - 20px);
+  padding: 9px;
+  gap: 8px !important;
+  border: 1px solid rgba(232,239,255,.13);
+  border-radius: 22px;
+  background: rgba(8,7,20,.62);
+  box-shadow: 0 14px 28px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.08);
+  backdrop-filter: blur(14px) saturate(1.15);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.orblitz-ability-tray::-webkit-scrollbar {
+  display: none;
+}
+
+.orblitz-ability-tray > button,
+.orblitz-ability-tray > div {
+  flex: 0 0 auto;
+  border-radius: 15px !important;
+  border-color: rgba(232,239,255,.18) !important;
+  box-shadow: 0 8px 18px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.10) !important;
+}
+
+.orblitz-ability-tray > button:hover,
+.orblitz-ability-tray > button:focus-visible {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 14px 24px rgba(0,0,0,.34), 0 0 22px currentColor !important;
+}
+
+.orblitz-lock-mark {
+  position: relative;
+  display: inline-block;
+  width: 13px;
+  height: 10px;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+  opacity: .55;
+}
+
+.orblitz-lock-mark::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: -8px;
+  height: 8px;
+  border: 1.5px solid currentColor;
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+}
+
+@media (max-width: 700px) {
+  .orblitz-startup-shell::before,
+  .orblitz-selection-screen::before,
+  .orblitz-result-screen::before,
+  .orblitz-arcade-complete::before {
+    inset: 7px;
+    border-radius: 20px;
+  }
+
+  .orblitz-button-stage[data-layout="root"],
+  .orblitz-button-stage[data-layout="modes"] {
+    width: min(560px, calc(100vw - 28px)) !important;
+    gap: 7px !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"] .orblitz-command-button,
+  .orblitz-button-stage[data-layout="modes"] .orblitz-command-button {
+    height: clamp(56px, 15vw, 72px) !important;
+    border-radius: 15px !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"] .orblitz-command-play,
+  .orblitz-button-stage[data-layout="modes"] .orblitz-command-arcade {
+    height: clamp(68px, 18vw, 86px) !important;
+  }
+
+  .orblitz-hud-left {
+    max-width: min(58vw, 300px);
+  }
+
+  .orblitz-hud-right {
+    gap: 6px !important;
+  }
+
+  .orblitz-score-card,
+  .orblitz-stars-card {
+    min-height: 48px;
+  }
+
+  .orblitz-hud-control {
+    min-width: 48px !important;
+    min-height: 48px;
+    padding-inline: 8px !important;
+  }
+
+  .orblitz-ability-tray {
+    left: max(8px, env(safe-area-inset-left)) !important;
+    bottom: max(8px, env(safe-area-inset-bottom)) !important;
+    max-width: calc(100vw - 16px);
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .orblitz-startup-shell::before,
+  .orblitz-selection-screen::before,
+  .orblitz-result-screen::before,
+  .orblitz-arcade-complete::before {
+    inset: 5px;
+  }
+
+  .orblitz-title-lockup {
+    top: 31% !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"],
+  .orblitz-button-stage[data-layout="modes"] {
+    top: calc(100dvh - 122px) !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"] .orblitz-command-button,
+  .orblitz-button-stage[data-layout="modes"] .orblitz-command-button {
+    height: 44px !important;
+  }
+
+  .orblitz-button-stage[data-layout="root"] .orblitz-command-play,
+  .orblitz-button-stage[data-layout="modes"] .orblitz-command-arcade {
+    height: 56px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orblitz-hud-alert-mark {
+    animation: none !important;
+  }
+}

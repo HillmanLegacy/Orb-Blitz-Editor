@@ -298,8 +298,8 @@ export function GameUI() {
               )}
               {isBossLevel && boss && (
                 <div className="mt-1.5">
-                  <p className="text-[10px] font-black tracking-widest uppercase" style={{ color: "#ff4466", letterSpacing: "0.15em" }}>
-                    ⚠ BOSS
+                    <p className="text-[10px] font-black tracking-widest uppercase" style={{ color: "#ff4466", letterSpacing: "0.15em" }}>
+                     <span className="orblitz-hud-alert-mark" aria-hidden="true" /> BOSS
                   </p>
                   <div className="mt-1 rounded-full overflow-hidden" style={{
                     width: 96, height: 6,
@@ -344,8 +344,8 @@ export function GameUI() {
               animate={{ scale: 1, opacity: 1 }}
             >
               <TA color="#ff4466" /><SL />
-              <p className="text-[10px] font-black tracking-widest uppercase" style={{ color: "#ff4466", letterSpacing: "0.15em" }}>
-                ⚠ Survival Boss
+                <p className="text-[10px] font-black tracking-widest uppercase" style={{ color: "#ff4466", letterSpacing: "0.15em" }}>
+                 <span className="orblitz-hud-alert-mark" aria-hidden="true" /> SURVIVAL BOSS
               </p>
               <div className="mt-1.5 rounded-full overflow-hidden" style={{
                 width: 104, height: 7,

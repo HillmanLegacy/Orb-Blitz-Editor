@@ -85,7 +85,7 @@ export function LevelComplete() {
   }, [isBoss, primary, secondary]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden select-none">
+    <div className="orblitz-level-complete-screen fixed inset-0 z-50 flex items-center justify-center overflow-hidden select-none">
 
       {/* ── Layer 1: Main-menu gradient base ── */}
       <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-violet-900" />
