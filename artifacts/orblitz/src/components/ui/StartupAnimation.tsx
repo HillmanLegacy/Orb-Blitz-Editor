@@ -810,32 +810,29 @@ export function StartupAnimation({
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {arcadeTransition !== "idle" && typeof document !== "undefined" && createPortal(
-          <motion.div
-            key="arcade-screen-fade"
-            className="fixed inset-0 z-[240] orblitz-arcade-screen-fade"
-            style={{
-              background: "#000000",
-              pointerEvents: "auto",
-            }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: arcadeTransition === "fadeIn" ? 0 : 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.34, ease: [0.22, 0.61, 0.36, 1] }}
-            onAnimationComplete={() => {
-              if (arcadeTransition === "fadeOut") {
-                setMenuState(arcadeTransitionTarget === "modes" ? "modes" : "worlds");
-                setArcadeTransition("fadeIn");
-              } else if (arcadeTransition === "fadeIn") {
-                setArcadeTransition("idle");
-                setArcadeTransitionTarget(null);
-              }
-            }}
-          />,
-          document.body,
-        )}
-      </AnimatePresence>
+      {arcadeTransition !== "idle" && typeof document !== "undefined" && createPortal(
+        <motion.div
+          key="arcade-screen-fade"
+          className="fixed inset-0 z-[240] orblitz-arcade-screen-fade"
+          style={{
+            background: "#000000",
+            pointerEvents: "auto",
+          }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: arcadeTransition === "fadeIn" ? 0 : 1 }}
+          transition={{ duration: 0.34, ease: [0.22, 0.61, 0.36, 1] }}
+          onAnimationComplete={() => {
+            if (arcadeTransition === "fadeOut") {
+              setMenuState(arcadeTransitionTarget === "modes" ? "modes" : "worlds");
+              setArcadeTransition("fadeIn");
+            } else if (arcadeTransition === "fadeIn") {
+              setArcadeTransition("idle");
+              setArcadeTransitionTarget(null);
+            }
+          }}
+        />,
+        document.body,
+      )}
     </motion.div>
   );
 }
