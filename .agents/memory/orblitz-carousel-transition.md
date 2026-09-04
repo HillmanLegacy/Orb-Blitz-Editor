@@ -7,4 +7,4 @@ The ARCADE handoff is a staged transition: keep the current menu visible underne
 
 **Why:** Mounting the carousel only after the blackout creates a visible loading gap; mounting it during fade-out avoids that gap while the blackout protects the transition.
 
-**How to apply:** Keep the fade phases explicit (`fadeOut`, `fadeIn`) and track pre-mounted carousel content separately; do not use exit-presence delays for menu-only HUD elements that must be absent from the carousel. The blackout must also be explicitly `position: fixed` because the shell's direct-child positioning rule can override utility classes.
+**How to apply:** Keep the fade phases explicit (`fadeOut`, `fadeIn`) and track pre-mounted carousel content separately; do not use exit-presence delays for menu-only HUD elements that must be absent from the carousel. The blackout must be explicitly `position: fixed` and rendered above the shell's stacking context, because a child z-index cannot outrank the shared canvas when its parent sits below the canvas.
