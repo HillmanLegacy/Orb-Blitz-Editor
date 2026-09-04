@@ -14,3 +14,7 @@ World-select boss previews belong to the existing shared WebGL canvas, rendered 
 **Why:** Starting the roster clock on navigation begins the animation behind the blackout; the menu can then appear after the orbs are already partway through loading or finish before them.
 
 **How to apply:** Carry a separate world-preview-visible signal through the shared scene boundary. Keep actors at zero reveal while it is false, then use the same short reveal window as the DOM selection screen once it becomes true.
+
+**Portal constraint:** The selection portal must render into `.orblitz-app-shell`, not merely resolve that element as a ref. A body-level portal creates a separate stacking context that can paint the dark selection surface over the foreground canvas.
+
+**Why:** The shared canvas is also inside the app shell's brightness/filter stacking context; matching the portal's actual mount point is required for the canvas z-index to win.

@@ -3842,7 +3842,8 @@ canvas {
   pointer-events: auto !important;
 }
 
-.orblitz-startup-shell > .orblitz-selection-screen {
+.orblitz-startup-shell > .orblitz-selection-screen,
+.orblitz-app-shell > .orblitz-selection-screen {
   position: fixed !important;
   inset: 0 !important;
   z-index: 150 !important;

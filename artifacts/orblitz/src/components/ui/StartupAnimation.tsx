@@ -947,7 +947,7 @@ export function StartupAnimation({
             </motion.div>
           )}
         </AnimatePresence>,
-        document.body,
+        selectionPortalRoot,
       )}
 
       {arcadeTransition !== "idle" && typeof document !== "undefined" && createPortal(
