@@ -151,6 +151,13 @@ function renderArcadeBoss(type: MainBossType) {
   return <BossVisual type={type} radius={1.05} healthPercent={1} />;
 }
 
+function WorldRosterReadySignal({ onReady }: { onReady?: () => void }) {
+  useEffect(() => {
+    onReady?.();
+  }, [onReady]);
+  return null;
+}
+
 /** A fixed World 1.1 enemy showcase for the root menu Play target. */
 function World1MenuEnemy() {
   const groupRef = useRef<THREE.Group>(null);
@@ -364,12 +371,14 @@ function ArcadeBossActor({
   presentation,
   selectedWorld,
   worldPreviewVisible,
+  visible = true,
 }: {
   definition: ArcadeBossIntroDef;
   phase: IntroBossPhase;
   presentation: IntroBossPresentation;
   selectedWorld: number;
   worldPreviewVisible: boolean;
+  visible?: boolean;
 }) {
   type IntroMaterialState = {
     material: THREE.Material;
@@ -606,7 +615,7 @@ function ArcadeBossActor({
   const palette = BOSS_DEFEAT_PALETTES[definition.type];
   const introGlow = getArcadeBossIntroGlow(definition.type);
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} visible={visible}>
       {renderArcadeBoss(definition.type)}
       <group>
         <pointLight color={palette.glow} intensity={introGlow.lightIntensity} distance={7.5} decay={2} />
@@ -676,15 +685,22 @@ function ArcadeBossScene({
   presentation,
   selectedWorld,
   worldPreviewVisible,
+  preloadWorldRoster,
+  onWorldRosterReady,
 }: {
   phase: IntroBossPhase;
   presentation: IntroBossPresentation;
   selectedWorld: number;
   worldPreviewVisible: boolean;
+  preloadWorldRoster: boolean;
+  onWorldRosterReady?: () => void;
 }) {
-  const worldDefinitions = presentation === "worlds"
+  const preloadingWorldRoster = preloadWorldRoster && presentation === "menu";
+  const worldDefinitions = presentation === "worlds" || preloadingWorldRoster
     ? ARCADE_BOSS_INTRO_DEFS
     : presentation === "menu" ? [] : ARCADE_BOSS_INTRO_DEFS;
+  const actorPresentation: IntroBossPresentation =
+    presentation === "worlds" || preloadingWorldRoster ? "worlds" : presentation;
   return (
     <>
       <IntroExplosionLight phase={phase} />
@@ -699,14 +715,18 @@ function ArcadeBossScene({
         </>
       )}
       <Suspense fallback={null}>
+        {(presentation === "worlds" || preloadingWorldRoster) && (
+          <WorldRosterReadySignal onReady={onWorldRosterReady} />
+        )}
         {worldDefinitions.map((definition) => (
           <ArcadeBossActor
             key={definition.type}
             definition={definition}
             phase={phase}
-            presentation={presentation}
+            presentation={actorPresentation}
             selectedWorld={selectedWorld}
-            worldPreviewVisible={worldPreviewVisible}
+            worldPreviewVisible={presentation === "worlds" && worldPreviewVisible}
+            visible={!preloadingWorldRoster}
           />
         ))}
       </Suspense>
@@ -719,11 +739,15 @@ export function ArcadeBossIntroScene({
   presentation = "menu",
   selectedWorld = 1,
   worldPreviewVisible = true,
+  preloadWorldRoster = true,
+  onWorldRosterReady,
 }: {
   phase: IntroBossPhase;
   presentation?: IntroBossPresentation;
   selectedWorld?: number;
   worldPreviewVisible?: boolean;
+  preloadWorldRoster?: boolean;
+  onWorldRosterReady?: () => void;
 }) {
   return (
     <ArcadeBossScene
@@ -731,6 +755,8 @@ export function ArcadeBossIntroScene({
       presentation={presentation}
       selectedWorld={selectedWorld}
       worldPreviewVisible={worldPreviewVisible}
+      preloadWorldRoster={preloadWorldRoster}
+      onWorldRosterReady={onWorldRosterReady}
     />
   );
 }

@@ -37,6 +37,7 @@ export type MenuState = "root" | "modes" | "settings" | "worlds" | "levels";
 interface StartupAnimationProps {
   skipIntro?: boolean;
   initialState?: MenuState;
+  worldRosterReady?: boolean;
   onMenuReady?: () => void;
   onIntroPhaseChange?: (
     phase: IntroBossPhase | null,
@@ -225,6 +226,7 @@ interface BtnDef {
 // ─── Main component ───────────────────────────────────────────────────────────
 export function StartupAnimation({
   initialState = "root",
+  worldRosterReady = true,
   onMenuReady,
   onIntroPhaseChange,
 }: StartupAnimationProps) {
@@ -236,7 +238,7 @@ export function StartupAnimation({
   const [devFlash, setDevFlash]       = useState(false);
   const [highestLevel, setHighestLevel] = useState(1.1);
   const [pressedBtn, setPressedBtn]   = useState<string | null>(null);
-  const [arcadeTransition, setArcadeTransition] = useState<"idle" | "fadeOut" | "fadeIn">("idle");
+  const [arcadeTransition, setArcadeTransition] = useState<"idle" | "fadeOut" | "waiting" | "fadeIn">("idle");
   const [arcadeTransitionTarget, setArcadeTransitionTarget] = useState<"worlds" | "modes" | null>(null);
   const [worldScreenMounted, setWorldScreenMounted] = useState(startsInCarousel);
   const [carouselView, setCarouselView] = useState<"worlds" | "levels">(
@@ -305,6 +307,12 @@ export function StartupAnimation({
     setArcadeTransitionTarget("modes");
     setArcadeTransition("fadeOut");
   }, [btn]);
+
+  useEffect(() => {
+    if (arcadeTransition === "waiting" && worldRosterReady) {
+      setArcadeTransition("fadeIn");
+    }
+  }, [arcadeTransition, worldRosterReady]);
 
   const isLevelUnlocked = (level: number) => devMode || level <= highestLevel + 0.01;
   const isBossLevel     = (level: number) => Math.round((level % 1) * 10) === 9;
@@ -833,7 +841,11 @@ export function StartupAnimation({
           onAnimationComplete={() => {
             if (arcadeTransition === "fadeOut") {
               setCarouselOpen(arcadeTransitionTarget === "worlds");
-              setArcadeTransition("fadeIn");
+              if (arcadeTransitionTarget === "worlds" && !worldRosterReady) {
+                setArcadeTransition("waiting");
+              } else {
+                setArcadeTransition("fadeIn");
+              }
             } else if (arcadeTransition === "fadeIn") {
               setArcadeTransition("idle");
               setArcadeTransitionTarget(null);

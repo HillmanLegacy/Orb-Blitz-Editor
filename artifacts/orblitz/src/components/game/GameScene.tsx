@@ -455,11 +455,13 @@ export function GameScene({
   introBossPresentation = "menu",
   introSelectedWorld = 1,
   introWorldPreviewVisible = true,
+  onWorldRosterReady,
 }: {
   introBossPhase?: IntroBossPhase | null;
   introBossPresentation?: IntroBossPresentation;
   introSelectedWorld?: number;
   introWorldPreviewVisible?: boolean;
+  onWorldRosterReady?: () => void;
 }) {
   const [webglAvailable] = useState(canCreateWebGLContext);
   const backgroundEnabled = usePerformanceFeature("background");
@@ -467,6 +469,10 @@ export function GameScene({
   const worldBossPreview = introBossPhase === "menu" && introBossPresentation === "worlds";
   const rootMenuPreview = introBossPhase === "menu" && introBossPresentation === "menu";
   const introBossesInFront = foregroundIntroBosses || worldBossPreview;
+
+  useEffect(() => {
+    if (!webglAvailable) onWorldRosterReady?.();
+  }, [onWorldRosterReady, webglAvailable]);
 
   if (!webglAvailable) return <WebGLUnavailable />;
 
@@ -507,6 +513,7 @@ export function GameScene({
               presentation={introBossPresentation}
               selectedWorld={introSelectedWorld}
               worldPreviewVisible={introWorldPreviewVisible}
+              onWorldRosterReady={onWorldRosterReady}
             />
           )}
 

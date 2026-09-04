@@ -60,6 +60,7 @@ function App() {
   const [introBossPresentation, setIntroBossPresentation] = useState<IntroBossPresentation>("menu");
   const [introSelectedWorld, setIntroSelectedWorld] = useState(1);
   const [introWorldPreviewVisible, setIntroWorldPreviewVisible] = useState(false);
+  const [worldRosterReady, setWorldRosterReady] = useState(false);
   const [initialMenuState, setInitialMenuState] = useState<MenuState>("root");
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
   const [shopLayerVisible, setShopLayerVisible] = useState(false);
@@ -67,6 +68,7 @@ function App() {
   const [trophiesLayerVisible, setTrophiesLayerVisible] = useState(false);
   const loadingRunRef = useRef(0);
   const handleMenuReady = useCallback(() => { setSkipIntro(true); }, []);
+  const handleWorldRosterReady = useCallback(() => { setWorldRosterReady(true); }, []);
   const handleIntroPhaseChange = useCallback((
     nextPhase: IntroBossPhase | null,
     menuState?: MenuState,
@@ -214,6 +216,7 @@ function App() {
              introBossPresentation={introBossPresentation}
         introSelectedWorld={introSelectedWorld}
              introWorldPreviewVisible={introWorldPreviewVisible}
+             onWorldRosterReady={handleWorldRosterReady}
            />
         </div>
       </div>
@@ -224,6 +227,7 @@ function App() {
             key={`startup-${initialMenuState}`}
             skipIntro={skipIntro}
             initialState={initialMenuState}
+            worldRosterReady={worldRosterReady}
             onMenuReady={handleMenuReady}
             onIntroPhaseChange={handleIntroPhaseChange}
           />
