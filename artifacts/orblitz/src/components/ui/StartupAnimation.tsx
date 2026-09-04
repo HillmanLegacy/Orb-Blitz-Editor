@@ -54,8 +54,8 @@ const WORLD_COLORS = [
 ];
 const WORLD_SHADOWS = WORLD_COLORS.map(c => c + "55");
 const WORLD_NAMES = [
-  "Ignition Field", "Prism Ruins", "Pulse Garden", "Ashen Relay", "Solar Foundry",
-  "Verdant Drift", "Cinder Crown", "Lumen Vault", "The Core",
+  "Firefall Reach", "Starborn Expanse", "Crystal Bastion", "Toxic Mire", "Plasma Forge",
+  "Diamond Crown", "Rainbow Rift", "Mecha Graveyard", "Monster Wilds",
 ] as const;
 
 // ─── Level helpers (from original LevelSelect) ────────────────────────────────
@@ -458,10 +458,6 @@ export function StartupAnimation({
                     <span className="orblitz-world-card-index">WORLD {String(world).padStart(2, "0")}</span>
                     <span className="orblitz-world-card-signal">{done ? "COMPLETE" : unlocked ? "READY TO PLAY" : "LOCKED"}</span>
                     <span className="orblitz-world-card-art" aria-hidden="true">
-                      <span
-                        className="orblitz-world-card-orb"
-                        style={{ "--orb-color": unlocked ? wc : "#536079" } as React.CSSProperties}
-                      />
                       {!unlocked && <span className="orblitz-world-card-lock"><IconLock /></span>}
                     </span>
                     <span className="orblitz-world-card-copy">

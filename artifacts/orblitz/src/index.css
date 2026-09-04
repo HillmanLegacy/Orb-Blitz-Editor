@@ -1251,58 +1251,6 @@ html,
   pointer-events: none;
 }
 
-.orblitz-world-card-orb {
-  position: relative;
-  display: block;
-  width: clamp(42px, 5vw, 72px);
-  aspect-ratio: 1;
-  border: 2px solid color-mix(in srgb, var(--orb-color) 78%, white);
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 34% 28%, rgba(255,255,255,0.95) 0 4%, color-mix(in srgb, var(--orb-color) 88%, white) 13%, transparent 29%),
-    radial-gradient(circle at 52% 58%, color-mix(in srgb, var(--orb-color) 70%, transparent), rgba(5, 9, 31, 0.72) 70%);
-  box-shadow:
-    0 0 0 4px color-mix(in srgb, var(--orb-color) 14%, transparent),
-    0 0 22px color-mix(in srgb, var(--orb-color) 55%, transparent),
-    inset -8px -10px 15px rgba(0,0,0,0.34),
-    inset 5px 5px 10px rgba(255,255,255,0.4);
-  opacity: 0.72;
-  transform: rotate(-12deg);
-}
-
-.orblitz-world-card-orb::before,
-.orblitz-world-card-orb::after {
-  position: absolute;
-  display: block;
-  border: 1px solid color-mix(in srgb, var(--orb-color) 72%, white);
-  border-radius: 50%;
-  content: "";
-}
-
-.orblitz-world-card-orb::before {
-  inset: 12%;
-  border-left-color: transparent;
-  border-bottom-color: transparent;
-  transform: rotate(34deg);
-}
-
-.orblitz-world-card-orb::after {
-  inset: -9%;
-  border-top-color: transparent;
-  border-right-color: transparent;
-  opacity: 0.62;
-  transform: rotate(-28deg);
-}
-
-.orblitz-world-card.is-current .orblitz-world-card-orb {
-  opacity: 0.9;
-  box-shadow:
-    0 0 0 5px color-mix(in srgb, var(--orb-color) 20%, transparent),
-    0 0 32px color-mix(in srgb, var(--orb-color) 76%, transparent),
-    inset -8px -10px 15px rgba(0,0,0,0.3),
-    inset 5px 5px 10px rgba(255,255,255,0.5);
-}
-
 .orblitz-world-card-lock {
   display: flex;
   width: clamp(55px, 7vw, 86px);
