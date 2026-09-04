@@ -2377,7 +2377,7 @@ canvas {
 }
 
 .orblitz-loadout-dialog {
-  width: min(1040px, calc(100vw - 28px)) !important;
+  width: min(1120px, calc(100vw - 28px)) !important;
   max-width: 1040px !important;
   max-height: min(86dvh, 720px) !important;
 }
@@ -7048,7 +7048,7 @@ input:focus-visible,
   display: flex !important;
   align-items: center;
   justify-content: center;
-  gap: clamp(3px, 1.8vw, 24px) !important;
+  gap: clamp(8px, 2.6vw, 36px) !important;
   transform: translate(-50%, -50%) !important;
   pointer-events: auto !important;
 }
@@ -7234,6 +7234,13 @@ input:focus-visible,
   inset: auto !important;
   transform: none !important;
   transform-origin: center !important;
+}
+
+/* Keep the menu readable over the showcase canvas without tinting it indigo.
+   This is scoped to the startup shell so gameplay and selection screens keep
+   their own atmosphere. */
+.orblitz-startup-shell {
+  background: rgba(0, 0, 0, 0.62) !important;
 }
 
 @media (max-width: 700px) {
