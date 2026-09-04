@@ -7240,21 +7240,47 @@ input:focus-visible,
   min-width: clamp(142px, 17vw, 196px);
 }
 
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-title-star-bank {
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+  transform-origin: center !important;
+}
+
 @media (max-width: 700px) {
   .orblitz-title-wordmark-row {
+    display: grid !important;
     width: 100%;
-    gap: 8px;
+    grid-template-columns: clamp(92px, 25vw, 112px) minmax(0, 1fr);
+    gap: 7px;
     padding-inline: 8px;
+    box-sizing: border-box;
   }
 
-  .orblitz-title-wordmark-row .orblitz-title-wordmark {
+  .orblitz-title-wordmark-row .orblitz-title-star-bank {
+    grid-column: 1;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .orblitz-rainbow-arcade-shell .orblitz-aaa-title-lockup
+    .orblitz-title-wordmark-row .orblitz-aaa-title-wordmark {
+    grid-column: 2;
+    width: auto !important;
     min-width: 0;
-    font-size: clamp(2.65rem, 11vw, 7rem) !important;
+    font-size: clamp(2.35rem, 10.5vw, 3.5rem) !important;
+    letter-spacing: 0.025em !important;
   }
 
   .orblitz-title-star-bank {
     min-width: clamp(100px, 26vw, 128px);
     padding: 6px 8px 6px 6px !important;
+  }
+
+  .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-title-star-bank {
+    position: relative !important;
+    inset: auto !important;
+    transform: none !important;
   }
 
   .orblitz-title-star-bank > .flex {
@@ -7264,5 +7290,40 @@ input:focus-visible,
   .orblitz-title-star-bank > .flex > div:first-child {
     width: clamp(24px, 7vw, 30px) !important;
     height: clamp(24px, 7vw, 30px) !important;
+  }
+}
+
+/* The wordmark owns the horizontal center. Keep the balance counter beside
+   it without making the title's center depend on the counter's width. */
+.orblitz-title-wordmark-row {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  max-width: none !important;
+  padding: 0 !important;
+}
+
+.orblitz-title-wordmark-row .orblitz-title-wordmark {
+  width: 100% !important;
+  justify-content: center !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-title-star-bank {
+  position: absolute !important;
+  inset: auto !important;
+  top: 50% !important;
+  right: calc(50% + clamp(300px, 26vw, 390px)) !important;
+  width: clamp(130px, 12vw, 164px);
+  min-width: 0 !important;
+  box-sizing: border-box;
+  transform: translateY(-50%) !important;
+  transform-origin: center right !important;
+}
+
+@media (max-width: 700px) {
+  .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-title-star-bank {
+    right: calc(50% + clamp(94px, 25vw, 124px)) !important;
+    width: clamp(92px, 24vw, 108px);
+    transform: translateY(-50%) !important;
   }
 }
