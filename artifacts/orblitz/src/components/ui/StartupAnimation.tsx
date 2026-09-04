@@ -57,18 +57,6 @@ const WORLD_NAMES = [
   "Firefall Reach", "Starborn Expanse", "Crystal Bastion", "Toxic Mire", "Plasma Forge",
   "Diamond Crown", "Rainbow Rift", "Mecha Graveyard", "Monster Wilds",
 ] as const;
-const STELLAR_MAP_POINTS = [
-  { x: 9, y: 68 },
-  { x: 20, y: 42 },
-  { x: 32, y: 67 },
-  { x: 44, y: 35 },
-  { x: 56, y: 54 },
-  { x: 67, y: 27 },
-  { x: 77, y: 49 },
-  { x: 86, y: 22 },
-  { x: 91, y: 70 },
-] as const;
-const STELLAR_MAP_ROUTE = "M 9 68 C 13 57, 15 47, 20 42 S 28 55, 32 67 S 39 45, 44 35 S 52 42, 56 54 S 62 34, 67 27 S 73 41, 77 49 S 83 30, 86 22 S 90 54, 91 70";
 
 // ─── Level helpers (from original LevelSelect) ────────────────────────────────
 const getStoredProgress = (): number => {
@@ -257,8 +245,9 @@ export function StartupAnimation({
     initialState === "levels" ? "levels" : "worlds",
   );
   const [carouselOpen, setCarouselOpen] = useState(startsInCarousel);
-  const worldPointerStartX = useRef<number | null>(null);
-  const worldSwipeRef = useRef(false);
+  const [selectedLevel, setSelectedLevel] = useState(1);
+  const carouselPointerStartX = useRef<number | null>(null);
+  const carouselSwipeRef = useRef(false);
 
   const { playLevelSelect, isMuted, toggleMute, volume, setVolume, brightness, setBrightness, startMenuBgm, stopMenuBgm } = useAudio();
   const { openShop, openInventory, openTrophies, activateDevMode, coins: shopStars, devMode } = useShop();
@@ -332,41 +321,68 @@ export function StartupAnimation({
   const moveWorld = useCallback((direction: number) => {
     setSelectedWorld((current) => ((current - 1 + direction + 9) % 9) + 1);
   }, []);
+  const moveLevel = useCallback((direction: number) => {
+    setSelectedLevel((current) => ((current - 1 + direction + 9) % 9) + 1);
+  }, []);
+  const getLevelForWorld = useCallback((world: number) => {
+    const levels = Array.from({ length: 9 }, (_, index) => world + (index + 1) / 10);
+    const current = levels.find((level) => isLevelUnlocked(level) && level > highestLevel);
+    if (current !== undefined) {
+      return Math.round((current - world) * 10);
+    }
+    const highestInWorld = levels.filter((level) => isLevelUnlocked(level)).pop();
+    return highestInWorld === undefined ? 1 : Math.round((highestInWorld - world) * 10);
+  }, [devMode, highestLevel]);
   const openWorldLevels = useCallback((world: number) => {
     if (!isWorldUnlocked(world)) return;
     btn(`w${world}`);
     setSelectedWorld(world);
+    setSelectedLevel(getLevelForWorld(world));
     // World selection is an in-place view change, not a second transition.
     // Reassert visibility so a late fade callback cannot leave the map hidden.
     setCarouselOpen(true);
     setCarouselView("levels");
-  }, [btn, devMode, highestLevel]);
-  const handleWorldKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+  }, [btn, getLevelForWorld, devMode, highestLevel]);
+  const startLevel = useCallback((sub: number) => {
+    const level = selectedWorld + sub / 10;
+    if (!isLevelUnlocked(level)) return;
+    btn(`l${level}`);
+    try { stopMenuBgm(); } catch {}
+    useOrbTransition.getState().loadingSweep(() => {
+      setGameMode("arcade");
+      startLoading("nextLevel", level);
+    });
+  }, [btn, selectedWorld, startLoading, setGameMode, stopMenuBgm, devMode, highestLevel]);
+  const handleCarouselKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
       event.preventDefault();
-      moveWorld(-1);
+      carouselView === "worlds" ? moveWorld(-1) : moveLevel(-1);
     } else if (event.key === "ArrowRight" || event.key === "ArrowDown") {
       event.preventDefault();
-      moveWorld(1);
+      carouselView === "worlds" ? moveWorld(1) : moveLevel(1);
     } else if (event.key === "Home") {
       event.preventDefault();
-      setSelectedWorld(1);
+      carouselView === "worlds" ? setSelectedWorld(1) : setSelectedLevel(1);
     } else if (event.key === "End") {
       event.preventDefault();
-      setSelectedWorld(9);
+      carouselView === "worlds" ? setSelectedWorld(9) : setSelectedLevel(9);
     } else if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      openWorldLevels(selectedWorld);
+      if (event.target !== event.currentTarget) return;
+      if (carouselView === "worlds") openWorldLevels(selectedWorld);
+      else startLevel(selectedLevel);
     }
-  }, [moveWorld, openWorldLevels, selectedWorld]);
+  }, [carouselView, moveLevel, moveWorld, openWorldLevels, selectedLevel, selectedWorld, startLevel]);
 
   useEffect(() => {
-    if (carouselView !== "worlds" || typeof document === "undefined") return;
+    if (typeof document === "undefined") return;
     const activeCard = document.querySelector<HTMLElement>(
-      `[data-testid="button-world-${selectedWorld}"]`,
+      carouselView === "worlds"
+        ? `[data-testid="button-world-${selectedWorld}"]`
+        : `[data-testid="button-level-${selectedWorld}-${selectedLevel}"]`,
     );
     activeCard?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-  }, [carouselView, selectedWorld]);
+  }, [carouselView, selectedLevel, selectedWorld]);
 
   // ── Button definitions per state ──────────────────────────────────────────
   const getPanelButtons = useCallback((state: MenuState = menuState): BtnDef[] => {
@@ -413,16 +429,16 @@ export function StartupAnimation({
           tabIndex={0}
           role="region"
           aria-label="Arcade world navigation"
-          onKeyDown={handleWorldKeyDown}
-          onPointerDown={(event) => { worldPointerStartX.current = event.clientX; worldSwipeRef.current = false; }}
+          onKeyDown={handleCarouselKeyDown}
+          onPointerDown={(event) => { carouselPointerStartX.current = event.clientX; carouselSwipeRef.current = false; }}
           onPointerUp={(event) => {
-            const start = worldPointerStartX.current;
-            worldPointerStartX.current = null;
+            const start = carouselPointerStartX.current;
+            carouselPointerStartX.current = null;
             if (start === null || Math.abs(event.clientX - start) < 36) return;
-            worldSwipeRef.current = true;
+            carouselSwipeRef.current = true;
             moveWorld(event.clientX < start ? 1 : -1);
           }}
-          onPointerCancel={() => { worldPointerStartX.current = null; worldSwipeRef.current = false; }}
+          onPointerCancel={() => { carouselPointerStartX.current = null; carouselSwipeRef.current = false; }}
         >
           <div className="orblitz-world-carousel-topline">
             <span>WORLD NAVIGATION</span>
@@ -450,8 +466,8 @@ export function StartupAnimation({
                     key={world}
                     type="button"
                     onClick={() => {
-                      if (worldSwipeRef.current) {
-                        worldSwipeRef.current = false;
+                      if (carouselSwipeRef.current) {
+                        carouselSwipeRef.current = false;
                         return;
                       }
                       openWorldLevels(world);
@@ -528,127 +544,131 @@ export function StartupAnimation({
 
     if (viewState === "levels") {
       const wc = WORLD_COLORS[selectedWorld - 1];
-      const mapPoints = STELLAR_MAP_POINTS;
-      const mapRoute = STELLAR_MAP_ROUTE;
       const levels = Array.from({ length: 9 }, (_, i) => i + 1);
       const currentLevel = levels
         .map((sub) => selectedWorld + sub / 10)
         .find((level) => isLevelUnlocked(level) && level > highestLevel) ?? null;
       return (
         <div
-          className="orblitz-level-map-shell is-stellar"
+          className="orblitz-world-carousel orblitz-level-carousel"
+          tabIndex={0}
           role="region"
-          aria-label={`World ${selectedWorld} ${WORLD_NAMES[selectedWorld - 1]} level map`}
+          aria-label={`World ${selectedWorld} ${WORLD_NAMES[selectedWorld - 1]} level navigation`}
+          onKeyDown={handleCarouselKeyDown}
+          onPointerDown={(event) => { carouselPointerStartX.current = event.clientX; carouselSwipeRef.current = false; }}
+          onPointerUp={(event) => {
+            const start = carouselPointerStartX.current;
+            carouselPointerStartX.current = null;
+            if (start === null || Math.abs(event.clientX - start) < 36) return;
+            carouselSwipeRef.current = true;
+            moveLevel(event.clientX < start ? 1 : -1);
+          }}
+          onPointerCancel={() => { carouselPointerStartX.current = null; carouselSwipeRef.current = false; }}
         >
-          <div className="orblitz-level-map-topline">
-            <span>STELLAR NAVIGATION</span>
-            <span>PLOT A COURSE <i /></span>
+          <div className="orblitz-world-carousel-topline">
+            <span>LEVEL NAVIGATION <i /> WORLD {selectedWorld}</span>
+            <span className="orblitz-world-carousel-hint">LEFT / RIGHT TO CYCLE <i /> ENTER TO PLAY</span>
           </div>
-          <div className="orblitz-level-map orblitz-level-map-stellar">
-            <svg className="orblitz-level-map-route" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <defs>
-                <linearGradient id="orblitz-level-route-gradient" x1="0%" y1="100%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor={wc} stopOpacity="0.22" />
-                  <stop offset="52%" stopColor="#9cecff" stopOpacity="0.88" />
-                  <stop offset="100%" stopColor="#ffd2fb" stopOpacity="0.98" />
-                </linearGradient>
-                <filter id="orblitz-level-route-glow" x="-30%" y="-30%" width="160%" height="160%">
-                  <feGaussianBlur stdDeviation="1.6" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-              <rect className="orblitz-level-map-space" x="0" y="0" width="100" height="100" rx="6" />
-              <g className="orblitz-level-map-nebula">
-                <ellipse cx="18" cy="31" rx="18" ry="10" />
-                <ellipse cx="74" cy="68" rx="24" ry="13" />
-                <ellipse cx="53" cy="18" rx="14" ry="7" />
-              </g>
-              <g className="orblitz-level-map-orbits">
-                <ellipse cx="22" cy="60" rx="17" ry="7" transform="rotate(-18 22 60)" />
-                <ellipse cx="70" cy="39" rx="20" ry="9" transform="rotate(22 70 39)" />
-                <ellipse cx="51" cy="53" rx="34" ry="16" transform="rotate(-9 51 53)" />
-              </g>
-              <path
-                className="orblitz-level-map-route-shadow"
-                d={mapRoute}
-              />
-              <path
-                className="orblitz-level-map-route-line"
-                d={mapRoute}
-                stroke="url(#orblitz-level-route-gradient)"
-                filter="url(#orblitz-level-route-glow)"
-              />
-              <g className="orblitz-level-map-stars orblitz-level-map-stars-far">
-                <circle cx="6" cy="13" r="0.22" />
-                <circle cx="11" cy="54" r="0.2" />
-                <circle cx="18" cy="88" r="0.25" />
-                <circle cx="31" cy="10" r="0.18" />
-                <circle cx="47" cy="8" r="0.2" />
-                <circle cx="58" cy="91" r="0.24" />
-                <circle cx="70" cy="7" r="0.18" />
-                <circle cx="88" cy="12" r="0.22" />
-                <circle cx="97" cy="57" r="0.2" />
-              </g>
-              <g className="orblitz-level-map-stars orblitz-level-map-stars-near">
-                <circle cx="14" cy="20" r="0.55" />
-                <circle cx="26" cy="17" r="0.35" />
-                <circle cx="38" cy="23" r="0.5" />
-                <circle cx="53" cy="14" r="0.38" />
-                <circle cx="62" cy="73" r="0.48" />
-                <circle cx="72" cy="15" r="0.3" />
-                <circle cx="82" cy="79" r="0.52" />
-                <circle cx="94" cy="35" r="0.32" />
-              </g>
-            </svg>
-            {levels.map(sub => {
-            const level = selectedWorld + sub / 10;
-            const unlocked = isLevelUnlocked(level);
-            const boss = isBossLevel(level);
-            const completed = level <= highestLevel;
-            const current = level === currentLevel;
-            const bc = boss ? "#ff73d0" : wc;
-            const point = mapPoints[sub - 1];
-            return (
-              <motion.button key={sub}
-                onClick={() => { if (unlocked) { btn(`l${level}`); try { stopMenuBgm(); } catch {} useOrbTransition.getState().loadingSweep(() => { setGameMode("arcade"); startLoading("nextLevel", level); }); } }}
-                disabled={!unlocked}
-                data-testid={`button-level-${selectedWorld}-${sub}`}
-                aria-label={unlocked ? `Select level ${selectedWorld}.${sub}` : `Level ${selectedWorld}.${sub} locked`}
-                aria-current={current ? "step" : undefined}
-                className={`orblitz-select-card orblitz-level-node is-stellar-node ${boss ? "is-boss" : ""} ${unlocked ? "is-unlocked" : "is-locked"} ${completed ? "is-complete" : ""} ${current ? "is-current" : ""}`}
-                style={{
-                  "--select-color": unlocked ? bc : "#536079",
-                  "--map-x": `${point.x}%`,
-                  "--map-y": `${point.y}%`,
-                  color: unlocked ? bc : "#445",
-                  cursor: unlocked ? "pointer" : "default",
-                } as React.CSSProperties}
-                whileHover={unlocked ? { scale: 1.035, y: -2 } : {}}
-                whileTap={unlocked ? { scale: 0.96 } : {}}
-              >
-                <span className="orblitz-select-corner orblitz-select-corner-tl" />
-                <span className="orblitz-select-corner orblitz-select-corner-br" />
-                {unlocked ? (
-                  <>
-                    <span className="orblitz-select-index">SYSTEM {String(sub).padStart(2, "0")}</span>
-                    <span className="orblitz-select-number">{selectedWorld}.{sub}</span>
-                    <span className="orblitz-select-label">{boss ? "BOSS" : `${getOrbGoal(selectedWorld, sub)} ORBS`}</span>
-                    <span className="orblitz-select-status">{completed ? "COMPLETE" : boss ? "AHEAD" : "READY"}</span>
-                    {(completed || current) && <span className="orblitz-select-status-dot" style={{ background: bc }} />}
-                  </>
-                ) : (
-                  <>
-                    <span className="orblitz-select-locked-icon" aria-hidden="true"><IconLock /></span>
-                    <span className="orblitz-select-label">LOCKED</span>
-                     <span className="orblitz-select-status">COMPLETE EARLIER LEVELS</span>
-                  </>
-                )}
-              </motion.button>
-            );
-          })}
+          <div className="orblitz-world-carousel-stage">
+            <button
+              type="button"
+              className="orblitz-carousel-arrow orblitz-carousel-arrow-prev"
+              onClick={() => moveLevel(-1)}
+              aria-label="Previous level"
+              data-testid="button-level-previous"
+            >
+              <IconChevron direction="previous" />
+            </button>
+            <div className="orblitz-world-carousel-window">
+              {levels.map((sub) => {
+                const level = selectedWorld + sub / 10;
+                const unlocked = isLevelUnlocked(level);
+                const boss = isBossLevel(level);
+                const completed = level <= highestLevel;
+                const current = level === currentLevel;
+                const isSelected = sub === selectedLevel;
+                const levelColor = boss ? "#ff73d0" : wc;
+                return (
+                  <motion.button
+                    key={sub}
+                    type="button"
+                    onClick={() => {
+                      if (carouselSwipeRef.current) {
+                        carouselSwipeRef.current = false;
+                        return;
+                      }
+                      startLevel(sub);
+                    }}
+                    disabled={!unlocked}
+                    data-testid={`button-level-${selectedWorld}-${sub}`}
+                    aria-label={unlocked ? `Select level ${selectedWorld}.${sub}` : `Level ${selectedWorld}.${sub} locked`}
+                    aria-current={current ? "step" : isSelected ? "true" : undefined}
+                    className={`orblitz-world-card orblitz-level-card ${isSelected ? "is-current" : "is-adjacent"} ${unlocked ? "is-unlocked" : "is-locked"} ${completed ? "is-complete" : ""} ${current ? "is-progress-current" : ""} ${boss ? "is-boss" : ""}`}
+                    style={{
+                      "--world-color": unlocked ? levelColor : "#536079",
+                      "--world-shadow": unlocked ? `${levelColor}55` : "rgba(50,62,85,0.3)",
+                    } as React.CSSProperties}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: isSelected ? 1 : 0.58, y: 0, scale: isSelected ? 1 : 0.86 }}
+                    transition={{ duration: 0.3, ease: [0.22, 0.61, 0.36, 1] }}
+                    whileHover={unlocked ? { y: -4, opacity: 1 } : undefined}
+                    whileTap={unlocked ? { scale: isSelected ? 0.97 : 0.79 } : undefined}
+                  >
+                    <span className="orblitz-world-card-grid" />
+                    <span className="orblitz-world-card-corner orblitz-world-card-corner-tl" />
+                    <span className="orblitz-world-card-corner orblitz-world-card-corner-br" />
+                    <span className="orblitz-world-card-index">LEVEL {String(sub).padStart(2, "0")}</span>
+                    <span className="orblitz-world-card-signal">{completed ? "COMPLETE" : unlocked ? "READY TO PLAY" : "LOCKED"}</span>
+                    <span className="orblitz-world-card-art" aria-hidden="true">
+                      {unlocked ? (
+                        <span className="orblitz-level-card-glyph">{String(sub).padStart(2, "0")}</span>
+                      ) : (
+                        <span className="orblitz-world-card-lock"><IconLock /></span>
+                      )}
+                    </span>
+                    <span className="orblitz-world-card-copy">
+                      <strong>{selectedWorld}.{sub}</strong>
+                      <small>{boss ? "BOSS ENCOUNTER" : `${getOrbGoal(selectedWorld, sub)} ORBS`}</small>
+                    </span>
+                    <span className="orblitz-world-card-footer">
+                      <span>{completed ? "CLEARED" : boss ? "BOSS" : unlocked ? "READY" : "LOCKED"}</span>
+                      <span className="orblitz-world-card-status-dot" />
+                    </span>
+                  </motion.button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              className="orblitz-carousel-arrow orblitz-carousel-arrow-next"
+              onClick={() => moveLevel(1)}
+              aria-label="Next level"
+              data-testid="button-level-next"
+            >
+              <IconChevron direction="next" />
+            </button>
+          </div>
+          <div className="orblitz-world-index" aria-label="Level positions">
+            {levels.map((sub) => {
+              const level = selectedWorld + sub / 10;
+              const unlocked = isLevelUnlocked(level);
+              const active = sub === selectedLevel;
+              const levelColor = isBossLevel(level) ? "#ff73d0" : wc;
+              return (
+                <button
+                  key={sub}
+                  type="button"
+                  className={`orblitz-world-index-button ${active ? "is-active" : ""} ${unlocked ? "" : "is-locked"}`}
+                  onClick={() => setSelectedLevel(sub)}
+                  disabled={!unlocked}
+                  aria-label={`Focus level ${selectedWorld}.${sub}`}
+                  aria-current={active ? "true" : undefined}
+                  style={{ "--world-color": unlocked ? levelColor : "#536079" } as React.CSSProperties}
+                >
+                  <span>{String(sub).padStart(2, "0")}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       );

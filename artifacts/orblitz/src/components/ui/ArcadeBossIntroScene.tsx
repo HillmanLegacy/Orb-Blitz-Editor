@@ -204,81 +204,6 @@ function World1MenuEnemy() {
   );
 }
 
-/** World 1's fire boss sits on the final overworld space, using the shared
- * renderer while following the responsive level-9 button anchor. */
-function World1LevelBoss({
-  phase,
-  presentation,
-  selectedWorld,
-}: {
-  phase: IntroBossPhase;
-  presentation: IntroBossPresentation;
-  selectedWorld: number;
-}) {
-  const groupRef = useRef<THREE.Group>(null);
-  const raycaster = useMemo(() => new THREE.Raycaster(), []);
-  const ndc = useMemo(() => new THREE.Vector2(), []);
-  const { camera, size } = useThree();
-  const modelZ = 7.05;
-
-  useFrame((state) => {
-    const group = groupRef.current;
-    const active = phase === "menu" && presentation === "levels" && selectedWorld === 1;
-    if (!group || !active || typeof document === "undefined" || size.width <= 0 || size.height <= 0) {
-      if (group) group.visible = false;
-      return;
-    }
-
-    const levelButton = document.querySelector<HTMLElement>(
-      '[data-testid="button-level-1-9"]',
-    );
-    if (!levelButton) {
-      group.visible = false;
-      return;
-    }
-    const bounds = levelButton.getBoundingClientRect();
-    if (bounds.width <= 0 || bounds.height <= 0) {
-      group.visible = false;
-      return;
-    }
-
-    ndc.set(
-      (bounds.left + bounds.width / 2) / size.width * 2 - 1,
-      1 - (bounds.top + bounds.height / 2) / size.height * 2,
-    );
-    raycaster.setFromCamera(ndc, camera);
-    const directionZ = raycaster.ray.direction.z;
-    if (Math.abs(directionZ) < 0.0001) {
-      group.visible = false;
-      return;
-    }
-
-    const distance = (modelZ - raycaster.ray.origin.z) / directionZ;
-    group.position.copy(raycaster.ray.origin).addScaledVector(raycaster.ray.direction, distance);
-    group.position.z = modelZ;
-    group.visible = true;
-    group.scale.setScalar(0.3 + Math.sin(state.clock.getElapsedTime() * 1.5) * 0.012);
-    group.rotation.z = Math.sin(state.clock.getElapsedTime() * 0.45) * 0.025;
-  });
-
-  return (
-    <group ref={groupRef} visible={false} renderOrder={40}>
-      <BossVisual type="circle" radius={1.1} healthPercent={1} presentationSpin={false} />
-      <pointLight color="#ff4d22" intensity={2.4} distance={3.8} decay={2} />
-      <mesh scale={1.18}>
-        <sphereGeometry args={[1, 20, 14]} />
-        <meshBasicMaterial
-          color="#ff5a24"
-          transparent
-          opacity={0.12}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
-      </mesh>
-    </group>
-  );
-}
-
 /** A fixed World 2 enemy showcase for the root menu Shop target. */
 function World2MenuEnemy() {
   const groupRef = useRef<THREE.Group>(null);
@@ -803,13 +728,6 @@ function ArcadeBossScene({
         </>
       )}
       <Suspense fallback={null}>
-        {phase === "menu" && presentation === "levels" && selectedWorld === 1 && (
-          <World1LevelBoss
-            phase={phase}
-            presentation={presentation}
-            selectedWorld={selectedWorld}
-          />
-        )}
         {(presentation === "worlds" || preloadingWorldRoster) && (
           <WorldRosterReadySignal onReady={onWorldRosterReady} />
         )}

@@ -1321,6 +1321,51 @@ html,
   box-shadow: none;
 }
 
+.orblitz-level-card {
+  --level-accent: var(--world-color);
+}
+
+.orblitz-level-card .orblitz-world-card-art {
+  min-height: 0;
+}
+
+.orblitz-level-card-glyph {
+  display: grid;
+  width: clamp(64px, 8vw, 104px);
+  height: clamp(64px, 8vw, 104px);
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--world-color) 72%, transparent);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.3), transparent 16%),
+    radial-gradient(circle, color-mix(in srgb, var(--world-color) 28%, transparent), rgba(5, 10, 34, 0.1) 68%);
+  color: var(--world-color);
+  font: 900 clamp(1.35rem, 3vw, 2.4rem) / 1 var(--font-display);
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 14px color-mix(in srgb, var(--world-color) 72%, transparent);
+  box-shadow:
+    0 0 24px color-mix(in srgb, var(--world-color) 34%, transparent),
+    inset 0 0 18px color-mix(in srgb, var(--world-color) 16%, transparent);
+}
+
+.orblitz-level-card.is-boss .orblitz-level-card-glyph {
+  border-radius: 22%;
+  rotate: 45deg;
+}
+
+.orblitz-level-card.is-boss .orblitz-level-card-glyph::first-line {
+  rotate: -45deg;
+}
+
+.orblitz-level-card.is-progress-current {
+  outline: 1px dashed color-mix(in srgb, var(--world-color) 70%, transparent);
+  outline-offset: -6px;
+}
+
+.orblitz-level-card .orblitz-world-card-copy small {
+  color: currentColor;
+}
+
 .orblitz-world-side-rail {
   display: flex;
   min-width: 0;

@@ -468,10 +468,7 @@ export function GameScene({
   const foregroundIntroBosses = introBossPhase === "title" || introBossPhase === "waiting";
   const worldBossPreview = introBossPhase === "menu" && introBossPresentation === "worlds";
   const rootMenuPreview = introBossPhase === "menu" && introBossPresentation === "menu";
-  const world1LevelBoss = introBossPhase === "menu" &&
-    introBossPresentation === "levels" &&
-    introSelectedWorld === 1;
-  const introBossesInFront = foregroundIntroBosses || worldBossPreview || world1LevelBoss;
+  const introBossesInFront = foregroundIntroBosses || worldBossPreview;
 
   useEffect(() => {
     if (!webglAvailable) onWorldRosterReady?.();
@@ -499,7 +496,7 @@ export function GameScene({
           width: "100%",
           height: "100%",
           touchAction: "none",
-            zIndex: worldBossPreview || world1LevelBoss ? 180 : foregroundIntroBosses ? 120 : undefined,
+            zIndex: worldBossPreview ? 180 : foregroundIntroBosses ? 120 : undefined,
            pointerEvents: introBossesInFront ? "none" : "auto",
         }}
       >
@@ -521,7 +518,7 @@ export function GameScene({
           )}
 
           {/* Lightweight background — gameplay GPU systems mount below only when needed */}
-          {backgroundEnabled && !rootMenuPreview && <Background visible={!worldBossPreview && !world1LevelBoss} />}
+          {backgroundEnabled && !rootMenuPreview && <Background visible={!worldBossPreview} />}
 
           {/* Gameplay systems — unmounted outside gameplay loading/playing */}
           <GameplayGate />
