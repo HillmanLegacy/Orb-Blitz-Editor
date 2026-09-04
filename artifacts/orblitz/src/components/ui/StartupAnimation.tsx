@@ -532,7 +532,7 @@ export function StartupAnimation({
   // ── Derived state ─────────────────────────────────────────────────────────
   const showMenu    = true;
   const isContent   = showMenu && (menuState === "worlds" || menuState === "levels");
-  const showTitle   = showMenu && !isContent;
+  const showTitle   = showMenu && !isContent && arcadeTransition === "idle";
   const panelButtons = showMenu ? getPanelButtons() : [];
   const introPhase: IntroBossPhase | null =
     animPhase === "splash" || animPhase === "idle" || animPhase === "flying" || animPhase === "converge" || animPhase === "flash" ||
@@ -642,7 +642,7 @@ export function StartupAnimation({
 
       {/* ── STAR BALANCE — dedicated arcade HUD counter ─────────────────── */}
       <AnimatePresence>
-        {showMenu && !isContent && (
+        {showMenu && !isContent && arcadeTransition === "idle" && (
           <motion.div
             className="absolute z-30 pointer-events-none orblitz-star-bank"
             aria-label={`${shopStars} stars`}
