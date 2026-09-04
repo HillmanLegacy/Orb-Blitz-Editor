@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
 import { useAudio } from "@/lib/stores/useAudio";
@@ -246,6 +246,7 @@ export function StartupAnimation({
   );
   const [carouselOpen, setCarouselOpen] = useState(startsInCarousel);
   const [selectedLevel, setSelectedLevel] = useState(1);
+  const [selectionPortalRoot, setSelectionPortalRoot] = useState<HTMLElement | null>(null);
   const carouselPointerStartX = useRef<number | null>(null);
   const carouselSwipeRef = useRef(false);
 
@@ -268,6 +269,16 @@ export function StartupAnimation({
     onMenuReady?.();
     try { startMenuBgm(); } catch {}
   }, [onMenuReady, startMenuBgm]);
+
+  // Keep the selection surface in the app shell's stacking context. The shell
+  // owns the shared canvas and applies the user brightness filter, which makes
+  // a body-level portal paint above the canvas regardless of the canvas z-index.
+  // The layout effect resolves the already-mounted parent before the first
+  // visible frame, avoiding a one-frame body-level fallback.
+  useLayoutEffect(() => {
+    if (typeof document === "undefined") return;
+    setSelectionPortalRoot(document.querySelector<HTMLElement>(".orblitz-app-shell"));
+  }, []);
 
   const handleLetterClick = useCallback((letter: string, idx: number) => {
     const expected = DEV_SEQUENCE[devProgress];
@@ -887,10 +898,11 @@ export function StartupAnimation({
       </AnimatePresence>
 
       {/* ── FULL-SCREEN WORLDS / LEVELS POPUP ─────────────────────────────
-          This must be portaled above the shared canvas. The startup shell is
-          an isolated z-index context, so a child z-index cannot outrank a
-          canvas sibling even when the child's numeric z-index is higher. */}
-      {typeof document !== "undefined" && createPortal(
+          Keep this in the app shell so the shared canvas and selection surface
+          share one stacking context. World Select raises the canvas above this
+          surface for the boss roster; Level Select keeps its DOM cards above
+          the non-preview canvas. */}
+      {selectionPortalRoot && createPortal(
         <AnimatePresence mode="wait">
           {showSelectionScreen && (
             <motion.div
