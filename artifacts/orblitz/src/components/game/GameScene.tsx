@@ -454,10 +454,12 @@ export function GameScene({
   introBossPhase = null,
   introBossPresentation = "menu",
   introSelectedWorld = 1,
+  introWorldPreviewVisible = true,
 }: {
   introBossPhase?: IntroBossPhase | null;
   introBossPresentation?: IntroBossPresentation;
   introSelectedWorld?: number;
+  introWorldPreviewVisible?: boolean;
 }) {
   const [webglAvailable] = useState(canCreateWebGLContext);
   const backgroundEnabled = usePerformanceFeature("background");
@@ -504,6 +506,7 @@ export function GameScene({
               phase={introBossPhase}
               presentation={introBossPresentation}
               selectedWorld={introSelectedWorld}
+              worldPreviewVisible={introWorldPreviewVisible}
             />
           )}
 

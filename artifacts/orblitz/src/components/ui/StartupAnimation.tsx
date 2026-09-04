@@ -38,7 +38,12 @@ interface StartupAnimationProps {
   skipIntro?: boolean;
   initialState?: MenuState;
   onMenuReady?: () => void;
-  onIntroPhaseChange?: (phase: IntroBossPhase | null, menuState?: MenuState, selectedWorld?: number) => void;
+  onIntroPhaseChange?: (
+    phase: IntroBossPhase | null,
+    menuState?: MenuState,
+    selectedWorld?: number,
+    worldPreviewVisible?: boolean,
+  ) => void;
 }
 
 // ─── World palette (9 worlds, spans the title gradient arc) ──────────────────
@@ -577,8 +582,13 @@ export function StartupAnimation({
       : null;
 
   useEffect(() => {
-    onIntroPhaseChange?.(introPhase, reportedMenuState, selectedWorld);
-  }, [introPhase, onIntroPhaseChange, reportedMenuState, selectedWorld]);
+    onIntroPhaseChange?.(
+      introPhase,
+      reportedMenuState,
+      selectedWorld,
+      reportedMenuState === "worlds" && carouselOpen,
+    );
+  }, [carouselOpen, introPhase, onIntroPhaseChange, reportedMenuState, selectedWorld]);
 
   useEffect(() => () => onIntroPhaseChange?.(null), [onIntroPhaseChange]);
 

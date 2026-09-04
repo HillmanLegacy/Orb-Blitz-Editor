@@ -106,6 +106,7 @@ const FULL_SCREEN_RING_SCALE = 0.43;
 const FLASH_DURATION = 1.85;
 const FLASH_BOSS_HOLD = 0.62;
 const MENU_BACKGROUND_REVEAL_DURATION = 1.15;
+const WORLD_ROSTER_REVEAL_DURATION_MS = 300;
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
@@ -362,11 +363,13 @@ function ArcadeBossActor({
   phase,
   presentation,
   selectedWorld,
+  worldPreviewVisible,
 }: {
   definition: ArcadeBossIntroDef;
   phase: IntroBossPhase;
   presentation: IntroBossPresentation;
   selectedWorld: number;
+  worldPreviewVisible: boolean;
 }) {
   type IntroMaterialState = {
     material: THREE.Material;
@@ -379,13 +382,18 @@ function ArcadeBossActor({
   const phaseStartedAt = useRef(typeof performance === "undefined" ? 0 : performance.now());
   const previousPhase = useRef<IntroBossPhase | null>(null);
   const menuRevealStartedAt = useRef<number | null>(null);
-  const previousPresentation = useRef<IntroBossPresentation | null>(null);
+  const previousWorldPreviewVisible = useRef(false);
   const introMaterialStates = useRef<IntroMaterialState[]>([]);
   const materialFadeInitialized = useRef(false);
 
   useEffect(() => {
     const now = typeof performance === "undefined" ? 0 : performance.now();
-    if (phase === "menu" && presentation === "worlds" && previousPresentation.current !== "worlds") {
+    if (
+      phase === "menu" &&
+      presentation === "worlds" &&
+      worldPreviewVisible &&
+      !previousWorldPreviewVisible.current
+    ) {
       menuRevealStartedAt.current = now;
     } else if (phase === "menu" && presentation === "menu" && previousPhase.current !== "menu") {
       menuRevealStartedAt.current = now;
@@ -399,8 +407,8 @@ function ArcadeBossActor({
       menuMotionPhases.includes(previousPhase.current);
     if (!preserveMenuMotionClock) phaseStartedAt.current = now;
     previousPhase.current = phase;
-    previousPresentation.current = presentation;
-  }, [phase, presentation]);
+    previousWorldPreviewVisible.current = worldPreviewVisible;
+  }, [phase, presentation, worldPreviewVisible]);
 
   useFrame(() => {
     const group = groupRef.current;
@@ -483,7 +491,9 @@ function ArcadeBossActor({
     if (phase === "menu" && presentation === "worlds") {
       const rosterIndex = ARCADE_BOSS_INTRO_DEFS.findIndex((entry) => entry.type === definition.type);
       const rosterProgress = easeOutCubic(
-        (now - (menuRevealStartedAt.current ?? now)) / 950,
+        worldPreviewVisible
+          ? (now - (menuRevealStartedAt.current ?? now)) / WORLD_ROSTER_REVEAL_DURATION_MS
+          : 0,
       );
       // Keep every live model aligned with its ordered DOM slot. The world
       // navigator no longer reuses three moving positions, so the roster
@@ -665,10 +675,12 @@ function ArcadeBossScene({
   phase,
   presentation,
   selectedWorld,
+  worldPreviewVisible,
 }: {
   phase: IntroBossPhase;
   presentation: IntroBossPresentation;
   selectedWorld: number;
+  worldPreviewVisible: boolean;
 }) {
   const worldDefinitions = presentation === "worlds"
     ? ARCADE_BOSS_INTRO_DEFS
@@ -694,6 +706,7 @@ function ArcadeBossScene({
             phase={phase}
             presentation={presentation}
             selectedWorld={selectedWorld}
+            worldPreviewVisible={worldPreviewVisible}
           />
         ))}
       </Suspense>
@@ -705,16 +718,19 @@ export function ArcadeBossIntroScene({
   phase,
   presentation = "menu",
   selectedWorld = 1,
+  worldPreviewVisible = true,
 }: {
   phase: IntroBossPhase;
   presentation?: IntroBossPresentation;
   selectedWorld?: number;
+  worldPreviewVisible?: boolean;
 }) {
   return (
     <ArcadeBossScene
       phase={phase}
       presentation={presentation}
       selectedWorld={selectedWorld}
+      worldPreviewVisible={worldPreviewVisible}
     />
   );
 }

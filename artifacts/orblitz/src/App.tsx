@@ -59,6 +59,7 @@ function App() {
   const [introBossPhase, setIntroBossPhase] = useState<IntroBossPhase | null>(null);
   const [introBossPresentation, setIntroBossPresentation] = useState<IntroBossPresentation>("menu");
   const [introSelectedWorld, setIntroSelectedWorld] = useState(1);
+  const [introWorldPreviewVisible, setIntroWorldPreviewVisible] = useState(false);
   const [initialMenuState, setInitialMenuState] = useState<MenuState>("root");
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
   const [shopLayerVisible, setShopLayerVisible] = useState(false);
@@ -70,9 +71,11 @@ function App() {
     nextPhase: IntroBossPhase | null,
     menuState?: MenuState,
     selectedWorld?: number,
+    worldPreviewVisible?: boolean,
   ) => {
     setIntroBossPhase(nextPhase);
     if (selectedWorld !== undefined) setIntroSelectedWorld(selectedWorld);
+    if (worldPreviewVisible !== undefined) setIntroWorldPreviewVisible(worldPreviewVisible);
     setIntroBossPresentation(
       menuState === "worlds" ? "worlds" : menuState === "levels" ? "levels" : "menu",
     );
@@ -210,6 +213,7 @@ function App() {
              introBossPhase={introBossPhase}
              introBossPresentation={introBossPresentation}
         introSelectedWorld={introSelectedWorld}
+             introWorldPreviewVisible={introWorldPreviewVisible}
            />
         </div>
       </div>
