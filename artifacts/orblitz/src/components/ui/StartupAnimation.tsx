@@ -285,6 +285,10 @@ export function StartupAnimation({
 
   const handleOpenArcade = useCallback(() => {
     btn("arcade");
+    // Each ARCADE entry starts at the first world. Keep this reset at the
+    // handoff boundary so the DOM cards and shared WebGL roster share one
+    // deterministic anchor after returning from a previous carousel visit.
+    setSelectedWorld(1);
     setCarouselView("worlds");
     setWorldScreenMounted(true);
     setArcadeTransitionTarget("worlds");
