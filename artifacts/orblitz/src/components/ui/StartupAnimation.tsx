@@ -332,6 +332,14 @@ export function StartupAnimation({
     }
   }, [moveWorld, openWorldLevels, selectedWorld]);
 
+  useEffect(() => {
+    if (carouselView !== "worlds" || typeof document === "undefined") return;
+    const activeCard = document.querySelector<HTMLElement>(
+      `[data-testid="button-world-${selectedWorld}"]`,
+    );
+    activeCard?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }, [carouselView, selectedWorld]);
+
   // ── Button definitions per state ──────────────────────────────────────────
   const getPanelButtons = useCallback((state: MenuState = menuState): BtnDef[] => {
     const back = (label: string, action: () => void, hideLabel = false): BtnDef =>
@@ -367,13 +375,12 @@ export function StartupAnimation({
   // ── Content panels ────────────────────────────────────────────────────────
   const renderContent = (viewState: "worlds" | "levels") => {
     if (viewState === "worlds") {
-      const selectedColor = WORLD_COLORS[selectedWorld - 1];
       return (
         <div
           className="orblitz-world-carousel"
           tabIndex={0}
           role="region"
-          aria-label="Arcade world carousel"
+          aria-label="Arcade world navigation"
           onKeyDown={handleWorldKeyDown}
           onPointerDown={(event) => { worldPointerStartX.current = event.clientX; worldSwipeRef.current = false; }}
           onPointerUp={(event) => {
@@ -385,6 +392,10 @@ export function StartupAnimation({
           }}
           onPointerCancel={() => { worldPointerStartX.current = null; worldSwipeRef.current = false; }}
         >
+          <div className="orblitz-world-carousel-topline">
+            <span>WORLD NAVIGATION</span>
+            <span className="orblitz-world-carousel-hint">LEFT / RIGHT TO CYCLE <i /> ENTER TO SELECT</span>
+          </div>
           <div className="orblitz-world-carousel-stage">
             <button
               type="button"
@@ -396,19 +407,15 @@ export function StartupAnimation({
               <IconChevron direction="previous" />
             </button>
             <div className="orblitz-world-carousel-window">
-              <div className="orblitz-world-side-rail" aria-hidden="true">
-                <span className="orblitz-world-rail-line" />
-                <span className="orblitz-world-rail-dot" style={{ background: selectedColor }} />
-              </div>
-              {[-1, 0, 1].map((offset) => {
-                const world = ((selectedWorld - 1 + offset + 9) % 9) + 1;
+              {WORLD_COLORS.map((color, index) => {
+                const world = index + 1;
                 const unlocked = isWorldUnlocked(world);
                 const wc = WORLD_COLORS[world - 1];
                 const done = world + 0.9 <= highestLevel + 0.01;
-                const isCurrent = offset === 0;
+                const isCurrent = world === selectedWorld;
                 return (
                   <motion.button
-                    key={`${world}-${selectedWorld}`}
+                    key={world}
                     type="button"
                     onClick={() => {
                       if (worldSwipeRef.current) {
@@ -423,11 +430,11 @@ export function StartupAnimation({
                     aria-current={isCurrent ? "true" : undefined}
                     className={`orblitz-world-card ${isCurrent ? "is-current" : "is-adjacent"} ${unlocked ? "is-unlocked" : "is-locked"} ${done ? "is-complete" : ""}`}
                     style={{
-                      "--world-color": unlocked ? wc : "#536079",
+                      "--world-color": unlocked ? color : "#536079",
                       "--world-shadow": unlocked ? WORLD_SHADOWS[world - 1] : "rgba(50,62,85,0.3)",
                     } as React.CSSProperties}
-                    initial={{ opacity: 0, x: offset < 0 ? -28 : 28 }}
-                    animate={{ opacity: isCurrent ? 1 : 0.58, x: 0, scale: isCurrent ? 1 : 0.82, rotateY: isCurrent ? 0 : offset < 0 ? 7 : -7 }}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: isCurrent ? 1 : 0.58, y: 0, scale: isCurrent ? 1 : 0.86 }}
                     transition={{ duration: 0.3, ease: [0.22, 0.61, 0.36, 1] }}
                     whileHover={unlocked ? { y: -4, opacity: 1 } : undefined}
                     whileTap={unlocked ? { scale: isCurrent ? 0.97 : 0.79 } : undefined}
@@ -438,6 +445,10 @@ export function StartupAnimation({
                     <span className="orblitz-world-card-index">WORLD {String(world).padStart(2, "0")}</span>
                     <span className="orblitz-world-card-signal">{done ? "COMPLETE" : unlocked ? "READY TO PLAY" : "LOCKED"}</span>
                     <span className="orblitz-world-card-art" aria-hidden="true">
+                      <span
+                        className="orblitz-world-card-orb"
+                        style={{ "--orb-color": unlocked ? wc : "#536079" } as React.CSSProperties}
+                      />
                       {!unlocked && <span className="orblitz-world-card-lock"><IconLock /></span>}
                     </span>
                     <span className="orblitz-world-card-copy">
@@ -450,10 +461,6 @@ export function StartupAnimation({
                   </motion.button>
                 );
               })}
-              <div className="orblitz-world-side-rail is-right" aria-hidden="true">
-                <span className="orblitz-world-rail-line" />
-                <span className="orblitz-world-rail-dot" style={{ background: selectedColor }} />
-              </div>
             </div>
             <button
               type="button"

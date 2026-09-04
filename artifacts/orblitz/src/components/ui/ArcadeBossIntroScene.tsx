@@ -485,32 +485,30 @@ function ArcadeBossActor({
       const rosterProgress = easeOutCubic(
         (now - (menuRevealStartedAt.current ?? now)) / 950,
       );
-       // Keep the live models aligned with the actual DOM card centers. Reading
-       // the transformed button bounds makes the shared WebGL layer stay locked
-       // to the carousel through responsive layout and Framer Motion transitions.
-      const selectedIndex = Math.max(0, Math.min(8, selectedWorld - 1));
-      const relativeIndex = ((rosterIndex - selectedIndex + 9 + 4) % 9) - 4;
-      const isSelected = relativeIndex === 0;
+      // Keep every live model aligned with its ordered DOM slot. The world
+      // navigator no longer reuses three moving positions, so the roster
+      // index maps directly to the world number.
+      const world = rosterIndex + 1;
+      const isSelected = world === selectedWorld;
       const rosterTime = elapsed * 0.72 + definition.delay * 2.2;
-       const world = ((selectedWorld - 1 + relativeIndex + 9) % 9) + 1;
-       const actorZ = (isSelected ? 5.05 : 4.55) + Math.sin(rosterTime * 0.61) * 0.18;
-       const perspectiveScale = (camera.position.z - actorZ) / camera.position.z;
-       const cardAnchor = getWorldCardAnchor(world);
-       const fallbackX = relativeIndex * width * 0.27 * perspectiveScale;
-       const fallbackY = 0;
-       const anchorX = cardAnchor
-         ? (cardAnchor.x - window.innerWidth / 2) / window.innerWidth * width * perspectiveScale
-         : fallbackX;
-       const anchorY = cardAnchor
-         ? (window.innerHeight / 2 - cardAnchor.y) / window.innerHeight * height * perspectiveScale
-         : fallbackY;
+      const actorZ = (isSelected ? 5.05 : 4.55) + Math.sin(rosterTime * 0.61) * 0.18;
+      const perspectiveScale = (camera.position.z - actorZ) / camera.position.z;
+      const cardAnchor = getWorldCardAnchor(world);
+      const fallbackX = ((world - 5) / 4) * width * 0.82 * perspectiveScale;
+      const fallbackY = 0;
+      const anchorX = cardAnchor
+        ? (cardAnchor.x - window.innerWidth / 2) / window.innerWidth * width * perspectiveScale
+        : fallbackX;
+      const anchorY = cardAnchor
+        ? (window.innerHeight / 2 - cardAnchor.y) / window.innerHeight * height * perspectiveScale
+        : fallbackY;
 
       group.position.set(
-         anchorX + Math.sin(rosterTime) * width * (isSelected ? 0.004 : 0.003),
-         anchorY + Math.cos(rosterTime * 0.83) * height * (isSelected ? 0.005 : 0.004),
-         actorZ,
+        anchorX + Math.sin(rosterTime) * width * (isSelected ? 0.004 : 0.003),
+        anchorY + Math.cos(rosterTime * 0.83) * height * (isSelected ? 0.005 : 0.004),
+        actorZ,
       );
-      group.scale.setScalar(Math.max(0.001, (isSelected ? 0.92 : 0.54) * rosterProgress));
+      group.scale.setScalar(Math.max(0.001, (isSelected ? 0.72 : 0.38) * rosterProgress));
       group.renderOrder = isSelected ? 8 : 7;
       group.rotation.z = THREE.MathUtils.degToRad(
         definition.rotation * 0.28 + Math.sin(rosterTime * 0.62) * 5,
@@ -673,10 +671,7 @@ function ArcadeBossScene({
   selectedWorld: number;
 }) {
   const worldDefinitions = presentation === "worlds"
-    ? [-1, 0, 1].map((offset) => {
-        const index = ((selectedWorld - 1 + offset + 9) % 9 + 9) % 9;
-        return ARCADE_BOSS_INTRO_DEFS[index];
-      })
+    ? ARCADE_BOSS_INTRO_DEFS
     : presentation === "menu" ? [] : ARCADE_BOSS_INTRO_DEFS;
   return (
     <>

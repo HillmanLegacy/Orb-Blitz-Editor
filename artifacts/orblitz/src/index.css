@@ -1045,10 +1045,10 @@ html,
   position: fixed;
 }
 
-/* ─── Arcade world carousel ──────────────────────────────────────────────────
+/* ─── Arcade world navigation ────────────────────────────────────────────────
    The WebGL boss roster remains in GameScene as the shared presentation
-   boundary. These cards are the readable command layer above it: one active
-   sector, two neighboring signals, and an index for fast scanning. */
+   boundary. These ordered slots are the readable command layer above it:
+   left/right changes focus without rotating or replacing the row. */
 .orblitz-world-carousel {
   position: relative;
   display: flex;
@@ -1096,14 +1096,18 @@ html,
 
 .orblitz-world-carousel-window {
   position: relative;
-  display: grid;
+  display: flex;
   flex: 1;
   min-width: 0;
   min-height: 0;
-  grid-template-columns: 28px minmax(112px, 0.72fr) minmax(210px, 1fr) minmax(112px, 0.72fr) 28px;
   align-items: stretch;
   gap: clamp(6px, 1vw, 14px);
-  perspective: 1000px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 8px clamp(4px, 1vw, 12px);
+  scroll-behavior: smooth;
+  scrollbar-color: rgba(143, 255, 224, 0.32) transparent;
+  scrollbar-width: thin;
 }
 
 .orblitz-world-card {
@@ -1111,8 +1115,9 @@ html,
   --world-shadow: rgba(0, 246, 255, 0.26);
   position: relative;
   display: flex;
-  min-width: 0;
-  min-height: min(49dvh, 390px);
+  min-width: clamp(74px, 7vw, 112px);
+  min-height: clamp(178px, 31vh, 300px);
+  flex: 1 1 clamp(74px, 7vw, 112px);
   flex-direction: column;
   align-items: stretch;
   justify-content: space-between;
@@ -1129,6 +1134,7 @@ html,
   transform-origin: center;
   transition: filter 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   will-change: transform, opacity;
+  scroll-snap-align: center;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -1245,6 +1251,58 @@ html,
   pointer-events: none;
 }
 
+.orblitz-world-card-orb {
+  position: relative;
+  display: block;
+  width: clamp(42px, 5vw, 72px);
+  aspect-ratio: 1;
+  border: 2px solid color-mix(in srgb, var(--orb-color) 78%, white);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255,255,255,0.95) 0 4%, color-mix(in srgb, var(--orb-color) 88%, white) 13%, transparent 29%),
+    radial-gradient(circle at 52% 58%, color-mix(in srgb, var(--orb-color) 70%, transparent), rgba(5, 9, 31, 0.72) 70%);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--orb-color) 14%, transparent),
+    0 0 22px color-mix(in srgb, var(--orb-color) 55%, transparent),
+    inset -8px -10px 15px rgba(0,0,0,0.34),
+    inset 5px 5px 10px rgba(255,255,255,0.4);
+  opacity: 0.72;
+  transform: rotate(-12deg);
+}
+
+.orblitz-world-card-orb::before,
+.orblitz-world-card-orb::after {
+  position: absolute;
+  display: block;
+  border: 1px solid color-mix(in srgb, var(--orb-color) 72%, white);
+  border-radius: 50%;
+  content: "";
+}
+
+.orblitz-world-card-orb::before {
+  inset: 12%;
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  transform: rotate(34deg);
+}
+
+.orblitz-world-card-orb::after {
+  inset: -9%;
+  border-top-color: transparent;
+  border-right-color: transparent;
+  opacity: 0.62;
+  transform: rotate(-28deg);
+}
+
+.orblitz-world-card.is-current .orblitz-world-card-orb {
+  opacity: 0.9;
+  box-shadow:
+    0 0 0 5px color-mix(in srgb, var(--orb-color) 20%, transparent),
+    0 0 32px color-mix(in srgb, var(--orb-color) 76%, transparent),
+    inset -8px -10px 15px rgba(0,0,0,0.3),
+    inset 5px 5px 10px rgba(255,255,255,0.5);
+}
+
 .orblitz-world-card-lock {
   display: flex;
   width: clamp(55px, 7vw, 86px);
@@ -1270,8 +1328,8 @@ html,
 .orblitz-world-card-copy strong {
   overflow: hidden;
   color: rgba(231, 251, 255, 0.94);
-  font-size: clamp(0.7rem, 1.35vw, 1.02rem);
-  letter-spacing: 0.12em;
+  font-size: clamp(0.48rem, 0.9vw, 0.76rem);
+  letter-spacing: 0.08em;
   line-height: 1.2;
   text-overflow: ellipsis;
   text-transform: uppercase;
@@ -1530,12 +1588,15 @@ html,
   }
 
   .orblitz-world-carousel-window {
-    grid-template-columns: 12px minmax(66px, 0.52fr) minmax(150px, 1.25fr) minmax(66px, 0.52fr) 12px;
+    display: flex;
     gap: 5px;
+    padding-inline: 4px;
   }
 
   .orblitz-world-card {
     min-height: 190px;
+    min-width: 82px;
+    flex-basis: 82px;
     padding: 10px 9px;
     border-radius: 10px;
   }
