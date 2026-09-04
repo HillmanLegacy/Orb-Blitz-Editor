@@ -5897,6 +5897,104 @@ input:focus-visible,
   backdrop-filter: none !important;
 }
 
+.orblitz-options-select {
+  isolation: isolate;
+}
+
+.orblitz-options-select .orblitz-selection-content {
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  padding: clamp(8px, 2vh, 20px) clamp(16px, 5vw, 72px);
+}
+
+.orblitz-options-selection-content {
+  display: flex;
+  width: min(860px, 100%);
+  align-items: center;
+  justify-content: center;
+  margin: auto;
+}
+
+.orblitz-options-selection-content .orblitz-options-deck {
+  width: 100% !important;
+  max-width: 860px;
+  margin: 0 auto !important;
+  padding: clamp(14px, 2.4vw, 26px) !important;
+  border: 1px solid rgba(199, 242, 61, .28) !important;
+  border-radius: 0 !important;
+  background:
+    linear-gradient(145deg, rgba(199, 242, 61, .07), rgba(15, 25, 18, .5) 44%, rgba(8, 13, 10, .82)) !important;
+  box-shadow: 7px 7px 0 rgba(5, 9, 7, .62), inset 0 1px 0 rgba(233, 227, 207, .1) !important;
+}
+
+.orblitz-options-selection-content .orblitz-options-control-row {
+  flex-wrap: wrap;
+}
+
+.orblitz-options-selection-content .orblitz-options-control {
+  min-height: clamp(132px, 18vh, 176px);
+}
+
+.orblitz-options-selection-content .orblitz-options-control:first-child {
+  min-height: 0;
+}
+
+.orblitz-settings-footer-button {
+  display: inline-flex;
+  min-width: clamp(140px, 24vw, 220px);
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 46px;
+  margin: clamp(10px, 1.8vh, 18px) 0;
+  padding: 0 20px;
+  border: 1px solid rgba(199, 242, 61, .42);
+  border-radius: 0;
+  background: rgba(15, 25, 18, .92);
+  color: var(--menu-paper);
+  box-shadow: 4px 4px 0 rgba(5, 9, 7, .56);
+  font: 900 clamp(.55rem, 1vw, .72rem) / 1 var(--font-display);
+  letter-spacing: .16em;
+  cursor: pointer;
+  transition: transform .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease;
+}
+
+.orblitz-settings-footer-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.orblitz-settings-footer-button:hover,
+.orblitz-settings-footer-button:focus-visible {
+  border-color: var(--menu-lime);
+  color: var(--menu-lime);
+  box-shadow: 6px 6px 0 rgba(5, 9, 7, .68);
+}
+
+@media (max-width: 600px) {
+  .orblitz-options-select .orblitz-selection-content {
+    padding-inline: 10px;
+  }
+
+  .orblitz-options-selection-content .orblitz-options-deck {
+    padding: 12px !important;
+  }
+
+  .orblitz-options-selection-content .orblitz-options-control-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .orblitz-options-selection-content .orblitz-options-control-row > .orblitz-options-control {
+    width: 100%;
+  }
+
+  .orblitz-options-selection-content .orblitz-options-control-row > .orblitz-options-control:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
 .orblitz-startup-shell button:focus-visible,
 .orblitz-startup-shell input:focus-visible,
 .orblitz-startup-shell [tabindex]:focus-visible {

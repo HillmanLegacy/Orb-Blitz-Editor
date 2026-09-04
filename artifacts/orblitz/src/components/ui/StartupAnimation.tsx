@@ -695,7 +695,10 @@ export function StartupAnimation({
   const selectionMenuState = carouselView;
   const selectionButtons = showMenu ? getPanelButtons(selectionMenuState) : [];
   const showSelectionScreen = showMenu && worldScreenMounted;
+  const showOptionsScreen = showMenu && menuState === "settings";
+  const showSelectionSurface = showSelectionScreen || showOptionsScreen;
   const selectionScreenVisible = carouselOpen;
+  const selectionSurfaceVisible = showOptionsScreen || selectionScreenVisible;
   const reportedMenuState: MenuState =
     carouselOpen
       ? carouselView
@@ -855,7 +858,7 @@ export function StartupAnimation({
 
       {/* ── MENU ACTIONS (root / modes) — title owns the center ─────────── */}
       <AnimatePresence mode="wait">
-        {showMenu && (
+        {showMenu && !showOptionsScreen && (
           <motion.div
             key={menuState === "settings" ? "settings" : "menu"}
             className="absolute inset-0 z-20 orblitz-command-layer orblitz-menu-actions orblitz-aaa-menu-actions"
@@ -904,16 +907,16 @@ export function StartupAnimation({
           the non-preview canvas. */}
       {selectionPortalRoot && createPortal(
         <AnimatePresence mode="wait">
-          {showSelectionScreen && (
+          {showSelectionSurface && (
             <motion.div
-              key="arcade-world-screen"
-              className={`fixed inset-0 z-[150] flex flex-col orblitz-selection-screen ${selectionMenuState === "worlds" ? "orblitz-world-select" : ""}`}
+              key={showOptionsScreen ? "orblitz-options-screen" : "arcade-world-screen"}
+              className={`fixed inset-0 z-[150] flex flex-col orblitz-selection-screen ${selectionMenuState === "worlds" && !showOptionsScreen ? "orblitz-world-select" : ""} ${showOptionsScreen ? "orblitz-options-select" : ""}`}
               role="main"
-              aria-label={selectionMenuState === "worlds" ? "World select" : "Level select"}
-              aria-hidden={!selectionScreenVisible}
+              aria-label={showOptionsScreen ? "Options" : selectionMenuState === "worlds" ? "World select" : "Level select"}
+              aria-hidden={!selectionSurfaceVisible}
               style={{
-                visibility: selectionScreenVisible ? "visible" : "hidden",
-                pointerEvents: selectionScreenVisible ? "auto" : "none",
+                visibility: selectionSurfaceVisible ? "visible" : "hidden",
+                pointerEvents: selectionSurfaceVisible ? "auto" : "none",
               }}
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -923,26 +926,41 @@ export function StartupAnimation({
               {/* Header */}
               <div className="flex-none orblitz-selection-header">
                 <p data-testid={`text-${selectionMenuState}-title`} className="font-black tracking-widest uppercase" style={{
-                  color: selectionMenuState === "worlds" ? "#00ffff" : WORLD_COLORS[selectedWorld - 1],
+                   color: showOptionsScreen ? "#c7f23d" : selectionMenuState === "worlds" ? "#00ffff" : WORLD_COLORS[selectedWorld - 1],
                   fontSize: "clamp(0.85rem, 2.5vw, 1.1rem)",
                   letterSpacing: "0.22em",
-                  textShadow: `0 0 18px ${selectionMenuState === "worlds" ? "rgba(0,255,255,0.5)" : `${WORLD_COLORS[selectedWorld - 1]}88`}`,
+                   textShadow: showOptionsScreen ? "0 0 18px rgba(199,242,61,0.3)" : `0 0 18px ${selectionMenuState === "worlds" ? "rgba(0,255,255,0.5)" : `${WORLD_COLORS[selectedWorld - 1]}88`}`,
                 }}>
-                  {selectionMenuState === "worlds" ? "Select World" : `World ${selectedWorld}`}
+                   {showOptionsScreen ? "Options" : selectionMenuState === "worlds" ? "Select World" : `World ${selectedWorld}`}
                 </p>
-                <span className="orblitz-selection-subtitle">{selectionMenuState === "worlds" ? "Choose a world to play" : "Choose a level to play"}</span>
+                 <span className="orblitz-selection-subtitle">{showOptionsScreen ? "Tune your arcade rig" : selectionMenuState === "worlds" ? "Choose a world to play" : "Choose a level to play"}</span>
               </div>
 
                {/* Responsive world carousel / level grid */}
               <div className="flex-1 min-h-0 flex flex-col orblitz-selection-content">
-                  {renderContent(selectionMenuState)}
+                   {showOptionsScreen ? (
+                     <div className="orblitz-options-selection-content">
+                       <SettingsButtonRow
+                         isMuted={isMuted} toggleMute={toggleMute}
+                         volume={volume} setVolume={setVolume}
+                         brightness={brightness} setBrightness={setBrightness}
+                         graphicsPreset={graphicsPreset} setGraphicsPreset={setGraphicsPreset}
+                         onBack={() => setMenuState("root")} btn={btn}
+                         showBack={false}
+                       />
+                     </div>
+                   ) : renderContent(selectionMenuState)}
               </div>
 
                {/* Back button — icon-only on world select, text elsewhere */}
               <div className="flex-none border-t flex justify-center orblitz-selection-footer" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
-                <div style={{ width: "clamp(120px, 40vw, 200px)" }}>
-                  <ButtonRow buttons={selectionButtons} pressedBtn={pressedBtn} setPressedBtn={setPressedBtn} compact />
-                </div>
+                 {showOptionsScreen ? (
+                   <SettingsFooterButton onBack={() => { btn("back"); setMenuState("root"); }} />
+                 ) : (
+                   <div style={{ width: "clamp(120px, 40vw, 200px)" }}>
+                     <ButtonRow buttons={selectionButtons} pressedBtn={pressedBtn} setPressedBtn={setPressedBtn} compact />
+                   </div>
+                 )}
               </div>
             </motion.div>
           )}
@@ -1126,12 +1144,13 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false, isRoot
 }
 
 // ─── Settings button row: sound toggle + brightness slider + back ─────────────
-function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness, setBrightness, graphicsPreset, setGraphicsPreset, onBack, btn }: {
+function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness, setBrightness, graphicsPreset, setGraphicsPreset, onBack, btn, showBack = true }: {
   isMuted: boolean; toggleMute: () => void;
   volume: number; setVolume: (v: number) => void;
   brightness: number; setBrightness: (v: number) => void;
   graphicsPreset: GraphicsPreset; setGraphicsPreset: (preset: GraphicsPreset) => void;
   onBack: () => void; btn: (id: string) => void;
+  showBack?: boolean;
 }) {
   const btnH  = "clamp(68px,12vw,96px)";
   const iconSz = "clamp(1.2rem,3.2vw,1.8rem)";
@@ -1222,7 +1241,7 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
         </motion.div>
 
         <motion.div
-          className="flex flex-row items-stretch justify-center w-full"
+          className="flex flex-row items-stretch justify-center w-full orblitz-options-control-row"
           style={{ gap: "clamp(6px,1.8vw,16px)" }}
           initial="hidden" animate="visible"
           variants={{
@@ -1313,7 +1332,7 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
         </motion.button>
 
         {/* BACK */}
-        <motion.button
+        {showBack && <motion.button
           type="button"
           className="relative flex flex-col items-center justify-center overflow-hidden flex-1 orblitz-options-control"
           style={{ ...btnStyle("#667788", "rgba(100,110,130,0.2)"), minWidth: 0, maxWidth: "clamp(52px,17vw,100px)" }}
@@ -1328,9 +1347,25 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
           <span style={{ fontSize: labelSz, fontWeight: 800, letterSpacing: "0.13em", lineHeight: 1, opacity: 0.88 }}>
             BACK
           </span>
-        </motion.button>
+        </motion.button>}
         </motion.div>
       </div>
     </>
+  );
+}
+
+function SettingsFooterButton({ onBack }: { onBack: () => void }) {
+  return (
+    <motion.button
+      type="button"
+      className="orblitz-settings-footer-button"
+      data-testid="button-settings-back"
+      onClick={onBack}
+      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.96 }}
+    >
+      <IconBack />
+      <span>BACK</span>
+    </motion.button>
   );
 }
