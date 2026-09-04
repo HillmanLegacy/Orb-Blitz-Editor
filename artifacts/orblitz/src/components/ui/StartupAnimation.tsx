@@ -608,37 +608,20 @@ export function StartupAnimation({
                     background: "linear-gradient(90deg, transparent, #fff3a1 24%, #ffe600 50%, transparent)",
                     boxShadow: "0 0 9px rgba(255,230,0,0.8)",
                   }} />
-                  <div className="flex items-center gap-2">
-                    <motion.div
-                      aria-hidden="true"
-                      animate={{ rotate: [0, 5, -3, 0], scale: [1, 1.06, 1] }}
-                      transition={{ duration: 3.8, repeat: Infinity, ease: "easeInOut" }}
-                      style={{
-                        flex: "0 0 auto", width: "clamp(30px, 3.6vw, 42px)", height: "clamp(30px, 3.6vw, 42px)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        color: "#ffe600", border: "1px solid rgba(255,244,171,0.82)", borderRadius: 8,
-                        background: "radial-gradient(circle, rgba(255,247,175,0.42), rgba(255,186,28,0.14) 58%, rgba(255,186,28,0.03))",
-                        boxShadow: "0 0 12px rgba(255,230,0,0.62), inset 0 0 10px rgba(255,247,175,0.18)",
-                      }}
-                    >
-                      <IconStar />
-                    </motion.div>
-                    <div style={{ minWidth: 0, lineHeight: 1 }}>
-                      <div style={{
-                        color: "rgba(255,244,195,0.72)", fontSize: "clamp(0.4rem, 0.7vw, 0.52rem)",
-                        fontWeight: 900, letterSpacing: "0.18em", fontFamily: "Arial Black, Impact, sans-serif",
-                        marginBottom: 5,
-                      }}>
-                        STAR BANK
-                      </div>
-                      <div style={{
-                        display: "flex", alignItems: "baseline", gap: 5, color: "#fff8c9",
-                        fontSize: "clamp(1rem, 2vw, 1.38rem)", fontWeight: 900, letterSpacing: "0.04em",
-                        fontFamily: "Arial Black, Impact, sans-serif", textShadow: "0 0 10px rgba(255,230,0,0.45)",
-                      }}>
-                        <span>{shopStars.toLocaleString()}</span>
-                        <span style={{ color: "#ffe600", fontSize: "clamp(0.42rem, 0.75vw, 0.56rem)", letterSpacing: "0.12em" }}>STARS</span>
-                      </div>
+                  <div className="flex flex-col items-center justify-center" style={{ minWidth: 0, lineHeight: 1 }}>
+                    <div style={{
+                      color: "rgba(255,244,195,0.72)", fontSize: "clamp(0.4rem, 0.7vw, 0.52rem)",
+                      fontWeight: 900, letterSpacing: "0.18em", fontFamily: "Arial Black, Impact, sans-serif",
+                      marginBottom: 5, textAlign: "center",
+                    }}>
+                      STARS
+                    </div>
+                    <div style={{
+                      display: "flex", alignItems: "baseline", justifyContent: "center", gap: 5, color: "#fff8c9",
+                      fontSize: "clamp(1rem, 2vw, 1.38rem)", fontWeight: 900, letterSpacing: "0.04em",
+                      fontFamily: "Arial Black, Impact, sans-serif", textShadow: "0 0 10px rgba(255,230,0,0.45)",
+                    }}>
+                      <span>{shopStars.toLocaleString()}</span>
                     </div>
                   </div>
                 </motion.div>
