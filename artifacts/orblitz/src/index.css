@@ -7236,10 +7236,16 @@ input:focus-visible,
   transform-origin: center !important;
 }
 
+/* Remove the legacy app-layer color wash so the menu's own black veil is
+   visible instead of being composited over the old indigo gradient. */
+.orblitz-app-shell {
+  background: transparent !important;
+}
+
 /* Keep the menu readable over the showcase canvas without tinting it indigo.
-   This is scoped to the startup shell so gameplay and selection screens keep
-   their own atmosphere. */
-.orblitz-startup-shell {
+   The compound selector intentionally outranks the older root transparency
+   compatibility rule above. */
+.orblitz-startup-shell.orblitz-rainbow-arcade-shell[data-menu-state="root"] {
   background: rgba(0, 0, 0, 0.62) !important;
 }
 
