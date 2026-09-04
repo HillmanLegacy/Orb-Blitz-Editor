@@ -7331,7 +7331,7 @@ input:focus-visible,
 @media (min-width: 701px) {
   .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-title-star-bank {
     width: clamp(142px, 12vw, 164px);
-    right: calc(50% + clamp(300px, 26vw, 390px) + 35px) !important;
+    right: calc(50% + clamp(300px, 26vw, 390px) + 50px) !important;
   }
 }
 
