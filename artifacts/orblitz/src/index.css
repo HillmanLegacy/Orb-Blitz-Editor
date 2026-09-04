@@ -1221,8 +1221,12 @@ html,
   position: relative;
   z-index: 2;
   display: block;
-  font: 700 clamp(0.38rem, 0.62vw, 0.52rem) / 1 var(--font-mono);
-  letter-spacing: 0.15em;
+  font: 800 clamp(0.58rem, 1vw, 0.82rem) / 1 var(--font-mono);
+  letter-spacing: 0.1em;
+  max-width: calc(100% - 28px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .orblitz-world-card-index {

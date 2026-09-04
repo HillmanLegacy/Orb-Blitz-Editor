@@ -455,7 +455,7 @@ export function StartupAnimation({
                     <span className="orblitz-world-card-grid" />
                     <span className="orblitz-world-card-corner orblitz-world-card-corner-tl" />
                     <span className="orblitz-world-card-corner orblitz-world-card-corner-br" />
-                    <span className="orblitz-world-card-index">WORLD {String(world).padStart(2, "0")}</span>
+                    <span className="orblitz-world-card-index">W-{world}</span>
                     <span className="orblitz-world-card-signal">{done ? "COMPLETE" : unlocked ? "READY TO PLAY" : "LOCKED"}</span>
                     <span className="orblitz-world-card-art" aria-hidden="true">
                       {!unlocked && <span className="orblitz-world-card-lock"><IconLock /></span>}
