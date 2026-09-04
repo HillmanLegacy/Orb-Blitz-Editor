@@ -348,6 +348,9 @@ export function StartupAnimation({
     if (!isWorldUnlocked(world)) return;
     btn(`w${world}`);
     setSelectedWorld(world);
+    // World selection is an in-place view change, not a second transition.
+    // Reassert visibility so a late fade callback cannot leave the map hidden.
+    setCarouselOpen(true);
     setCarouselView("levels");
   }, [btn, devMode, highestLevel]);
   const handleWorldKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -404,7 +407,11 @@ export function StartupAnimation({
         back("BACK", handleCloseArcade, true),
       ];
       case "levels": return [
-         back("WORLDS", () => { btn("back"); setCarouselView("worlds"); }),
+         back("WORLDS", () => {
+           btn("back");
+           setCarouselOpen(true);
+           setCarouselView("worlds");
+         }),
       ];
     }
   }, [menuState, btn, openShop, openInventory, handleOpenArcade, handleCloseArcade, handleStartMode]);
