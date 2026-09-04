@@ -229,7 +229,8 @@ export function StartupAnimation({
   const [devFlash, setDevFlash]       = useState(false);
   const [highestLevel, setHighestLevel] = useState(1.1);
   const [pressedBtn, setPressedBtn]   = useState<string | null>(null);
-  const [arcadeTransition, setArcadeTransition] = useState<"idle" | "fadeOut" | "mounting" | "fadeIn">("idle");
+  const [arcadeTransition, setArcadeTransition] = useState<"idle" | "fadeOut" | "fadeIn">("idle");
+  const [worldScreenMounted, setWorldScreenMounted] = useState(false);
   const worldPointerStartX = useRef<number | null>(null);
   const worldSwipeRef = useRef(false);
 
@@ -277,6 +278,7 @@ export function StartupAnimation({
 
   const handleOpenArcade = useCallback(() => {
     btn("arcade");
+    setWorldScreenMounted(true);
     setArcadeTransition("fadeOut");
   }, [btn]);
 
@@ -312,11 +314,11 @@ export function StartupAnimation({
   }, [moveWorld, openWorldLevels, selectedWorld]);
 
   // ── Button definitions per state ──────────────────────────────────────────
-  const getPanelButtons = useCallback((): BtnDef[] => {
+  const getPanelButtons = useCallback((state: MenuState = menuState): BtnDef[] => {
     const back = (label: string, action: () => void, hideLabel = false): BtnDef =>
       ({ id: "back", icon: <IconBack />, label, color: "#667788", shadow: "rgba(100,110,130,0.25)", action, hideLabel });
 
-    switch (menuState) {
+    switch (state) {
        case "root": return [
          { id:"play",      icon:<IconPlay />,     label:"PLAY",     color:"#c7f23d", shadow:"rgba(199,242,61,0.34)", action: () => { btn("play");      setMenuState("modes");    } },
          { id:"shop",      icon:<IconShop />,     label:"SHOP",     color:"#ff6f43", shadow:"rgba(255,111,67,0.3)", action: () => { btn("shop");      openShop();               } },
@@ -344,8 +346,8 @@ export function StartupAnimation({
   }, [menuState, btn, openShop, openInventory, handleOpenArcade, handleStartMode]);
 
   // ── Content panels ────────────────────────────────────────────────────────
-  const renderContent = () => {
-    if (menuState === "worlds") {
+  const renderContent = (viewState: "worlds" | "levels") => {
+    if (viewState === "worlds") {
       const selectedColor = WORLD_COLORS[selectedWorld - 1];
       return (
         <div
@@ -470,7 +472,7 @@ export function StartupAnimation({
       );
     }
 
-    if (menuState === "levels") {
+    if (viewState === "levels") {
       const wc = WORLD_COLORS[selectedWorld - 1];
       return (
         <>
@@ -532,8 +534,12 @@ export function StartupAnimation({
   // ── Derived state ─────────────────────────────────────────────────────────
   const showMenu    = true;
   const isContent   = showMenu && (menuState === "worlds" || menuState === "levels");
-  const showTitle   = showMenu && !isContent && arcadeTransition === "idle";
+  const showTitle   = showMenu && !isContent;
   const panelButtons = showMenu ? getPanelButtons() : [];
+  const selectionMenuState: "worlds" | "levels" = menuState === "levels" ? "levels" : "worlds";
+  const selectionButtons = showMenu ? getPanelButtons(selectionMenuState) : [];
+  const showSelectionScreen = showMenu && (isContent || worldScreenMounted);
+  const selectionScreenVisible = isContent;
   const introPhase: IntroBossPhase | null =
     animPhase === "splash" || animPhase === "idle" || animPhase === "flying" || animPhase === "converge" || animPhase === "flash" ||
     animPhase === "backdrop" || animPhase === "background" ||
@@ -641,7 +647,7 @@ export function StartupAnimation({
       </AnimatePresence>
 
       {/* ── STAR BALANCE — dedicated arcade HUD counter ─────────────────── */}
-      {showMenu && !isContent && arcadeTransition === "idle" && (
+      {showMenu && !isContent && (
         <motion.div
           className="absolute z-30 pointer-events-none orblitz-star-bank"
           aria-label={`${shopStars} stars`}
@@ -747,40 +753,40 @@ export function StartupAnimation({
 
       {/* ── FULL-SCREEN WORLDS / LEVELS POPUP ───────────────────────────── */}
       <AnimatePresence mode="wait">
-        {showMenu && isContent && (
+        {showSelectionScreen && (
           <motion.div
-            key={menuState}
-            className={`fixed inset-0 z-[150] flex flex-col orblitz-selection-screen ${menuState === "worlds" ? "orblitz-world-select" : ""}`}
+            key="arcade-world-screen"
+            className={`fixed inset-0 z-[150] flex flex-col orblitz-selection-screen ${selectionMenuState === "worlds" ? "orblitz-world-select" : ""}`}
             role="main"
-            aria-label={menuState === "worlds" ? "World select" : "Level select"}
+            aria-label={selectionMenuState === "worlds" ? "World select" : "Level select"}
+            aria-hidden={!selectionScreenVisible}
+            style={{
+              visibility: selectionScreenVisible ? "visible" : "hidden",
+              pointerEvents: selectionScreenVisible ? "auto" : "none",
+            }}
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.96 }}
             transition={{ duration: 0.22, ease: [0.22, 0.61, 0.36, 1] }}
-             onAnimationComplete={() => {
-               if (menuState === "worlds" && arcadeTransition === "mounting") {
-                 setArcadeTransition("fadeIn");
-               }
-             }}
           >
             {/* Header */}
             <div className="flex-none orblitz-selection-header">
-              <p data-testid={`text-${menuState}-title`} className="font-black tracking-widest uppercase" style={{
-                color: menuState === "worlds" ? "#00ffff" : WORLD_COLORS[selectedWorld - 1],
+              <p data-testid={`text-${selectionMenuState}-title`} className="font-black tracking-widest uppercase" style={{
+                color: selectionMenuState === "worlds" ? "#00ffff" : WORLD_COLORS[selectedWorld - 1],
                 fontSize: "clamp(0.85rem, 2.5vw, 1.1rem)",
                 letterSpacing: "0.22em",
-                textShadow: `0 0 18px ${menuState === "worlds" ? "rgba(0,255,255,0.5)" : `${WORLD_COLORS[selectedWorld - 1]}88`}`,
+                textShadow: `0 0 18px ${selectionMenuState === "worlds" ? "rgba(0,255,255,0.5)" : `${WORLD_COLORS[selectedWorld - 1]}88`}`,
               }}>
-                {menuState === "worlds" ? "Select World" : `World ${selectedWorld}`}
+                {selectionMenuState === "worlds" ? "Select World" : `World ${selectedWorld}`}
               </p>
-              <span className="orblitz-selection-subtitle">{menuState === "worlds" ? "Choose a world to play" : "Choose a level to play"}</span>
+              <span className="orblitz-selection-subtitle">{selectionMenuState === "worlds" ? "Choose a world to play" : "Choose a level to play"}</span>
             </div>
 
              {/* Responsive world carousel / level grid */}
             <div className="flex-1 min-h-0 flex flex-col orblitz-selection-content">
-               {menuState === "worlds" ? renderContent() : (
+                {selectionMenuState === "worlds" ? renderContent("worlds") : (
                  <div className="grid grid-cols-3 gap-2 h-full orblitz-selection-grid" style={{ gridAutoRows: "1fr" }}>
-                   {renderContent()}
+                   {renderContent("levels")}
                  </div>
                )}
             </div>
@@ -788,7 +794,7 @@ export function StartupAnimation({
              {/* Back button — icon-only on world select, text elsewhere */}
             <div className="flex-none border-t flex justify-center orblitz-selection-footer" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
               <div style={{ width: "clamp(120px, 40vw, 200px)" }}>
-                <ButtonRow buttons={panelButtons} pressedBtn={pressedBtn} setPressedBtn={setPressedBtn} compact />
+                <ButtonRow buttons={selectionButtons} pressedBtn={pressedBtn} setPressedBtn={setPressedBtn} compact />
               </div>
             </div>
           </motion.div>
@@ -811,7 +817,7 @@ export function StartupAnimation({
             onAnimationComplete={() => {
               if (arcadeTransition === "fadeOut") {
                 setMenuState("worlds");
-                setArcadeTransition("mounting");
+                setArcadeTransition("fadeIn");
               } else if (arcadeTransition === "fadeIn") {
                 setArcadeTransition("idle");
               }

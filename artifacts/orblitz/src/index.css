@@ -3784,6 +3784,12 @@ canvas {
   pointer-events: auto !important;
 }
 
+.orblitz-startup-shell > .orblitz-selection-screen {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 150 !important;
+}
+
 .orblitz-menu-masthead {
   position: absolute !important;
   inset: clamp(18px, 4vh, 42px) clamp(20px, 4vw, 58px) auto;
