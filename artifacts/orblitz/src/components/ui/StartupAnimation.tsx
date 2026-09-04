@@ -19,10 +19,6 @@ function IconShop()      { return <svg {..._svg}><path d="m5.5 8 2.2-3h8.6l2.2 3
 function IconTrophy()    { return <svg {..._svg}><path d="M8 4h8v5.5a4 4 0 0 1-8 0V4Z" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.12"/><path d="M8 6H5.5A1.5 1.5 0 0 0 4 7.5v.4A3.1 3.1 0 0 0 7.1 11H8M16 6h2.5A1.5 1.5 0 0 1 20 7.5v.4a3.1 3.1 0 0 1-3.1 3.1H16M12 13v4M8.5 20h7M9 17h6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>; }
 function IconGear()      { return <svg {..._svg}><path d="m12 3 1.3 2.1 2.5.4.7 2.4 2.1 1.4-.9 2.4.9 2.4-2.1 1.4-.7 2.4-2.5.4L12 21l-1.3-2.1-2.5-.4-.7-2.4-2.1-1.4.9-2.4-.9-2.4 2.1-1.4.7-2.4 2.5-.4L12 3Z" stroke="currentColor" strokeWidth="1.2" fill="currentColor" fillOpacity="0.12"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" strokeWidth="1.3"/><path d="M12 8.3v1M12 14.7v1M8.3 12h1M14.7 12h1" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/></svg>; }
 function IconSettings()  { return <svg {..._svg}><line x1="3" y1="7" x2="21" y2="7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="8" cy="7" r="2.2" fill="currentColor" fillOpacity="0.9"/><line x1="3" y1="14" x2="21" y2="14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="16" cy="14" r="2.2" fill="currentColor" fillOpacity="0.9"/></svg>; }
-function IconSurvive()   { return <svg {..._svg}><circle cx="12" cy="12" r="2.8" fill="currentColor"/><circle cx="12" cy="12" r="6" stroke="currentColor" strokeWidth="1.2" opacity="0.55"/><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="0.8" opacity="0.25"/></svg>; }
-function IconChill()     { return <svg {..._svg}><path d="M2 10 C5.5 7 7 13 10 10 S14.5 7 18 10 S21 13 22 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M2 15.5 C5.5 12.5 7 18.5 10 15.5 S14.5 12.5 18 15.5 S21 18.5 22 15.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.5"/></svg>; }
-function IconArcade()    { return <svg {..._svg}><rect x="4" y="14" width="16" height="7" rx="3" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.1"/><path d="M12 14 L12 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><circle cx="12" cy="7" r="3.2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.15"/><circle cx="8" cy="17.5" r="1" fill="currentColor"/><circle cx="16" cy="17.5" r="1" fill="currentColor"/></svg>; }
-function IconGauntlet()  { return <svg {..._svg}><path d="M12 3 L21 12 L12 21 L3 12 Z" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.1"/><line x1="12" y1="7" x2="12" y2="17" stroke="currentColor" strokeWidth="0.75" opacity="0.4"/><line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" strokeWidth="0.75" opacity="0.4"/><circle cx="12" cy="12" r="2" fill="currentColor" fillOpacity="0.9"/></svg>; }
 function IconStar()      { return <svg {..._svg}><path d="m12 2.9 2.75 5.58 6.16.9-4.46 4.34 1.05 6.13L12 16.95l-5.5 2.9 1.05-6.13L3.1 9.38l6.15-.9L12 2.9Z" fill="currentColor"/><path d="m12 5.8 1.75 3.54 3.91.57-2.83 2.76.67 3.9L12 14.73l-3.5 1.84.67-3.9-2.83-2.76 3.91-.57L12 5.8Z" fill="#fff8c9" fillOpacity="0.7"/></svg>; }
 function IconBack()      { return <svg {..._svg}><path d="M11 7 L6 12 L11 17" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 12 H16 C18.2 12 20 13.8 20 16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>; }
 function IconLock()      { return <svg {..._svg}><rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.4" fill="currentColor" fillOpacity="0.1"/><path d="M8 10V7.8a4 4 0 0 1 8 0V10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="12" cy="15" r="1.1" fill="currentColor"/></svg>; }
@@ -242,6 +238,7 @@ export function StartupAnimation({
   const graphicsPreset = useGraphicsPreset();
   const titleLetterRefs = useRef<Array<HTMLSpanElement | null>>([]);
   useTitleRefraction(titleLetterRefs, animPhase);
+  const visualMenuState = menuState === "modes" ? "root" : menuState;
 
   // Reload progress when entering menu
   useEffect(() => {
@@ -321,13 +318,13 @@ export function StartupAnimation({
          { id:"trophies",  icon:<IconTrophy />,   label:"TROPHIES",  color:"#e9e3cf", shadow:"rgba(233,227,207,0.24)", action: () => { btn("trophies"); openTrophies(); } },
          { id:"settings",  icon:<IconSettings />, label:"OPTIONS",  color:"#a9ad96", shadow:"rgba(169,173,150,0.26)", action: () => { btn("settings");  setMenuState("settings"); } },
       ];
-      case "modes": return [
-         { id:"arcade",    icon:<IconArcade />,   label:"ARCADE",   color:"#ff6f43", shadow:"rgba(255,111,67,0.44)", action: () => { btn("arcade"); setMenuState("worlds"); }  },
-         { id:"chill",     icon:<IconChill />,    label:"CHILL",    color:"#6eaaa0", shadow:"rgba(110,170,160,0.44)", action: () => handleStartMode("chill")     },
-         { id:"survival",  icon:<IconSurvive />,  label:"SURVIVAL", color:"#c7f23d", shadow:"rgba(199,242,61,0.4)",  action: () => handleStartMode("survival")  },
-         { id:"gauntlet",  icon:<IconGauntlet />, label:"GAUNTLET", color:"#e9e3cf", shadow:"rgba(233,227,207,0.38)",  action: () => handleStartMode("gauntlet")  },
-        back("BACK", () => { btn("back"); setMenuState("root"); }),
-      ];
+       case "modes": return [
+         { id:"play",      icon:<IconPlay />,     label:"ARCADE",   color:"#c7f23d", shadow:"rgba(199,242,61,0.34)", action: () => { btn("arcade"); setMenuState("worlds"); } },
+         { id:"shop",      icon:<IconShop />,     label:"CHILL",    color:"#ff6f43", shadow:"rgba(255,111,67,0.3)", action: () => handleStartMode("chill") },
+         { id:"inventory", icon:<IconGear />,     label:"SURVIVAL", color:"#6eaaa0", shadow:"rgba(110,170,160,0.3)", action: () => handleStartMode("survival") },
+         { id:"trophies",  icon:<IconTrophy />,   label:"GAUNTLET", color:"#e9e3cf", shadow:"rgba(233,227,207,0.24)", action: () => handleStartMode("gauntlet") },
+         { id:"settings",  icon:<IconSettings />, label:"BACK",    color:"#a9ad96", shadow:"rgba(169,173,150,0.26)", action: () => { btn("back"); setMenuState("root"); } },
+       ];
       case "settings": return [
         back("BACK", () => { btn("back"); setMenuState("root"); }),
       ];
@@ -547,7 +544,7 @@ export function StartupAnimation({
   return (
     <motion.div
       className="orblitz-startup-shell orblitz-rainbow-arcade-shell fixed inset-0 z-[100] flex items-center justify-center overflow-hidden select-none"
-      data-menu-state={menuState}
+      data-menu-state={visualMenuState}
       style={{
         cursor: "default",
       }}
@@ -705,9 +702,9 @@ export function StartupAnimation({
       <AnimatePresence mode="wait">
         {showMenu && !isContent && (
           <motion.div
-            key={menuState}
+            key={menuState === "settings" ? "settings" : "menu"}
             className="absolute inset-0 z-20 orblitz-command-layer orblitz-menu-actions orblitz-aaa-menu-actions"
-            data-menu-state={menuState}
+            data-menu-state={visualMenuState}
             style={{
               pointerEvents: menuState === "settings" ? "auto" : "none",
               padding: menuState === "settings" ? "0 clamp(10px, 3.5vw, 44px)" : 0,
@@ -734,7 +731,12 @@ export function StartupAnimation({
                   graphicsPreset={graphicsPreset} setGraphicsPreset={setGraphicsPreset}
                   onBack={() => setMenuState("root")} btn={btn}
                 />
-              : <ButtonRow buttons={panelButtons} pressedBtn={pressedBtn} setPressedBtn={setPressedBtn} />
+              : <ButtonRow
+                  buttons={panelButtons}
+                  pressedBtn={pressedBtn}
+                  setPressedBtn={setPressedBtn}
+                  isRootMenu={menuState === "root"}
+                />
             }
           </motion.div>
         )}
@@ -794,8 +796,9 @@ interface ButtonRowProps {
   pressedBtn: string | null;
   setPressedBtn: (id: string | null) => void;
   compact?: boolean;
+  isRootMenu?: boolean;
 }
-function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false }: ButtonRowProps) {
+function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false, isRootMenu = false }: ButtonRowProps) {
   const btnH = compact ? "clamp(48px,8vw,64px)" : "clamp(72px,10vw,96px)";
   const iconSz = compact ? "clamp(1rem,2.5vw,1.4rem)" : "clamp(1.2rem,3.2vw,1.8rem)";
   const labelSz = compact ? "clamp(0.44rem,1.1vw,0.6rem)" : "clamp(0.48rem,1.25vw,0.68rem)";
@@ -856,7 +859,7 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false }: Butt
             onClick={b.action}
             data-testid={`button-menu-${b.id}`}
             data-active={isPress}
-            data-orblitz-modal-opener={b.id === "shop" || b.id === "inventory" ? b.id : undefined}
+            data-orblitz-modal-opener={isRootMenu && (b.id === "shop" || b.id === "inventory") ? b.id : undefined}
           >
             {/* Material edge */}
             {b.id !== "play" && <div className="absolute top-0 left-0 right-0 pointer-events-none" style={{
@@ -870,26 +873,57 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false }: Butt
               borderRadius: "inherit",
             }} />}
             {b.id === "play" ? (
-              <span className="orblitz-play-bubble-label" aria-hidden="true">
-                {b.label.split("").map((letter, index) => <span key={`${letter}-${index}`}>{letter}</span>)}
-              </span>
+              <AnimatePresence initial={false} mode="wait">
+                <motion.span
+                  key={`${b.id}-${b.label}`}
+                  className="orblitz-play-bubble-label"
+                  aria-hidden="true"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18, ease: [0.22, 0.61, 0.36, 1] }}
+                >
+                  {b.label.split("").map((letter, index) => <span key={`${letter}-${index}`}>{letter}</span>)}
+                </motion.span>
+              </AnimatePresence>
             ) : ["shop", "inventory", "trophies", "settings"].includes(b.id) ? (
-              <span className={`orblitz-root-letter-label orblitz-${b.id}-letter-label`} aria-hidden="true">
-                {b.label.split("").map((letter, index) => <span key={`${letter}-${index}`}>{letter}</span>)}
-              </span>
+              <AnimatePresence initial={false} mode="wait">
+                <motion.span
+                  key={`${b.id}-${b.label}`}
+                  className={`orblitz-root-letter-label orblitz-${b.id}-letter-label`}
+                  aria-hidden="true"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18, ease: [0.22, 0.61, 0.36, 1] }}
+                >
+                  {b.label.split("").map((letter, index) => <span key={`${letter}-${index}`}>{letter}</span>)}
+                </motion.span>
+              </AnimatePresence>
             ) : (
               <>
                 <span className="orblitz-command-icon" style={{
                   fontSize: iconSz, lineHeight: 1,
                   filter: `drop-shadow(0 0 7px ${b.color}88) drop-shadow(2px 2px 0 rgba(3,7,26,0.55))`,
                 }}>{b.icon}</span>
-                {!b.hideLabel && <span className="orblitz-command-copy">
-                  <span className="orblitz-command-label" style={{
-                    fontSize: labelSz, fontWeight: 900,
-                    letterSpacing: "0.12em", lineHeight: 1, opacity: 0.96,
-                    fontFamily: "var(--font-display)",
-                  }}>{b.label}</span>
-                </span>}
+                {!b.hideLabel && (
+                  <AnimatePresence initial={false} mode="wait">
+                    <motion.span
+                      key={`${b.id}-${b.label}`}
+                      className="orblitz-command-copy"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.18, ease: [0.22, 0.61, 0.36, 1] }}
+                    >
+                      <span className="orblitz-command-label" style={{
+                        fontSize: labelSz, fontWeight: 900,
+                        letterSpacing: "0.12em", lineHeight: 1, opacity: 0.96,
+                        fontFamily: "var(--font-display)",
+                      }}>{b.label}</span>
+                    </motion.span>
+                  </AnimatePresence>
+                )}
               </>
             )}
           </motion.button>
