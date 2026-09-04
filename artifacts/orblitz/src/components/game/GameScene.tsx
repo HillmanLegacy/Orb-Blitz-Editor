@@ -499,7 +499,7 @@ export function GameScene({
           width: "100%",
           height: "100%",
           touchAction: "none",
-            zIndex: worldBossPreview ? 180 : foregroundIntroBosses || world1LevelBoss ? 120 : undefined,
+            zIndex: worldBossPreview || world1LevelBoss ? 180 : foregroundIntroBosses ? 120 : undefined,
            pointerEvents: introBossesInFront ? "none" : "auto",
         }}
       >
@@ -521,7 +521,7 @@ export function GameScene({
           )}
 
           {/* Lightweight background — gameplay GPU systems mount below only when needed */}
-          {backgroundEnabled && !rootMenuPreview && <Background visible={!worldBossPreview} />}
+          {backgroundEnabled && !rootMenuPreview && <Background visible={!worldBossPreview && !world1LevelBoss} />}
 
           {/* Gameplay systems — unmounted outside gameplay loading/playing */}
           <GameplayGate />

@@ -7692,135 +7692,277 @@ input:focus-visible,
   }
 }
 
-/* ── World 1: Firefall Reach overworld ─────────────────────────────────────── */
-.orblitz-level-map-shell.is-world1 .orblitz-level-map-topline {
-  color: #ffb45e;
+/* ── Stellar navigation chart ────────────────────────────────────────────────
+   Every world now uses the same deep-space chart language. World color stays
+   in the route and waypoint accents, while the map itself remains a shared
+   starfield so changing worlds feels like plotting a new system. */
+.orblitz-level-map-shell.is-stellar .orblitz-level-map-topline {
+  color: rgba(200, 244, 255, 0.72);
 }
 
-.orblitz-level-map-shell.is-world1 .orblitz-level-map-topline span:last-child {
-  color: rgba(255, 181, 94, 0.58);
+.orblitz-level-map-shell.is-stellar .orblitz-level-map-topline span:last-child {
+  color: rgba(171, 219, 245, 0.56);
 }
 
-.orblitz-level-map-world1::before {
-  border-color: rgba(255, 119, 50, 0.24);
+.orblitz-level-map-stellar {
+  overflow: hidden;
+  border-radius: clamp(20px, 2.5vw, 32px);
   background:
-    radial-gradient(ellipse at 15% 82%, rgba(255, 48, 17, 0.28), transparent 28%),
-    radial-gradient(ellipse at 52% 68%, rgba(255, 129, 18, 0.14), transparent 28%),
-    radial-gradient(ellipse at 87% 20%, rgba(255, 67, 32, 0.2), transparent 26%),
-    linear-gradient(145deg, rgba(255, 94, 34, 0.1), rgba(24, 6, 18, 0.6) 48%, rgba(7, 8, 22, 0.84));
+    radial-gradient(ellipse at 14% 22%, rgba(0, 246, 255, 0.12), transparent 29%),
+    radial-gradient(ellipse at 78% 72%, rgba(180, 92, 255, 0.14), transparent 33%),
+    radial-gradient(ellipse at 52% 46%, rgba(255, 43, 214, 0.055), transparent 42%),
+    #05081d;
   box-shadow:
-    inset 0 1px 0 rgba(255, 193, 111, 0.14),
-    inset 0 -28px 70px rgba(148, 16, 4, 0.2),
-    0 18px 36px rgba(5, 2, 18, 0.3),
-    0 0 42px rgba(255, 74, 24, 0.1);
+    inset 0 1px 0 rgba(225, 252, 255, 0.13),
+    inset 0 0 100px rgba(43, 80, 196, 0.12),
+    0 22px 42px rgba(3, 2, 18, 0.32),
+    0 0 44px rgba(0, 207, 255, 0.07);
 }
 
-.orblitz-level-map-world1::after {
-  border-color: rgba(255, 142, 55, 0.13);
+.orblitz-level-map-stellar::before {
+  border-color: rgba(145, 220, 255, 0.24);
+  border-radius: inherit;
   background:
-    linear-gradient(112deg, transparent 0 24%, rgba(255, 157, 39, 0.08) 24.1%, transparent 24.5% 72%, rgba(255, 55, 20, 0.08) 72.1%, transparent 72.5%),
-    repeating-linear-gradient(164deg, transparent 0 36px, rgba(255, 79, 26, 0.035) 37px, transparent 39px),
-    radial-gradient(circle at 50% 50%, transparent 0 42%, rgba(255, 117, 34, 0.06) 42.2%, transparent 42.6%);
+    linear-gradient(90deg, transparent 0 24.9%, rgba(145, 220, 255, 0.055) 25%, transparent 25.1% 49.9%, rgba(145, 220, 255, 0.045) 50%, transparent 50.1% 74.9%, rgba(145, 220, 255, 0.055) 75%, transparent 75.1%),
+    linear-gradient(0deg, transparent 0 24.9%, rgba(145, 220, 255, 0.055) 25%, transparent 25.1% 49.9%, rgba(145, 220, 255, 0.045) 50%, transparent 50.1% 74.9%, rgba(145, 220, 255, 0.055) 75%, transparent 75.1%),
+    radial-gradient(ellipse at 50% 50%, transparent 0 38%, rgba(150, 103, 255, 0.07) 38.3%, transparent 38.8%);
+  background-size: 100% 100%, 100% 100%, 100% 100%;
+  box-shadow:
+    inset 0 1px 0 rgba(225, 252, 255, 0.08),
+    inset 0 0 72px rgba(72, 63, 207, 0.13),
+    0 18px 36px rgba(5, 2, 18, 0.25);
 }
 
-.orblitz-world1-map-scenery {
-  opacity: 0.92;
+.orblitz-level-map-stellar::after {
+  inset: 9px;
+  border-color: rgba(115, 222, 255, 0.14);
+  border-radius: calc(clamp(20px, 2.5vw, 32px) - 8px);
+  background:
+    linear-gradient(126deg, transparent 0 19%, rgba(0, 246, 255, 0.055) 19.2%, transparent 19.6% 67%, rgba(255, 43, 214, 0.045) 67.2%, transparent 67.6%),
+    radial-gradient(ellipse at 50% 50%, transparent 0 57%, rgba(143, 255, 224, 0.035) 57.3%, transparent 57.8%);
+  box-shadow: inset 0 0 24px rgba(0, 246, 255, 0.045);
 }
 
-.orblitz-world1-map-island {
-  fill: rgba(79, 17, 18, 0.78);
-  stroke: rgba(255, 91, 32, 0.34);
-  stroke-width: 0.55;
-  filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.48));
+.orblitz-level-map-space {
+  fill: transparent;
 }
 
-.orblitz-world1-map-crag {
-  fill: rgba(123, 25, 14, 0.82);
-  stroke: rgba(255, 151, 47, 0.62);
-  stroke-width: 0.5;
-  filter: drop-shadow(0 0 2px rgba(255, 74, 24, 0.45));
+.orblitz-level-map-nebula {
+  fill: rgba(83, 156, 255, 0.1);
+  filter: blur(1.8px);
+  opacity: 0.9;
 }
 
-.orblitz-world1-map-vent {
-  fill: rgba(255, 67, 17, 0.26);
-  stroke: rgba(255, 202, 101, 0.56);
-  stroke-width: 0.45;
+.orblitz-level-map-nebula ellipse:nth-child(2) {
+  fill: rgba(218, 91, 255, 0.1);
 }
 
-.orblitz-world1-map-branch {
+.orblitz-level-map-nebula ellipse:nth-child(3) {
+  fill: rgba(0, 246, 255, 0.08);
+}
+
+.orblitz-level-map-orbits {
   fill: none;
-  stroke: rgba(255, 152, 42, 0.36);
-  stroke-width: 0.65;
-  stroke-dasharray: 1 1.7;
-  stroke-linecap: round;
+  stroke: rgba(175, 230, 255, 0.15);
+  stroke-width: 0.32;
+  stroke-dasharray: 0.7 1.8;
 }
 
-.orblitz-world1-map-hotspot {
-  fill: #fff0a6;
-  filter: drop-shadow(0 0 2px #ff551c) drop-shadow(0 0 4px rgba(255, 156, 41, 0.66));
-  animation: orblitz-world1-hotspot-flicker 1.4s ease-in-out infinite;
+.orblitz-level-map-orbits ellipse:nth-child(2) {
+  stroke: rgba(240, 140, 255, 0.16);
 }
 
-.orblitz-level-map-world1 .orblitz-level-map-route-shadow {
-  stroke: rgba(255, 66, 20, 0.56);
-  opacity: 0.62;
+.orblitz-level-map-orbits ellipse:nth-child(3) {
+  stroke: rgba(143, 255, 224, 0.11);
 }
 
-.orblitz-level-map-world1 .orblitz-level-map-route-line {
-  stroke-dasharray: 1.4 1.4;
-  opacity: 0.98;
+.orblitz-level-map-route-shadow {
+  stroke: rgba(0, 16, 54, 0.92);
+  stroke-width: 4.8;
+  opacity: 0.78;
 }
 
-.orblitz-level-map-world1 .orblitz-level-map-stars {
-  fill: rgba(255, 225, 166, 0.74);
-  filter: drop-shadow(0 0 2px rgba(255, 107, 31, 0.88));
+.orblitz-level-map-route-line {
+  stroke-width: 1.08;
+  stroke-dasharray: 1.1 1.65;
+  opacity: 0.96;
 }
 
-.orblitz-level-node.is-world1-node:not(.is-locked) {
-  border-color: color-mix(in srgb, var(--select-color) 84%, #fff2c2) !important;
+.orblitz-level-map-stars {
+  fill: rgba(226, 252, 255, 0.72);
+  filter: drop-shadow(0 0 2px rgba(143, 255, 224, 0.82));
+}
+
+.orblitz-level-map-stars-far {
+  fill: rgba(169, 208, 255, 0.54);
+  filter: drop-shadow(0 0 1.5px rgba(110, 160, 255, 0.72));
+}
+
+.orblitz-level-map-stars-near circle:nth-child(3n) {
+  fill: #fff5c7;
+  filter: drop-shadow(0 0 2px rgba(255, 229, 151, 0.92));
+}
+
+.orblitz-level-node.is-stellar-node {
+  width: clamp(60px, 6.6vw, 86px);
+  height: clamp(60px, 6.6vw, 86px);
+  border-width: 1px !important;
+  border-color: color-mix(in srgb, var(--select-color) 70%, #d9f7ff) !important;
   background:
-    radial-gradient(circle at 32% 23%, rgba(255, 243, 188, 0.52), transparent 19%),
-    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--select-color) 42%, transparent), rgba(34, 8, 20, 0.94) 74%) !important;
+    radial-gradient(circle at 34% 27%, rgba(255, 255, 255, 0.9) 0 4%, rgba(255, 255, 255, 0.25) 7%, transparent 17%),
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--select-color) 48%, transparent), rgba(8, 13, 40, 0.94) 66%) !important;
   box-shadow:
-    0 8px 16px rgba(5, 2, 18, 0.42),
-    0 0 22px color-mix(in srgb, var(--select-color) 52%, transparent),
-    inset 0 1px 0 rgba(255, 235, 179, 0.38) !important;
+    0 8px 18px rgba(1, 4, 22, 0.58),
+    0 0 18px color-mix(in srgb, var(--select-color) 42%, transparent),
+    0 0 3px rgba(219, 250, 255, 0.62),
+    inset 0 1px 0 rgba(255, 255, 255, 0.54) !important;
 }
 
-.orblitz-level-node.is-world1-node.is-boss {
-  border-color: #ffbd55 !important;
+.orblitz-level-node.is-stellar-node::before {
+  inset: -4px;
+  border: 1px solid color-mix(in srgb, var(--select-color) 42%, transparent);
+  opacity: 0.74;
+}
+
+.orblitz-level-node.is-stellar-node::after {
+  inset: -11px;
+  border: 1px dashed color-mix(in srgb, var(--select-color) 31%, transparent);
+  opacity: 0.5;
+  transform: rotate(-18deg) scaleX(1.35);
+}
+
+.orblitz-level-node.is-stellar-node .orblitz-select-index {
+  top: 9px;
+  color: rgba(224, 249, 255, 0.64);
+  font-size: clamp(0.31rem, 0.44vw, 0.43rem);
+  letter-spacing: 0.1em;
+}
+
+.orblitz-level-node.is-stellar-node .orblitz-select-number {
+  margin-top: 3px;
+  color: #f4fdff;
+  font-size: clamp(1.05rem, 2.25vw, 1.7rem);
+  text-shadow:
+    0 0 12px color-mix(in srgb, var(--select-color) 92%, transparent),
+    0 2px 0 rgba(3, 7, 26, 0.74);
+}
+
+.orblitz-level-node.is-stellar-node .orblitz-select-label {
+  bottom: 8px;
+  color: color-mix(in srgb, var(--select-color) 70%, #e9fbff);
+  font-size: clamp(0.29rem, 0.45vw, 0.39rem);
+  letter-spacing: 0.1em;
+}
+
+.orblitz-level-node.is-stellar-node.is-complete {
+  border-color: color-mix(in srgb, var(--select-color) 82%, white) !important;
+  box-shadow:
+    0 8px 18px rgba(1, 4, 22, 0.58),
+    0 0 26px color-mix(in srgb, var(--select-color) 62%, transparent),
+    0 0 4px rgba(219, 250, 255, 0.72),
+    inset 0 1px 0 rgba(255, 255, 255, 0.64) !important;
+}
+
+.orblitz-level-node.is-stellar-node.is-current:not(.is-boss)::after {
+  border-style: solid;
+  border-color: var(--arcade-mint);
+  animation: orblitz-stellar-current-orbit 1.8s ease-in-out infinite;
+}
+
+.orblitz-level-node.is-stellar-node.is-locked {
+  border-color: rgba(109, 135, 177, 0.42) !important;
   background:
-    radial-gradient(circle at 32% 21%, rgba(255, 247, 201, 0.6), transparent 19%),
-    radial-gradient(circle at 50% 50%, rgba(255, 63, 14, 0.56), rgba(49, 5, 14, 0.96) 72%) !important;
+    radial-gradient(circle at 50% 45%, rgba(89, 120, 170, 0.17), rgba(5, 10, 30, 0.96) 70%) !important;
   box-shadow:
-    0 10px 20px rgba(5, 2, 18, 0.5),
-    0 0 34px rgba(255, 71, 19, 0.72),
-    0 0 9px rgba(255, 209, 89, 0.7),
-    inset 0 1px 0 rgba(255, 245, 189, 0.44) !important;
+    0 7px 15px rgba(1, 4, 22, 0.46),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+  filter: saturate(0.35);
 }
 
-.orblitz-level-node.is-world1-node.is-boss::before {
-  border-color: #ffd477;
+.orblitz-level-node.is-stellar-node.is-locked::before,
+.orblitz-level-node.is-stellar-node.is-locked::after {
+  border-color: rgba(112, 151, 197, 0.24);
 }
 
-.orblitz-level-node.is-world1-node.is-boss::after {
-  border-color: rgba(255, 85, 26, 0.62);
-  animation: orblitz-world1-boss-ring 2.2s ease-in-out infinite;
+.orblitz-level-node.is-stellar-node.is-boss {
+  width: clamp(70px, 7.6vw, 100px);
+  height: clamp(70px, 7.6vw, 100px);
+  border-color: #ff8ee8 !important;
+  background:
+    radial-gradient(circle at 33% 22%, rgba(255, 255, 255, 0.92) 0 4%, rgba(255, 201, 247, 0.32) 8%, transparent 18%),
+    radial-gradient(circle at 50% 50%, rgba(255, 71, 204, 0.48), rgba(38, 10, 57, 0.95) 69%) !important;
+  box-shadow:
+    0 10px 22px rgba(1, 4, 22, 0.62),
+    0 0 34px rgba(255, 71, 204, 0.66),
+    0 0 8px rgba(255, 215, 250, 0.74),
+    inset 0 1px 0 rgba(255, 255, 255, 0.68) !important;
+  color: #ffd9fa !important;
 }
 
-@keyframes orblitz-world1-hotspot-flicker {
-  0%, 100% { opacity: 0.58; transform: scale(0.84); }
-  48% { opacity: 1; transform: scale(1.15); }
+.orblitz-level-node.is-stellar-node.is-boss::before {
+  inset: 5px;
+  border-color: #ffc6f3;
+  border-style: solid;
+  opacity: 0.9;
 }
 
-@keyframes orblitz-world1-boss-ring {
-  0%, 100% { opacity: 0.38; transform: scale(0.96); }
-  50% { opacity: 0.88; transform: scale(1.06); }
+.orblitz-level-node.is-stellar-node.is-boss::after {
+  inset: -13px;
+  border-color: rgba(255, 119, 229, 0.64);
+  animation: orblitz-stellar-boss-orbit 2.4s ease-in-out infinite;
+}
+
+@keyframes orblitz-stellar-current-orbit {
+  0%, 100% { opacity: 0.3; transform: rotate(-18deg) scaleX(1.2); }
+  50% { opacity: 0.95; transform: rotate(8deg) scaleX(1.42); }
+}
+
+@keyframes orblitz-stellar-boss-orbit {
+  0%, 100% { opacity: 0.34; transform: rotate(-18deg) scaleX(1.14); }
+  50% { opacity: 0.92; transform: rotate(20deg) scaleX(1.42); }
+}
+
+@media (max-width: 700px), (max-height: 560px) and (orientation: landscape) {
+  .orblitz-level-map-stellar {
+    border-radius: 18px;
+  }
+
+  .orblitz-level-node.is-stellar-node {
+    width: clamp(50px, 14vw, 72px);
+    height: clamp(50px, 14vw, 72px);
+  }
+
+  .orblitz-level-node.is-stellar-node.is-boss {
+    width: clamp(58px, 16vw, 82px);
+    height: clamp(58px, 16vw, 82px);
+  }
+
+  .orblitz-level-node.is-stellar-node .orblitz-select-index {
+    top: 7px;
+    font-size: 0.3rem;
+  }
+
+  .orblitz-level-node.is-stellar-node .orblitz-select-label {
+    bottom: 6px;
+    font-size: 0.28rem;
+  }
+}
+
+@media (max-height: 430px) and (orientation: landscape) {
+  .orblitz-level-node.is-stellar-node {
+    width: clamp(42px, 7.5vw, 58px);
+    height: clamp(42px, 7.5vw, 58px);
+  }
+
+  .orblitz-level-node.is-stellar-node.is-boss {
+    width: clamp(49px, 8.7vw, 66px);
+    height: clamp(49px, 8.7vw, 66px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .orblitz-world1-map-hotspot,
-  .orblitz-level-node.is-world1-node.is-boss::after {
+  .orblitz-level-node.is-stellar-node.is-current::after,
+  .orblitz-level-node.is-stellar-node.is-boss::after {
     animation: none;
   }
 }
