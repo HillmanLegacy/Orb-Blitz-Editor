@@ -872,51 +872,57 @@ export function StartupAnimation({
         )}
       </AnimatePresence>
 
-      {/* ── FULL-SCREEN WORLDS / LEVELS POPUP ───────────────────────────── */}
-      <AnimatePresence mode="wait">
-        {showSelectionScreen && (
-          <motion.div
-            key="arcade-world-screen"
-            className={`fixed inset-0 z-[150] flex flex-col orblitz-selection-screen ${selectionMenuState === "worlds" ? "orblitz-world-select" : ""}`}
-            role="main"
-            aria-label={selectionMenuState === "worlds" ? "World select" : "Level select"}
-            aria-hidden={!selectionScreenVisible}
-            style={{
-              visibility: selectionScreenVisible ? "visible" : "hidden",
-              pointerEvents: selectionScreenVisible ? "auto" : "none",
-            }}
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.96 }}
-            transition={{ duration: 0.22, ease: [0.22, 0.61, 0.36, 1] }}
-          >
-            {/* Header */}
-            <div className="flex-none orblitz-selection-header">
-              <p data-testid={`text-${selectionMenuState}-title`} className="font-black tracking-widest uppercase" style={{
-                color: selectionMenuState === "worlds" ? "#00ffff" : WORLD_COLORS[selectedWorld - 1],
-                fontSize: "clamp(0.85rem, 2.5vw, 1.1rem)",
-                letterSpacing: "0.22em",
-                textShadow: `0 0 18px ${selectionMenuState === "worlds" ? "rgba(0,255,255,0.5)" : `${WORLD_COLORS[selectedWorld - 1]}88`}`,
-              }}>
-                {selectionMenuState === "worlds" ? "Select World" : `World ${selectedWorld}`}
-              </p>
-              <span className="orblitz-selection-subtitle">{selectionMenuState === "worlds" ? "Choose a world to play" : "Choose a level to play"}</span>
-            </div>
-
-             {/* Responsive world carousel / level grid */}
-            <div className="flex-1 min-h-0 flex flex-col orblitz-selection-content">
-                {renderContent(selectionMenuState)}
-            </div>
-
-             {/* Back button — icon-only on world select, text elsewhere */}
-            <div className="flex-none border-t flex justify-center orblitz-selection-footer" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
-              <div style={{ width: "clamp(120px, 40vw, 200px)" }}>
-                <ButtonRow buttons={selectionButtons} pressedBtn={pressedBtn} setPressedBtn={setPressedBtn} compact />
+      {/* ── FULL-SCREEN WORLDS / LEVELS POPUP ─────────────────────────────
+          This must be portaled above the shared canvas. The startup shell is
+          an isolated z-index context, so a child z-index cannot outrank a
+          canvas sibling even when the child's numeric z-index is higher. */}
+      {typeof document !== "undefined" && createPortal(
+        <AnimatePresence mode="wait">
+          {showSelectionScreen && (
+            <motion.div
+              key="arcade-world-screen"
+              className={`fixed inset-0 z-[150] flex flex-col orblitz-selection-screen ${selectionMenuState === "worlds" ? "orblitz-world-select" : ""}`}
+              role="main"
+              aria-label={selectionMenuState === "worlds" ? "World select" : "Level select"}
+              aria-hidden={!selectionScreenVisible}
+              style={{
+                visibility: selectionScreenVisible ? "visible" : "hidden",
+                pointerEvents: selectionScreenVisible ? "auto" : "none",
+              }}
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ duration: 0.22, ease: [0.22, 0.61, 0.36, 1] }}
+            >
+              {/* Header */}
+              <div className="flex-none orblitz-selection-header">
+                <p data-testid={`text-${selectionMenuState}-title`} className="font-black tracking-widest uppercase" style={{
+                  color: selectionMenuState === "worlds" ? "#00ffff" : WORLD_COLORS[selectedWorld - 1],
+                  fontSize: "clamp(0.85rem, 2.5vw, 1.1rem)",
+                  letterSpacing: "0.22em",
+                  textShadow: `0 0 18px ${selectionMenuState === "worlds" ? "rgba(0,255,255,0.5)" : `${WORLD_COLORS[selectedWorld - 1]}88`}`,
+                }}>
+                  {selectionMenuState === "worlds" ? "Select World" : `World ${selectedWorld}`}
+                </p>
+                <span className="orblitz-selection-subtitle">{selectionMenuState === "worlds" ? "Choose a world to play" : "Choose a level to play"}</span>
               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+               {/* Responsive world carousel / level grid */}
+              <div className="flex-1 min-h-0 flex flex-col orblitz-selection-content">
+                  {renderContent(selectionMenuState)}
+              </div>
+
+               {/* Back button — icon-only on world select, text elsewhere */}
+              <div className="flex-none border-t flex justify-center orblitz-selection-footer" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+                <div style={{ width: "clamp(120px, 40vw, 200px)" }}>
+                  <ButtonRow buttons={selectionButtons} pressedBtn={pressedBtn} setPressedBtn={setPressedBtn} compact />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
 
       {arcadeTransition !== "idle" && typeof document !== "undefined" && createPortal(
         <motion.div
