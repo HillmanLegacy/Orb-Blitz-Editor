@@ -711,7 +711,7 @@ function ArcadeBossScene({
   const preloadingWorldRoster = preloadWorldRoster && presentation === "menu";
   const worldDefinitions = presentation === "worlds" || preloadingWorldRoster
     ? ARCADE_BOSS_INTRO_DEFS
-    : presentation === "menu" ? [] : ARCADE_BOSS_INTRO_DEFS;
+    : [];
   const actorPresentation: IntroBossPresentation =
     presentation === "worlds" || preloadingWorldRoster ? "worlds" : presentation;
   return (

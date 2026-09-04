@@ -634,8 +634,10 @@ export function StartupAnimation({
   const showSelectionScreen = showMenu && worldScreenMounted;
   const selectionScreenVisible = carouselOpen;
   const reportedMenuState: MenuState =
-    carouselOpen || (arcadeTransition !== "idle" && arcadeTransitionTarget === "worlds")
-      ? "worlds"
+    carouselOpen
+      ? carouselView
+      : (arcadeTransition !== "idle" && arcadeTransitionTarget === "worlds")
+        ? "worlds"
       : menuState;
   const introPhase: IntroBossPhase | null =
     animPhase === "splash" || animPhase === "idle" || animPhase === "flying" || animPhase === "converge" || animPhase === "flash" ||
