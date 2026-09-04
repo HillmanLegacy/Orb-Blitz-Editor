@@ -586,7 +586,65 @@ export function StartupAnimation({
             transition={{ duration: isContent ? 0.16 : showMenu ? 0.45 : 0.2, delay: showMenu && !isContent ? MENU_TITLE_REVEAL_DELAY : 0, ease: [0.22, 0.61, 0.36, 1] }}
           >
             {/* One persistent title node: the reveal becomes the interactive menu title in place. */}
-            <motion.h1
+            <div className="orblitz-title-wordmark-row">
+              {showMenu && !isContent && (
+                <motion.div
+                  className="relative z-30 pointer-events-none orblitz-star-bank orblitz-title-star-bank"
+                  aria-label={`${shopStars} stars`}
+                  style={{
+                    padding: "8px 13px 8px 9px",
+                    border: "1px solid rgba(255,230,120,0.72)",
+                    borderRadius: 10,
+                    background: "linear-gradient(135deg, rgba(255,255,255,0.16), rgba(102,58,16,0.42) 44%, rgba(255,196,48,0.14))",
+                    boxShadow: "4px 5px 0 rgba(5,10,34,0.58), 0 0 22px rgba(255,193,46,0.22), inset 0 1px 0 rgba(255,255,255,0.3)",
+                    backdropFilter: "blur(8px)",
+                  }}
+                  initial={{ opacity: 0, y: -10, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ delay: MENU_SECONDARY_REVEAL_DELAY }}
+                >
+                  <div style={{
+                    position: "absolute", top: 0, left: 12, right: 12, height: 2,
+                    background: "linear-gradient(90deg, transparent, #fff3a1 24%, #ffe600 50%, transparent)",
+                    boxShadow: "0 0 9px rgba(255,230,0,0.8)",
+                  }} />
+                  <div className="flex items-center gap-2">
+                    <motion.div
+                      aria-hidden="true"
+                      animate={{ rotate: [0, 5, -3, 0], scale: [1, 1.06, 1] }}
+                      transition={{ duration: 3.8, repeat: Infinity, ease: "easeInOut" }}
+                      style={{
+                        flex: "0 0 auto", width: "clamp(30px, 3.6vw, 42px)", height: "clamp(30px, 3.6vw, 42px)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        color: "#ffe600", border: "1px solid rgba(255,244,171,0.82)", borderRadius: 8,
+                        background: "radial-gradient(circle, rgba(255,247,175,0.42), rgba(255,186,28,0.14) 58%, rgba(255,186,28,0.03))",
+                        boxShadow: "0 0 12px rgba(255,230,0,0.62), inset 0 0 10px rgba(255,247,175,0.18)",
+                      }}
+                    >
+                      <IconStar />
+                    </motion.div>
+                    <div style={{ minWidth: 0, lineHeight: 1 }}>
+                      <div style={{
+                        color: "rgba(255,244,195,0.72)", fontSize: "clamp(0.4rem, 0.7vw, 0.52rem)",
+                        fontWeight: 900, letterSpacing: "0.18em", fontFamily: "Arial Black, Impact, sans-serif",
+                        marginBottom: 5,
+                      }}>
+                        STAR BANK
+                      </div>
+                      <div style={{
+                        display: "flex", alignItems: "baseline", gap: 5, color: "#fff8c9",
+                        fontSize: "clamp(1rem, 2vw, 1.38rem)", fontWeight: 900, letterSpacing: "0.04em",
+                        fontFamily: "Arial Black, Impact, sans-serif", textShadow: "0 0 10px rgba(255,230,0,0.45)",
+                      }}>
+                        <span>{shopStars.toLocaleString()}</span>
+                        <span style={{ color: "#ffe600", fontSize: "clamp(0.42rem, 0.75vw, 0.56rem)", letterSpacing: "0.12em" }}>STARS</span>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              <motion.h1
                className={`font-black tracking-widest flex items-center justify-center orblitz-title-wordmark orblitz-aaa-title-wordmark${showMenu ? "" : " pointer-events-none"}`}
               aria-label="Orblitz"
               style={{ fontSize: "clamp(3.5rem, 11vw, 7rem)", lineHeight: 1,
@@ -638,7 +696,8 @@ export function StartupAnimation({
                   onClick={showMenu ? (e) => { e.stopPropagation(); handleLetterClick(letter, idx); } : undefined}
                 >{letter}</motion.span>
               ))}
-            </motion.h1>
+              </motion.h1>
+            </div>
 
             {/* Underline */}
             <motion.div className="mt-3 mx-auto" style={{
@@ -654,67 +713,6 @@ export function StartupAnimation({
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* ── STAR BALANCE — dedicated arcade HUD counter ─────────────────── */}
-      {showMenu && !isContent && (
-        <motion.div
-          className="absolute z-30 pointer-events-none orblitz-star-bank"
-          aria-label={`${shopStars} stars`}
-          style={{
-            top: "clamp(16px, 4vh, 38px)",
-            right: "clamp(16px, 4vw, 44px)",
-            minWidth: "clamp(142px, 17vw, 196px)",
-            padding: "8px 13px 8px 9px",
-            border: "1px solid rgba(255,230,120,0.72)",
-            borderRadius: 10,
-            background: "linear-gradient(135deg, rgba(255,255,255,0.16), rgba(102,58,16,0.42) 44%, rgba(255,196,48,0.14))",
-            boxShadow: "4px 5px 0 rgba(5,10,34,0.58), 0 0 22px rgba(255,193,46,0.22), inset 0 1px 0 rgba(255,255,255,0.3)",
-            backdropFilter: "blur(8px)",
-          }}
-          initial={{ opacity: 0, y: -10, scale: 0.9 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ delay: MENU_SECONDARY_REVEAL_DELAY }}
-        >
-          <div style={{
-            position: "absolute", top: 0, left: 12, right: 12, height: 2,
-            background: "linear-gradient(90deg, transparent, #fff3a1 24%, #ffe600 50%, transparent)",
-            boxShadow: "0 0 9px rgba(255,230,0,0.8)",
-          }} />
-          <div className="flex items-center gap-2">
-            <motion.div
-              aria-hidden="true"
-              animate={{ rotate: [0, 5, -3, 0], scale: [1, 1.06, 1] }}
-              transition={{ duration: 3.8, repeat: Infinity, ease: "easeInOut" }}
-              style={{
-                flex: "0 0 auto", width: "clamp(30px, 3.6vw, 42px)", height: "clamp(30px, 3.6vw, 42px)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                color: "#ffe600", border: "1px solid rgba(255,244,171,0.82)", borderRadius: 8,
-                background: "radial-gradient(circle, rgba(255,247,175,0.42), rgba(255,186,28,0.14) 58%, rgba(255,186,28,0.03))",
-                boxShadow: "0 0 12px rgba(255,230,0,0.62), inset 0 0 10px rgba(255,247,175,0.18)",
-              }}
-            >
-              <IconStar />
-            </motion.div>
-            <div style={{ minWidth: 0, lineHeight: 1 }}>
-              <div style={{
-                color: "rgba(255,244,195,0.72)", fontSize: "clamp(0.4rem, 0.7vw, 0.52rem)",
-                fontWeight: 900, letterSpacing: "0.18em", fontFamily: "Arial Black, Impact, sans-serif",
-                marginBottom: 5,
-              }}>
-                STAR BANK
-              </div>
-              <div style={{
-                display: "flex", alignItems: "baseline", gap: 5, color: "#fff8c9",
-                fontSize: "clamp(1rem, 2vw, 1.38rem)", fontWeight: 900, letterSpacing: "0.04em",
-                fontFamily: "Arial Black, Impact, sans-serif", textShadow: "0 0 10px rgba(255,230,0,0.45)",
-              }}>
-                <span>{shopStars.toLocaleString()}</span>
-                <span style={{ color: "#ffe600", fontSize: "clamp(0.42rem, 0.75vw, 0.56rem)", letterSpacing: "0.12em" }}>STARS</span>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      )}
 
       {/* ── MENU ACTIONS (root / modes) — title owns the center ─────────── */}
       <AnimatePresence mode="wait">

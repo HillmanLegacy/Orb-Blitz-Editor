@@ -7222,3 +7222,47 @@ input:focus-visible,
     0 2px 0 rgba(17, 14, 77, .82),
     0 0 10px rgba(91, 119, 255, .6);
 }
+
+/* Keep the balance counter attached to the title lockup so it reads as part
+   of the main-menu identity rather than as a separate top-corner HUD. */
+.orblitz-title-wordmark-row {
+  display: flex !important;
+  width: max-content;
+  max-width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(10px, 1.8vw, 26px);
+  margin-inline: auto;
+}
+
+.orblitz-title-star-bank {
+  flex: 0 0 auto;
+  min-width: clamp(142px, 17vw, 196px);
+}
+
+@media (max-width: 700px) {
+  .orblitz-title-wordmark-row {
+    width: 100%;
+    gap: 8px;
+    padding-inline: 8px;
+  }
+
+  .orblitz-title-wordmark-row .orblitz-title-wordmark {
+    min-width: 0;
+    font-size: clamp(2.65rem, 11vw, 7rem) !important;
+  }
+
+  .orblitz-title-star-bank {
+    min-width: clamp(100px, 26vw, 128px);
+    padding: 6px 8px 6px 6px !important;
+  }
+
+  .orblitz-title-star-bank > .flex {
+    gap: 4px;
+  }
+
+  .orblitz-title-star-bank > .flex > div:first-child {
+    width: clamp(24px, 7vw, 30px) !important;
+    height: clamp(24px, 7vw, 30px) !important;
+  }
+}
