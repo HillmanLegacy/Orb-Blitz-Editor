@@ -7036,7 +7036,7 @@ input:focus-visible,
 .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
   .orblitz-command-play:focus-visible {
   transform: translate(-50%, -50%)
-    translate(0, calc(var(--orbit-radius) * -1)) translateY(-4px) !important;
+    translate(0, calc(var(--orbit-radius) * -1)) translateY(-4px) scale(1.04) !important;
 }
 
 .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
@@ -7045,7 +7045,7 @@ input:focus-visible,
   .orblitz-command-shop:focus-visible {
   transform: translate(-50%, -50%)
     translate(calc(var(--orbit-radius) * -.951), calc(var(--orbit-radius) * -.309))
-    translateY(-4px) !important;
+    translateY(-4px) scale(1.04) !important;
 }
 
 .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
@@ -7054,7 +7054,7 @@ input:focus-visible,
   .orblitz-command-inventory:focus-visible {
   transform: translate(-50%, -50%)
     translate(calc(var(--orbit-radius) * .951), calc(var(--orbit-radius) * -.309))
-    translateY(-4px) !important;
+    translateY(-4px) scale(1.04) !important;
 }
 
 .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
@@ -7063,7 +7063,7 @@ input:focus-visible,
   .orblitz-command-trophies:focus-visible {
   transform: translate(-50%, -50%)
     translate(calc(var(--orbit-radius) * -.78), calc(var(--orbit-radius) * .625))
-    translateY(-4px) !important;
+    translateY(-4px) scale(1.04) !important;
 }
 
 .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
@@ -7072,7 +7072,41 @@ input:focus-visible,
   .orblitz-command-settings:focus-visible {
   transform: translate(-50%, -50%)
     translate(calc(var(--orbit-radius) * .78), calc(var(--orbit-radius) * .625))
-    translateY(-4px) !important;
+    translateY(-4px) scale(1.04) !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-play:active {
+  transform: translate(-50%, -50%)
+    translate(0, calc(var(--orbit-radius) * -1)) translateY(-1px) scale(.94) !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-shop:active {
+  transform: translate(-50%, -50%)
+    translate(calc(var(--orbit-radius) * -.951), calc(var(--orbit-radius) * -.309))
+    translateY(-1px) scale(.94) !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-inventory:active {
+  transform: translate(-50%, -50%)
+    translate(calc(var(--orbit-radius) * .951), calc(var(--orbit-radius) * -.309))
+    translateY(-1px) scale(.94) !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-trophies:active {
+  transform: translate(-50%, -50%)
+    translate(calc(var(--orbit-radius) * -.78), calc(var(--orbit-radius) * .625))
+    translateY(-1px) scale(.94) !important;
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
+  .orblitz-command-settings:active {
+  transform: translate(-50%, -50%)
+    translate(calc(var(--orbit-radius) * .78), calc(var(--orbit-radius) * .625))
+    translateY(-1px) scale(.94) !important;
 }
 
 @media (max-height: 520px) and (orientation: landscape) {

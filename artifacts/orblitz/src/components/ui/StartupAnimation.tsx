@@ -229,6 +229,7 @@ export function StartupAnimation({
   const [devFlash, setDevFlash]       = useState(false);
   const [highestLevel, setHighestLevel] = useState(1.1);
   const [pressedBtn, setPressedBtn]   = useState<string | null>(null);
+  const [arcadeTransition, setArcadeTransition] = useState<"idle" | "fadeOut" | "fadeIn">("idle");
   const worldPointerStartX = useRef<number | null>(null);
   const worldSwipeRef = useRef(false);
 
@@ -273,6 +274,11 @@ export function StartupAnimation({
       startLoading("entering");
     });
   }, [btn, setGameMode, startLoading, stopMenuBgm]);
+
+  const handleOpenArcade = useCallback(() => {
+    btn("arcade");
+    setArcadeTransition("fadeOut");
+  }, [btn]);
 
   const isLevelUnlocked = (level: number) => devMode || level <= highestLevel + 0.01;
   const isBossLevel     = (level: number) => Math.round((level % 1) * 10) === 9;
@@ -319,7 +325,7 @@ export function StartupAnimation({
          { id:"settings",  icon:<IconSettings />, label:"OPTIONS",  color:"#a9ad96", shadow:"rgba(169,173,150,0.26)", action: () => { btn("settings");  setMenuState("settings"); } },
       ];
        case "modes": return [
-         { id:"play",      icon:<IconPlay />,     label:"ARCADE",   color:"#c7f23d", shadow:"rgba(199,242,61,0.34)", action: () => { btn("arcade"); setMenuState("worlds"); } },
+         { id:"play",      icon:<IconPlay />,     label:"ARCADE",   color:"#c7f23d", shadow:"rgba(199,242,61,0.34)", action: handleOpenArcade },
          { id:"shop",      icon:<IconShop />,     label:"CHILL",    color:"#ff6f43", shadow:"rgba(255,111,67,0.3)", action: () => handleStartMode("chill") },
          { id:"inventory", icon:<IconGear />,     label:"SURVIVAL", color:"#6eaaa0", shadow:"rgba(110,170,160,0.3)", action: () => handleStartMode("survival") },
          { id:"trophies",  icon:<IconTrophy />,   label:"GAUNTLET", color:"#e9e3cf", shadow:"rgba(233,227,207,0.24)", action: () => handleStartMode("gauntlet") },
@@ -335,7 +341,7 @@ export function StartupAnimation({
         back("WORLDS", () => { btn("back"); setMenuState("worlds"); }),
       ];
     }
-  }, [menuState, btn, openShop, openInventory, handleStartMode]);
+  }, [menuState, btn, openShop, openInventory, handleOpenArcade, handleStartMode]);
 
   // ── Content panels ────────────────────────────────────────────────────────
   const renderContent = () => {
@@ -786,6 +792,31 @@ export function StartupAnimation({
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {arcadeTransition !== "idle" && (
+          <motion.div
+            key="arcade-screen-fade"
+            className="fixed inset-0 z-[240]"
+            style={{
+              background: "#090d2d",
+              pointerEvents: "auto",
+            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: arcadeTransition === "fadeOut" ? 1 : 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.34, ease: [0.22, 0.61, 0.36, 1] }}
+            onAnimationComplete={() => {
+              if (arcadeTransition === "fadeOut") {
+                setMenuState("worlds");
+                setArcadeTransition("fadeIn");
+              } else {
+                setArcadeTransition("idle");
+              }
+            }}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
@@ -819,7 +850,7 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false, isRoot
     >
       {buttons.map((b) => {
         const isPress = pressedBtn === b.id;
-        const isPrimary = b.id === "play" || b.id === "arcade";
+        const isPrimary = b.id === "play";
         return (
           <motion.button
             key={b.id}
@@ -843,13 +874,14 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false, isRoot
               cursor: "pointer",
               WebkitTapHighlightColor: "transparent",
               backdropFilter: "blur(8px)",
-              transition: "background 0.14s, box-shadow 0.14s, border-color 0.14s, transform 0.14s",
+              transition: "background 0.22s, box-shadow 0.22s, border-color 0.22s, transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1)",
             }}
             variants={{
               hidden:  { opacity: 0, y: 16, scale: 0.86 },
               visible: { opacity: 1, y: 0,  scale: 1,
                 transition: { type: "spring", stiffness: 360, damping: 26 } },
             }}
+            whileHover={{ scale: 1.04, y: -3 }}
             whileTap={{ scale: 0.9 }}
             onHoverStart={() => setPressedBtn(b.id)}
             onHoverEnd={() => setPressedBtn(null)}
@@ -881,7 +913,7 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false, isRoot
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.18, ease: [0.22, 0.61, 0.36, 1] }}
+                  transition={{ duration: 0.38, ease: [0.22, 0.61, 0.36, 1] }}
                 >
                   {b.label.split("").map((letter, index) => <span key={`${letter}-${index}`}>{letter}</span>)}
                 </motion.span>
@@ -895,7 +927,7 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false, isRoot
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.18, ease: [0.22, 0.61, 0.36, 1] }}
+                  transition={{ duration: 0.38, ease: [0.22, 0.61, 0.36, 1] }}
                 >
                   {b.label.split("").map((letter, index) => <span key={`${letter}-${index}`}>{letter}</span>)}
                 </motion.span>
@@ -914,7 +946,7 @@ function ButtonRow({ buttons, pressedBtn, setPressedBtn, compact = false, isRoot
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      transition={{ duration: 0.18, ease: [0.22, 0.61, 0.36, 1] }}
+                      transition={{ duration: 0.38, ease: [0.22, 0.61, 0.36, 1] }}
                     >
                       <span className="orblitz-command-label" style={{
                         fontSize: labelSz, fontWeight: 900,
