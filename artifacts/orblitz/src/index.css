@@ -3776,6 +3776,14 @@ canvas {
   z-index: 2;
 }
 
+.orblitz-startup-shell > .orblitz-arcade-screen-fade {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 240 !important;
+  display: block !important;
+  pointer-events: auto !important;
+}
+
 .orblitz-menu-masthead {
   position: absolute !important;
   inset: clamp(18px, 4vh, 42px) clamp(20px, 4vw, 58px) auto;

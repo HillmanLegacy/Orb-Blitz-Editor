@@ -799,7 +799,7 @@ export function StartupAnimation({
         {arcadeTransition !== "idle" && (
           <motion.div
             key="arcade-screen-fade"
-            className="fixed inset-0 z-[240]"
+            className="fixed inset-0 z-[240] orblitz-arcade-screen-fade"
             style={{
               background: "#090d2d",
               pointerEvents: "auto",
