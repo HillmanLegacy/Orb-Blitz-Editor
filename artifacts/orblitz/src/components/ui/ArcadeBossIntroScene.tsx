@@ -147,8 +147,15 @@ function getWorldCardAnchor(world: number): { x: number; y: number } | null {
   };
 }
 
-function renderArcadeBoss(type: MainBossType) {
-  return <BossVisual type={type} radius={1.05} healthPercent={1} />;
+function renderArcadeBoss(type: MainBossType, presentationSpin = true) {
+  return (
+    <BossVisual
+      type={type}
+      radius={1.05}
+      healthPercent={1}
+      presentationSpin={presentationSpin}
+    />
+  );
 }
 
 function WorldRosterReadySignal({ onReady }: { onReady?: () => void }) {
@@ -529,11 +536,14 @@ function ArcadeBossActor({
       );
       group.scale.setScalar(Math.max(0.001, (isSelected ? 0.72 : 0.38) * rosterProgress));
       group.renderOrder = isSelected ? 8 : 7;
+      const keepsDripsVertical = definition.type === "trapezoid";
       group.rotation.z = THREE.MathUtils.degToRad(
-        definition.rotation * 0.28 + Math.sin(rosterTime * 0.62) * 5,
+        keepsDripsVertical
+          ? 0
+          : definition.rotation * 0.28 + Math.sin(rosterTime * 0.62) * 5,
       );
-      group.rotation.x = Math.sin(rosterTime * 0.4) * 0.08;
-      group.rotation.y = Math.cos(rosterTime * 0.36) * 0.08;
+      group.rotation.x = keepsDripsVertical ? 0 : Math.sin(rosterTime * 0.4) * 0.08;
+      group.rotation.y = keepsDripsVertical ? 0 : Math.cos(rosterTime * 0.36) * 0.08;
 
       if (!materialFadeInitialized.current) {
         group.traverse((object) => {
@@ -616,7 +626,10 @@ function ArcadeBossActor({
   const introGlow = getArcadeBossIntroGlow(definition.type);
   return (
     <group ref={groupRef} visible={visible}>
-      {renderArcadeBoss(definition.type)}
+      {renderArcadeBoss(
+        definition.type,
+        !(presentation === "worlds" && definition.type === "trapezoid"),
+      )}
       <group>
         <pointLight color={palette.glow} intensity={introGlow.lightIntensity} distance={7.5} decay={2} />
         <mesh scale={0.72}>

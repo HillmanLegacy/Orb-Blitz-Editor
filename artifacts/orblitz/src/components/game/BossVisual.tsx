@@ -16,6 +16,7 @@ export interface BossVisualProps {
   radius?: number;
   healthPercent?: number;
   presentationRef?: Ref<THREE.Group>;
+  presentationSpin?: boolean;
 }
 
 type BossVisualComponent = ComponentType<BossVisualProps>;
@@ -41,13 +42,18 @@ export function BossVisual({
   radius = 1.44,
   healthPercent = 1,
   presentationRef,
+  presentationSpin = true,
 }: BossVisualProps & { type: MainBossType }) {
   const Renderer = BOSS_VISUAL_COMPONENTS[type];
   return (
     <group ref={presentationRef}>
-      <ClockwiseOrbSpin>
+      {presentationSpin ? (
+        <ClockwiseOrbSpin>
+          <Renderer radius={radius} healthPercent={healthPercent} />
+        </ClockwiseOrbSpin>
+      ) : (
         <Renderer radius={radius} healthPercent={healthPercent} />
-      </ClockwiseOrbSpin>
+      )}
     </group>
   );
 }
