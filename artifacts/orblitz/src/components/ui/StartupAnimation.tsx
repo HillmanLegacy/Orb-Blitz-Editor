@@ -609,12 +609,10 @@ export function StartupAnimation({
                     boxShadow: "0 0 9px rgba(255,230,0,0.8)",
                   }} />
                   <div className="flex flex-col items-center justify-center" style={{ minWidth: 0, lineHeight: 1 }}>
-                    <div style={{
-                      color: "rgba(255,244,195,0.72)", fontSize: "clamp(0.4rem, 0.7vw, 0.52rem)",
-                      fontWeight: 900, letterSpacing: "0.18em", fontFamily: "Arial Black, Impact, sans-serif",
-                      marginBottom: 5, textAlign: "center",
-                    }}>
-                      STARS
+                    <div className="orblitz-star-bank-label" aria-hidden="true">
+                      {"STARS".split("").map((letter, index) => (
+                        <span key={`${letter}-${index}`}>{letter}</span>
+                      ))}
                     </div>
                     <div style={{
                       display: "flex", alignItems: "baseline", justifyContent: "center", gap: 5, color: "#fff8c9",

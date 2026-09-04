@@ -7334,3 +7334,38 @@ input:focus-visible,
     right: calc(50% + clamp(300px, 26vw, 390px) + 35px) !important;
   }
 }
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-star-bank-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0px, .08vw, 1px);
+  margin-bottom: 5px;
+  font-family: var(--font-display), "Arial Black", sans-serif;
+  font-size: clamp(.55rem, 1vw, .78rem);
+  font-weight: 900;
+  line-height: .85;
+  letter-spacing: .08em;
+  font-synthesis: none;
+  opacity: .9;
+  filter:
+    drop-shadow(0 2px 0 rgba(11, 12, 33, .68))
+    drop-shadow(0 0 7px rgba(255, 191, 38, .48));
+}
+
+.orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-star-bank-label span {
+  display: inline-block;
+  padding: 0 .035em;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 1px rgba(255, 205, 66, .96);
+  background-image: url("/world2-star-texture.svg");
+  background-repeat: no-repeat;
+  background-size: 520% 220%;
+  background-position: 50% 50%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  text-shadow:
+    0 1px 0 rgba(80, 35, 7, .78),
+    0 0 7px rgba(255, 191, 38, .52);
+}
