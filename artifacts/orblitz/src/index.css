@@ -7236,17 +7236,22 @@ input:focus-visible,
   transform-origin: center !important;
 }
 
-/* Remove the legacy app-layer color wash so the menu's own black veil is
-   visible instead of being composited over the old indigo gradient. */
+/* Remove the legacy app-layer color wash before applying the root menu veil
+   behind the transparent WebGL canvas. */
 .orblitz-app-shell {
   background: transparent !important;
 }
 
-/* Keep the menu readable over the showcase canvas without tinting it indigo.
-   The compound selector intentionally outranks the older root transparency
-   compatibility rule above. */
-.orblitz-startup-shell.orblitz-rainbow-arcade-shell[data-menu-state="root"] {
+/* The root menu veil belongs behind the canvas: the black backdrop stays
+   visible in empty space while emissive boss-orb colors are not dimmed by it.
+   :has keeps the background scoped to the root menu rather than selection,
+   settings, or gameplay screens. */
+.orblitz-app-shell:has(.orblitz-startup-shell[data-menu-state="root"]) {
   background: rgba(0, 0, 0, 0.62) !important;
+}
+
+.orblitz-startup-shell.orblitz-rainbow-arcade-shell[data-menu-state="root"] {
+  background: transparent !important;
 }
 
 @media (max-width: 700px) {
