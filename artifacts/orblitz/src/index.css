@@ -7039,9 +7039,9 @@ input:focus-visible,
 /* Root menu action row: keep all five actions in one readable, centered band
    between the title lockup and the bottom safe area. */
 .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage {
-  top: auto !important;
+  top: 62% !important;
   right: auto !important;
-  bottom: clamp(72px, 13vh, 132px) !important;
+  bottom: auto !important;
   left: 50% !important;
   width: min(1040px, calc(100vw - 28px)) !important;
   height: clamp(72px, 10vh, 108px) !important;
@@ -7049,7 +7049,7 @@ input:focus-visible,
   align-items: center;
   justify-content: center;
   gap: clamp(3px, 1.8vw, 24px) !important;
-  transform: translateX(-50%) !important;
+  transform: translate(-50%, -50%) !important;
   pointer-events: auto !important;
 }
 
@@ -7088,7 +7088,8 @@ input:focus-visible,
 
 @media (max-height: 520px) and (orientation: landscape) {
   .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage {
-    bottom: clamp(34px, 8vh, 52px) !important;
+    top: 61% !important;
+    bottom: auto !important;
     width: min(640px, calc(100vw - 16px)) !important;
     height: 58px !important;
     gap: 2px !important;
@@ -7097,6 +7098,27 @@ input:focus-visible,
   .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage
     .orblitz-command-button {
     height: 100% !important;
+  }
+}
+
+/* The long root labels need their own compact scale because their visual
+   letterforms are intentionally larger than the button hit areas. */
+@media (max-width: 700px) {
+  .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-aaa-button-stage {
+    top: 60% !important;
+    bottom: auto !important;
+    width: min(560px, calc(100vw - 16px)) !important;
+    gap: 2px !important;
+  }
+
+  .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-root-letter-label {
+    font-size: clamp(0.9rem, 4.2vw, 1.2rem) !important;
+    letter-spacing: 0.04em !important;
+    transform: translate(-50%, calc(-50% - 8px)) scale(.62) !important;
+  }
+
+  .orblitz-rainbow-arcade-shell[data-menu-state="root"] .orblitz-play-bubble-label {
+    font-size: clamp(1.15rem, 6vw, 1.65rem) !important;
   }
 }
 
