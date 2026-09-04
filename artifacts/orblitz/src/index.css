@@ -7691,3 +7691,136 @@ input:focus-visible,
     animation: none;
   }
 }
+
+/* ── World 1: Firefall Reach overworld ─────────────────────────────────────── */
+.orblitz-level-map-shell.is-world1 .orblitz-level-map-topline {
+  color: #ffb45e;
+}
+
+.orblitz-level-map-shell.is-world1 .orblitz-level-map-topline span:last-child {
+  color: rgba(255, 181, 94, 0.58);
+}
+
+.orblitz-level-map-world1::before {
+  border-color: rgba(255, 119, 50, 0.24);
+  background:
+    radial-gradient(ellipse at 15% 82%, rgba(255, 48, 17, 0.28), transparent 28%),
+    radial-gradient(ellipse at 52% 68%, rgba(255, 129, 18, 0.14), transparent 28%),
+    radial-gradient(ellipse at 87% 20%, rgba(255, 67, 32, 0.2), transparent 26%),
+    linear-gradient(145deg, rgba(255, 94, 34, 0.1), rgba(24, 6, 18, 0.6) 48%, rgba(7, 8, 22, 0.84));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 193, 111, 0.14),
+    inset 0 -28px 70px rgba(148, 16, 4, 0.2),
+    0 18px 36px rgba(5, 2, 18, 0.3),
+    0 0 42px rgba(255, 74, 24, 0.1);
+}
+
+.orblitz-level-map-world1::after {
+  border-color: rgba(255, 142, 55, 0.13);
+  background:
+    linear-gradient(112deg, transparent 0 24%, rgba(255, 157, 39, 0.08) 24.1%, transparent 24.5% 72%, rgba(255, 55, 20, 0.08) 72.1%, transparent 72.5%),
+    repeating-linear-gradient(164deg, transparent 0 36px, rgba(255, 79, 26, 0.035) 37px, transparent 39px),
+    radial-gradient(circle at 50% 50%, transparent 0 42%, rgba(255, 117, 34, 0.06) 42.2%, transparent 42.6%);
+}
+
+.orblitz-world1-map-scenery {
+  opacity: 0.92;
+}
+
+.orblitz-world1-map-island {
+  fill: rgba(79, 17, 18, 0.78);
+  stroke: rgba(255, 91, 32, 0.34);
+  stroke-width: 0.55;
+  filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.48));
+}
+
+.orblitz-world1-map-crag {
+  fill: rgba(123, 25, 14, 0.82);
+  stroke: rgba(255, 151, 47, 0.62);
+  stroke-width: 0.5;
+  filter: drop-shadow(0 0 2px rgba(255, 74, 24, 0.45));
+}
+
+.orblitz-world1-map-vent {
+  fill: rgba(255, 67, 17, 0.26);
+  stroke: rgba(255, 202, 101, 0.56);
+  stroke-width: 0.45;
+}
+
+.orblitz-world1-map-branch {
+  fill: none;
+  stroke: rgba(255, 152, 42, 0.36);
+  stroke-width: 0.65;
+  stroke-dasharray: 1 1.7;
+  stroke-linecap: round;
+}
+
+.orblitz-world1-map-hotspot {
+  fill: #fff0a6;
+  filter: drop-shadow(0 0 2px #ff551c) drop-shadow(0 0 4px rgba(255, 156, 41, 0.66));
+  animation: orblitz-world1-hotspot-flicker 1.4s ease-in-out infinite;
+}
+
+.orblitz-level-map-world1 .orblitz-level-map-route-shadow {
+  stroke: rgba(255, 66, 20, 0.56);
+  opacity: 0.62;
+}
+
+.orblitz-level-map-world1 .orblitz-level-map-route-line {
+  stroke-dasharray: 1.4 1.4;
+  opacity: 0.98;
+}
+
+.orblitz-level-map-world1 .orblitz-level-map-stars {
+  fill: rgba(255, 225, 166, 0.74);
+  filter: drop-shadow(0 0 2px rgba(255, 107, 31, 0.88));
+}
+
+.orblitz-level-node.is-world1-node:not(.is-locked) {
+  border-color: color-mix(in srgb, var(--select-color) 84%, #fff2c2) !important;
+  background:
+    radial-gradient(circle at 32% 23%, rgba(255, 243, 188, 0.52), transparent 19%),
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--select-color) 42%, transparent), rgba(34, 8, 20, 0.94) 74%) !important;
+  box-shadow:
+    0 8px 16px rgba(5, 2, 18, 0.42),
+    0 0 22px color-mix(in srgb, var(--select-color) 52%, transparent),
+    inset 0 1px 0 rgba(255, 235, 179, 0.38) !important;
+}
+
+.orblitz-level-node.is-world1-node.is-boss {
+  border-color: #ffbd55 !important;
+  background:
+    radial-gradient(circle at 32% 21%, rgba(255, 247, 201, 0.6), transparent 19%),
+    radial-gradient(circle at 50% 50%, rgba(255, 63, 14, 0.56), rgba(49, 5, 14, 0.96) 72%) !important;
+  box-shadow:
+    0 10px 20px rgba(5, 2, 18, 0.5),
+    0 0 34px rgba(255, 71, 19, 0.72),
+    0 0 9px rgba(255, 209, 89, 0.7),
+    inset 0 1px 0 rgba(255, 245, 189, 0.44) !important;
+}
+
+.orblitz-level-node.is-world1-node.is-boss::before {
+  border-color: #ffd477;
+}
+
+.orblitz-level-node.is-world1-node.is-boss::after {
+  border-color: rgba(255, 85, 26, 0.62);
+  animation: orblitz-world1-boss-ring 2.2s ease-in-out infinite;
+}
+
+@keyframes orblitz-world1-hotspot-flicker {
+  0%, 100% { opacity: 0.58; transform: scale(0.84); }
+  48% { opacity: 1; transform: scale(1.15); }
+}
+
+@keyframes orblitz-world1-boss-ring {
+  0%, 100% { opacity: 0.38; transform: scale(0.96); }
+  50% { opacity: 0.88; transform: scale(1.06); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orblitz-world1-map-hotspot,
+  .orblitz-level-node.is-world1-node.is-boss::after {
+    animation: none;
+  }
+}

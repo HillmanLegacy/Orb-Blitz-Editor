@@ -68,6 +68,19 @@ const LEVEL_MAP_POINTS = [
   { x: 86, y: 22 },
   { x: 91, y: 70 },
 ] as const;
+const WORLD1_MAP_POINTS = [
+  { x: 9, y: 76 },
+  { x: 22, y: 61 },
+  { x: 34, y: 79 },
+  { x: 43, y: 51 },
+  { x: 55, y: 63 },
+  { x: 62, y: 36 },
+  { x: 74, y: 48 },
+  { x: 81, y: 23 },
+  { x: 91, y: 69 },
+] as const;
+const LEVEL_MAP_ROUTE = "M 9 68 C 13 57, 15 47, 20 42 S 28 55, 32 67 S 39 45, 44 35 S 52 42, 56 54 S 62 34, 67 27 S 73 41, 77 49 S 83 30, 86 22 S 90 54, 91 70";
+const WORLD1_MAP_ROUTE = "M 9 76 C 13 68, 18 68, 22 61 S 29 69, 34 79 S 39 65, 43 51 S 49 55, 55 63 S 59 44, 62 36 S 68 43, 74 48 S 78 33, 81 23 S 87 52, 91 69";
 
 // ─── Level helpers (from original LevelSelect) ────────────────────────────────
 const getStoredProgress = (): number => {
@@ -520,27 +533,30 @@ export function StartupAnimation({
 
     if (viewState === "levels") {
       const wc = WORLD_COLORS[selectedWorld - 1];
+      const world1Map = selectedWorld === 1;
+      const mapPoints = world1Map ? WORLD1_MAP_POINTS : LEVEL_MAP_POINTS;
+      const mapRoute = world1Map ? WORLD1_MAP_ROUTE : LEVEL_MAP_ROUTE;
       const levels = Array.from({ length: 9 }, (_, i) => i + 1);
       const currentLevel = levels
         .map((sub) => selectedWorld + sub / 10)
         .find((level) => isLevelUnlocked(level) && level > highestLevel) ?? null;
       return (
         <div
-          className="orblitz-level-map-shell"
+          className={`orblitz-level-map-shell ${world1Map ? "is-world1" : ""}`}
           role="region"
-          aria-label={`World ${selectedWorld} level map`}
+          aria-label={`World ${selectedWorld} ${WORLD_NAMES[selectedWorld - 1]} level map`}
         >
           <div className="orblitz-level-map-topline">
-            <span>OVERWORLD NAVIGATION</span>
-            <span>SELECT A LEVEL POINT <i /></span>
+            <span>{world1Map ? "FIRELINE OVERWORLD" : "OVERWORLD NAVIGATION"}</span>
+            <span>{world1Map ? "FOLLOW THE HEAT" : "SELECT A LEVEL POINT"} <i /></span>
           </div>
-          <div className="orblitz-level-map">
+          <div className={`orblitz-level-map ${world1Map ? "orblitz-level-map-world1" : ""}`}>
             <svg className="orblitz-level-map-route" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
               <defs>
                 <linearGradient id="orblitz-level-route-gradient" x1="0%" y1="100%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor={wc} stopOpacity="0.28" />
-                  <stop offset="52%" stopColor="#b8fff1" stopOpacity="0.9" />
-                  <stop offset="100%" stopColor="#ff8e72" stopOpacity="0.96" />
+                  <stop offset="0%" stopColor={world1Map ? "#7f170e" : wc} stopOpacity="0.38" />
+                  <stop offset="52%" stopColor={world1Map ? "#ff9f1c" : "#b8fff1"} stopOpacity="0.9" />
+                  <stop offset="100%" stopColor={world1Map ? "#fff0a6" : "#ff8e72"} stopOpacity="0.96" />
                 </linearGradient>
                 <filter id="orblitz-level-route-glow" x="-30%" y="-30%" width="160%" height="160%">
                   <feGaussianBlur stdDeviation="1.6" result="blur" />
@@ -550,13 +566,28 @@ export function StartupAnimation({
                   </feMerge>
                 </filter>
               </defs>
+              {world1Map && (
+                <g className="orblitz-world1-map-scenery">
+                  <path className="orblitz-world1-map-island" d="M 3 82 C 8 75, 15 76, 19 82 C 15 87, 7 88, 3 82 Z" />
+                  <path className="orblitz-world1-map-island" d="M 27 87 C 33 81, 40 83, 44 89 C 38 93, 31 93, 27 87 Z" />
+                  <path className="orblitz-world1-map-island" d="M 49 70 C 54 64, 61 66, 65 72 C 60 76, 54 76, 49 70 Z" />
+                  <path className="orblitz-world1-map-island" d="M 73 56 C 79 51, 86 53, 90 58 C 84 62, 77 62, 73 56 Z" />
+                  <path className="orblitz-world1-map-crag" d="M 6 65 L 10 53 L 14 64 L 17 57 L 21 70 Z" />
+                  <path className="orblitz-world1-map-crag" d="M 79 20 L 83 8 L 87 18 L 91 13 L 94 27 Z" />
+                  <path className="orblitz-world1-map-vent" d="M 47 29 C 51 25, 55 25, 58 29 C 54 31, 51 31, 47 29 Z" />
+                  <path className="orblitz-world1-map-branch" d="M 43 51 C 42 42, 47 37, 53 33" />
+                  <path className="orblitz-world1-map-branch" d="M 74 48 C 69 54, 68 61, 72 66" />
+                  <circle className="orblitz-world1-map-hotspot" cx="53" cy="29" r="1.15" />
+                  <circle className="orblitz-world1-map-hotspot" cx="72" cy="67" r="0.8" />
+                </g>
+              )}
               <path
                 className="orblitz-level-map-route-shadow"
-                d="M 9 68 C 13 57, 15 47, 20 42 S 28 55, 32 67 S 39 45, 44 35 S 52 42, 56 54 S 62 34, 67 27 S 73 41, 77 49 S 83 30, 86 22 S 90 54, 91 70"
+                d={mapRoute}
               />
               <path
                 className="orblitz-level-map-route-line"
-                d="M 9 68 C 13 57, 15 47, 20 42 S 28 55, 32 67 S 39 45, 44 35 S 52 42, 56 54 S 62 34, 67 27 S 73 41, 77 49 S 83 30, 86 22 S 90 54, 91 70"
+                d={mapRoute}
                 stroke="url(#orblitz-level-route-gradient)"
                 filter="url(#orblitz-level-route-glow)"
               />
@@ -577,8 +608,8 @@ export function StartupAnimation({
             const boss = isBossLevel(level);
             const completed = level <= highestLevel;
             const current = level === currentLevel;
-            const bc = boss ? "#ff4444" : wc;
-            const point = LEVEL_MAP_POINTS[sub - 1];
+            const bc = boss ? "#ff4444" : world1Map ? "#ff9f1c" : wc;
+            const point = mapPoints[sub - 1];
             return (
               <motion.button key={sub}
                 onClick={() => { if (unlocked) { btn(`l${level}`); try { stopMenuBgm(); } catch {} useOrbTransition.getState().loadingSweep(() => { setGameMode("arcade"); startLoading("nextLevel", level); }); } }}
@@ -586,7 +617,7 @@ export function StartupAnimation({
                 data-testid={`button-level-${selectedWorld}-${sub}`}
                 aria-label={unlocked ? `Select level ${selectedWorld}.${sub}` : `Level ${selectedWorld}.${sub} locked`}
                 aria-current={current ? "step" : undefined}
-                className={`orblitz-select-card orblitz-level-node ${unlocked ? "is-unlocked" : "is-locked"} ${boss ? "is-boss" : ""} ${completed ? "is-complete" : ""} ${current ? "is-current" : ""}`}
+                className={`orblitz-select-card orblitz-level-node ${world1Map ? "is-world1-node" : ""} ${boss ? "is-boss" : ""} ${boss && world1Map ? "is-world1-boss" : ""} ${unlocked ? "is-unlocked" : "is-locked"} ${completed ? "is-complete" : ""} ${current ? "is-current" : ""}`}
                 style={{
                   "--select-color": unlocked ? bc : "#536079",
                   "--map-x": `${point.x}%`,
