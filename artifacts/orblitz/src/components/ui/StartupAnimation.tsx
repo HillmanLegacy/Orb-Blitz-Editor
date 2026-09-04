@@ -223,8 +223,9 @@ export function StartupAnimation({
   onMenuReady,
   onIntroPhaseChange,
 }: StartupAnimationProps) {
+  const startsInCarousel = initialState === "worlds" || initialState === "levels";
   const [animPhase] = useState<AnimPhase>("menu");
-  const [menuState, setMenuState] = useState<MenuState>(initialState);
+  const [menuState, setMenuState] = useState<MenuState>(startsInCarousel ? "modes" : initialState);
   const [selectedWorld, setSelectedWorld] = useState(1);
   const [devProgress, setDevProgress] = useState(0);
   const [devFlash, setDevFlash]       = useState(false);
@@ -232,7 +233,11 @@ export function StartupAnimation({
   const [pressedBtn, setPressedBtn]   = useState<string | null>(null);
   const [arcadeTransition, setArcadeTransition] = useState<"idle" | "fadeOut" | "fadeIn">("idle");
   const [arcadeTransitionTarget, setArcadeTransitionTarget] = useState<"worlds" | "modes" | null>(null);
-  const [worldScreenMounted, setWorldScreenMounted] = useState(false);
+  const [worldScreenMounted, setWorldScreenMounted] = useState(startsInCarousel);
+  const [carouselView, setCarouselView] = useState<"worlds" | "levels">(
+    initialState === "levels" ? "levels" : "worlds",
+  );
+  const [carouselOpen, setCarouselOpen] = useState(startsInCarousel);
   const worldPointerStartX = useRef<number | null>(null);
   const worldSwipeRef = useRef(false);
 
@@ -280,6 +285,7 @@ export function StartupAnimation({
 
   const handleOpenArcade = useCallback(() => {
     btn("arcade");
+    setCarouselView("worlds");
     setWorldScreenMounted(true);
     setArcadeTransitionTarget("worlds");
     setArcadeTransition("fadeOut");
@@ -301,7 +307,7 @@ export function StartupAnimation({
     if (!isWorldUnlocked(world)) return;
     btn(`w${world}`);
     setSelectedWorld(world);
-    setMenuState("levels");
+    setCarouselView("levels");
   }, [btn, devMode, highestLevel]);
   const handleWorldKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
@@ -349,7 +355,7 @@ export function StartupAnimation({
         back("BACK", handleCloseArcade, true),
       ];
       case "levels": return [
-        back("WORLDS", () => { btn("back"); setMenuState("worlds"); }),
+         back("WORLDS", () => { btn("back"); setCarouselView("worlds"); }),
       ];
     }
   }, [menuState, btn, openShop, openInventory, handleOpenArcade, handleCloseArcade, handleStartMode]);
@@ -542,13 +548,16 @@ export function StartupAnimation({
 
   // ── Derived state ─────────────────────────────────────────────────────────
   const showMenu    = true;
-  const isContent   = showMenu && (menuState === "worlds" || menuState === "levels");
-  const showTitle   = showMenu && !isContent;
+  const showTitle   = showMenu;
   const panelButtons = showMenu ? getPanelButtons() : [];
-  const selectionMenuState: "worlds" | "levels" = menuState === "levels" ? "levels" : "worlds";
+  const selectionMenuState = carouselView;
   const selectionButtons = showMenu ? getPanelButtons(selectionMenuState) : [];
-  const showSelectionScreen = showMenu && (isContent || worldScreenMounted);
-  const selectionScreenVisible = isContent;
+  const showSelectionScreen = showMenu && worldScreenMounted;
+  const selectionScreenVisible = carouselOpen;
+  const reportedMenuState: MenuState =
+    carouselOpen || (arcadeTransition !== "idle" && arcadeTransitionTarget === "worlds")
+      ? "worlds"
+      : menuState;
   const introPhase: IntroBossPhase | null =
     animPhase === "splash" || animPhase === "idle" || animPhase === "flying" || animPhase === "converge" || animPhase === "flash" ||
     animPhase === "backdrop" || animPhase === "background" ||
@@ -557,8 +566,8 @@ export function StartupAnimation({
       : null;
 
   useEffect(() => {
-    onIntroPhaseChange?.(introPhase, menuState, selectedWorld);
-  }, [introPhase, menuState, onIntroPhaseChange, selectedWorld]);
+    onIntroPhaseChange?.(introPhase, reportedMenuState, selectedWorld);
+  }, [introPhase, onIntroPhaseChange, reportedMenuState, selectedWorld]);
 
   useEffect(() => () => onIntroPhaseChange?.(null), [onIntroPhaseChange]);
 
@@ -583,11 +592,11 @@ export function StartupAnimation({
             initial={{ opacity: 0, scale: 0.92, y: "-50%" }}
              animate={{ opacity: showTitle ? 1 : 0, scale: showTitle ? 1 : 0.92, y: showMenu ? 0 : "-50%" }}
             exit={{ opacity: 0, scale: 0.8, y: "-50%" }}
-            transition={{ duration: isContent ? 0.16 : showMenu ? 0.45 : 0.2, delay: showMenu && !isContent ? MENU_TITLE_REVEAL_DELAY : 0, ease: [0.22, 0.61, 0.36, 1] }}
+            transition={{ duration: showMenu ? 0.45 : 0.2, delay: showMenu ? MENU_TITLE_REVEAL_DELAY : 0, ease: [0.22, 0.61, 0.36, 1] }}
           >
             {/* One persistent title node: the reveal becomes the interactive menu title in place. */}
             <div className="orblitz-title-wordmark-row">
-              {showMenu && !isContent && (
+              {showMenu && (
                 <motion.div
                   className="relative z-30 pointer-events-none orblitz-star-bank orblitz-title-star-bank"
                   aria-label={`${shopStars} stars`}
@@ -697,7 +706,7 @@ export function StartupAnimation({
 
       {/* ── MENU ACTIONS (root / modes) — title owns the center ─────────── */}
       <AnimatePresence mode="wait">
-        {showMenu && !isContent && (
+        {showMenu && (
           <motion.div
             key={menuState === "settings" ? "settings" : "menu"}
             className="absolute inset-0 z-20 orblitz-command-layer orblitz-menu-actions orblitz-aaa-menu-actions"
@@ -802,7 +811,7 @@ export function StartupAnimation({
           transition={{ duration: 0.34, ease: [0.22, 0.61, 0.36, 1] }}
           onAnimationComplete={() => {
             if (arcadeTransition === "fadeOut") {
-              setMenuState(arcadeTransitionTarget === "modes" ? "modes" : "worlds");
+              setCarouselOpen(arcadeTransitionTarget === "worlds");
               setArcadeTransition("fadeIn");
             } else if (arcadeTransition === "fadeIn") {
               setArcadeTransition("idle");
