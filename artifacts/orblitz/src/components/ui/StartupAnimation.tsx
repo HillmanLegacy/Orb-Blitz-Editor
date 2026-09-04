@@ -229,7 +229,7 @@ export function StartupAnimation({
   const [devFlash, setDevFlash]       = useState(false);
   const [highestLevel, setHighestLevel] = useState(1.1);
   const [pressedBtn, setPressedBtn]   = useState<string | null>(null);
-  const [arcadeTransition, setArcadeTransition] = useState<"idle" | "fadeOut" | "fadeIn">("idle");
+  const [arcadeTransition, setArcadeTransition] = useState<"idle" | "fadeOut" | "mounting" | "fadeIn">("idle");
   const worldPointerStartX = useRef<number | null>(null);
   const worldSwipeRef = useRef(false);
 
@@ -757,6 +757,11 @@ export function StartupAnimation({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.96 }}
             transition={{ duration: 0.22, ease: [0.22, 0.61, 0.36, 1] }}
+             onAnimationComplete={() => {
+               if (menuState === "worlds" && arcadeTransition === "mounting") {
+                 setArcadeTransition("fadeIn");
+               }
+             }}
           >
             {/* Header */}
             <div className="flex-none orblitz-selection-header">
@@ -800,14 +805,14 @@ export function StartupAnimation({
               pointerEvents: "auto",
             }}
             initial={{ opacity: 0 }}
-            animate={{ opacity: arcadeTransition === "fadeOut" ? 1 : 0 }}
+            animate={{ opacity: arcadeTransition === "fadeIn" ? 0 : 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.34, ease: [0.22, 0.61, 0.36, 1] }}
             onAnimationComplete={() => {
               if (arcadeTransition === "fadeOut") {
                 setMenuState("worlds");
-                setArcadeTransition("fadeIn");
-              } else {
+                setArcadeTransition("mounting");
+              } else if (arcadeTransition === "fadeIn") {
                 setArcadeTransition("idle");
               }
             }}
