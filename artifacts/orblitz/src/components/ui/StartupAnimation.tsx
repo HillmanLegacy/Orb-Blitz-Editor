@@ -530,9 +530,9 @@ export function StartupAnimation({
   };
 
   // ── Derived state ─────────────────────────────────────────────────────────
-  const showTitle   = true;
   const showMenu    = true;
   const isContent   = showMenu && (menuState === "worlds" || menuState === "levels");
+  const showTitle   = showMenu && !isContent;
   const panelButtons = showMenu ? getPanelButtons() : [];
   const introPhase: IntroBossPhase | null =
     animPhase === "splash" || animPhase === "idle" || animPhase === "flying" || animPhase === "converge" || animPhase === "flash" ||
@@ -568,7 +568,7 @@ export function StartupAnimation({
             initial={{ opacity: 0, scale: 0.92, y: "-50%" }}
              animate={{ opacity: showTitle ? 1 : 0, scale: showTitle ? 1 : 0.92, y: showMenu ? 0 : "-50%" }}
             exit={{ opacity: 0, scale: 0.8, y: "-50%" }}
-            transition={{ duration: showMenu ? 0.45 : 0.2, delay: showMenu ? MENU_TITLE_REVEAL_DELAY : 0, ease: [0.22, 0.61, 0.36, 1] }}
+            transition={{ duration: isContent ? 0.16 : showMenu ? 0.45 : 0.2, delay: showMenu && !isContent ? MENU_TITLE_REVEAL_DELAY : 0, ease: [0.22, 0.61, 0.36, 1] }}
           >
             {/* One persistent title node: the reveal becomes the interactive menu title in place. */}
             <motion.h1
@@ -642,7 +642,7 @@ export function StartupAnimation({
 
       {/* ── STAR BALANCE — dedicated arcade HUD counter ─────────────────── */}
       <AnimatePresence>
-        {showMenu && (
+        {showMenu && !isContent && (
           <motion.div
             className="absolute z-30 pointer-events-none orblitz-star-bank"
             aria-label={`${shopStars} stars`}

@@ -5343,7 +5343,7 @@ canvas {
 
 .orblitz-selection-screen.orblitz-world-select {
   background:
-    linear-gradient(180deg, rgba(5, 9, 22, 0.3), rgba(5, 8, 20, 0.58)),
+    linear-gradient(180deg, rgba(5, 9, 22, 0.92), rgba(5, 8, 20, 0.98)),
     radial-gradient(ellipse at 50% 48%, rgba(76, 108, 235, 0.11), transparent 72%) !important;
 }
 
