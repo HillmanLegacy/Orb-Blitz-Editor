@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { createPortal } from "react-dom";
 import { useAudio } from "@/lib/stores/useAudio";
 import { useShop } from "@/lib/stores/useShop";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
@@ -230,6 +231,7 @@ export function StartupAnimation({
   const [highestLevel, setHighestLevel] = useState(1.1);
   const [pressedBtn, setPressedBtn]   = useState<string | null>(null);
   const [arcadeTransition, setArcadeTransition] = useState<"idle" | "fadeOut" | "fadeIn">("idle");
+  const [arcadeTransitionTarget, setArcadeTransitionTarget] = useState<"worlds" | "modes" | null>(null);
   const [worldScreenMounted, setWorldScreenMounted] = useState(false);
   const worldPointerStartX = useRef<number | null>(null);
   const worldSwipeRef = useRef(false);
@@ -279,6 +281,13 @@ export function StartupAnimation({
   const handleOpenArcade = useCallback(() => {
     btn("arcade");
     setWorldScreenMounted(true);
+    setArcadeTransitionTarget("worlds");
+    setArcadeTransition("fadeOut");
+  }, [btn]);
+
+  const handleCloseArcade = useCallback(() => {
+    btn("back");
+    setArcadeTransitionTarget("modes");
     setArcadeTransition("fadeOut");
   }, [btn]);
 
@@ -337,13 +346,13 @@ export function StartupAnimation({
         back("BACK", () => { btn("back"); setMenuState("root"); }),
       ];
       case "worlds": return [
-        back("BACK", () => { btn("back"); setMenuState("modes"); }, true),
+        back("BACK", handleCloseArcade, true),
       ];
       case "levels": return [
         back("WORLDS", () => { btn("back"); setMenuState("worlds"); }),
       ];
     }
-  }, [menuState, btn, openShop, openInventory, handleOpenArcade, handleStartMode]);
+  }, [menuState, btn, openShop, openInventory, handleOpenArcade, handleCloseArcade, handleStartMode]);
 
   // ── Content panels ────────────────────────────────────────────────────────
   const renderContent = (viewState: "worlds" | "levels") => {
@@ -802,12 +811,12 @@ export function StartupAnimation({
       </AnimatePresence>
 
       <AnimatePresence>
-        {arcadeTransition !== "idle" && (
+        {arcadeTransition !== "idle" && typeof document !== "undefined" && createPortal(
           <motion.div
             key="arcade-screen-fade"
             className="fixed inset-0 z-[240] orblitz-arcade-screen-fade"
             style={{
-              background: "#090d2d",
+              background: "#000000",
               pointerEvents: "auto",
             }}
             initial={{ opacity: 0 }}
@@ -816,13 +825,15 @@ export function StartupAnimation({
             transition={{ duration: 0.34, ease: [0.22, 0.61, 0.36, 1] }}
             onAnimationComplete={() => {
               if (arcadeTransition === "fadeOut") {
-                setMenuState("worlds");
+                setMenuState(arcadeTransitionTarget === "modes" ? "modes" : "worlds");
                 setArcadeTransition("fadeIn");
               } else if (arcadeTransition === "fadeIn") {
                 setArcadeTransition("idle");
+                setArcadeTransitionTarget(null);
               }
             }}
-          />
+          />,
+          document.body,
         )}
       </AnimatePresence>
     </motion.div>

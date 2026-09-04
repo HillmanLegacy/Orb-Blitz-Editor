@@ -3776,10 +3776,10 @@ canvas {
   z-index: 2;
 }
 
-.orblitz-startup-shell > .orblitz-arcade-screen-fade {
+.orblitz-arcade-screen-fade {
   position: fixed !important;
   inset: 0 !important;
-  z-index: 240 !important;
+  z-index: 9999 !important;
   display: block !important;
   pointer-events: auto !important;
 }
