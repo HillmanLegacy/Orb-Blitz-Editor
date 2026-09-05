@@ -22,6 +22,7 @@ import type {
 import { ArcadeComplete } from "@/components/ui/ArcadeComplete";
 import { OrbSweepOverlay } from "@/components/ui/OrbSweepOverlay";
 import { AchievementToast } from "@/components/ui/AchievementToast";
+import { WeaponLevelUpToast } from "@/components/ui/WeaponLevelUpToast";
 
 // These screens contain large UI trees (and the shop can create an optional
 // preview WebGL context). Keep them out of the initial menu/gameplay bundle and
@@ -260,6 +261,7 @@ function App() {
             <TrophyCollection onExitComplete={() => setTrophiesLayerVisible(false)} />
           )}
        </Suspense>
+       <WeaponLevelUpToast />
        <AchievementToast />
       <SoundManager />
 
