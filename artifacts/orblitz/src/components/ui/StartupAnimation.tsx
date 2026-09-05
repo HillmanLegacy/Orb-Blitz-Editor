@@ -1233,7 +1233,7 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
       <style>{`.orb-bslider{-webkit-appearance:none;appearance:none;outline:none;cursor:pointer;border-radius:2px}.orb-bslider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:3px;background:#ffe600;box-shadow:0 0 8px rgba(255,230,0,0.95)}.orb-bslider::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:3px;background:#ffe600;box-shadow:0 0 8px rgba(255,230,0,0.95)}.orb-vslider{-webkit-appearance:none;appearance:none;outline:none;cursor:pointer;border-radius:2px}.orb-vslider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:3px;background:#00f6ff;box-shadow:0 0 8px rgba(0,246,255,0.95)}.orb-vslider::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:3px;background:#00f6ff;box-shadow:0 0 8px rgba(0,246,255,0.95)}`}</style>
        <div className="flex flex-col w-full orblitz-options-deck" style={{ gap: "clamp(8px,1.5vw,14px)" }}>
         <motion.div
-           className="relative flex flex-col items-center justify-center overflow-hidden w-full orblitz-options-control"
+           className="relative flex flex-col items-center justify-center overflow-hidden w-full orblitz-options-control orblitz-options-graphics-control"
           style={{ ...btnStyle("#9b5cff", "rgba(155,92,255,0.44)"), height: "clamp(82px,14vw,108px)", cursor: "default", padding: "clamp(8px,1.5vw,14px)" }}
           initial={{ opacity: 0, y: 16, scale: 0.86 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1284,7 +1284,7 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
         >
         {/* BRIGHTNESS slider */}
         <motion.div
-           className="relative flex flex-col items-center justify-center overflow-hidden flex-[2] orblitz-options-control"
+           className="relative flex flex-col items-center justify-center overflow-hidden flex-[2] orblitz-options-control orblitz-options-slider-control orblitz-options-brightness-control"
           style={{ ...btnStyle("#ffe600", "rgba(255,230,0,0.4)"), minWidth: 0, cursor: "default",
             padding: "0 clamp(6px,1.5vw,14px)" }}
           variants={itemVariants}
@@ -1316,7 +1316,7 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
 
         {/* VOLUME slider */}
         <motion.div
-          className="relative flex flex-col items-center justify-center overflow-hidden flex-[2] orblitz-options-control"
+           className="relative flex flex-col items-center justify-center overflow-hidden flex-[2] orblitz-options-control orblitz-options-slider-control orblitz-options-volume-control"
           style={{ ...btnStyle("#00f6ff", "rgba(0,246,255,0.4)"), minWidth: 0, cursor: "default",
             padding: "0 clamp(6px,1.5vw,14px)" }}
           variants={itemVariants}
@@ -1349,7 +1349,7 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
         {/* MUTE / UNMUTE */}
         <motion.button
           type="button"
-          className="relative flex flex-col items-center justify-center overflow-hidden flex-1 orblitz-options-control"
+          className="relative flex flex-col items-center justify-center overflow-hidden flex-1 orblitz-options-control orblitz-options-mute-control"
           style={{ ...btnStyle(sc, ss), minWidth: 0, maxWidth: "clamp(52px,17vw,100px)" }}
           variants={itemVariants} whileTap={{ scale: 0.9 }}
           onClick={() => { btn("sound"); toggleMute(); }}
