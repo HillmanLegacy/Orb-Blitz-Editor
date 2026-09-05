@@ -124,8 +124,8 @@ export function Boss() {
   const offScreenTimerRef    = useRef(2.5);
   // Destroy-sequence coordination refs
   const destroyInitRef  = useRef(false); // true once SFX fires (frame 0 of destroy)
-  const sfxDoneRef      = useRef(false); // true when boss_explosion.mp3 onended fires
-  const timerDoneRef    = useRef(false); // true when 3.5 s destroyTimer expires
+  const timerDoneRef    = useRef(false); // true when 3.5 s visual destroyTimer expires
+  const levelEndTimerRef = useRef<number | null>(null);
   const destroyAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -307,8 +307,8 @@ export function Boss() {
       // ── Frame 0 of destroy: play SFX the instant the visual explosion begins ──
       if (!destroyInitRef.current) {
         destroyInitRef.current = true;
-        sfxDoneRef.current     = false;
         timerDoneRef.current   = false;
+        levelEndTimerRef.current = gameMode === "survival" ? null : 2;
 
         const { isMuted } = useAudio.getState();
         if (!isMuted) {
@@ -316,17 +316,23 @@ export function Boss() {
           destroyAudioRef.current = audio;
           audio.volume = 0.85;
           const onSfxDone = () => {
-            if (sfxDoneRef.current) return;
-            sfxDoneRef.current = true;
             if (destroyAudioRef.current === audio) destroyAudioRef.current = null;
-            // If the 3.5 s timer already expired, complete the level now
-            if (timerDoneRef.current) useMagicOrb.getState().completeLevel();
           };
           audio.onended = onSfxDone;
           audio.onerror = onSfxDone;   // fail-safe
           audio.play().catch(onSfxDone); // fail-safe (autoplay blocked)
-        } else {
-          sfxDoneRef.current = true;   // muted → treat as instantly done
+        }
+      }
+
+      // Arcade results should not wait for the boss defeat audio to finish.
+      // Keep the longer visual destroy timer independent for the explosion VFX.
+      if (levelEndTimerRef.current !== null) {
+        levelEndTimerRef.current -= delta;
+        if (levelEndTimerRef.current <= 0) {
+          levelEndTimerRef.current = null;
+          useMagicOrb.setState({ boss: null });
+          useMagicOrb.getState().completeLevel();
+          return;
         }
       }
 
@@ -358,11 +364,8 @@ export function Boss() {
         if (gameMode === "survival") {
           useMagicOrb.setState({ survivalBossTimer: 0, survivalBossPending: false, bossDefeating: false });
         } else {
-          // Advance to level complete only after BOTH timer and SFX are done
-          if (sfxDoneRef.current) {
-            useMagicOrb.getState().completeLevel();
-          }
-          // else: onSfxDone callback above will fire completeLevel() when audio ends
+          // Arcade normally completes via the dedicated 2-second level-end timer.
+          useMagicOrb.getState().completeLevel();
         }
       }
       return;
@@ -371,6 +374,7 @@ export function Boss() {
     // Boss is alive (not destroying) — reset refs so next destroy sequence is fresh
     destroyInitRef.current = false;
     timerDoneRef.current   = false;
+    levelEndTimerRef.current = null;
     
     if (phase !== "playing") return;
     if (!meshRef.current) return;
