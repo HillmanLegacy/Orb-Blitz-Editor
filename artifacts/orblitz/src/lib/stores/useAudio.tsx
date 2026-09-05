@@ -310,6 +310,8 @@ interface AudioState {
   playSuccess: () => void;
   playShoot: () => void;
   playPowerUp: () => void;
+  playRapidFirePowerUp: () => void;
+  playChargeBeamPowerUp: () => void;
   playLevelComplete: () => void;
   playGameOver: () => void;
   playBossHit: () => void;
@@ -642,6 +644,12 @@ export const useAudio = create<AudioState>((set, get) => ({
   },
   playPowerUp: () => {
     if (!get().isMuted) playPowerUpSound(0.35);
+  },
+  playRapidFirePowerUp: () => {
+    if (!get().isMuted) playWav("/sounds/rapid_fire_power_up.wav", 0.52);
+  },
+  playChargeBeamPowerUp: () => {
+    if (!get().isMuted) playWav("/sounds/charge_beam_power_up.wav", 0.52);
   },
   playLevelComplete: () => {
     if (!get().isMuted) playLevelCompleteSound(0.35);

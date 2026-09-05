@@ -2049,7 +2049,13 @@ export function Projectiles() {
   const incrementGauntletOrbs  = useMagicOrb(s => s.incrementGauntletOrbs);
   const addStarFlowEvent       = useMagicOrb(s => s.addStarFlowEvent);
   
-  const { playHit, playSuccess, playSparkleExplosion } = useAudio();
+  const {
+    playHit,
+    playSuccess,
+    playRapidFirePowerUp,
+    playChargeBeamPowerUp,
+    playSparkleExplosion,
+  } = useAudio();
   const { equippedTrail, equippedSkin, weaponProgression } = useShop();
   const clockRef = useRef(0);
   const projectileSpeed = 16.5;
@@ -2546,7 +2552,9 @@ export function Projectiles() {
             if (Math.sqrt((px-pux)**2+(py-puy)**2+(pz-puz)**2) < explosionRadius + POWER_UP_BODY_RADIUS) {
               hitPowerUpsThisFrame.current.add(powerUp.id);
               hurtPowerUp(powerUp.id);
-              playSuccess();
+              if (powerUp.type === "rapidFire") playRapidFirePowerUp();
+              else if (powerUp.type === "chargeBeam") playChargeBeamPowerUp();
+              else playSuccess();
               addImpactEffect({
                 id: `impact-${impactIdCounter++}`,
                 position: [pux, puy, puz],
@@ -2853,7 +2861,9 @@ export function Projectiles() {
           projectilePowerUpHits.current.set(proj.id, projectileHits);
           hurtPowerUp(powerUp.id);
           if (proj.volleyId) volleyHits.current.add(proj.volleyId);
-          playSuccess();
+          if (powerUp.type === "rapidFire") playRapidFirePowerUp();
+          else if (powerUp.type === "chargeBeam") playChargeBeamPowerUp();
+          else playSuccess();
           addImpactEffect({
             id: `impact-${impactIdCounter++}`,
             position: [powerUpX, powerUpY, powerUpZ],
