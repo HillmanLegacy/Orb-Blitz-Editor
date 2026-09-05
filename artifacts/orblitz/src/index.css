@@ -8356,3 +8356,10 @@ input:focus-visible,
     height: 100% !important;
   }
 }
+
+@media (max-width: 899px) {
+  .orblitz-options-window .orblitz-options-control-row > .orblitz-options-control {
+    height: auto !important;
+    min-height: clamp(132px, 18vh, 176px) !important;
+  }
+}
