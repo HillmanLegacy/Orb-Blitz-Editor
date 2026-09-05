@@ -134,11 +134,13 @@ function ShaderPrewarm() {
     const firstFrame = requestAnimationFrame(() => {
       secondFrame = requestAnimationFrame(async () => {
         try {
-          const renderer = gl as THREE.WebGLRenderer & {
-            compileAsync?: (scene: THREE.Scene, camera: THREE.Camera) => Promise<void>;
-          };
-          if (renderer.compileAsync) await renderer.compileAsync(scene, camera);
-          else renderer.compile(scene, camera);
+          // Three r170's compileAsync polling assumes every material has a
+          // currentProgram immediately after compile(). That is not true for
+          // all of the warmup materials in this scene, so its internal
+          // materials.forEach() can throw when it reads program.isReady().
+          // The synchronous path still precompiles the shaders without that
+          // unsafe polling loop.
+          gl.compile(scene, camera);
         } catch (error) {
           console.warn("[loading] renderer warmup unavailable", error);
         } finally {

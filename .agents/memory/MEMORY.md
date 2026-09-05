@@ -35,3 +35,4 @@
 - [Orblitz menu CSS cascade](orblitz-menu-css-cascade.md) — Legacy menu selectors can override new geometry late; isolate active hooks and keep one final authoritative contract.
 - [Orblitz world preview layering](orblitz-world-preview-layering.md) — World-select boss previews use the shared canvas above the carousel and align to live DOM card centers.
 - [Orblitz carousel transition](orblitz-carousel-transition.md) — Pre-mount the world carousel during fade-out, keep it hidden at full black, then reveal it without a loading gap.
+- [Three.js async compile readiness](three-compile-async-material-readiness.md) — Three r170 compileAsync can poll a material before currentProgram exists; use synchronous compile for scene warmup.
