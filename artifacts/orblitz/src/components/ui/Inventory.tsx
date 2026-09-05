@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useShallow } from "zustand/react/shallow";
 import { useModalAccessibility } from "@/components/ui/useModalAccessibility";
 import { getWeaponProgress, isProgressionWeapon, type ProgressionWeapon } from "@/game-runtime/WeaponProgression";
+import { useAudio } from "@/lib/stores/useAudio";
 
 // ─── Slot definitions ─────────────────────────────────────────────────────────
 type SlotKey = "weapon" | "defense_0" | "defense_1" | "magi_orb" | "skin" | "trail" | "aura";
@@ -267,9 +268,15 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
   const [activeSlot, setActiveSlot] = useState<SlotDef>(SLOTS[0]);
   const [selectedItemId, setSelectedItemId] = useState(CLEAR_ITEM_ID);
   const [inspectionOpen, setInspectionOpen] = useState(false);
+  const { playUiClick } = useAudio();
+  const playClick = () => { try { playUiClick(); } catch {} };
+  const closeInventoryWithSfx = () => {
+    playClick();
+    closeInventory();
+  };
   const dialogRef = useModalAccessibility<HTMLDivElement>(
     inventoryOpen,
-    closeInventory,
+    closeInventoryWithSfx,
     '[data-orblitz-modal-opener="inventory"]',
   );
 
@@ -321,15 +328,26 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
     : null;
 
   const handleDetailAction = () => {
+    if (actionDisabled) return;
     if (selectedItem) {
       doEquip(slot, selectedIsEquipped ? null : selectedItem);
+      playClick();
       return;
     }
-    if (!isDefaultSelected) doEquip(slot, null);
+    doEquip(slot, null);
+    playClick();
   };
 
   const handleInspect = () => {
-    if (selectedItem) setInspectionOpen(true);
+    if (selectedItem) {
+      playClick();
+      setInspectionOpen(true);
+    }
+  };
+
+  const closeInspectionWithSfx = () => {
+    playClick();
+    setInspectionOpen(false);
   };
 
   return (
@@ -346,7 +364,7 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
         <div
           className="absolute inset-0 cursor-pointer"
           style={{ background: "rgba(0,0,8,0.82)", backdropFilter: "blur(8px)" }}
-          onClick={closeInventory}
+          onClick={closeInventoryWithSfx}
           aria-hidden="true"
         />
 
@@ -393,7 +411,7 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
             <div className="flex items-center gap-3">
             <motion.button
               whileTap={{ scale: 0.85 }}
-              onClick={closeInventory}
+              onClick={closeInventoryWithSfx}
               aria-label="Close loadout"
               title="Close loadout"
               className="orblitz-loadout-close flex items-center justify-center rounded-lg"
@@ -428,7 +446,7 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                   <motion.button
                     key={s.key}
                     whileTap={{ scale: 0.94 }}
-                    onClick={() => { setActiveSlot(s); setInspectionOpen(false); }}
+                    onClick={() => { playClick(); setActiveSlot(s); setInspectionOpen(false); }}
                     aria-pressed={active}
                     aria-label={`Edit ${s.label.toLowerCase()}`}
                     data-testid={`button-loadout-slot-${s.key}`}
@@ -525,7 +543,7 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                       isFocused={selectedItemId === CLEAR_ITEM_ID}
                       isEquipped={isDefaultSelected}
                       color={slot.color}
-                      onClick={() => { setSelectedItemId(CLEAR_ITEM_ID); setInspectionOpen(false); }}
+                      onClick={() => { playClick(); setSelectedItemId(CLEAR_ITEM_ID); setInspectionOpen(false); }}
                       itemId={`${slot.key}-clear`}
                     />
 
@@ -544,7 +562,7 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                         isFocused={selectedItemId === item.id}
                         isEquipped={currentVal === item.value}
                         color={slot.color}
-                        onClick={() => { setSelectedItemId(item.id); setInspectionOpen(true); }}
+                        onClick={() => { playClick(); setSelectedItemId(item.id); setInspectionOpen(true); }}
                         itemId={item.id}
                       />
                     ))}
@@ -658,7 +676,7 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                 type="button"
                 className="absolute inset-0 cursor-pointer"
                 style={{ border: 0, background: "rgba(0,0,8,0.72)", backdropFilter: "blur(10px)" }}
-                onClick={() => setInspectionOpen(false)}
+                onClick={closeInspectionWithSfx}
                 aria-label="Close gear inspection"
               />
               <motion.div
@@ -680,7 +698,7 @@ export function Inventory({ onExitComplete }: { onExitComplete?: () => void }) {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setInspectionOpen(false)}
+                    onClick={closeInspectionWithSfx}
                     aria-label="Close gear inspection"
                     title="Close inspection"
                     className="orblitz-gear-inspection-close"

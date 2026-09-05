@@ -283,6 +283,7 @@ export function PauseMenu({ onMainMenu }: { onMainMenu?: () => void }) {
   if (phase !== "paused" || shopOpen || inventoryOpen) return null;
 
   const sfx = () => { try { playUiClick(); } catch {} };
+  const closeStatusWithSfx = () => { sfx(); setStatusOpen(false); };
 
   const topRow: BtnDef[] = [
     {
@@ -411,7 +412,7 @@ export function PauseMenu({ onMainMenu }: { onMainMenu?: () => void }) {
 
       {/* Status overlay — rendered above pause menu */}
       <AnimatePresence>
-        {statusOpen && <StatusPanel onClose={() => setStatusOpen(false)} />}
+        {statusOpen && <StatusPanel onClose={closeStatusWithSfx} />}
       </AnimatePresence>
     </>
   );
