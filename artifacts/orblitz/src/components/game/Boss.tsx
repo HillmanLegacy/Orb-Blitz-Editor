@@ -124,7 +124,7 @@ export function Boss() {
   const offScreenTimerRef    = useRef(2.5);
   // Destroy-sequence coordination refs
   const destroyInitRef  = useRef(false); // true once SFX fires (frame 0 of destroy)
-  const sfxDoneRef      = useRef(false); // true when boss_explosion.wav onended fires
+  const sfxDoneRef      = useRef(false); // true when boss_explosion.mp3 onended fires
   const timerDoneRef    = useRef(false); // true when 3.5 s destroyTimer expires
   const destroyAudioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -312,7 +312,7 @@ export function Boss() {
 
         const { isMuted } = useAudio.getState();
         if (!isMuted) {
-          const audio = new Audio('/sounds/boss_explosion.wav');
+          const audio = new Audio('/sounds/boss_explosion.mp3');
           destroyAudioRef.current = audio;
           audio.volume = 0.85;
           const onSfxDone = () => {
