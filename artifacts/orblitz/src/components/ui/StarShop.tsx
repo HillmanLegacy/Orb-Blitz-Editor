@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { useShop } from "@/lib/stores/useShop";
+import { useAudio } from "@/lib/stores/useAudio";
 
 interface StarPackage {
   id: string;
@@ -25,10 +26,12 @@ interface StarShopProps {
 
 export function StarShop({ onClose }: StarShopProps) {
   const { coins: stars } = useShop();
+  const { playUiClick } = useAudio();
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const handlePurchase = async (pkg: StarPackage) => {
+    playUiClick();
     setLoading(pkg.id);
     setError("");
 
@@ -52,6 +55,10 @@ export function StarShop({ onClose }: StarShopProps) {
       setLoading(null);
     }
   };
+  const closeWithSfx = () => {
+    playUiClick();
+    onClose();
+  };
 
   const formatPrice = (cents: number) => {
     return `$${(cents / 100).toFixed(2)}`;
@@ -63,7 +70,7 @@ export function StarShop({ onClose }: StarShopProps) {
         className="absolute inset-0 bg-black/80 backdrop-blur-sm"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        onClick={onClose}
+        onClick={closeWithSfx}
       />
 
       <motion.div
@@ -77,7 +84,7 @@ export function StarShop({ onClose }: StarShopProps) {
               Get Stars
             </h1>
             <motion.button
-              onClick={onClose}
+              onClick={closeWithSfx}
               className="w-10 h-10 rounded-full bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700 transition-all flex items-center justify-center text-xl"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}

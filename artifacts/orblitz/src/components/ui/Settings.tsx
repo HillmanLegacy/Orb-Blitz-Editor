@@ -6,14 +6,17 @@ interface SettingsProps {
 }
 
 export function Settings({ onBack }: SettingsProps) {
-  const { isMuted, toggleMute } = useAudio();
+  const { isMuted, toggleMute, playUiClick } = useAudio();
 
   return (
     <div className="orblitz-settings-screen fixed inset-0 z-50 pointer-events-auto overflow-y-auto">
       <div className="fixed inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-violet-900" />
       
       <motion.button
-        onClick={onBack}
+        onClick={() => {
+          playUiClick();
+          onBack();
+        }}
         className="fixed top-4 left-4 z-20 px-4 py-2 bg-gray-600/50 hover:bg-gray-600/70 rounded-full font-bold text-white text-sm transition-colors flex items-center gap-2"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -43,7 +46,10 @@ export function Settings({ onBack }: SettingsProps) {
                   <p className="text-gray-400 text-sm">Toggle game audio</p>
                 </div>
                 <motion.button
-                  onClick={toggleMute}
+                  onClick={() => {
+                    playUiClick();
+                    toggleMute();
+                  }}
                   className={`w-16 h-9 rounded-full relative transition-colors ${
                     !isMuted ? "bg-gradient-to-r from-cyan-500 to-purple-500" : "bg-gray-700"
                   }`}

@@ -1,10 +1,11 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useShop, SHOP_ITEMS, ShopItem } from "@/lib/stores/useShop";
 import type { RingStyle } from "@/lib/stores/useShop";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { ShopPreviewCanvas } from "@/components/ui/ShopPreviewCanvas";
 import { useModalAccessibility } from "@/components/ui/useModalAccessibility";
+import { useAudio } from "@/lib/stores/useAudio";
 
 // ─── Per-category design tokens ──────────────────────────────────────────────
 const PALETTE: Record<string, { color: string; shadow: string; icon: string; label: string }> = {
@@ -132,8 +133,13 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
     isOwned: s.isOwned,
     canAfford: s.canAfford,
   })));
+  const { playUiClick } = useAudio();
   const [cat, setCat] = useState<CatKey>("weapon");
   const [previewItemId, setPreviewItemId] = useState<string | null>(null);
+  const closeShopWithSfx = useCallback(() => {
+    playUiClick();
+    closeShop();
+  }, [closeShop, playUiClick]);
 
   const filteredItems = useMemo(() => SHOP_ITEMS
     .filter(i => i.category === cat)
@@ -142,7 +148,7 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
   const activePal = PALETTE[cat];
   const dialogRef = useModalAccessibility<HTMLDivElement>(
     shopOpen,
-    closeShop,
+    closeShopWithSfx,
     '[data-orblitz-modal-opener="shop"]',
   );
 
@@ -160,7 +166,10 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
   }, [shopOpen]);
 
   const handlePurchase = (item: ShopItem) => {
-    if (purchaseItem(item.id)) setPreviewItemId(null);
+    if (purchaseItem(item.id)) {
+      playUiClick();
+      setPreviewItemId(null);
+    }
   };
 
   return (
@@ -178,7 +187,7 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
           <div
             className="absolute inset-0 cursor-pointer"
             style={{ background: "rgba(0,0,8,0.82)", backdropFilter: "blur(8px)" }}
-            onClick={closeShop}
+            onClick={closeShopWithSfx}
             aria-hidden="true"
           />
 
@@ -242,7 +251,7 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
                 {/* Close */}
                 <motion.button
                   whileTap={{ scale: 0.85 }}
-                  onClick={closeShop}
+                   onClick={closeShopWithSfx}
                   aria-label="Close shop"
                   title="Close shop"
                    className="orblitz-shop-close flex items-center justify-center rounded-lg"
@@ -275,7 +284,11 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
                     <motion.button
                       key={c}
                       whileTap={{ scale: 0.94 }}
-                       onClick={() => { setCat(c); setPreviewItemId(null); }}
+                       onClick={() => {
+                         playUiClick();
+                         setCat(c);
+                         setPreviewItemId(null);
+                       }}
                        className={`orblitz-shop-category flex items-center gap-2.5 px-3 py-2.5 rounded-xl w-full text-left ${active ? "is-active" : ""}`}
                        data-active={active ? "true" : "false"}
                       aria-pressed={active}
@@ -364,8 +377,11 @@ export function Shop({ onExitComplete }: { onExitComplete?: () => void }) {
                         isOwned={isOwned(item.id)}
                         canAfford={canAfford(item.price)}
                          onPurchase={() => handlePurchase(item)}
-                         onPreview={PREVIEW_CATEGORIES.has(cat) && !isOwned(item.id)
-                           ? () => setPreviewItemId((current) => current === item.id ? null : item.id)
+                          onPreview={PREVIEW_CATEGORIES.has(cat) && !isOwned(item.id)
+                            ? () => {
+                              playUiClick();
+                              setPreviewItemId((current) => current === item.id ? null : item.id);
+                            }
                            : undefined}
                         isHighlighted={PREVIEW_CATEGORIES.has(cat) && previewItem?.id === item.id}
                       />
