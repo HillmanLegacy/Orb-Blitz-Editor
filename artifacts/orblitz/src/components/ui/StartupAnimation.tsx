@@ -857,48 +857,31 @@ export function StartupAnimation({
       </AnimatePresence>
 
       {/* ── MENU ACTIONS (root / modes) — title owns the center ─────────── */}
-      <AnimatePresence mode="wait">
-        {showMenu && !showOptionsScreen && (
-          <motion.div
-            key={menuState === "settings" ? "settings" : "menu"}
-            className="absolute inset-0 z-20 orblitz-command-layer orblitz-menu-actions orblitz-aaa-menu-actions"
-            data-menu-state={visualMenuState}
-            style={{
-              pointerEvents: menuState === "settings" ? "auto" : "none",
-              padding: menuState === "settings" ? "0 clamp(10px, 3.5vw, 44px)" : 0,
-              ...(menuState === "settings" ? {
-                top: "calc(43% + clamp(65px, 7.6vw, 78px))",
-                bottom: "clamp(20px, 3vh, 28px)",
-                maxHeight: "calc(57dvh - clamp(65px, 7.6vw, 78px) - clamp(20px, 3vh, 28px))",
-                overflowY: "auto" as const,
-                overscrollBehavior: "contain" as const,
-                paddingBottom: "clamp(8px, 2vh, 16px)",
-                scrollbarWidth: "thin" as const,
-              } : {}),
-            }}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2, delay: MENU_NAVIGATION_DELAY, ease: [0.22, 0.61, 0.36, 1] }}
-          >
-            {menuState === "settings"
-              ? <SettingsButtonRow
-                  isMuted={isMuted} toggleMute={toggleMute}
-                  volume={volume} setVolume={setVolume}
-                  brightness={brightness} setBrightness={setBrightness}
-                  graphicsPreset={graphicsPreset} setGraphicsPreset={setGraphicsPreset}
-                  onBack={() => setMenuState("root")} btn={btn}
-                />
-              : <ButtonRow
-                  buttons={panelButtons}
-                  pressedBtn={pressedBtn}
-                  setPressedBtn={setPressedBtn}
-                  isRootMenu={menuState === "root"}
-                />
-            }
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {!showOptionsScreen && (
+        <AnimatePresence mode="wait">
+          {showMenu && (
+            <motion.div
+              key="menu"
+              className="absolute inset-0 z-20 orblitz-command-layer orblitz-menu-actions orblitz-aaa-menu-actions"
+              data-menu-state={visualMenuState}
+              style={{
+                pointerEvents: "none",
+              }}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2, delay: MENU_NAVIGATION_DELAY, ease: [0.22, 0.61, 0.36, 1] }}
+            >
+              <ButtonRow
+                buttons={panelButtons}
+                pressedBtn={pressedBtn}
+                setPressedBtn={setPressedBtn}
+                isRootMenu={menuState === "root"}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
 
       {/* ── FULL-SCREEN WORLDS / LEVELS POPUP ─────────────────────────────
           Keep this in the app shell so the shared canvas and selection surface
