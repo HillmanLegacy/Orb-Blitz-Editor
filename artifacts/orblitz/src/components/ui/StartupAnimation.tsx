@@ -893,34 +893,83 @@ export function StartupAnimation({
           {showSelectionSurface && (
             <motion.div
               key={showOptionsScreen ? "orblitz-options-screen" : "arcade-world-screen"}
-              className={`fixed inset-0 z-[150] flex flex-col orblitz-selection-screen ${selectionMenuState === "worlds" && !showOptionsScreen ? "orblitz-world-select" : ""} ${showOptionsScreen ? "orblitz-options-select" : ""}`}
+              className={showOptionsScreen
+                ? "fixed inset-0 z-[150] flex items-center justify-center orblitz-loadout-screen orblitz-options-window-screen"
+                : `fixed inset-0 z-[150] flex flex-col orblitz-selection-screen ${selectionMenuState === "worlds" ? "orblitz-world-select" : ""}`}
               role="main"
               aria-label={showOptionsScreen ? "Options" : selectionMenuState === "worlds" ? "World select" : "Level select"}
               aria-hidden={!selectionSurfaceVisible}
               style={{
                 visibility: selectionSurfaceVisible ? "visible" : "hidden",
                 pointerEvents: selectionSurfaceVisible ? "auto" : "none",
+                padding: showOptionsScreen ? "clamp(10px, 2.5vw, 20px)" : undefined,
               }}
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.96 }}
               transition={{ duration: 0.22, ease: [0.22, 0.61, 0.36, 1] }}
             >
+              {showOptionsScreen && (
+                <div
+                  className="absolute inset-0 cursor-pointer"
+                  style={{ background: "rgba(0,0,8,0.82)", backdropFilter: "blur(8px)" }}
+                  onClick={() => setMenuState("root")}
+                  aria-hidden="true"
+                />
+              )}
+              <motion.div
+                className={showOptionsScreen ? "orblitz-loadout-dialog orblitz-options-window relative flex flex-col w-full" : "contents"}
+                initial={showOptionsScreen ? { scale: 0.88, y: 28, opacity: 0 } : undefined}
+                animate={showOptionsScreen ? { scale: 1, y: 0, opacity: 1 } : undefined}
+                exit={showOptionsScreen ? { scale: 0.9, y: 20, opacity: 0 } : undefined}
+                transition={showOptionsScreen ? { type: "spring", stiffness: 340, damping: 28 } : undefined}
+              >
               {/* Header */}
-              <div className="flex-none orblitz-selection-header">
-                <p data-testid={`text-${selectionMenuState}-title`} className="font-black tracking-widest uppercase" style={{
-                   color: showOptionsScreen ? "#c7f23d" : selectionMenuState === "worlds" ? "#00ffff" : WORLD_COLORS[selectedWorld - 1],
-                  fontSize: "clamp(0.85rem, 2.5vw, 1.1rem)",
-                  letterSpacing: "0.22em",
-                   textShadow: showOptionsScreen ? "0 0 18px rgba(199,242,61,0.3)" : `0 0 18px ${selectionMenuState === "worlds" ? "rgba(0,255,255,0.5)" : `${WORLD_COLORS[selectedWorld - 1]}88`}`,
-                }}>
-                   {showOptionsScreen ? "Options" : selectionMenuState === "worlds" ? "Select World" : `World ${selectedWorld}`}
-                </p>
-                 <span className="orblitz-selection-subtitle">{showOptionsScreen ? "Tune your arcade rig" : selectionMenuState === "worlds" ? "Choose a world to play" : "Choose a level to play"}</span>
+              <div className={showOptionsScreen
+                ? "orblitz-loadout-header relative flex-none flex items-center justify-between px-5 pt-4 pb-3"
+                : "flex-none orblitz-selection-header"}>
+                {showOptionsScreen ? (
+                  <>
+                    <div>
+                      <span id="orblitz-options-title" className="orblitz-loadout-title font-black tracking-[0.18em] uppercase">OPTIONS</span>
+                      <span className="orblitz-loadout-kicker block mt-1">DISPLAY &amp; AUDIO</span>
+                    </div>
+                    <motion.button
+                      type="button"
+                      whileTap={{ scale: 0.85 }}
+                      onClick={() => setMenuState("root")}
+                      aria-label="Close options"
+                      title="Close options"
+                      className="orblitz-loadout-close flex items-center justify-center rounded-lg"
+                      style={{
+                        width: 32, height: 32,
+                        background: "rgba(255,255,255,0.06)",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        color: "rgba(255,255,255,0.5)",
+                        fontSize: "1.1rem",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ×
+                    </motion.button>
+                  </>
+                ) : (
+                  <>
+                    <p data-testid={`text-${selectionMenuState}-title`} className="font-black tracking-widest uppercase" style={{
+                      color: selectionMenuState === "worlds" ? "#00ffff" : WORLD_COLORS[selectedWorld - 1],
+                      fontSize: "clamp(0.85rem, 2.5vw, 1.1rem)",
+                      letterSpacing: "0.22em",
+                      textShadow: selectionMenuState === "worlds" ? "0 0 18px rgba(0,255,255,0.5)" : `0 0 18px ${WORLD_COLORS[selectedWorld - 1]}88`,
+                    }}>
+                      {selectionMenuState === "worlds" ? "Select World" : `World ${selectedWorld}`}
+                    </p>
+                    <span className="orblitz-selection-subtitle">{selectionMenuState === "worlds" ? "Choose a world to play" : "Choose a level to play"}</span>
+                  </>
+                )}
               </div>
 
                {/* Responsive world carousel / level grid */}
-              <div className="flex-1 min-h-0 flex flex-col orblitz-selection-content">
+              <div className={`flex-1 min-h-0 flex flex-col orblitz-selection-content ${showOptionsScreen ? "orblitz-options-window-body" : ""}`}>
                    {showOptionsScreen ? (
                      <div className="orblitz-options-selection-content">
                        <SettingsButtonRow
@@ -945,6 +994,7 @@ export function StartupAnimation({
                    </div>
                  )}
               </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>,
