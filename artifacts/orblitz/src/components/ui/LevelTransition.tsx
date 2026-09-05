@@ -335,7 +335,7 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
         }} />
 
         {/* ── Title ── */}
-        <div className="text-center">
+          <div className="text-center orblitz-result-title">
           {isBoss ? (
             <>
               <motion.h1
@@ -383,7 +383,7 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
 
         {/* ── Score ── */}
         <motion.div
-          className="text-center"
+          className="text-center orblitz-result-score"
           initial={{ opacity: 0, scale: 0.7 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.18, type: "spring", stiffness: 280, damping: 22 }}

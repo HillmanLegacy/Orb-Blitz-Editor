@@ -5530,6 +5530,34 @@ canvas {
   opacity: 0.22 !important;
 }
 
+/* Keep the boss popup compact enough for short landscape and mobile heights. */
+.orblitz-boss-defeat-popup .orblitz-result-card {
+  width: min(460px, calc(100vw - 28px)) !important;
+  max-width: 460px !important;
+  max-height: calc(100dvh - 20px) !important;
+  margin-inline: auto !important;
+  padding: clamp(9px, 1.5vh, 14px) clamp(12px, 2.5vw, 20px) !important;
+  gap: clamp(4px, 0.8vh, 8px) !important;
+  overflow-y: auto !important;
+}
+
+.orblitz-boss-defeat-popup .orblitz-result-title h1 {
+  font-size: clamp(1.15rem, min(5.5vw, 5vh), 2.25rem) !important;
+}
+
+.orblitz-boss-defeat-popup .orblitz-result-score > div {
+  font-size: clamp(1.45rem, min(6vw, 6vh), 2.7rem) !important;
+}
+
+.orblitz-boss-defeat-popup .orblitz-result-actions button {
+  height: clamp(40px, 7vh, 56px) !important;
+}
+
+.orblitz-boss-defeat-popup .orblitz-result-actions button > span:first-of-type {
+  font-size: clamp(0.85rem, min(2.4vw, 3vh), 1.2rem) !important;
+  margin-bottom: 2px !important;
+}
+
 .orblitz-arcade-complete > div.relative {
   max-height: calc(100dvh - 28px) !important;
   overflow-y: auto !important;
