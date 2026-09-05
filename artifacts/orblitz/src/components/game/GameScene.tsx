@@ -517,8 +517,9 @@ export function GameScene({
             />
           )}
 
-          {/* Lightweight background — gameplay GPU systems mount below only when needed */}
-          {backgroundEnabled && !rootMenuPreview && <Background visible={!worldBossPreview} />}
+          {/* Keep the ambient WebGL background behind every menu surface. Heavy
+              gameplay systems still mount only during loading/playing below. */}
+          {backgroundEnabled && <Background visible={!worldBossPreview} />}
 
           {/* Gameplay systems — unmounted outside gameplay loading/playing */}
           <GameplayGate />
