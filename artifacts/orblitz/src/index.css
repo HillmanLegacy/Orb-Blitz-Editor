@@ -8294,3 +8294,51 @@ input:focus-visible,
 .orblitz-options-window .orblitz-options-selection-content {
   overflow: hidden !important;
 }
+
+/* Brightness and volume are paired controls: keep both cards and tracks
+   mathematically equal even when older flex rules or breakpoint overrides run. */
+.orblitz-options-window .orblitz-options-brightness-control,
+.orblitz-options-window .orblitz-options-volume-control {
+  box-sizing: border-box;
+  flex: 1 1 0 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.orblitz-options-window .orblitz-options-brightness-control input[type="range"],
+.orblitz-options-window .orblitz-options-volume-control input[type="range"] {
+  display: block;
+  width: 100% !important;
+}
+
+@media (min-width: 900px) and (min-height: 560px) {
+  .orblitz-options-window .orblitz-options-brightness-control,
+  .orblitz-options-window .orblitz-options-volume-control {
+    grid-column: span 1;
+  }
+}
+
+@media (min-width: 900px) and (min-height: 560px) {
+  .orblitz-options-window .orblitz-options-control-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .orblitz-options-window .orblitz-options-control-row > .orblitz-options-brightness-control,
+  .orblitz-options-window .orblitz-options-control-row > .orblitz-options-volume-control,
+  .orblitz-options-window .orblitz-options-control-row > .orblitz-options-mute-control {
+    grid-column: span 1;
+    grid-row: 1;
+  }
+
+  .orblitz-options-window .orblitz-options-mute-control {
+    min-height: 0 !important;
+    flex-direction: column;
+    gap: 0;
+    padding: 0 18px !important;
+  }
+
+  .orblitz-options-window .orblitz-options-mute-control > span:first-of-type {
+    margin-bottom: clamp(2px, 0.6vw, 5px) !important;
+  }
+}
