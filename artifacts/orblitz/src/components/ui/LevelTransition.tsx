@@ -205,7 +205,7 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto pointer-events-auto select-none orblitz-pause-screen orblitz-result-screen"
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto pointer-events-auto select-none orblitz-pause-screen orblitz-result-screen ${isBoss ? "orblitz-boss-defeat-popup" : ""}`}
       style={{ padding: "clamp(8px,2vh,18px) clamp(10px,4vw,32px)", backgroundColor: "rgba(5,8,28,0.34)" }}
     >
       {/* Main-menu atmosphere carried into the level-complete state. */}

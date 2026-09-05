@@ -298,17 +298,21 @@ function PostProcessing({
   );
 }
 
-// ── Gameplay systems — mounted only during gameplay loading/playing ────────────
+// ── Gameplay systems — mounted through the result popup so the last game frame
+// stays visible behind the level-complete card. ────────────────────────────────
 // All heavy gameplay GPU allocations (InstancedMesh buffers, particle typed
-// arrays, physics maps, useFrame loops) live here.  Keeping them unmounted
-// outside loading and playing phases reclaims the majority of idle GPU + RAM.
+// arrays, physics maps, useFrame loops) live here. Keeping them unmounted
+// outside loading, playing, and the result popup reclaims idle GPU + RAM.
 // They mount during the gameplay loading phase, then stay mounted through play.
 function GameplayGate() {
   const phase = useMagicOrb(s => s.phase);
   const [GameplayScene, setGameplayScene] = useState<ComponentType | null>(
     () => loadedGameplayScene,
   );
-  const gameplayActive = phase === "loading" || phase === "playing";
+  const gameplayActive =
+    phase === "loading" ||
+    phase === "playing" ||
+    phase === "levelComplete";
   const gateMode = getGameplayGateMode(gameplayActive, GameplayScene !== null);
 
   useEffect(() => {

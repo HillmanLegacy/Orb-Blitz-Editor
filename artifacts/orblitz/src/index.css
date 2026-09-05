@@ -5509,6 +5509,27 @@ canvas {
   outline-offset: -8px;
 }
 
+/* Boss results are a popup over the frozen gameplay frame, not a replacement
+   screen. Keep the game readable while the centered result card remains legible. */
+.orblitz-boss-defeat-popup {
+  background: rgba(3, 5, 18, 0.38) !important;
+  backdrop-filter: blur(2px) saturate(0.92);
+}
+
+.orblitz-boss-defeat-popup .orblitz-result-atmosphere {
+  opacity: 0.18 !important;
+}
+
+.orblitz-boss-defeat-popup .orblitz-result-grid {
+  opacity: 0.035 !important;
+}
+
+.orblitz-boss-defeat-popup .orblitz-result-orbs,
+.orblitz-boss-defeat-popup .orblitz-result-rings,
+.orblitz-boss-defeat-popup .orblitz-result-scanlines {
+  opacity: 0.22 !important;
+}
+
 .orblitz-arcade-complete > div.relative {
   max-height: calc(100dvh - 28px) !important;
   overflow-y: auto !important;
