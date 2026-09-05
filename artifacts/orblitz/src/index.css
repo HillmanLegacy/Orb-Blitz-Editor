@@ -8342,3 +8342,17 @@ input:focus-visible,
     margin-bottom: clamp(2px, 0.6vw, 5px) !important;
   }
 }
+
+@media (min-width: 900px) and (min-height: 560px) {
+  .orblitz-options-window .orblitz-options-control-row {
+    height: 100%;
+    align-items: stretch;
+  }
+
+  .orblitz-options-window .orblitz-options-control-row > .orblitz-options-brightness-control,
+  .orblitz-options-window .orblitz-options-control-row > .orblitz-options-volume-control,
+  .orblitz-options-window .orblitz-options-control-row > .orblitz-options-mute-control {
+    align-self: stretch;
+    height: 100% !important;
+  }
+}
