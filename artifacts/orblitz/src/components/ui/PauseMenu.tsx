@@ -317,6 +317,7 @@ export function PauseMenu({ onMainMenu }: { onMainMenu?: () => void }) {
       id: "quit", icon: <IconQuit />, label: "QUIT",
       color: "#667788", shadow: "rgba(100,110,130,0.22)",
       action: () => {
+        sfx();
         try { playExitToMenu(); } catch {}
         try { stopArcadeBgm(); } catch {}
         onMainMenu?.();
