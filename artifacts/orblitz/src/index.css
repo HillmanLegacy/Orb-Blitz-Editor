@@ -8285,3 +8285,12 @@ input:focus-visible,
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 }
+
+/* Options is a bounded dialog, not a scroll surface. Keep legacy selection
+   overflow rules from reintroducing a scrollbar over the settings window. */
+.orblitz-options-window-screen,
+.orblitz-options-window,
+.orblitz-options-window-body,
+.orblitz-options-window .orblitz-options-selection-content {
+  overflow: hidden !important;
+}
