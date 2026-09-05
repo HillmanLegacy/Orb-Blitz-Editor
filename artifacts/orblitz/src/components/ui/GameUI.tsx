@@ -456,7 +456,7 @@ export function GameUI() {
                     {comboTier ?? "Building"}
                   </p>
                   <p className="text-[9px] font-bold tracking-widest" style={{ color: "#9bbbc4" }}>
-                    {comboTimeRemaining.toFixed(1)}s
+                    {comboTimeRemaining.toFixed(2)}s
                   </p>
                 </div>
               </div>
@@ -467,7 +467,7 @@ export function GameUI() {
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={Math.round(comboMeterProgress * 100)}
-                aria-valuetext={`${comboCount} combo${comboCount === 1 ? "" : "s"}`}
+                aria-valuetext={`${comboCount} combo${comboCount === 1 ? "" : "s"}; ${comboTimeRemaining.toFixed(2)} seconds remaining`}
                 style={{ background: "rgba(0,255,255,0.12)", border: "1px solid #00ffff44" }}
               >
                 <motion.div

@@ -1,11 +1,11 @@
-export const COMBO_WINDOW_SECONDS = 1;
+export const COMBO_WINDOW_SECONDS = 0.75;
 
 export const COMBO_TIERS = [
-  { name: "Orbiter", threshold: 2 },
-  { name: "Orbtastic", threshold: 4 },
-  { name: "Orbnado", threshold: 7 },
-  { name: "Orblitterator", threshold: 10 },
-  { name: "Orbagedon", threshold: 15 },
+  { name: "Orbiter", threshold: 3 },
+  { name: "Orbtastic", threshold: 6 },
+  { name: "Orbnado", threshold: 10 },
+  { name: "Orblitterator", threshold: 16 },
+  { name: "Orbagedon", threshold: 25 },
 ] as const;
 
 export type ComboTierName = (typeof COMBO_TIERS)[number]["name"];
