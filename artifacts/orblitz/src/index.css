@@ -8238,7 +8238,7 @@ input:focus-visible,
     width: auto !important;
     height: auto !important;
     min-height: 0 !important;
-    max-width: none;
+    max-width: none !important;
   }
 
   .orblitz-options-window .orblitz-options-slider-control {
