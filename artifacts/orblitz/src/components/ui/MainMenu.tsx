@@ -59,7 +59,7 @@ export function MainMenu({ onShowHowToPlay, onShowModeSelect, onShowSettings }: 
   const { highScore } = useMagicOrb();
   const { coins: stars, openShop, openInventory, activateDevMode, devMode } = useShop();
   const { 
-    playMenuSelect, 
+    playUiClick,
     playOrbWhoosh, 
     playOrbConverge, 
     playRingExpand, 
@@ -132,7 +132,7 @@ export function MainMenu({ onShowHowToPlay, onShowModeSelect, onShowSettings }: 
   }, [playOrbWhoosh, playOrbConverge, playRingExpand, playSparkle, playTitleReveal]);
 
   const handleButtonClick = (action: () => void) => {
-    playMenuSelect();
+    playUiClick();
     action();
   };
 

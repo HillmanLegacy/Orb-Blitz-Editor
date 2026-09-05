@@ -102,6 +102,45 @@ describe("audio settings", () => {
     }
   });
 
+  it("plays the shared Retro9 UI cue through the pooled effect path", () => {
+    const previousAudio = globalThis.Audio;
+    const paths: string[] = [];
+    const instances: FakeAudioElement[] = [];
+    class TestAudio {
+      volume = 1;
+      muted = false;
+      paused = false;
+      currentTime = 0;
+      onended: (() => void) | null = null;
+      constructor(path: string) {
+        paths.push(path);
+        instances.push(this);
+      }
+      play = () => Promise.resolve();
+      pause = vi.fn();
+      removeAttribute = vi.fn();
+      load = vi.fn();
+    }
+    globalThis.Audio = TestAudio as unknown as typeof Audio;
+
+    try {
+      useAudio.setState({ isMuted: false });
+      useAudio.getState().setVolume(0.5);
+      useAudio.getState().playUiClick();
+
+      expect(paths).toHaveLength(6);
+      expect(new Set(paths)).toEqual(new Set(["/sounds/retro9-ui-click.ogg"]));
+      expect(instances[0].volume).toBeCloseTo(0.26);
+
+      useAudio.setState({ isMuted: true });
+      useAudio.getState().playUiClick();
+      expect(paths).toHaveLength(6);
+    } finally {
+      useAudio.getState().releaseAudio();
+      globalThis.Audio = previousAudio;
+    }
+  });
+
   it("mutes and restores active outputs immediately without changing the saved volume", () => {
     const menuBgm = makeAudio();
     const synthMenuMusic = makeSynthNode();

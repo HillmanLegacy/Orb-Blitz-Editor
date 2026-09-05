@@ -314,6 +314,7 @@ interface AudioState {
   playGameOver: () => void;
   playBossHit: () => void;
   playCoin: () => void;
+  playUiClick: () => void;
   playMenuSelect: () => void;
   playLevelSelect: () => void;
   playExitToMenu: () => void;
@@ -653,6 +654,9 @@ export const useAudio = create<AudioState>((set, get) => ({
   },
   playCoin: () => {
     if (!get().isMuted) playCoinSound(0.35);
+  },
+  playUiClick: () => {
+    if (!get().isMuted) playWav("/sounds/retro9-ui-click.ogg", 0.52);
   },
   playMenuSelect: () => {
     if (!get().isMuted) playWav("/sounds/menu_select.wav", 0.52);

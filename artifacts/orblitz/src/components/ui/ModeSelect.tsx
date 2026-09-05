@@ -36,10 +36,10 @@ const modeInfo: Record<GameMode, { name: string; description: string; color: str
 
 export function ModeSelect({ onBack, onArcadeSelect }: ModeSelectProps) {
   const { setGameMode, startLoading } = useMagicOrb();
-  const { playMenuSelect } = useAudio();
+  const { playUiClick } = useAudio();
 
   const handleSelectMode = (mode: GameMode) => {
-    playMenuSelect();
+    playUiClick();
     setGameMode(mode);
     if (mode === "arcade" && onArcadeSelect) {
       onArcadeSelect();
@@ -56,7 +56,7 @@ export function ModeSelect({ onBack, onArcadeSelect }: ModeSelectProps) {
       
       <motion.button
         onClick={() => {
-          playMenuSelect();
+          playUiClick();
           onBack();
         }}
         className="fixed top-4 left-4 z-20 px-4 py-2 bg-gray-600/50 hover:bg-gray-600/70 rounded-full font-bold text-white text-sm transition-colors flex items-center gap-2"

@@ -136,8 +136,8 @@ export function GameUI() {
     magiOrb7Active: s.magiOrb7Active, magiOrb7Cooldown: selectUiTimer(s.magiOrb7Cooldown),
     magiOrb7MaxCooldown: s.magiOrb7MaxCooldown, activateMagiOrb7: s.activateMagiOrb7,
   })));
-  const { toggleMute, isMuted, playPause } = useAudio(useShallow((s) => ({
-    toggleMute: s.toggleMute, isMuted: s.isMuted, playPause: s.playPause,
+  const { toggleMute, isMuted, playUiClick } = useAudio(useShallow((s) => ({
+    toggleMute: s.toggleMute, isMuted: s.isMuted, playUiClick: s.playUiClick,
   })));
   const { coins: shopStars, equippedWeapon, equippedDefenses, equippedMagiOrb } = useShop(useShallow((s) => ({
     coins: s.coins, equippedWeapon: s.equippedWeapon, equippedDefenses: s.equippedDefenses, equippedMagiOrb: s.equippedMagiOrb,
@@ -374,7 +374,7 @@ export function GameUI() {
             {/* Pause */}
             <motion.button
               onClick={() => {
-                playPause();
+                playUiClick();
                 pauseGame();
                 useOrbTransition.getState().pauseSweep();
               }}

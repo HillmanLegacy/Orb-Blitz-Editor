@@ -277,12 +277,12 @@ function StatusPanel({ onClose }: { onClose: () => void }) {
 export function PauseMenu({ onMainMenu }: { onMainMenu?: () => void }) {
   const { phase, resumeGame, score } = useMagicOrb();
   const { openShop, shopOpen, inventoryOpen } = useShop();
-  const { isMuted, toggleMute, playLevelSelect, playExitToMenu, stopArcadeBgm } = useAudio();
+  const { isMuted, toggleMute, playUiClick, playExitToMenu, stopArcadeBgm } = useAudio();
   const [statusOpen, setStatusOpen] = useState(false);
 
   if (phase !== "paused" || shopOpen || inventoryOpen) return null;
 
-  const sfx = () => { try { playLevelSelect(); } catch {} };
+  const sfx = () => { try { playUiClick(); } catch {} };
 
   const topRow: BtnDef[] = [
     {

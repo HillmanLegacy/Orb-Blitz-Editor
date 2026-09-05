@@ -68,6 +68,7 @@ const REWARD_MODEL: SectionAsset = {
 };
 
 const MENU_AUDIO: SectionAsset[] = [
+  { id: "ui-click", url: "/sounds/retro9-ui-click.ogg", label: "Loading menu audio", kind: "audio" },
   { id: "menu-select", url: "/sounds/menu_select.wav", label: "Loading menu audio", kind: "audio" },
   { id: "level-select", url: "/sounds/level_select.wav", label: "Loading menu audio", kind: "audio" },
   { id: "exit-menu", url: "/sounds/exit_to_menu.wav", label: "Loading menu audio", kind: "audio" },

@@ -250,7 +250,7 @@ export function StartupAnimation({
   const carouselPointerStartX = useRef<number | null>(null);
   const carouselSwipeRef = useRef(false);
 
-  const { playLevelSelect, isMuted, toggleMute, volume, setVolume, brightness, setBrightness, startMenuBgm, stopMenuBgm } = useAudio();
+  const { playUiClick, isMuted, toggleMute, volume, setVolume, brightness, setBrightness, startMenuBgm, stopMenuBgm } = useAudio();
   const { openShop, openInventory, openTrophies, activateDevMode, coins: shopStars, devMode } = useShop();
   const { setGameMode, startLoading } = useMagicOrb();
   const graphicsPreset = useGraphicsPreset();
@@ -291,7 +291,7 @@ export function StartupAnimation({
     } else { setDevProgress(letter === DEV_SEQUENCE[0] ? 1 : 0); }
   }, [devProgress, activateDevMode]);
 
-  const btn = useCallback((id: string) => { try { playLevelSelect(); } catch {} }, [playLevelSelect]);
+  const btn = useCallback((id: string) => { try { playUiClick(); } catch {} }, [playUiClick]);
 
   const handleStartMode = useCallback((mode: string) => {
     btn(mode);
@@ -330,11 +330,13 @@ export function StartupAnimation({
   const isBossLevel     = (level: number) => Math.round((level % 1) * 10) === 9;
   const isWorldUnlocked = (w: number)     => devMode || (w + 0.1) <= highestLevel + 0.01;
   const moveWorld = useCallback((direction: number) => {
+    btn(direction < 0 ? "world-previous" : "world-next");
     setSelectedWorld((current) => ((current - 1 + direction + 9) % 9) + 1);
-  }, []);
+  }, [btn]);
   const moveLevel = useCallback((direction: number) => {
+    btn(direction < 0 ? "level-previous" : "level-next");
     setSelectedLevel((current) => ((current - 1 + direction + 9) % 9) + 1);
-  }, []);
+  }, [btn]);
   const getLevelForWorld = useCallback((world: number) => {
     const levels = Array.from({ length: 9 }, (_, index) => world + (index + 1) / 10);
     const current = levels.find((level) => isLevelUnlocked(level) && level > highestLevel);
@@ -373,9 +375,11 @@ export function StartupAnimation({
       carouselView === "worlds" ? moveWorld(1) : moveLevel(1);
     } else if (event.key === "Home") {
       event.preventDefault();
+      btn(carouselView === "worlds" ? "world-first" : "level-first");
       carouselView === "worlds" ? setSelectedWorld(1) : setSelectedLevel(1);
     } else if (event.key === "End") {
       event.preventDefault();
+      btn(carouselView === "worlds" ? "world-last" : "level-last");
       carouselView === "worlds" ? setSelectedWorld(9) : setSelectedLevel(9);
     } else if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
@@ -383,7 +387,7 @@ export function StartupAnimation({
       if (carouselView === "worlds") openWorldLevels(selectedWorld);
       else startLevel(selectedLevel);
     }
-  }, [carouselView, moveLevel, moveWorld, openWorldLevels, selectedLevel, selectedWorld, startLevel]);
+  }, [btn, carouselView, moveLevel, moveWorld, openWorldLevels, selectedLevel, selectedWorld, startLevel]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -538,7 +542,7 @@ export function StartupAnimation({
                   key={world}
                   type="button"
                   className={`orblitz-world-index-button ${active ? "is-active" : ""} ${unlocked ? "" : "is-locked"}`}
-                  onClick={() => setSelectedWorld(world)}
+                   onClick={() => { btn(`world-index-${world}`); setSelectedWorld(world); }}
                   disabled={!unlocked}
                   aria-label={`Focus World ${world}`}
                   aria-current={active ? "true" : undefined}
@@ -670,7 +674,7 @@ export function StartupAnimation({
                   key={sub}
                   type="button"
                   className={`orblitz-world-index-button ${active ? "is-active" : ""} ${unlocked ? "" : "is-locked"}`}
-                  onClick={() => setSelectedLevel(sub)}
+                   onClick={() => { btn(`level-index-${sub}`); setSelectedLevel(sub); }}
                   disabled={!unlocked}
                   aria-label={`Focus level ${selectedWorld}.${sub}`}
                   aria-current={active ? "true" : undefined}
@@ -937,7 +941,7 @@ export function StartupAnimation({
                     <motion.button
                       type="button"
                       whileTap={{ scale: 0.85 }}
-                      onClick={() => setMenuState("root")}
+                      onClick={() => { btn("close-options"); setMenuState("root"); }}
                       aria-label="Close options"
                       title="Close options"
                       className="orblitz-loadout-close flex items-center justify-center rounded-lg"
@@ -1192,6 +1196,13 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
   const ss = isMuted ? "rgba(130,146,174,0.22)" : "rgba(0,246,255,0.4)";
   const bPct = Math.round(((brightness - 0.2) / 1.8) * 100);
   const vPct = Math.round(volume * 100);
+  const lastSliderCueAt = useRef(0);
+  const playSliderCue = useCallback((id: string) => {
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    if (now - lastSliderCueAt.current < 120) return;
+    lastSliderCueAt.current = now;
+    btn(id);
+  }, [btn]);
 
   const itemVariants = {
     hidden:  { opacity: 0, y: 16, scale: 0.86 },
@@ -1302,6 +1313,12 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
             aria-label="Brightness"
             data-testid="input-brightness"
             onChange={e => setBrightness(Number(e.target.value))}
+             onPointerDown={() => playSliderCue("brightness")}
+             onKeyDown={e => {
+               if (["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(e.key)) {
+                 playSliderCue("brightness");
+               }
+             }}
             onClick={e => e.stopPropagation()}
             className="orb-bslider"
             style={{
@@ -1334,6 +1351,12 @@ function SettingsButtonRow({ isMuted, toggleMute, volume, setVolume, brightness,
             aria-label="Volume"
             data-testid="input-volume"
             onChange={e => setVolume(Number(e.target.value))}
+             onPointerDown={() => playSliderCue("volume")}
+             onKeyDown={e => {
+               if (["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(e.key)) {
+                 playSliderCue("volume");
+               }
+             }}
             onClick={e => e.stopPropagation()}
             className="orb-vslider"
             style={{
