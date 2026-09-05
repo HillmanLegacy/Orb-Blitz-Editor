@@ -5,6 +5,7 @@ import { useShop } from "@/lib/stores/useShop";
 import { useAudio } from "@/lib/stores/useAudio";
 import { useOrbTransition } from "@/lib/stores/useOrbTransition";
 import { GradeResults } from "./GradeResults";
+import { CompletionConfetti } from "./CompletionConfetti";
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 const _svg = { viewBox: "0 0 24 24", fill: "none", width: "1em", height: "1em", style: { display: "block" } } as const;
@@ -300,6 +301,8 @@ export function LevelTransition({ onLevelSelect, onMainMenu }: LevelTransitionPr
           />
         ))}
       </div>
+
+       <CompletionConfetti variant={isBoss ? "boss" : "level"} />
 
       {/* Glass card */}
       <motion.div

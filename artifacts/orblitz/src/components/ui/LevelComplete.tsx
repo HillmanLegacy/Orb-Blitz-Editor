@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { useMemo } from "react";
 import { useMagicOrb } from "@/lib/stores/useMagicOrb";
+import { CompletionConfetti } from "./CompletionConfetti";
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const CYAN   = "#00ffff";
@@ -169,6 +170,8 @@ export function LevelComplete() {
           />
         ))}
       </div>
+
+       <CompletionConfetti variant={isBoss ? "boss" : "level"} />
 
       {/* ── Layer 6: Vignette ── */}
       <div
