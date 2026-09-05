@@ -109,6 +109,7 @@ export function GameUI() {
     magiOrb3MaxCooldown, activateMagiOrb3, magiOrb4Active, magiOrb4Cooldown,
     magiOrb4MaxCooldown, activateMagiOrb4, magiOrb5HP, magiOrb5MaxHP,
     magiOrb7Active, magiOrb7Cooldown, magiOrb7MaxCooldown, activateMagiOrb7,
+    comboCount, comboTier, comboMeterProgress, comboTimeRemaining,
   } = useMagicOrb(useShallow((s) => ({
     score: s.score, hasShield: s.hasShield,
     hasChargeBeam: s.hasChargeBeam, chargeBeamTimer: selectUiTimer(s.chargeBeamTimer),
@@ -135,6 +136,9 @@ export function GameUI() {
     magiOrb5HP: s.magiOrb5HP, magiOrb5MaxHP: s.magiOrb5MaxHP,
     magiOrb7Active: s.magiOrb7Active, magiOrb7Cooldown: selectUiTimer(s.magiOrb7Cooldown),
     magiOrb7MaxCooldown: s.magiOrb7MaxCooldown, activateMagiOrb7: s.activateMagiOrb7,
+     comboCount: s.combo.count, comboTier: s.combo.tier,
+     comboMeterProgress: s.combo.meterProgress,
+     comboTimeRemaining: selectUiTimer(s.combo.timeRemaining),
   })));
   const { toggleMute, isMuted, playUiClick } = useAudio(useShallow((s) => ({
     toggleMute: s.toggleMute, isMuted: s.isMuted, playUiClick: s.playUiClick,
@@ -419,6 +423,67 @@ export function GameUI() {
           </div>
         </div>
       </div>
+
+      {/* ── COMBO CHAIN ───────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {comboCount > 0 && (
+          <motion.div
+            key="combo-chain"
+            role="status"
+            aria-live="polite"
+            className="absolute top-24 md:top-4 left-1/2 -translate-x-1/2 w-[min(13.5rem,calc(100vw-1.5rem))] pointer-events-none"
+            initial={{ opacity: 0, y: -12, scale: 0.88 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.92 }}
+            transition={{ type: "spring", stiffness: 420, damping: 28 }}
+          >
+            <div className="px-3 py-2.5" style={pnl("#00ffff", true)}>
+              <TA color="#00ffff" /><SL />
+              <div className="relative flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[9px] font-black tracking-[0.2em] uppercase" style={{ color: "#7defff", opacity: 0.8 }}>
+                    Combo
+                  </p>
+                  <p className="text-lg md:text-xl font-black leading-none" style={{
+                    color: "#ffffff",
+                    textShadow: "0 0 10px #00ffffaa",
+                  }}>
+                    {comboCount}×
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-black tracking-[0.13em] uppercase" style={{ color: "#00ffff" }}>
+                    {comboTier ?? "Building"}
+                  </p>
+                  <p className="text-[9px] font-bold tracking-widest" style={{ color: "#9bbbc4" }}>
+                    {comboTimeRemaining.toFixed(1)}s
+                  </p>
+                </div>
+              </div>
+              <div
+                className="relative mt-2 h-1.5 rounded-full overflow-hidden"
+                role="progressbar"
+                aria-label="Combo progression"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(comboMeterProgress * 100)}
+                aria-valuetext={`${comboCount} combo${comboCount === 1 ? "" : "s"}`}
+                style={{ background: "rgba(0,255,255,0.12)", border: "1px solid #00ffff44" }}
+              >
+                <motion.div
+                  className="h-full rounded-full"
+                  animate={{ width: `${comboMeterProgress * 100}%` }}
+                  transition={{ type: "spring", stiffness: 300, damping: 24 }}
+                  style={{
+                    background: "linear-gradient(90deg,#00aaff,#00ffff,#b8ffff)",
+                    boxShadow: "0 0 10px #00ffffaa",
+                  }}
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── ABILITY HOTBAR (bottom-left) ──────────────────────────────────────── */}
       {(hasDistort || hasDistortFieldDefense || hasTeletransfer || hasPulseShield ||

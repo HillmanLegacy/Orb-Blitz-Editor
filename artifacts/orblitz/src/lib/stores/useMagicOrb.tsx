@@ -21,8 +21,15 @@ import {
   type ProgressionWeapon,
   type WeaponLevelUpResult,
 } from "@/game-runtime/WeaponProgression";
+import {
+  advanceCombo,
+  createEmptyComboProgress,
+  tickCombo,
+  type ComboProgress,
+} from "@/game-runtime/ComboProgression";
 import type { TrophyUnlock } from "@/game-runtime/TrophyProgression";
 import type { FireBossAmbushImpact } from "@/game-runtime/FireBossAmbush";
+import { useAudio } from "./useAudio";
 
 export type GamePhase = "menu" | "loading" | "playing" | "paused" | "gameOver" | "levelComplete" | "modeSelect" | "arcadeComplete";
 export type LoadingType = "entering" | "exiting" | "exiting_to_menu" | "nextLevel" | null;
@@ -223,6 +230,7 @@ export interface MagicOrbState {
   highScore: number;
   stars: number;
   gameTime: number;
+  combo: ComboProgress;
   gauntletOrbsDestroyed: number;
   runStats: GameplayStats;
   lastResult: GameplayResultSnapshot | null;
@@ -570,6 +578,7 @@ export const useMagicOrb = create<MagicOrbState>()(
     highScore: getStoredHighScore(),
     stars: 0,
     gameTime: 0,
+    combo: createEmptyComboProgress(),
     gauntletOrbsDestroyed: 0,
     runStats: createInitialGameplayStats("survival", 3),
     lastResult: null,
@@ -718,6 +727,7 @@ export const useMagicOrb = create<MagicOrbState>()(
           score: 0,
           stars: 0,
           gameTime: 0,
+          combo: createEmptyComboProgress(),
           hasShield: false,
           shieldDisintTimer: 0,
           shieldFormTimer: 0,
@@ -897,6 +907,7 @@ export const useMagicOrb = create<MagicOrbState>()(
         score: 0,
         stars: 0,
         gameTime: 0,
+        combo: createEmptyComboProgress(),
         gauntletOrbsDestroyed: 0,
         runStats: createInitialGameplayStats(mode, maxHP),
         lastResult: null,
@@ -1061,6 +1072,7 @@ export const useMagicOrb = create<MagicOrbState>()(
         magiOrb7Timer: 0,
         selectedWeapon: "normal",
         gameTime: 0,
+        combo: createEmptyComboProgress(),
         runStats: createInitialGameplayStats("arcade", 3 + bonusHP, level),
         lastResult: null,
         hitProjectileIds: [],
@@ -1122,6 +1134,7 @@ export const useMagicOrb = create<MagicOrbState>()(
           } catch {}
           set({ 
             phase: "arcadeComplete",
+            combo: createEmptyComboProgress(),
             lastResult: completedResult,
             lastTrophyUnlocks: trophyUnlocks,
             bossDefeating: false,
@@ -1368,6 +1381,7 @@ export const useMagicOrb = create<MagicOrbState>()(
       const trophyUnlocks = useShop.getState().recordTrophyResult(result);
       set({ 
         phase: "gameOver",
+        combo: createEmptyComboProgress(),
         highScore: newHighScore,
         lastResult: result,
         lastTrophyUnlocks: trophyUnlocks,
@@ -1384,6 +1398,7 @@ export const useMagicOrb = create<MagicOrbState>()(
         orbsDestroyedInLevel: 0,
         score: 0,
         gameTime: 0,
+        combo: createEmptyComboProgress(),
         runStats: createInitialGameplayStats("survival", 3),
         lastResult: null,
         hitProjectileIds: [],
@@ -2111,9 +2126,16 @@ export const useMagicOrb = create<MagicOrbState>()(
       const { gameMode, gameTime } = get();
       const newGameTime = gameTime + delta;
       if (gameMode === "survival") {
-        set({ gameTime: newGameTime, score: Math.floor(newGameTime) });
+        set({
+          gameTime: newGameTime,
+          combo: tickCombo(get().combo, newGameTime),
+          score: Math.floor(newGameTime),
+        });
       } else {
-        set({ gameTime: newGameTime });
+        set({
+          gameTime: newGameTime,
+          combo: tickCombo(get().combo, newGameTime),
+        });
       }
     },
 
@@ -2187,16 +2209,23 @@ export const useMagicOrb = create<MagicOrbState>()(
     },
 
     recordEnemyDefeat: (id) => {
+      let comboCountToPlay: number | null = null;
       set((state) => {
         const orb = state.darkOrbs.find((candidate) => candidate.id === id);
         if (!orb || orb.destroying) return state;
+        const combo = advanceCombo(state.combo, state.gameTime);
+        comboCountToPlay = combo.count;
         return {
+          combo,
           runStats: {
             ...state.runStats,
             enemiesDefeated: state.runStats.enemiesDefeated + 1,
           },
         };
       });
+      if (comboCountToPlay !== null) {
+        useAudio.getState().playCombo(comboCountToPlay);
+      }
     },
     
     updateDifficulty: () => {
@@ -2442,6 +2471,7 @@ export const useMagicOrb = create<MagicOrbState>()(
       // --- gameTime + survival score ---
       const newGameTime = s.gameTime + delta;
       updates.gameTime = newGameTime;
+      updates.combo = tickCombo(s.combo, newGameTime);
       if (s.gameMode === "survival") {
         updates.score = Math.floor(newGameTime);
         // difficulty scaling
